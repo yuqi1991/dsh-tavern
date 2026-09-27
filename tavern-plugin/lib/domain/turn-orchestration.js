@@ -2,6 +2,7 @@ import { CARD_MEMORY_TOOLS } from '../../packages/dsh-tavern-card-memory/index.j
 import { inputAttachments } from './player-input-content.js'
 import { resolveRuntimePresetMacros } from './runtime-presets.js'
 import { composeTavernRegexScripts } from './card-extension-reading.js'
+import { withDefaultStatusRegexScripts } from './default-status-panel.js'
 import { scriptPromptFrameInputs, consumeScriptPrompts } from './tavern-script-prompts.js'
 import { rememberTavernResources } from './workspace-resources.js'
 import { projectBackgroundInput } from './runtime-content-projection.js'
@@ -552,7 +553,7 @@ export function createTurnOrchestrator(options) {
       const projectionText = assistantText
       reply = projectReply(sourceText, {
         projectionText,
-        regexScripts: composeTavernRegexScripts(extensions, presetRegexScripts),
+        regexScripts: withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(extensions, presetRegexScripts)),
         placement: 2,
         isEdit: false,
         depth: 0

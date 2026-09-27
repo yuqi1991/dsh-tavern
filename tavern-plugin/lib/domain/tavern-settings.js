@@ -39,6 +39,7 @@ export function applyTavernSettingsPatch(current, patch) {
     next.backgroundTasks = normalizeBackgroundTasks({ ...normalizeBackgroundTasks(next.backgroundTasks), ...object(input.backgroundTasks) })
   }
   if (Object.prototype.hasOwnProperty.call(input, 'compatibilityMode')) next.compatibilityMode = input.compatibilityMode === true
+  if (Object.hasOwn(input, 'defaultStatusPanel')) next.defaultStatusPanel = input.defaultStatusPanel === true
   if (Object.hasOwn(input, 'systemAppendEnabled')) next.systemAppendEnabled = input.systemAppendEnabled === true
   if (Object.prototype.hasOwnProperty.call(input, 'webSearchEnabled')) next.webSearchEnabled = input.webSearchEnabled === true
   if (Object.prototype.hasOwnProperty.call(input, 'backgroundModel')) {
@@ -98,6 +99,7 @@ export function presentTavernSettings(document, defaults) {
     defaultBackgroundModel: normalizeBackgroundModel(object(document).defaultBackgroundModel),
     contextCompaction: compactionPolicy(object(document).contextCompaction),
     candidateDismissMode: object(document).candidateDismissMode === 'after-send' ? 'after-send' : 'after-fill',
+    defaultStatusPanel: object(document).defaultStatusPanel !== false,
     compatibilityMode: true,
     webSearchEnabled: object(document).webSearchEnabled === true,
     systemAppendEnabled: object(document).systemAppendEnabled !== false,

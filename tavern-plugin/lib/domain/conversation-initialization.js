@@ -8,6 +8,7 @@ import { bindSceneWorldbook } from './scene-worldbook.js'
 import { normalizeBackgroundModel } from './background-model-selection.js'
 import { normalizeBackgroundTasks } from './tavern-settings.js'
 import { ensureSessionSeedTrajectory } from './session-seed-trajectory.js'
+import { appendDefaultStatusEntrance, defaultStatusPanelEnabled, defaultStatusVariables, withDefaultStatusRegexScripts } from './default-status-panel.js'
 
 function str(value) { return value === undefined || value === null ? '' : String(value) }
 function groupOfMode(mode) { return !mode || mode === 'story' || mode === 'script' ? 'play' : 'card' }
@@ -107,17 +108,21 @@ export function createConversationInitialization(options) {
     const macroState = { userName: str(userName).trim().slice(0, 80) || '你', local: {}, global: {} }
     const runtimePresetSnapshot = groupOfMode(chatMode) === 'play' ? await playPresetSnapshot() : null
     const cardEditExperiment = chatMode === 'card' && cardTask === 'edit' && card !== null
-    const openingSourceText = chatMode === 'card' ? (cardEditExperiment ? '' : cardGreeting()) : resolveCardOpening(card, openingId)
+    const openingSourceTextBase = chatMode === 'card' ? (cardEditExperiment ? '' : cardGreeting()) : resolveCardOpening(card, openingId)
     const openingExtensions = chatMode === 'card' ? null : await cards.extensions(cardPath)
     const openingChoices = chatMode === 'card' ? [] : cardOpeningChoices(card)
     const selectedOpeningIndex = str(openingId) === '' ? 0 : Math.max(0, openingChoices.findIndex(function (choice) { return choice.id === str(openingId) }))
-    const usesMvu = chatMode !== 'card' && (
+    const ownMvu = chatMode !== 'card' && (
       (Array.isArray(openingExtensions && openingExtensions.mvuResources) && openingExtensions.mvuResources.some(function (item) { return item.enabled !== false }))
       || openingChoices.some(function (choice) { return /<(?:initvar|json_?patch)>|_\.(?:set|insert|assign|remove|unset|delete|add)\(/i.test(choice.text) })
     )
-    const openingRegexScripts = (Array.isArray(openingExtensions && openingExtensions.regexScripts) ? openingExtensions.regexScripts : []).concat(
+    // Cards without their own MVU machinery still get the built-in default panel.
+    const defaultStatusPanel = ownMvu !== true && chatMode !== 'card' && defaultStatusPanelEnabled(currentSettings)
+    const usesMvu = ownMvu || defaultStatusPanel
+    const openingSourceText = defaultStatusPanel ? appendDefaultStatusEntrance(openingSourceTextBase) : openingSourceTextBase
+    const openingRegexScripts = withDefaultStatusRegexScripts({ defaultStatusPanel }, (Array.isArray(openingExtensions && openingExtensions.regexScripts) ? openingExtensions.regexScripts : []).concat(
       Array.isArray(runtimePresetSnapshot && runtimePresetSnapshot.regexScripts) ? runtimePresetSnapshot.regexScripts : []
-    )
+    ))
     const openingProjection = chatMode === 'card'
       ? { agentText: openingSourceText, renderedText: openingSourceText, sessionText: openingSourceText, displayText: openingSourceText, displayMode: 'markdown', displayParts: [{ kind: 'markdown', text: openingSourceText }], warnings: [], macroState }
       : projectOpeningCommit(openingSourceText, {
@@ -169,6 +174,7 @@ export function createConversationInitialization(options) {
         status: 'pending'
       }
     } : { enabled: false }
+    if (defaultStatusPanel) chat.defaultStatusPanel = true
     if (groupOfMode(chat.mode) === 'play' || chat.cardEditContext?.version === 1) {
       await snapshots.prepare(chat, card)
     }
@@ -212,6 +218,14 @@ export function createConversationInitialization(options) {
         if (opening.variables.length && opening.variables.every(value => value && typeof value === 'object' && !Array.isArray(value) && value.stat_data !== undefined && value.schema !== undefined)) {
           chat.mvu.openingInitialization = { version: 2, status: 'complete', completedAt: Date.now() };
         }
+      }
+    }
+    // Built-in default panel: host-provided opening variables for every swipe.
+    if (defaultStatusPanel) {
+      const opening = chat.messages.find(message => message.greeting);
+      if (opening) {
+        opening.variables = openingChoices.map(() => defaultStatusVariables());
+        chat.mvu.openingInitialization = { version: 2, status: 'complete', completedAt: Date.now() };
       }
     }
     delete chat.sceneOpeningWorldbook
