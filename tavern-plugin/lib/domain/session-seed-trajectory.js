@@ -44,8 +44,14 @@ function assistantMessage(sessionId, index, texts) {
   }
 }
 
-export function sessionSeedTrajectoryMessages(sessionId, mode = 'story') {
-  const texts = mode === 'card' ? CARD_TEXT : TEXT
+export function sessionSeedTrajectoryMessages(sessionId, mode = 'story', overrides = null) {
+  const defaults = mode === 'card' ? CARD_TEXT : TEXT
+  const custom = mode === 'card' ? null : overrides
+  const texts = [
+    str(custom && custom.user).trim() !== '' ? str(custom.user) : defaults[0],
+    str(custom && custom.assistant).trim() !== '' ? str(custom.assistant) : defaults[1],
+    defaults[2]
+  ]
   const userOne = userMessage(sessionId, 0, texts)
   const assistant = assistantMessage(sessionId, 1, texts)
   const userTwo = userMessage(sessionId, 2, texts)
@@ -68,10 +74,10 @@ function visibleEvents(session) {
   return sessionEvents(session).filter(event => event && event.type !== 'session/end-seed')
 }
 
-function ensure(session, mode) {
+function ensure(session, mode, overrides) {
   if (!session || typeof session.append !== 'function' || str(session.id) === '') throw new Error('无法写入 Session 种子轨迹')
   ensureSessionSystemHead(session)
-  const stages = sessionSeedTrajectoryMessages(session.id, mode)
+  const stages = sessionSeedTrajectoryMessages(session.id, mode, overrides)
   const expectedIds = stages.map((_, index) => id(session.id, index))
   const events = visibleEvents(session)
   const start = events.findIndex(event => messageId(event) === expectedIds[0])
@@ -96,9 +102,9 @@ function ensure(session, mode) {
   return Object.freeze({ version: VERSION, events: Object.freeze(complete.slice()) })
 }
 
-export async function ensureSessionSeedTrajectory(session, mode = 'story') {
+export async function ensureSessionSeedTrajectory(session, mode = 'story', overrides = null) {
   if (pending.has(session)) return pending.get(session)
-  const operation = Promise.resolve().then(function () { return ensure(session, mode) })
+  const operation = Promise.resolve().then(function () { return ensure(session, mode, overrides) })
   pending.set(session, operation)
   try { return await operation } finally { pending.delete(session) }
 }

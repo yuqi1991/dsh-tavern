@@ -2,6 +2,7 @@ import { inputAttachments, projectPlayerContent } from './player-input-content.j
 import { resolveRuntimePresetMacros } from './runtime-presets.js'
 import { createEphemeralCompatibilityRequest, isCompatibilityConversationRequest } from './compatibility-request.js'
 import { projectRuntimePresetRequest } from './runtime-preset-lifecycle.js'
+import { projectStoryMaterials, projectHistoryBlockTrim } from './story-materials.js'
 
 function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
@@ -246,11 +247,16 @@ export function createNativePlayOrchestrationStrategy(options) {
       }
       // Persist/migrate the fixed system snapshot before native request assembly.
       if (typeof options.ensureSessionPrefix === 'function') await options.ensureSessionPrefix(input)
+      // 固定背景不再进入顶部 system；请求投影阶段注入种子轨迹之后的 StoryMaterials system 消息。
+      const storyMaterials = typeof options.buildStoryMaterials === 'function'
+        ? await options.buildStoryMaterials({ session: payload.agent?.session, chat: input.chat })
+        : null
       stagedRequests.set(sessionId, {
         turn: Math.max(0, Number(payload.turn) || 0),
         step: Math.max(1, Number(payload.step) || 1),
         scope: 'foreground',
-        snapshot: snapshot || null
+        snapshot: snapshot || null,
+        storyMaterials: storyMaterials && str(storyMaterials).trim() !== '' ? str(storyMaterials) : null
       })
     }
     if (Number(payload.step) === 1) {
@@ -294,6 +300,14 @@ export function createNativePlayOrchestrationStrategy(options) {
     if (replayMessages !== request.messages) request = Object.assign({}, request, { messages: replayMessages })
     const passbackMessages = projectDeepSeekThinkingPassback(request.messages, request)
     if (passbackMessages !== request.messages) request = Object.assign({}, request, { messages: passbackMessages })
+    // 在预设投影与角色规范化之后注入，保证 StoryMaterials 保持 system 角色。
+    if (staged.storyMaterials) {
+      const materialMessages = projectStoryMaterials(request.messages, staged.storyMaterials, sessionId)
+      if (materialMessages !== request.messages) request = Object.assign({}, request, { messages: materialMessages })
+    }
+    // 历史正文只保留最新 3 个 <StatusBlock> 与 <UpdateVariable>，更早的助手回复仅发送正文。
+    const historyTrimmed = projectHistoryBlockTrim(request.messages)
+    if (historyTrimmed !== request.messages) request = Object.assign({}, request, { messages: historyTrimmed })
     // DSH's renderer returns '' for no sections; adapters otherwise serialize
     // it as an empty system message. Preserve any explicit non-empty prompt.
     if (request.system === '') {

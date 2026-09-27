@@ -15,6 +15,8 @@ function groupOfMode(mode) { return !mode || mode === 'story' || mode === 'scrip
 /** Owns initialization, repeat-entry and opening recovery; never generates a model turn. */
 export function createConversationInitialization(options) {
   const { cards, chats, snapshots, native, presets, settings, cardGreeting, emptyCardWorkspace, present, timeline } = options
+  const seedTrajectory = options.seedTrajectory
+  function seedOverrides() { return typeof seedTrajectory === 'function' ? seedTrajectory() : null }
   if (!timeline || typeof timeline.apply !== 'function') throw new Error('Conversation Initialization 缺少 Story Timeline')
   const id = options.id
   const now = options.now || Date.now
@@ -300,12 +302,12 @@ export function createConversationInitialization(options) {
     const target = readyTarget || await native.wait(sessionId)
     if (groupOfMode(chat.mode) === 'play' && chat.requestMode !== 'sillytavern') {
       await native.ensurePrefix(target.session, await snapshots.ensure(chat, card))
-      await ensureSessionSeedTrajectory(target.session)
+      await ensureSessionSeedTrajectory(target.session, 'story', seedOverrides())
       await native.flush(target.session)
     }
     if (groupOfMode(chat.mode) === 'card') {
       if (chat.cardEditContext?.version === 1) await native.ensurePrefix(target.session, await snapshots.ensure(chat, card))
-      await ensureSessionSeedTrajectory(target.session, chat.cardEditContext?.version === 1 ? 'story' : 'card')
+      await ensureSessionSeedTrajectory(target.session, chat.cardEditContext?.version === 1 ? 'story' : 'card', seedOverrides())
       if (chat.cardEditContext?.version === 1) await native.ensureCardWorkspace(target.session, chat)
       await native.flush(target.session)
     }

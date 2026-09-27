@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 
 export const SYSTEM_PROMPT_DEFINITIONS = Object.freeze([
+  ['seed-story-user', '游玩会话开场指引', '游玩会话开头写入的第 1 条用户消息（会话种子轨迹）。定义“本轮演出指引”的协作框架。修改只影响之后新建的游玩会话，已建会话保持原文。'],
+  ['seed-story-assistant', '游玩会话开场确认', '游玩会话开头写入的合成助手回复（会话种子轨迹第 2 条）。建议与开场指引配套修改；修改只影响之后新建的游玩会话。'],
   ['system-append', 'system附加指令', '默认开启，可按需关闭。内容会添加到前台、后台、卡片及文生图 Agent 的 system 提示词最前面（位于外部预设之前），修改后从下一次请求生效。'],
   ['story', '正文 Agent 核心提示词', '控制普通游玩正文的续写规则。'],
   ['script-story', '剧本模式正文补充', '控制绑定剧本时追加给正文 Agent 的规则。'],

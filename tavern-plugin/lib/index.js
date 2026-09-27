@@ -75,7 +75,8 @@ import { legacyImageConfigurationReader } from './domain/image-generation-host.j
 import { createSceneWorldbooks, sceneWorldbookBinding } from './domain/scene-worldbook.js'
 import { createSceneImageDiagnostics, createSceneImageHostLogger, recordSceneImageInteraction } from './domain/scene-image-diagnostics.js'
 import { TAVERN_RELEASE_CAPABILITIES } from './domain/release-capabilities.js'
-import { createSessionStablePrefixStorage, ensureSessionStablePrefix, readSessionStablePrefix, sessionStablePrefixSections, withCurrentWorldbook } from './domain/session-stable-prefix.js'
+import { createSessionStablePrefixStorage, ensureSessionStablePrefix, readSessionStablePrefix, sessionStablePrefixSections } from './domain/session-stable-prefix.js'
+import { storyMaterialsText } from './domain/story-materials.js'
 import { waitForWritableSession } from './domain/agent-readiness.js'
 import { createCardDeletion } from './domain/card-deletion.js'
 import { createCardOrganization } from './domain/card-organization.js'
@@ -1760,6 +1761,7 @@ export async function apply(ctx) {
     userPreferenceProfile,
     presets: runtimePresets,
     settings: readTavernSettings,
+    seedTrajectory: function () { return { user: runtimePrompt('seed-story-user'), assistant: runtimePrompt('seed-story-assistant') } },
     cardGreeting: function () { return prompt('card-mode-greeting') },
     emptyCardWorkspace,
     id: uid,
@@ -4127,6 +4129,12 @@ export async function apply(ctx) {
       ensureSessionPrefix: async function (input) {
         return await ensureNativeSystemPrefix(input.payload.agent.session, input.chat)
       },
+      buildStoryMaterials: async function (input) {
+        const sections = sessionStablePrefixSections(input.session)
+        if (sections.length === 0) return null
+        const worldBook = (await nativeWorldBookTemplateContext(input.chat, await readChatCard(input.chat))).prefixContext ?? ''
+        return storyMaterialsText(sections, worldBook)
+      },
       controlledToolNames
     }
   })
@@ -4327,8 +4335,9 @@ export async function apply(ctx) {
       chat,
       cwd: agent.session.header && agent.session.header.cwd,
       workspaceProjection,
+      // 故事固定背景不再进入顶部 system；由 projectStoryMaterials 在种子轨迹后注入。
       fixedSystemSections: chat && ['story', 'script'].includes(chat.mode || 'story')
-        ? withCurrentWorldbook(sessionStablePrefixSections(agent.session), (await nativeWorldBookTemplateContext(chat, await readChatCard(chat))).prefixContext ?? '')
+        ? []
         : sessionStablePrefixSections(agent.session)
     })
     return prependSystemInstruction(assembled, chat ? runtimePrompt('system-append') : '')
