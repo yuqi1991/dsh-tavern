@@ -85,6 +85,7 @@ import { createCardOrganization } from './domain/card-organization.js'
 import { orderCardsByNewestImport } from './domain/card-list-order.js'
 import { createCardPreparation } from './domain/card-preparation.js'
 import { withGlobalRegexScripts, composeTavernRegexScripts } from './domain/card-extension-reading.js'
+import { DEFAULT_STATUS_UPDATE_RULES, withDefaultStatusRegexScripts } from './domain/default-status-panel.js'
 import { projectCardOpeningPreviews } from './domain/card-opening-previews.js'
 import { READABLE_CARD_FIELDS, readCardField } from './domain/card-reading.js'
 import { createConversationInitialization } from './domain/conversation-initialization.js'
@@ -1447,9 +1448,9 @@ export async function apply(ctx) {
       const presetRegexScripts = Array.isArray(activePresetSnapshot && activePresetSnapshot.regexScripts) ? activePresetSnapshot.regexScripts : []
       replyDisplay = await requestPerformance.stage('historyProjection', () => incrementalReplyView.project(persistedProjection ? chat : { ...chat, _storageRevision: undefined }, {
         charName: chat.cardName, macroState: chat.macroState,
-        regexScripts: composeTavernRegexScripts(cardExtensions, presetRegexScripts),
+        regexScripts: withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(cardExtensions, presetRegexScripts)),
         placement: 2, isMarkdown: true, isEdit: false, depth: 0
-      }, { charName: chat.cardName, macroState: chat.macroState, regexScripts: cardExtensions.regexScripts }, {shared:true}))
+      }, { charName: chat.cardName, macroState: chat.macroState, regexScripts: withDefaultStatusRegexScripts(chat, cardExtensions.regexScripts) }, {shared:true}))
       replyDisplay = await liveCardUpdate.project(chat, card, replyDisplay, {charName:chat.cardName,macroState:chat.macroState,regexScripts:cardExtensions.regexScripts})
       replyDisplay.projections = withLegacyPresentationProjection(chat, replyDisplay.projections)
     }
@@ -1700,9 +1701,9 @@ export async function apply(ctx) {
       const presetRegexScripts = Array.isArray(activePresetSnapshot && activePresetSnapshot.regexScripts) ? activePresetSnapshot.regexScripts : []
       let replyDisplay = await requestPerformance.stage('historyProjection', () => incrementalReplyView.project(chat, {
         charName: chat.cardName, macroState: chat.macroState,
-        regexScripts: composeTavernRegexScripts(cardExtensions, presetRegexScripts),
+        regexScripts: withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(cardExtensions, presetRegexScripts)),
         placement: 2, isMarkdown: true, isEdit: false, depth: 0
-      }, { charName: chat.cardName, macroState: chat.macroState, regexScripts: cardExtensions.regexScripts }, {shared:true}))
+      }, { charName: chat.cardName, macroState: chat.macroState, regexScripts: withDefaultStatusRegexScripts(chat, cardExtensions.regexScripts) }, {shared:true}))
       const renderChat = {...chat,messages:createScopedMessages(chat.messages.length,[],index=>{const message=chat.messages[index];return message.variables ? message : {...message,variables:helperCore.messages[index]?.swipes_data || []}})}
       replyDisplay = await liveCardUpdate.project(renderChat, card, replyDisplay, {charName:chat.cardName,macroState:chat.macroState,regexScripts:cardExtensions.regexScripts})
       replyDisplay.projections = withLegacyPresentationProjection(chat, replyDisplay.projections)
@@ -2340,13 +2341,15 @@ export async function apply(ctx) {
     return null
   }
   async function mvuUpdateRules(chat, card) {
+    const defaults = chat && chat.defaultStatusPanel === true ? [DEFAULT_STATUS_UPDATE_RULES] : []
     try {
       const worldBook = await worldBooks.bound(chat.cardPath, card, chat)
-      return mvuUpdateRulesFromWorldBook(worldBook).map(function (rule) {
+      const rules = mvuUpdateRulesFromWorldBook(worldBook).map(function (rule) {
         return projectAgentContent(rule, { charName: card && card.name, macroState: chat.macroState }).agentText
       })
+      return defaults.concat(rules)
     } catch (_error) {
-      return []
+      return defaults
     }
   }
   async function prepareNextWorldBookContext(snapshot, signal) {
@@ -2947,7 +2950,7 @@ export async function apply(ctx) {
     project: async (text, chat) => {
       const extensions = await readCardExtensions(chat.cardPath, chat)
       return projectRuntimeReply(text, { charName: chat.cardName, macroState: chat.macroState,
-        regexScripts: composeTavernRegexScripts(extensions, chat.runtimePresetSnapshot?.regexScripts), placement: 2, isEdit: false, depth: 0 })
+        regexScripts: withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(extensions, chat.runtimePresetSnapshot?.regexScripts)), placement: 2, isEdit: false, depth: 0 })
     },
     present: async chat => view(chat, await readChatCard(chat)),
     sessionPatch,
@@ -3961,7 +3964,7 @@ export async function apply(ctx) {
     if (!preset || preset.valid !== true || preset.recognized !== true || !presetDocument) throw new Error('当前预设不存在或无法读取：' + presetPath)
     const card = await readChatCard(chat)
     const extensions = await readCardExtensions(chat.cardPath, chat)
-    const regexScripts = composeTavernRegexScripts(extensions, snapshot?.regexScripts)
+    const regexScripts = withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(extensions, snapshot?.regexScripts))
     const worldInfo = await compatibilityWorldInfo(chat, card, userText)
     const compiled = compileSillyTavernRequest({
       card,
