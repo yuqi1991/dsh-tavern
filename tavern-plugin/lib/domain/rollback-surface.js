@@ -94,6 +94,27 @@ function isRollbackUserTombstone(event) {
   )
 }
 
+// New branch transactions keep empty administrative rows on the native
+// surface. They carry no message content and may lie between a saved body and
+// a later reroll. Recognize only our exact encoding with a matching commit.
+function committedHistoryControls(events) {
+  const completed = new Set(events.flatMap(event => {
+    const source = event.type === 'user/message' ? event.data?.source : event.data?.message?.source
+    const tag = source?.conversationTransaction
+    return tag && ['commit', 'begin-commit'].includes(tag.phase) ? [tag.operationId] : []
+  }))
+  return new Set(events.filter(event => {
+    if (event.type !== 'user/message' || !event.surfaceOp || event.data?.role !== 'user' ||
+        !Array.isArray(event.data.content) || event.data.content.length !== 0) return false
+    const { source, id } = event.data
+    if (source?.kind !== 'plugin' || source.plugin !== 'dsh-tavern') return false
+    const tag = source.conversationTransaction
+    if (!tag || typeof tag.operationId !== 'string' || !['begin', 'continue', 'commit', 'begin-commit'].includes(tag.phase) || !completed.has(tag.operationId)) return false
+    return source.form === 'conversation-metadata' && String(id).startsWith('conversation-metadata:') ||
+      source.form === 'checkout' && event.surfaceOp?.op === 'replace' && String(id).startsWith('conversation-checkout:')
+  }).map(event => event.seq))
+}
+
 function isRollbackAssistantTombstone(event, events) {
   if (!event || event.type !== 'assistant/message' || modelSourceOf(event) === null) return false
   const content = event.data && event.data.message && event.data.message.content
@@ -356,6 +377,7 @@ export function planRegenerationSurface(input) {
   if (oldAssistantIndex < 0) throw new Error('旧正文已经不在当前模型消息面中')
 
   const ownership = createSurfaceOwnership(events)
+  const historyControls = committedHistoryControls(events)
   const end = regenerationAttemptEnd(events, eventStart)
   const attempt = ownership.classify(event => event.seq >= eventStart && event.seq < end)
   let finalAssistantSeq = null
@@ -373,10 +395,12 @@ export function planRegenerationSurface(input) {
   const residue = ownership.classify(event => failed.some(interval => event.seq > interval.start && event.seq < interval.end))
   const range = planSurfaceRange({ nodes, start: oldAssistantSeq, end: finalAssistantSeq,
     accepts: seq => seq === oldAssistantSeq || attempt(seq) === OWNED || residue(seq) === OWNED ||
+      historyControls.has(Number(seq)) ||
       isRollbackUserTombstone(ownership.eventAt(seq)) || isRollbackAssistantTombstone(ownership.eventAt(seq), events),
     message: '重新生成消息归属不一致，无法安全清理' })
   // Replacing a saved round is never allowed to consume or precede newer story.
   if (nodes.slice(nodes.indexOf(finalAssistantSeq) + 1).some(seq =>
+    !historyControls.has(Number(seq)) &&
     !isRollbackUserTombstone(ownership.eventAt(seq)) && !isRollbackAssistantTombstone(ownership.eventAt(seq), events))) {
     throw new SurfaceRecoveryError('重新生成后已有新的消息，无法安全清理')
   }

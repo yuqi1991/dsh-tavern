@@ -163,3 +163,32 @@ test('product failed regenerate restores edited prose and archives the aborted a
   assert.deepEqual(computeFold(h.session.snapshotEvents()).rows.map(e=>(e.data.message??e.data).content[0].text),['推门','旧正文'])
  }finally{patch.dispose()}
 })
+
+test('product reroll succeeds after checkout left empty control rows behind the old body',async()=>{
+ const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
+ const {createConversationBranches}=await import('../../tavern-plugin/lib/domain/conversation-algebra-branches.js')
+ const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ try{
+  const h=harness({checkpoint:true,journal:true})
+  appendSessionEvent(h.session,'user/message',{id:'discarded',role:'user',source:{kind:'user'},content:[{type:'text',text:'later'}]},{surfaceOp:'append'})
+  appendSessionEvent(h.session,'assistant/message',{turn:3,step:1,message:{id:'discarded-body',role:'assistant',source:{kind:'model',provider:'fixture',model:'fixture'},content:[{type:'text',text:'later reply'}]}},{surfaceOp:'append'})
+  const branches=createConversationBranches(h.session,{flush:async()=>{},writeRegistry:async registry=>{await h.options.chats.update('chat',current=>({...current,branchRegistry:registry}),{source:'test.registry'})}})
+  await branches.commit(await branches.plan(1))
+  h.agent.phase.lastTurn=3
+  h.agent.whenIdle=async()=>{
+    const turn=++h.agent.phase.lastTurn,text='重生成成功正文'
+    h.session.append('turn/start',{turn})
+    appendSessionEvent(h.session,'user/message',h.agent.input,{surfaceOp:'append'})
+    appendSessionEvent(h.session,'assistant/message',{turn,step:1,message:{id:'generated',role:'assistant',source:{kind:'model',provider:'fixture',model:'fixture'},content:[{type:'text',text}]}},{surfaceOp:'append'})
+    h.session.append('turn/end',{turn,reason:{kind:'completed'}})
+    await h.options.chats.update('chat',current=>{
+      const begun=h.timeline.apply({chat:current,intent:{kind:'body.begin',turn,userText:h.agent.input.content[0].text}})
+      return h.timeline.complete({chat:begun.chat,operationId:begun.value.operationId,basedOn:begun.value.basedOn,outcome:{status:'success'},apply(draft){draft.messages.push({role:'user',text:h.agent.input.content[0].text},{role:'assistant',turn,text,sourceText:text})}}).chat
+    },{source:'test.generated'})
+  }
+  const result=await h.create().regenerate('chat','','session')
+  assert.equal(result.messages.at(-1).text,'重生成成功正文')
+  assert.equal(h.chat.regenRecovery,undefined)
+  assert.match(JSON.stringify(h.session.deriveMessages()),/重生成成功正文/)
+ }finally{patch.dispose()}
+})
