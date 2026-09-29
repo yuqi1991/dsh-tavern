@@ -156,7 +156,6 @@ import {
   sanitizeAgentProjectionText
 } from './domain/runtime-content-projection.js'
 import { createScriptContinuity } from './domain/script-continuity.js'
-import { appendWritingSkillState } from './domain/skill-visibility.js'
 import { createStoryTimeline } from './domain/story-timeline.js'
 import { createStoryCompactionRequest, usesStoryCompaction } from './domain/story-compaction.js'
 import { installCompactionRequestProjection } from './domain/compaction-request.js'
@@ -2981,6 +2980,23 @@ export async function apply(ctx) {
   const cardResponseTest = createCardResponseTest({ api: gameplayApi, store: profileData, chatForSession })
   ctx.effect(() => () => cardResponseTest.dispose())
 
+  /** Read the player input paired with the latest committed body. */
+  async function readRegenerationInput(sessionId) {
+    const chat = await chatForSession(str(sessionId))
+    if (!chat) throw new Error('请先打开游玩会话')
+    const messages = Array.isArray(chat.messages) ? chat.messages : []
+    let assistantIndex = -1
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index]
+      if (message && typeof message === 'object' && message.role === 'assistant' && message.greeting !== true) {
+        assistantIndex = index
+        break
+      }
+    }
+    if (assistantIndex < 1 || !messages[assistantIndex - 1] || messages[assistantIndex - 1].role !== 'user') return { input: '', turn: 0 }
+    return { input: str(messages[assistantIndex - 1].text), turn: Math.max(0, Number(messages[assistantIndex].turn) || 0) }
+  }
+
   async function dispatchMethod(method, args, serverTemplate = false) {
     if (method.startsWith('gameplay.')) return await gameplayApi.call(method.slice(9), args || {})
     switch (method) {
@@ -3521,7 +3537,8 @@ export async function apply(ctx) {
       case 'deleteGuide': return { guides: await deleteGuide(args && args.sessionId, args && args.index) }
       case 'getBodyEdit': return { edit: await bodyEditor.read(args && args.sessionId) }
       case 'saveBodyEdit': return { view: await bodyEditor.save(args && args.sessionId, args) }
-      case 'regenBody': return { view: await regenBody(args && args.chatId, args && args.guidance, args && args.sessionId) }
+      case 'regenBody': return { view: await regenBody(args && args.chatId, args && args.guidance, args && args.sessionId, args && args.input) }
+      case 'getRegenInput': return await readRegenerationInput(args && args.sessionId)
       case 'replayTurn': return { view: await replayFailedTurn(args && args.chatId, args && args.sessionId) }
       case 'setAllFailedErrorVisibility': {
         const sessionId = str(args && args.sessionId)
@@ -4128,7 +4145,6 @@ export async function apply(ctx) {
       systemAppend: () => runtimePrompt('system-append'),
       stagedRequests: runtimePresetSnapshots,
       modeFor: async function (sessionId) { return await turnOrchestrator.modeFor(sessionId) },
-      filterMessages: appendWritingSkillState,
       resolvePreset: resolveChatRuntimePreset,
       prepareTurn: async function (input) { return await foregroundHandoff.prepare(input) },
       appendFrame: function (input) { return foregroundFrameSessionAdapter.append(input) },

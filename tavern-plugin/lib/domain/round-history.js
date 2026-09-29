@@ -15,6 +15,35 @@ function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
 }
 
+/** Edited input text, or null when unchanged. Empty text never clears input. */
+export function normalizeEditedInput(value, originalUserText) {
+  const text = str(value).trim()
+  if (text === '' || text === str(originalUserText).trim()) return null
+  return text
+}
+
+/** Plan the surface replacement that rewrites this round's player-input node
+ * with the edited text. The node keeps its original kind-user source, so
+ * rollback, replay and suppression logic all keep treating it as the input. */
+export function planUserInputSurface(session, oldAssistantSeq, editedText) {
+  const nodes = session && session.surface && Array.isArray(session.surface.nodes) ? session.surface.nodes : []
+  const events = sessionEvents(session)
+  const bySeq = new Map(events.map(event => [event.seq, event]))
+  const assistantIndex = nodes.indexOf(Number(oldAssistantSeq))
+  if (assistantIndex < 0) return null
+  for (let index = assistantIndex - 1; index >= 0; index--) {
+    const seq = Number(nodes[index])
+    const event = bySeq.get(seq)
+    const source = event && event.data && event.data.source
+    if (!event || event.type !== 'user/message' || !source || source.kind !== 'user') continue
+    return {
+      data: { id: randomUUID(), role: 'user', content: [{ type: 'text', text: str(editedText) }], source: structuredClone(source) },
+      range: { start: seq, end: seq, sourceEventSeqs: [seq] }
+    }
+  }
+  return null
+}
+
 export function selectRegenerationTarget(chat, session, observe) {
   const nodes = (session.surface !== undefined && Array.isArray(session.surface.nodes)) ? session.surface.nodes : []
   const eventStart = sessionEvents(session).length
@@ -62,7 +91,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
   const pendingReplays = new Set()
   const regenerationRecovery = createRegenerationRecovery({ chats, sessions, timeline, isActive: id => pendingRegenerations.has(id) })
 
-  async function regenerate(chatId, guidance, sessionId) {
+  async function regenerate(chatId, guidance, sessionId, inputOverride) {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
     const chat = str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
     if (!chat) throw new Error('聊天不存在: ' + chatId)
@@ -72,7 +101,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (pendingReplays.has(chat.id)) throw new Error('正在重放失败回合，请等待完成')
     if (pendingRegenerations.has(chat.id) || pendingRollbacks.has(chat.id)) throw new Error('正文正在重新生成，请等待完成')
     pendingRegenerations.add(chat.id)
-    try { return await regenBody(chat.id, guidance, sessionId) }
+    try { return await regenBody(chat.id, guidance, sessionId, inputOverride) }
     finally { pendingRegenerations.delete(chat.id) }
   }
 
@@ -99,7 +128,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (beforeChat === undefined) throw new Error('找不到剧情 checkpoint 对应的历史 Chat revision: ' + target.beforeRevision)
     return Object.assign({}, intent, { beforeChat })
   }
-  async function regenBody(chatId, guidance, sessionId) {
+  async function regenBody(chatId, guidance, sessionId, inputOverride) {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
     let chat = str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
     if (chat === undefined) throw new Error('聊天不存在: ' + chatId)
@@ -131,6 +160,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       }
     }
     const { eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource } = selection
+    const originalUserText = str(msgs0[oldAssistantIndex - 1].text).trim()
+    const editedInput = normalizeEditedInput(inputOverride, originalUserText)
     // V3 hosts may reject assistant replacements. Check an isolated copy before
     // rolling back the Chat, cancelling settlement or paying for a new reply.
     if (session.header?.version >= 3) {
@@ -140,13 +171,21 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
           turn: oldTurn, step: 1,
           message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: msgs0[oldAssistantIndex].text }], source: oldSource }
         }, { start: oldSeq, end: oldSeq, sourceEventSeqs: [oldSeq] })
+        // Edited input also rewrites this round's player-input node; validate
+        // the same host accepts that replacement before spending a generation.
+        if (editedInput !== null) {
+          const userPreview = planUserInputSurface(session, oldSeq, editedInput)
+          if (userPreview === null) throw new Error('找不到本轮输入对应的原生消息')
+          replaceSessionSurface(preview, 'user/message', userPreview.data, userPreview.range)
+        }
       } catch (error) {
         if (sessionPatch?.status === 'failed') throw new Error(sessionPatch.reason, { cause: error })
         if (sessionPatch?.serverReady) throw error
-        throw new Error('当前 DSH 不支持正文替换，未启动重新生成。' + str(error?.message || error), { cause: error })
+        throw new Error('当前 DSH 不支持正文或输入替换，未启动重新生成。' + str(error?.message || error), { cause: error })
       }
+    } else if (editedInput !== null && planUserInputSurface(session, oldSeq, editedInput) === null) {
+      throw new Error('找不到本轮输入对应的原生消息，无法修改输入')
     }
-    const originalUserText = str(msgs0[oldAssistantIndex - 1].text).trim()
     let originalChat = structuredClone(chat)
     const operationId = randomUUID()
     async function restoreFailedRegen() {
@@ -194,7 +233,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     }, { source: 'rollback.regen' })
     const rolledMessageCount = (chat.messages || []).length
     const guide = str(guidance).trim()
-    const syntheticText = originalUserText + (guide !== '' ? '\n\n【本轮补充要求】\n' + guide : '')
+    // Edited input replaces the original text; guidance still appends as a supplement.
+    const syntheticText = (editedInput !== null ? editedInput : originalUserText) + (guide !== '' ? '\n\n【本轮补充要求】\n' + guide : '')
     const beforeLastTurn = agent.phase !== undefined && agent.phase !== null && Number.isFinite(Number(agent.phase.lastTurn)) ? Number(agent.phase.lastTurn) : 0
     let committedChat, body, syntheticTurn
     try {
@@ -230,6 +270,11 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       }
       const replacement = planRegenerationSurface({ events: sessionEvents(session), nodes: session.surface.nodes,
         oldAssistantSeq: oldSeq, eventStart })
+      const userProjection = editedInput === null ? null : planUserInputSurface(session, oldSeq, editedInput)
+      if (editedInput !== null && userProjection === null) {
+        // Surface and stored story must never disagree on the input text.
+        throw new Error('重新生成期间本轮输入的原生消息已变化，未修改输入')
+      }
       const projection = {
         data: { turn: oldTurn, step: 1, message: { id: 'tavern-regen:' + operationId,
           role: 'assistant', content: [{ type: 'text', text: body }], source: oldSource } },
@@ -245,13 +290,27 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         if (currentMessages.length < rolledMessageCount + 2 || currentUser === null || typeof currentUser !== 'object' || currentUser.role !== 'user' ||
             currentAssistant === null || typeof currentAssistant !== 'object' || currentAssistant.role !== 'assistant' || Number(currentAssistant.turn) !== syntheticTurn ||
             str(currentAssistant.text).trim() !== body) throw new Error('重新生成流程的正文已被另一项操作修改')
-        const merged = replaceLastRound({ originalChat, regeneratedChat: current, assistantIndex: oldAssistantIndex })
+        const merged = replaceLastRound({ originalChat, regeneratedChat: current, assistantIndex: oldAssistantIndex, inputText: editedInput })
         const next = merged.chat
         if (next.nativeCommits !== null && typeof next.nativeCommits === 'object') delete next.nativeCommits[String(syntheticTurn)]
         next.nativeCommits = next.nativeCommits && typeof next.nativeCommits === 'object' ? structuredClone(next.nativeCommits) : {}
-        if (originalChat.nativeCommits && originalChat.nativeCommits[String(oldTurn)]) next.nativeCommits[String(oldTurn)] = structuredClone(originalChat.nativeCommits[String(oldTurn)])
+        if (originalChat.nativeCommits && originalChat.nativeCommits[String(oldTurn)]) {
+          const restoredCommit = structuredClone(originalChat.nativeCommits[String(oldTurn)])
+          // Future rollbacks match commits by user text; keep it in step with the edit.
+          if (editedInput !== null) restoredCommit.userText = editedInput
+          next.nativeCommits[String(oldTurn)] = restoredCommit
+        }
+        // The chat bubble reads this turn's text from runtimeInputs before the
+        // merged message; an edited input must rewrite it there too or the
+        // surface keeps showing the pre-edit text while the story updates.
+        if (editedInput !== null && next.runtimeInputs && typeof next.runtimeInputs === 'object' && !Array.isArray(next.runtimeInputs)
+          && next.runtimeInputs[String(oldTurn)] && typeof next.runtimeInputs[String(oldTurn)] === 'object') {
+          next.runtimeInputs = structuredClone(next.runtimeInputs)
+          next.runtimeInputs[String(oldTurn)] = { ...next.runtimeInputs[String(oldTurn)], source: editedInput, text: editedInput }
+        }
         next.regenInProgress = true
-        next.regenRecovery = { ...current.regenRecovery, phase: 'committed', projection }
+        next.regenRecovery = { ...current.regenRecovery, phase: 'committed', projection,
+          ...(userProjection !== null ? { userProjection } : {}) }
         next.settleStatus = 'pending'
         next.settleError = null
         next.tavernHelperLifecycleRevision = lifecycleRevision + 1
@@ -280,7 +339,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       }, { source: 'settlement.regen-failed' })
     }
     const result = await view(settledChat, card)
-    result.adopted = { text: body, guidance: guide, hiddenTurn: oldTurn, syntheticTurn: syntheticTurn }
+    result.adopted = { text: body, guidance: guide, hiddenTurn: oldTurn, syntheticTurn: syntheticTurn,
+      ...(editedInput !== null ? { inputEdited: true, inputText: editedInput } : {}) }
     return result
   }
 

@@ -66,6 +66,9 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       if (saved.sessionId !== session.id) throw new Error('重新生成恢复会话不匹配')
       const projection = saved.projection
       if (!projection) throw new Error('重新生成缺少已提交正文的投影记录')
+      // An edited player input is committed together with the new body so a
+      // crash never leaves the surface showing the superseded input text.
+      if (saved.userProjection) replaceSessionSurface(session, 'user/message', saved.userProjection.data, saved.userProjection.range)
       replaceSessionSurface(session, 'assistant/message', projection.data, projection.range)
       if (typeof sessions.flush === 'function') await sessions.flush(session)
       delete current.regenRecovery

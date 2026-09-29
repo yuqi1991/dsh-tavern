@@ -76,6 +76,26 @@ export function projectRegenerationRequestMessages(messages) {
   return source.slice(0, playerIndex).concat([projectedPlayer], source.slice(regenerationIndex + 1))
 }
 
+const CONTEXT_SYSTEM_FORMS = new Set(['writing-skill-reminder', 'worldbook-snapshot', 'snapshot', 'foreground-frame'])
+function isContextSystemMessage(message) {
+  const source = message && message.source
+  if (!source || typeof source !== 'object') return false
+  if (source.kind === 'skill-catalog') return true
+  return source.kind === 'plugin' && source.plugin === 'dsh-tavern' && CONTEXT_SYSTEM_FORMS.has(String(source.form))
+}
+
+/** Change only the provider request; Session evidence remains append-only. */
+export function projectContextSystemRoles(messages) {
+  const source = Array.isArray(messages) ? messages : []
+  let changed = false
+  const projected = source.map(function (message) {
+    if (!isContextSystemMessage(message) || message.role === 'system') return message
+    changed = true
+    return Object.assign({}, message, { role: 'system' })
+  })
+  return changed ? projected : source
+}
+
 function snapshotMessage(text) {
   return {
     id: crypto.randomUUID(),
@@ -199,7 +219,7 @@ export function createCompatibilityOrchestrationStrategy(options) {
     const sessionId = str(optionsValue && optionsValue.sessionId)
     const staged = stagedRequests.get(sessionId)
     if (redispatches.has(optionsValue) || !isCompatibilityConversationRequest(optionsValue, staged, coordinates)) return null
-    const request = createEphemeralCompatibilityRequest(optionsValue, staged.messages)
+    const request = createEphemeralCompatibilityRequest(optionsValue, projectContextSystemRoles(staged.messages))
     redispatches.add(request)
     return request
   }
@@ -234,10 +254,7 @@ export function createNativePlayOrchestrationStrategy(options) {
     const sessionId = input.sessionId
     const payload = input.payload
     const mode = await options.modeFor(sessionId)
-    const visibleMessages = options.filterMessages(input.decision.messages, mode, {
-      session: payload.agent?.session, disabledWritingSkills: input.chat?.disabledWritingSkills
-    })
-    let agentMessages = visibleMessages
+    let agentMessages = input.decision.messages
     const rawSnapshot = mode === 'story' || mode === 'script' ? await options.resolvePreset(input.chat) : null
     // Render the three phases together; the persisted preset and prior messages stay authoritative.
     const snapshot = resolveRuntimePresetMacros(rawSnapshot, { charName: input.chat?.cardName, macroState: input.chat?.macroState }).snapshot
@@ -264,7 +281,7 @@ export function createNativePlayOrchestrationStrategy(options) {
       if (prepared && prepared.duplicate) throw new Error('该消息已由酒馆处理，请勿重复发送')
       if (mode === 'story' || mode === 'script') {
         agentMessages = replaceTurnInput(agentMessages, prepared.frame.userInput.projectedText)
-        const adapted = options.appendFrame({ messages: agentMessages, frame: prepared.frame, step: payload.step, session: payload.agent?.session })
+        const adapted = options.appendFrame({ messages: agentMessages, frame: prepared.frame, step: payload.step, session: payload.agent?.session, disabledWritingSkills: input.chat?.disabledWritingSkills })
         agentMessages = adapted.messages
         options.recordFrame(sessionId, prepared.frame, adapted.receipt)
       } else if (str(prepared.text).trim() !== '') {
@@ -300,6 +317,8 @@ export function createNativePlayOrchestrationStrategy(options) {
     if (replayMessages !== request.messages) request = Object.assign({}, request, { messages: replayMessages })
     const passbackMessages = projectDeepSeekThinkingPassback(request.messages, request)
     if (passbackMessages !== request.messages) request = Object.assign({}, request, { messages: passbackMessages })
+    const systemRoles = projectContextSystemRoles(request.messages)
+    if (systemRoles !== request.messages) request = Object.assign({}, request, { messages: systemRoles })
     // 在预设投影与角色规范化之后注入，保证 StoryMaterials 保持 system 角色。
     if (staged.storyMaterials) {
       const materialMessages = projectStoryMaterials(request.messages, staged.storyMaterials, sessionId)

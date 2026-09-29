@@ -4,6 +4,18 @@ import test from 'node:test'
 import { createChatPersistence } from '../tavern-plugin/lib/domain/chat-persistence.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from '../tavern-plugin/lib/domain/last-round-replacement.js'
 
+test('编辑重生成输入时同步消息与滑动文本，并清除旧展示投影', () => {
+  const originalChat = { messages: [
+    { role: 'user', text: '旧输入', sourceText: '旧输入', swipes: ['旧输入'], swipeId: 0, templateInputSource: '旧输入', displayText: '旧显示' },
+    { role: 'assistant', turn: 2, text: '旧正文', sourceText: '旧正文' }
+  ] }
+  const regeneratedChat = { messages: [{ role: 'user', text: '临时输入' }, { role: 'assistant', turn: 3, text: '新正文' }] }
+  const { chat } = replaceLastRound({ originalChat, regeneratedChat, assistantIndex: 1, inputText: '新输入' })
+  assert.deepEqual([chat.messages[0].text, chat.messages[0].sourceText, chat.messages[0].templateInputSource, chat.messages[0].swipes[0]], Array(4).fill('新输入'))
+  assert.equal(chat.messages[0].displayText, undefined)
+  assert.equal(originalChat.messages[0].text, '旧输入')
+})
+
 test('重新生成正文只保留唯一新正文和对应变量快照', function () {
   const originalChat = {
     id: 'chat-1', posture: '旧状态', messages: [

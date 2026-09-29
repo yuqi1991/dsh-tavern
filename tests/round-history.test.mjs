@@ -123,6 +123,21 @@ test('failed foreground resume leaves rollback data intact and permits retry', a
   assert.equal(h.chat.messages.length,1)
 })
 
+test('编辑重生成输入同步剧情、原生消息与合成生成请求', async () => {
+  const h = harness({ checkpoint: true })
+  h.session.events[0].data.source = { kind: 'user' }
+  const originalEvents = structuredClone(h.session.events)
+  const result = await h.create().regenerate('chat', '写得简短', 'session', '破门而入')
+  assert.equal(result.messages[1].text, '破门而入')
+  assert.equal(h.chat.messages[1].text, '破门而入')
+  assert.equal(result.adopted.inputEdited, true)
+  assert.equal(result.adopted.inputText, '破门而入')
+  assert.match(h.agent.input.content[0].text, /^破门而入\n\n【本轮补充要求】/)
+  const visible = h.session.surface.nodes.map(seq => h.session.events[seq])
+  assert.ok(visible.some(event => event.type === 'user/message' && event.data.content?.[0]?.text === '破门而入'))
+  assert.deepEqual(h.session.events.slice(0, originalEvents.length), originalEvents)
+})
+
 test('rc.1 snapshot-only history supports regeneration and rollback without rewriting native events', async () => {
   for (const operation of ['regenerate', 'rollback']) {
     const h = harness({ checkpoint: true })

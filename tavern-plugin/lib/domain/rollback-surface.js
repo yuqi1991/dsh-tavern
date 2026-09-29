@@ -3,7 +3,7 @@ import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { replaceSessionSurface } from './session-surface-mutations.js'
 import { restoredSurfaceSeqs } from './surface-restoration.js'
 import { sessionEvents, surfaceReplacementRange } from './session-events.js'
-import { createSurfaceOwnership, planSurfaceRecovery, planSurfaceRange, SurfaceRecoveryError, OWNED } from './surface-recovery.js'
+import { createSurfaceOwnership, planSurfaceRecovery, planSurfaceRange, refSeqsOf, SurfaceRecoveryError, OWNED } from './surface-recovery.js'
 import { randomUUID } from 'node:crypto'
 
 function object(value) {
@@ -60,10 +60,29 @@ function modelSourceOf(event) {
   return source && source.kind === 'model' ? source : null
 }
 
+// 插件注入的行几乎都是伴随轮次的上下文帧（前台帧、世界书快照、card-memory、
+// model-selection 换模型提示、repeat-tool-reminder、compact 检查点等），绝不是玩家输入；
+// 只有真正参与轮次语义的插件合成行例外。此前按 form 白名单逐一枚举，漏掉了
+// model-selection 等来源：蓝天市会话的多轮回退把折叠起点定在换模型提示行 112 上，
+// 玩家输入 109 与帧 110/111 被孤儿化留在 surface，轨迹页多出一条输入行。
+const ROUND_PARTICIPATING_PLUGINS = new Set([
+  'dsh-tavern-regen',
+  'dsh-tavern-regeneration-abort',
+  'dsh-tavern-failed-turn-cleanup',
+  'dsh-tavern-context-window'
+])
 function isForegroundContext(event) {
   const source = event?.type === 'user/message' && event.data?.source
-  return source?.kind === 'plugin' && source.plugin === 'dsh-tavern' &&
-    ['foreground-frame', 'worldbook-snapshot', 'snapshot'].includes(source.form)
+  // skill-catalog reminders ride along after the player input inside the
+  // same turn; they are context frames. Treating any of these as input
+  // would let rollback tombstone from the frame down and orphan the real
+  // player message in the surface forever.
+  if (source?.kind === 'skill-catalog') return true
+  if (!source || source.kind !== 'plugin') return false
+  // Host-side notices (e.g. model-selection "[model changed]") ride after the
+  // input in the same turn; they are context, not the player message.
+  if (String(source.form) === 'notice') return true
+  return !ROUND_PARTICIPATING_PLUGINS.has(String(source.plugin))
 }
 
 function isRollbackUserTombstone(event) {
@@ -80,7 +99,7 @@ function isRollbackAssistantTombstone(event, events) {
   const content = event.data && event.data.message && event.data.message.content
   const op = event.surfaceOp
   if (!Array.isArray(content) || content.length !== 0 || !op || op.op !== 'replace') return false
-  const sources = Array.isArray(event.sourceEventSeqs) ? event.sourceEventSeqs : []
+  const sources = refSeqsOf(event)
   return sources.some(function (seq) {
     const sourceEvent = eventAt(events, seq)
     return sourceEvent && sourceEvent.type === 'user/message'
@@ -111,7 +130,7 @@ export function abortedRegenerationTurns(input) {
   for (const event of events) {
     const source = event && event.type === 'user/message' && event.data && event.data.source
     if (!source || source.kind !== 'plugin' || source.plugin !== 'dsh-tavern-regeneration-abort') continue
-    if (Array.isArray(event.sourceEventSeqs)) seqs.push(...event.sourceEventSeqs)
+    if (Array.isArray(event.sourceEventSeqs)) seqs.push(...refSeqsOf(event))
   }
   return modelTurns(events, seqs)
 }
@@ -131,11 +150,11 @@ export function rolledBackSurfaceTurns(events) {
     if (!event) return
     const turn = Number(event.data?.turn)
     if (event.type === 'assistant/message' && modelSourceOf(event) !== null && Number.isSafeInteger(turn) && turn > 0) turns.add(turn)
-    if (event.surfaceOp?.op === 'replace') for (const source of event.sourceEventSeqs || []) visit(source)
+    if (event.surfaceOp?.op === 'replace') for (const source of refSeqsOf(event)) visit(source)
   }
   for (const event of events) {
     if (restored.has(event.seq) || !isRollbackAssistantTombstone(event, events)) continue
-    for (const seq of event.sourceEventSeqs || []) visit(seq)
+    for (const seq of refSeqsOf(event)) visit(seq)
   }
   return [...turns].sort((left, right) => left - right)
 }
@@ -213,7 +232,7 @@ export function pendingFailedSurfaceTurns({ events = [], nodes = [], suppressed 
     if (event.data.source.plugin !== 'dsh-tavern-failed-turn-cleanup') continue
     ownership ??= createSurfaceOwnership(events)
     failures ??= turnIntervals(events).filter(interval => interval.failed && !hidden.has(interval.turn))
-    const sources = event.sourceEventSeqs || []
+    const sources = refSeqsOf(event)
     const failed = new Set(modelTurns(events, sources))
     // A provider can fail before emitting any assistant message. Recover the
     // turn from the cleaned nodes' enclosing lifecycle, including old records.

@@ -18,6 +18,8 @@ export function worldbookSnapshot(session, text, pendingMessages = []) {
   if (previous ? previous.text === text : !text) return null
   const version = createHash('sha256').update(text).digest('hex').slice(0, 16)
   // One complete ordered snapshot keeps cross-entry XML wrappers intact.
-  const rendered = `【动态世界书快照 · ${version}】\n以下是当前完整状态，替代此前所有动态世界书快照；未列出的旧内容已失效。\n${text || '当前无有效动态条目，此前动态世界书内容全部失效。'}`
+  // 尾部插入本身已赋予高权重，LATEST_ONLY 退役保证不残留；模型只需知道
+  // 这里是要参考/遵守的设定状态，无需版本号或"替代"声明。
+  const rendered = `【世界书 · 以下设定需要参考和遵守】\n${text || '当前无动态世界书条目，此前动态条目已全部失效。'}`
   return { schemaVersion: 1, text, version, rendered }
 }

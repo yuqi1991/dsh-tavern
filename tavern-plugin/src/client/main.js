@@ -10157,8 +10157,8 @@ window.__ModuleLoader__.load({
 			return value;
 		}
 
-		async function submitBodyRegeneration(sessionId, panel, guidance) {
-			const res = await rpc("regenBody", { guidance: String(guidance || "").trim() }, sessionId);
+		async function submitBodyRegeneration(sessionId, panel, guidance, input) {
+			const res = await rpc("regenBody", { guidance: String(guidance || "").trim(), input: String(input || "") }, sessionId);
 			applyBodyRegenerationResult({ liveTavernView: liveTavernView, historyProjection: historyProjection, sessionId: sessionId, view: res.view, tail: panel.tail });
 			setCandidatePanel(null);
 		}
@@ -10235,7 +10235,7 @@ window.__ModuleLoader__.load({
 			}
 			function regenerationPanelFor(event, phase) {
 				const tail = event && event.currentTarget ? event.currentTarget.closest('[data-chat-flow-kind="turn-tail"]') : null;
-				return { sessionId: props.sessionId, phase: phase, guidance: "", text: "", error: "", tail: tail };
+				return { sessionId: props.sessionId, phase: phase, guidance: "", text: "", error: "", tail: tail, openedAt: Date.now() };
 			}
 			function openRegeneration(event) {
 				if (!canRollback || frontRunning || (activity.busy && !settlementActive) || regenBusy) return;
@@ -10829,13 +10829,26 @@ window.__ModuleLoader__.load({
 			const sessionMode = useTavernSessionMode(props.sessionId);
 			const running = props.useSession(function (snapshot) { return snapshot.running; });
 			const [guidance, setGuidance] = React.useState("");
+			const [input, setInput] = React.useState(null);
+			const panelKey = panel ? String(panel.sessionId) + ":" + String(panel.openedAt || "") : "";
 			const h = React.createElement;
+			React.useEffect(function () {
+				if (panelKey === "") return;
+				let alive = true;
+				setInput(null);
+				rpc("getRegenInput", {}, props.sessionId).then(function (res) {
+					if (alive) setInput(String(res && res.input || ""));
+				}).catch(function () {
+					if (alive) setInput("");
+				});
+				return function () { alive = false; };
+			}, [panelKey]);
 			if (!isPlayMode(sessionMode) || running || !panel || panel.sessionId !== props.sessionId) return null;
 			async function generate() {
 				const guide = guidance.trim();
 				setRegenPanel(Object.assign({}, panel, { phase: "loading", error: "" }));
 				try {
-					await submitBodyRegeneration(props.sessionId, panel, guide);
+					await submitBodyRegeneration(props.sessionId, panel, guide, input === null ? "" : input);
 					setRegenPanel(null);
 				} catch (err) {
 					tavernErrorHub.report("正文重新生成", err);
@@ -10846,6 +10859,14 @@ window.__ModuleLoader__.load({
 				? h("div", { className: "dsh-tavern-question-sub" }, "正在重新生成正文…")
 				: h(React.Fragment, null,
 						panel.error ? h("div", { className: "dsh-tavern-choice-error" }, panel.error) : null,
+						h("textarea", {
+							className: "dsh-tavern-regen-input",
+							rows: 3,
+							value: input === null ? "" : input,
+							disabled: input === null,
+							placeholder: input === null ? "正在读取本轮输入…" : "本轮输入（可修改；留空或保持原样则不变）",
+							onChange: function (e) { setInput(e.target.value); }
+						}),
 						h("textarea", {
 							className: "dsh-tavern-regen-input",
 							rows: 2,
@@ -10859,7 +10880,7 @@ window.__ModuleLoader__.load({
 						)
 					);
 			return h("div", { className: "dsh-tavern-question" },
-				h("div", { className: "dsh-tavern-question-head" }, h("span", null, "重新生成正文"), h("span", { className: "dsh-tavern-question-sub" }, "生成后直接替换当前正文")),
+				h("div", { className: "dsh-tavern-question-head" }, h("span", null, "重新生成正文"), h("span", { className: "dsh-tavern-question-sub" }, "可先修改本轮输入再生成；生成后替换当前正文")),
 				body
 			);
 		}

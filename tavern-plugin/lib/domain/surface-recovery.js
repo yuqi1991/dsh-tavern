@@ -17,6 +17,15 @@ export class SurfaceRecoveryError extends Error {
   }
 }
 
+/** 宿主的 replace 可能用嵌套数组把成组引用打包（如 [[183,185],187]）。
+ * 读取侧一律先展平并过滤成安全整数，否则组内成员会被当作无效引用，
+ * 墓碑识别与归属判定都会失真。 */
+export function refSeqsOf(event) {
+  const refs = event && event.sourceEventSeqs
+  if (!Array.isArray(refs)) return []
+  return refs.flat(Infinity).filter(seq => Number.isSafeInteger(seq))
+}
+
 export function createSurfaceOwnership(events) {
   const ordered = events.filter(event => Number.isSafeInteger(event?.seq))
   const bySeq = new Map(ordered.map(event => [event.seq, event]))
@@ -24,12 +33,12 @@ export function createSurfaceOwnership(events) {
   for (const event of ordered) {
     if (event.surfaceOp?.op !== 'replace') continue
     const range = surfaceReplacementRange(event.surfaceOp)
-    const refs = event.sourceEventSeqs
+    const refs = refSeqsOf(event)
     // Do not infer an interval from numeric event IDs: replacements keep their
     // surface position. Missing, forward or cyclic references are unprovable.
-    const valid = Array.isArray(refs) && refs.length > 0 && refs.includes(range.start) && refs.includes(range.end) &&
-      refs.every(seq => Number.isSafeInteger(seq) && seq < event.seq && bySeq.has(seq))
-    parents.set(event.seq, { refs: Array.isArray(refs) ? refs : [], valid })
+    const valid = refs.length > 0 && refs.includes(range.start) && refs.includes(range.end) &&
+      refs.every(seq => seq < event.seq && bySeq.has(seq))
+    parents.set(event.seq, { refs, valid })
   }
   const firstOrigins = new Map()
   for (const event of ordered) {
