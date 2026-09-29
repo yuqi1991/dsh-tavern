@@ -1,0 +1,119 @@
+{
+  "pid": 990608,
+  "port": 3081,
+  "logOffset": 13228669,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T08:25:46.562641+00:00",
+  "backup": "/tmp/dsh-tavern-trajectory-backup-20260929-162545",
+  "files": [
+    {
+      "path": "lib/client.js",
+      "liveSha256": "1dcb17810e3834818597305ecd21fceb0ec4b8cfd5d60a3201af6b5450d885e9",
+      "sha256": "d113a92d9a15f371485a3f8692d3de2b6a0d4a5642b1e09caa89feb7cc676a10"
+    },
+    {
+      "path": "src/client/modules/trajectory-surface-view.js",
+      "liveSha256": "d4fa03aaefe447329fe28d4bae362a40ea9c62985b4d63251a20b829c9fd0e91",
+      "sha256": "a031ef6992ba646e74252ab78fa32afaf4ec86cadb01c945f285e5bca1303e85"
+    }
+  ],
+  "userAcceptance": "pending",
+  "browserPagination": [
+    {
+      "hasMore": true,
+      "rows": 10,
+      "first": [
+        {
+          "kind": "user",
+          "seq": 357
+        },
+        {
+          "kind": "user",
+          "seq": 478
+        },
+        {
+          "kind": "assistant",
+          "seq": 479,
+          "turn": 17,
+          "step": 1
+        },
+        {
+          "kind": "user",
+          "seq": 484
+        },
+        {
+          "kind": "context",
+          "seq": 486
+        }
+      ],
+      "inputs": 198
+    },
+    {
+      "hasMore": true,
+      "rows": 17,
+      "first": [
+        {
+          "kind": "assistant",
+          "seq": 117,
+          "turn": 6,
+          "step": 2
+        },
+        {
+          "kind": "assistant",
+          "seq": 144,
+          "turn": 5,
+          "step": 1
+        },
+        {
+          "kind": "user",
+          "seq": 149
+        },
+        {
+          "kind": "assistant",
+          "seq": 228,
+          "turn": 8,
+          "step": 1
+        },
+        {
+          "kind": "user",
+          "seq": 233
+        }
+      ],
+      "inputs": 385
+    },
+    {
+      "hasMore": false,
+      "rows": 23,
+      "first": [
+        {
+          "kind": "context",
+          "seq": 6
+        },
+        {
+          "kind": "assistant",
+          "seq": 7,
+          "turn": 0,
+          "step": 1
+        },
+        {
+          "kind": "context",
+          "seq": 8
+        },
+        {
+          "kind": "assistant",
+          "seq": 11,
+          "turn": 1,
+          "step": 1
+        },
+        {
+          "kind": "user",
+          "seq": 18
+        }
+      ],
+      "inputs": 502
+    }
+  ],
+  "startupErrors": [],
+  "offlineTests": 99
+}

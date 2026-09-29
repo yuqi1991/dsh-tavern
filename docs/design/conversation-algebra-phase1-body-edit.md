@@ -36,3 +36,9 @@ G4 和 detached 宿主预检都在 Chat 意图写入前执行。异步正文投�
 实现方通过只读 getConversationAlgebraStatus 核对 bodyEditTransactions 增加、最近操作以 tavern-body-edit: 开头；仅页面无错不足以证明新路径使用。接口计数仅针对已加载会话。
 
 回滚限制：新编辑意图出现后不能直接还原成不认识 algebra:1 的旧 body-editor（会重放错误身份）。需要先关闭新写入、保留本版本恢复兼容分支，确认已有事务恢复完成，再处理代码问题；不得手工修改 Chat 或 Session 文件。如果部署失败且尚无新编辑，可恢复两个白名单备份并重启。
+
+## 验收中轨迹分页修复
+
+用户确认正文编辑正常，但加载到头缺少开头消息。独立 Playwright 浏览器复现宿主 trajectory-system-message 撤回已物化节点异常。最小 4 事件测试在修复前失败，修复后通过。插件在轨迹激活时将 prepend 发布改为整窗口重建，并在 replace 清空旧折叠证据；不修改宿主或日志。99 项离线测试通过。
+
+2026-09-29 已部署客户端修复（开发 dec7c1b，fork ba289297），PID 990608；备份 /tmp/dsh-tavern-trajectory-backup-20260929-162545。真实运行客户端无临时修补的浏览器分页复验：502 条已加载事件，hasMore=false，首屏证据恢复 seq6/7/8/11/18（含第1轮）。用户视觉复验仍待确认。证据见 trajectory-pagination-live.json。
