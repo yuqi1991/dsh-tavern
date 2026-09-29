@@ -3,6 +3,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { editableReplyParts } from './reply-presentation.js'
 import { locateRegenerationSurface } from './rollback-surface.js'
 import { sessionEvents, appendSessionEvent } from './session-events.js'
+import { computeFold, editStep, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
+import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
 
 function latest(chat) {
   const message = chat.messages?.at(-1)
@@ -18,12 +20,27 @@ function token(chat, message) {
 
 /** Reconcile a durable Chat edit to native Surface; retries never duplicate history. */
 export async function synchronizeBodyEdits(session, chat, flush, persistChat) {
+  const adapter = createConversationAlgebraHostAdapter(session, { flush })
+  await waitForTransactionReady(adapter)
   const recorded = new Set(sessionEvents(session).filter(event => event.type === 'assistant/message').map(event => event.data?.message?.id))
   const cleared = []
   let sessionDirty = false
   for (const message of chat.messages || []) {
     if (!message.bodyEdit) continue
     const { id, seq, turn } = message.bodyEdit
+    if (message.bodyEdit.algebra === 1) {
+      // Identity is preserved by editStep, so deduplicate by operation rather
+      // than by message id. Keep this recovery route even when writes are off.
+      const committed = sessionEvents(session).some(event => {
+        const tx = event.data?.message?.source?.conversationTransaction
+        return tx?.operationId === id && ['commit', 'begin-commit'].includes(tx.phase)
+      })
+      if (committed) continue
+      const state = computeFold(sessionEvents(session))
+      const ops = editStep(state, seq, message.text)
+      await runTransaction(adapter, { expectedHead: state.headSeq, ops, operationId: id })
+      continue
+    }
     if (recorded.has(id)) continue
     let targetSeq = session.surface?.nodes.includes(seq) ? seq : null
     // Migration renumbers seqs and may fold the body-edit injection onto its
@@ -55,7 +72,7 @@ export async function synchronizeBodyEdits(session, chat, flush, persistChat) {
 }
 
 /** Edit prose only; do not replay macros, scripts or settlement. */
-export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch }) {
+export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, algebraEnabled = () => false }) {
   const pending = new Set()
   function refuseClosedPatch() {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
@@ -107,11 +124,19 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
       let index = 0
       const text = parts.map(part => part.kind === 'text' ? texts[index++] : part.text).join('')
       if (text === source(message)) return present(chat)
+      const expectedHead = sessionEvents(agent.session).at(-1)?.seq ?? -1
       const reply = await project(text, chat)
       const patch = {
         sourceText: text, projectionText: text, text: reply.sessionText,
         displayText: reply.displayText, displayMode: reply.displayMode,
         bodyEdit: { id: 'tavern-body-edit:' + randomUUID(), seq: target.assistantSeq, turn: target.turn }
+      }
+      const useAlgebra = algebraEnabled(sessionId)
+      if (useAlgebra) {
+        // Run G4 before publishing the recoverable Chat intent; do not silently
+        // downgrade a tool-bearing step to the legacy single-row replacement.
+        editStep(computeFold(sessionEvents(agent.session)), target.assistantSeq, reply.sessionText)
+        patch.bodyEdit.algebra = 1
       }
       if (Array.isArray(message.swipes)) {
         patch.swipes = structuredClone(message.swipes)
@@ -128,6 +153,7 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
         idle(current, agent)
         if (token(current, latest(current)) !== input.token) throw new Error('正文或会话已变化，请重新打开编辑')
         if (!agent.session.surface?.nodes.includes(target.assistantSeq)) throw new Error('模型上下文已变化，请重新打开编辑')
+        if (useAlgebra && (sessionEvents(agent.session).at(-1)?.seq ?? -1) !== expectedHead) throw new Error('会话头已变化，请重新打开编辑')
         return timeline.apply({ chat: current, intent: { kind: 'body.edit', turn: message.turn, patch } }).chat
       }, { source: 'foreground.body-edit' })
       await synchronizeBodyEdits(agent.session, saved, sessions.flush)

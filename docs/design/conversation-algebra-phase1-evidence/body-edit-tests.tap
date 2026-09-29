@@ -1,0 +1,598 @@
+TAP version 13
+# Subtest: lossless text ranges retain raw and fenced HTML, CRLF and code examples
+ok 1 - lossless text ranges retain raw and fenced HTML, CRLF and code examples
+  ---
+  duration_ms: 20.220245
+  type: 'test'
+  ...
+# Subtest: edit replaces native Surface and display, preserving events, variables, state and HTML
+ok 2 - edit replaces native Surface and display, preserving events, variables, state and HTML
+  ---
+  duration_ms: 16.340971
+  type: 'test'
+  ...
+# Subtest: plain text edits force a persisted UI projection even when source and session match
+ok 3 - plain text edits force a persisted UI projection even when source and session match
+  ---
+  duration_ms: 2.526024
+  type: 'test'
+  ...
+# Subtest: stale tabs, blank text, new HTML, running turns and HTML-only replies reject without writes
+ok 4 - stale tabs, blank text, new HTML, running turns and HTML-only replies reject without writes
+  ---
+  duration_ms: 3.145013
+  type: 'test'
+  ...
+# Subtest: failed Chat write leaves Surface intact; durable edit recovers after native flush loss
+ok 5 - failed Chat write leaves Surface intact; durable edit recovers after native flush loss
+  ---
+  duration_ms: 4.899996
+  type: 'test'
+  ...
+# Subtest: display captures do not invalidate an open edit, but advancing the conversation does
+ok 6 - display captures do not invalidate an open edit, but advancing the conversation does
+  ---
+  duration_ms: 2.281515
+  type: 'test'
+  ...
+# Subtest: narrative protocol wrappers retain their bytes while their prose remains editable
+ok 7 - narrative protocol wrappers retain their bytes while their prose remains editable
+  ---
+  duration_ms: 9.331
+  type: 'test'
+  ...
+# Subtest: editing distinguishes narrative tags from HTML, custom UI and code samples
+ok 8 - editing distinguishes narrative tags from HTML, custom UI and code samples
+  ---
+  duration_ms: 1.83172
+  type: 'test'
+  ...
+# Subtest: host rejection is checked before publishing an edit to the Chat journal
+ok 9 - host rejection is checked before publishing an edit to the Chat journal
+  ---
+  duration_ms: 2.15956
+  type: 'test'
+  ...
+# Subtest: issue \#72: stale bodyEdit after migration clears instead of blocking turns
+ok 10 - issue \#72: stale bodyEdit after migration clears instead of blocking turns
+  ---
+  duration_ms: 1.23347
+  type: 'test'
+  ...
+# Subtest: issue \#72: bodyEdit remaps by turn when seq was renumbered
+ok 11 - issue \#72: bodyEdit remaps by turn when seq was renumbered
+  ---
+  duration_ms: 0.680497
+  type: 'test'
+  ...
+# Subtest: enabled editor preserves native identity, turn, step and model provenance across edits
+ok 12 - enabled editor preserves native identity, turn, step and model provenance across edits
+  ---
+  duration_ms: 4.40254
+  type: 'test'
+  ...
+# Subtest: G4 rejects a prose step with a tool call before any Chat or Session write
+ok 13 - G4 rejects a prose step with a tool call before any Chat or Session write
+  ---
+  duration_ms: 1.362237
+  type: 'test'
+  ...
+# Subtest: head movement during async projection rejects before durable intent
+ok 14 - head movement during async projection rejects before durable intent
+  ---
+  duration_ms: 1.814667
+  type: 'test'
+  ...
+# Subtest: durable algebra intent recovers with new writes disabled and retains identity
+ok 15 - durable algebra intent recovers with new writes disabled and retains identity
+  ---
+  duration_ms: 2.809149
+  type: 'test'
+  ...
+# Subtest: lossless text ranges retain raw and fenced HTML, CRLF and code examples
+ok 16 - lossless text ranges retain raw and fenced HTML, CRLF and code examples
+  ---
+  duration_ms: 14.029149
+  type: 'test'
+  ...
+# Subtest: edit replaces native Surface and display, preserving events, variables, state and HTML
+ok 17 - edit replaces native Surface and display, preserving events, variables, state and HTML
+  ---
+  duration_ms: 10.782049
+  type: 'test'
+  ...
+# Subtest: plain text edits force a persisted UI projection even when source and session match
+ok 18 - plain text edits force a persisted UI projection even when source and session match
+  ---
+  duration_ms: 1.568224
+  type: 'test'
+  ...
+# Subtest: stale tabs, blank text, new HTML, running turns and HTML-only replies reject without writes
+ok 19 - stale tabs, blank text, new HTML, running turns and HTML-only replies reject without writes
+  ---
+  duration_ms: 3.288189
+  type: 'test'
+  ...
+# Subtest: failed Chat write leaves Surface intact; durable edit recovers after native flush loss
+ok 20 - failed Chat write leaves Surface intact; durable edit recovers after native flush loss
+  ---
+  duration_ms: 2.731228
+  type: 'test'
+  ...
+# Subtest: display captures do not invalidate an open edit, but advancing the conversation does
+ok 21 - display captures do not invalidate an open edit, but advancing the conversation does
+  ---
+  duration_ms: 1.856227
+  type: 'test'
+  ...
+# Subtest: narrative protocol wrappers retain their bytes while their prose remains editable
+ok 22 - narrative protocol wrappers retain their bytes while their prose remains editable
+  ---
+  duration_ms: 9.186122
+  type: 'test'
+  ...
+# Subtest: editing distinguishes narrative tags from HTML, custom UI and code samples
+ok 23 - editing distinguishes narrative tags from HTML, custom UI and code samples
+  ---
+  duration_ms: 2.047775
+  type: 'test'
+  ...
+# Subtest: host rejection is checked before publishing an edit to the Chat journal
+ok 24 - host rejection is checked before publishing an edit to the Chat journal
+  ---
+  duration_ms: 1.447591
+  type: 'test'
+  ...
+# Subtest: issue \#72: stale bodyEdit after migration clears instead of blocking turns
+ok 25 - issue \#72: stale bodyEdit after migration clears instead of blocking turns
+  ---
+  duration_ms: 0.66118
+  type: 'test'
+  ...
+# Subtest: issue \#72: bodyEdit remaps by turn when seq was renumbered
+ok 26 - issue \#72: bodyEdit remaps by turn when seq was renumbered
+  ---
+  duration_ms: 0.612467
+  type: 'test'
+  ...
+# Subtest: actual host SessionEventStream publishes one window for a complete transaction
+ok 27 - actual host SessionEventStream publishes one window for a complete transaction
+  ---
+  duration_ms: 16.684361
+  type: 'test'
+  ...
+# Subtest: reconnect replaces an unfinished buffered window without duplicates
+ok 28 - reconnect replaces an unfinished buffered window without duplicates
+  ---
+  duration_ms: 5.673652
+  type: 'test'
+  ...
+# Subtest: uncommitted snapshot is never published
+ok 29 - uncommitted snapshot is never published
+  ---
+  duration_ms: 4.615428
+  type: 'test'
+  ...
+# Subtest: page loaded during a transaction is included in atomic commit publication
+ok 30 - page loaded during a transaction is included in atomic commit publication
+  ---
+  duration_ms: 6.217748
+  type: 'test'
+  ...
+# Subtest: two writers at one expected head admit only one transaction
+ok 31 - two writers at one expected head admit only one transaction
+  ---
+  duration_ms: 12.752244
+  type: 'test'
+  ...
+# Subtest: adapter wrappers share the same session lock
+ok 32 - adapter wrappers share the same session lock
+  ---
+  duration_ms: 5.312819
+  type: 'test'
+  ...
+# Subtest: external change while awaiting metadata is rejected before transaction writes
+ok 33 - external change while awaiting metadata is rejected before transaction writes
+  ---
+  duration_ms: 4.951535
+  type: 'test'
+  ...
+# Subtest: actual Cordis history follows no partial transaction before durable flush
+ok 34 - actual Cordis history follows no partial transaction before durable flush
+  ---
+  duration_ms: 31.720705
+  type: 'test'
+  ...
+# Subtest: detached host round trip preserves intent and recovers an interrupted batch
+ok 35 - detached host round trip preserves intent and recovers an interrupted batch
+  ---
+  duration_ms: 15.49245
+  type: 'test'
+  ...
+# Subtest: host rejects an invalid replacement during preflight with zero live writes
+ok 36 - host rejects an invalid replacement during preflight with zero live writes
+  ---
+  duration_ms: 1.284959
+  type: 'test'
+  ...
+# Subtest: real host checkout shortens a prefix and returns to the archived branch
+ok 37 - real host checkout shortens a prefix and returns to the archived branch
+  ---
+  duration_ms: 13.814155
+  type: 'test'
+  ...
+# Subtest: metadata publication failure recovers from committed log after restart
+ok 38 - metadata publication failure recovers from committed log after restart
+  ---
+  duration_ms: 3.674801
+  type: 'test'
+  ...
+# Subtest: checkout crash after clearing suffix recovers metadata and content once
+ok 39 - checkout crash after clearing suffix recovers metadata and content once
+  ---
+  duration_ms: 3.682356
+  type: 'test'
+  ...
+# Subtest: golden replay equals host surface projection for read-only zstd sessions
+ok 40 - golden replay equals host surface projection for read-only zstd sessions
+  ---
+  duration_ms: 49.393404
+  type: 'test'
+  ...
+# Subtest: G1 rejects an invalid assistant source and transaction writes nothing
+ok 41 - G1 rejects an invalid assistant source and transaction writes nothing
+  ---
+  duration_ms: 4.155676
+  type: 'test'
+  ...
+# Subtest: G2 rejects incomplete tool steps before producing operations
+ok 42 - G2 rejects incomplete tool steps before producing operations
+  ---
+  duration_ms: 0.891503
+  type: 'test'
+  ...
+# Subtest: G3/G7 permit only registered, complete tagged steps
+ok 43 - G3/G7 permit only registered, complete tagged steps
+  ---
+  duration_ms: 1.133438
+  type: 'test'
+  ...
+# Subtest: G4 rejects tool-bearing edits and preserves message identity for prose edits
+ok 44 - G4 rejects tool-bearing edits and preserves message identity for prose edits
+  ---
+  duration_ms: 1.066028
+  type: 'test'
+  ...
+# Subtest: G5 rejects an assistant tombstone without original provider/model
+ok 45 - G5 rejects an assistant tombstone without original provider/model
+  ---
+  duration_ms: 0.332799
+  type: 'test'
+  ...
+# Subtest: guards are pure and do not invoke an available writer
+ok 46 - guards are pure and do not invoke an available writer
+  ---
+  duration_ms: 0.2186
+  type: 'test'
+  ...
+# Subtest: transaction rejects stale expected head without writes
+ok 47 - transaction rejects stale expected head without writes
+  ---
+  duration_ms: 0.790279
+  type: 'test'
+  ...
+# Subtest: fold ignores a torn transaction tail until its commit marker exists
+ok 48 - fold ignores a torn transaction tail until its commit marker exists
+  ---
+  duration_ms: 4.887461
+  type: 'test'
+  ...
+# Subtest: branch and checkout update metadata without model or surface writes
+ok 49 - branch and checkout update metadata without model or surface writes
+  ---
+  duration_ms: 3.554381
+  type: 'test'
+  ...
+# Subtest: checkout derives the historical surface at an immutable seq anchor
+ok 50 - checkout derives the historical surface at an immutable seq anchor
+  ---
+  duration_ms: 2.088413
+  type: 'test'
+  ...
+# Subtest: host adapter delegates append and replacement to existing mutation helpers
+ok 51 - host adapter delegates append and replacement to existing mutation helpers
+  ---
+  duration_ms: 2.375445
+  type: 'test'
+  ...
+# Subtest: readiness waits for durable completion before returning to a reader
+ok 52 - readiness waits for durable completion before returning to a reader
+  ---
+  duration_ms: 16.262029
+  type: 'test'
+  ...
+# Subtest: history pages and follow records fail closed when recovery fails
+ok 53 - history pages and follow records fail closed when recovery fails
+  ---
+  duration_ms: 2.763721
+  type: 'test'
+  ...
+# Subtest: follow gates each event and releases the underlying iterator on cancellation
+ok 54 - follow gates each event and releases the underlying iterator on cancellation
+  ---
+  duration_ms: 0.643266
+  type: 'test'
+  ...
+# Subtest: source raced by a transaction is disposed and reread after the barrier
+ok 55 - source raced by a transaction is disposed and reread after the barrier
+  ---
+  duration_ms: 1.016263
+  type: 'test'
+  ...
+# Subtest: host persistence reopens durable prefix after write 1
+ok 56 - host persistence reopens durable prefix after write 1
+  ---
+  duration_ms: 65.07603
+  type: 'test'
+  ...
+# Subtest: host persistence reopens durable prefix after write 2
+ok 57 - host persistence reopens durable prefix after write 2
+  ---
+  duration_ms: 40.424249
+  type: 'test'
+  ...
+# Subtest: full Tavern apply installs and disposes actual host history adapter in isolated home
+ok 58 - full Tavern apply installs and disposes actual host history adapter in isolated home
+  ---
+  duration_ms: 1202.068671
+  type: 'test'
+  ...
+# Subtest: 100000 random primitive sequences preserve algebra invariants
+ok 59 - 100000 random primitive sequences preserve algebra invariants
+  ---
+  duration_ms: 5645.614629
+  type: 'test'
+  ...
+# Subtest: clean cold session is observed and disposed without Agent activation
+ok 60 - clean cold session is observed and disposed without Agent activation
+  ---
+  duration_ms: 2.3316
+  type: 'test'
+  ...
+# Subtest: cold observation failure propagates instead of releasing a view
+ok 61 - cold observation failure propagates instead of releasing a view
+  ---
+  duration_ms: 3.92358
+  type: 'test'
+  ...
+# Subtest: pending detection requires a matching operation commit
+ok 62 - pending detection requires a matching operation commit
+  ---
+  duration_ms: 0.564475
+  type: 'test'
+  ...
+# Subtest: restart recovers cut after write 1 once
+ok 63 - restart recovers cut after write 1 once
+  ---
+  duration_ms: 13.023867
+  type: 'test'
+  ...
+# Subtest: restart recovers cut after write 2 once
+ok 64 - restart recovers cut after write 2 once
+  ---
+  duration_ms: 6.903595
+  type: 'test'
+  ...
+# Subtest: failed flush leaves the session quarantined until successful recovery
+ok 65 - failed flush leaves the session quarantined until successful recovery
+  ---
+  duration_ms: 1.580006
+  type: 'test'
+  ...
+# Subtest: host retirement removes a complete skill pair, preserves prose, and is idempotent
+ok 66 - host retirement removes a complete skill pair, preserves prose, and is idempotent
+  ---
+  duration_ms: 422.982813
+  type: 'test'
+  ...
+# Subtest: retirement preserves current frames and latest nonempty worldbook
+ok 67 - retirement preserves current frames and latest nonempty worldbook
+  ---
+  duration_ms: 7.517957
+  type: 'test'
+  ...
+# Subtest: skill loads retire as closed pairs and prose remains visible
+ok 68 - skill loads retire as closed pairs and prose remains visible
+  ---
+  duration_ms: 1.610414
+  type: 'test'
+  ...
+# Subtest: legacy catalog requires historical reminder evidence
+ok 69 - legacy catalog requires historical reminder evidence
+  ---
+  duration_ms: 0.777915
+  type: 'test'
+  ...
+# Subtest: G3 preserves prose accompanying a skill call
+ok 70 - G3 preserves prose accompanying a skill call
+  ---
+  duration_ms: 4.44969
+  type: 'test'
+  ...
+# Subtest: G3 preserves a mixed skill and ordinary tool step
+ok 71 - G3 preserves a mixed skill and ordinary tool step
+  ---
+  duration_ms: 0.974292
+  type: 'test'
+  ...
+# Subtest: G2 rejects duplicate results for one call
+ok 72 - G2 rejects duplicate results for one call
+  ---
+  duration_ms: 1.561421
+  type: 'test'
+  ...
+# Subtest: G2 rejects two user inputs presented as one step
+ok 73 - G2 rejects two user inputs presented as one step
+  ---
+  duration_ms: 0.492185
+  type: 'test'
+  ...
+# Subtest: skill retirement emits legal assistant and user tombstones
+ok 74 - skill retirement emits legal assistant and user tombstones
+  ---
+  duration_ms: 1.843312
+  type: 'test'
+  ...
+# Subtest: B-1 enumerates the complete PromptAssembly face and injects at contexts tail
+ok 75 - B-1 enumerates the complete PromptAssembly face and injects at contexts tail
+  ---
+  duration_ms: 1.410059
+  type: 'test'
+  ...
+# Subtest: B-2 injection record identifies the exact host runtime-context request row
+ok 76 - B-2 injection record identifies the exact host runtime-context request row
+  ---
+  duration_ms: 0.289817
+  type: 'test'
+  ...
+# Subtest: experiment flag defaults off and leaves the existing assembly path unchanged
+ok 77 - experiment flag defaults off and leaves the existing assembly path unchanged
+  ---
+  duration_ms: 0.693462
+  type: 'test'
+  ...
+# Subtest: enabled native strategy appends only the isolated B probe contexts
+ok 78 - enabled native strategy appends only the isolated B probe contexts
+  ---
+  duration_ms: 0.404868
+  type: 'test'
+  ...
+# Subtest: enabled compatibility strategy uses the same isolated B probe
+ok 79 - enabled compatibility strategy uses the same isolated B probe
+  ---
+  duration_ms: 0.371504
+  type: 'test'
+  ...
+# Subtest: B-1 fails: compatibility preparation discards the host runtime-context message
+ok 80 - B-1 fails: compatibility preparation discards the host runtime-context message
+  ---
+  duration_ms: 0.654137
+  type: 'test'
+  ...
+# Subtest: B-1 fails: native preparation retains context, which the host commits as a session row
+ok 81 - B-1 fails: native preparation retains context, which the host commits as a session row
+  ---
+  duration_ms: 0.678313
+  type: 'test'
+  ...
+# Subtest: missing or mismatched change coverage rebuilds the full view: undefined
+ok 82 - missing or mismatched change coverage rebuilds the full view: undefined
+  ---
+  duration_ms: 4.926517
+  type: 'test'
+  ...
+# Subtest: missing or mismatched change coverage rebuilds the full view: {"revision":99,"indices":[0]}
+ok 83 - missing or mismatched change coverage rebuilds the full view: {"revision":99,"indices":[0]}
+  ---
+  duration_ms: 1.096777
+  type: 'test'
+  ...
+# Subtest: structural history changes retain full fallback: {"role":"user","text":"role changed"}
+ok 84 - structural history changes retain full fallback: {"role":"user","text":"role changed"}
+  ---
+  duration_ms: 1.053465
+  type: 'test'
+  ...
+# Subtest: structural history changes retain full fallback: null
+ok 85 - structural history changes retain full fallback: null
+  ---
+  duration_ms: 0.632726
+  type: 'test'
+  ...
+# Subtest: resource identity changes invalidate even a matching storage revision
+ok 86 - resource identity changes invalidate even a matching storage revision
+  ---
+  duration_ms: 1.154589
+  type: 'test'
+  ...
+# Subtest: slow old projection cannot replace a newer completed cache
+ok 87 - slow old projection cannot replace a newer completed cache
+  ---
+  duration_ms: 1.298445
+  type: 'test'
+  ...
+# Subtest: cold skeleton is not cached as a complete projection
+ok 88 - cold skeleton is not cached as a complete projection
+  ---
+  duration_ms: 0.873068
+  type: 'test'
+  ...
+# Subtest: deletion between metadata and full read returns a missing view
+ok 89 - deletion between metadata and full read returns a missing view
+  ---
+  duration_ms: 0.814435
+  type: 'test'
+  ...
+# Subtest: invalid delta revision falls back before rendering
+ok 90 - invalid delta revision falls back before rendering
+  ---
+  duration_ms: 1.588752
+  type: 'test'
+  ...
+# Subtest: invalid delta resource falls back before rendering
+ok 91 - invalid delta resource falls back before rendering
+  ---
+  duration_ms: 1.340526
+  type: 'test'
+  ...
+# Subtest: invalid delta missing falls back before rendering
+ok 92 - invalid delta missing falls back before rendering
+  ---
+  duration_ms: 1.027525
+  type: 'test'
+  ...
+# Subtest: reader refuses to publish when recovery fails before or after projection
+ok 93 - reader refuses to publish when recovery fails before or after projection
+  ---
+  duration_ms: 3.442725
+  type: 'test'
+  ...
+# Subtest: edited-input replacement updates original user bubble (live)
+ok 94 - edited-input replacement updates original user bubble (live)
+  ---
+  duration_ms: 15.503882
+  type: 'test'
+  ...
+# Subtest: edited-input replacement updates original user bubble (reopen)
+ok 95 - edited-input replacement updates original user bubble (reopen)
+  ---
+  duration_ms: 12.599321
+  type: 'test'
+  ...
+# Subtest: successive edits retain one bubble and do not change a neighbouring input
+ok 96 - successive edits retain one bubble and do not change a neighbouring input
+  ---
+  duration_ms: 12.472597
+  type: 'test'
+  ...
+# Subtest: unrelated retirement tombstone does not overwrite the user bubble
+ok 97 - unrelated retirement tombstone does not overwrite the user bubble
+  ---
+  duration_ms: 11.315304
+  type: 'test'
+  ...
+# Subtest: prepend resolves an edit whose original input was outside the loaded window
+ok 98 - prepend resolves an edit whose original input was outside the loaded window
+  ---
+  duration_ms: 12.746033
+  type: 'test'
+  ...
+1..98
+# tests 98
+# suites 0
+# pass 98
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5853.263677

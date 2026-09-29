@@ -1,0 +1,12 @@
+[
+  {
+    "path": "lib/index.js",
+    "liveSha256": "bc8a7856d3f5a8bbd9f2f88cd3cced047f932687301334c53bb7b94358ed616f",
+    "sha256": "b32ce92dd8d03a2313495204b066a78fbf777cc31c25235bb43d4c5981356040"
+  },
+  {
+    "path": "lib/domain/body-editor.js",
+    "liveSha256": "aef66d580685a5ff8533f66007bd17dd9d81d3b3779f664258e19e545cffc74b",
+    "sha256": "570d32b7623fc7f1da7bcc62f8026f84363c30cb29ac3a09a447f7e1eb8e858f"
+  }
+]

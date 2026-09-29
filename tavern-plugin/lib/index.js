@@ -2974,6 +2974,11 @@ export async function apply(ctx) {
   })
 
   const bodyEditor = createBodyEditor({
+    algebraEnabled: sessionId => {
+      if (!algebraEnabled(sessionId)) return false
+      if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用正文编辑事务')
+      return true
+    },
     chats: { forSession: chatForSession, update: updateChat },
     sessions: { get: id => ctx.get('agents')?.get(id), flush: session => sessionStore.flush(session) },
     timeline: storyTimeline,
@@ -3043,8 +3048,9 @@ export async function apply(ctx) {
         const transactions = events.map(event => ({ seq: event.seq, tag: (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction })).filter(item => item.tag)
         const completed = transactions.filter(item => ['commit', 'begin-commit'].includes(item.tag.phase))
         return { conversationAlgebra: {
-          enabled: algebraEnabled(sessionId), scope: 'foreground-retirement', historyReady: algebraHistoryInstalled,
+          enabled: algebraEnabled(sessionId), scope: 'foreground-retirement,body-edit', historyReady: algebraHistoryInstalled,
           loaded: Boolean(session), committedTransactions: completed.length,
+          bodyEditTransactions: completed.filter(item => item.tag.operationId.startsWith('tavern-body-edit:')).length,
           lastCommit: completed.length ? { seq: completed.at(-1).seq, operationId: completed.at(-1).tag.operationId } : null
         } }
       }
