@@ -105,6 +105,8 @@ import { createForegroundHandoff } from './domain/foreground-handoff.js'
 import { createForegroundFrameBuilder } from './domain/agent-input-frame.js'
 import { retireForegroundFrames } from './domain/foreground-frame-retirement.js'
 import { retireForegroundWithAlgebra } from './domain/conversation-algebra-retirement.js'
+import { computeFold, runTransaction, waitForTransactionReady } from './domain/conversation-algebra/index.js'
+import { createConversationAlgebraHostAdapter } from './domain/conversation-algebra-host-adapter.js'
 import { createConversationReadiness } from './domain/conversation-algebra-readiness.js'
 import { installConversationHistoryGate } from './domain/conversation-algebra-isolation.js'
 import { createConversationHistory } from './domain/conversation-algebra-history.js'
@@ -3986,19 +3988,34 @@ export async function apply(ctx) {
     return ''
   }
 
-  function replaceAssistantReply(session, result, bodyText) {
+  async function replaceAssistantReply(session, result, bodyText) {
     if (result === null || result.text === bodyText) return
     const previous = result.event && result.event.data && result.event.data.message
     if (previous === null || typeof previous !== 'object') return
-    replaceSessionSurface(session, 'assistant/message', {
+    const replacement = {
       turn: Number(result.event.data && result.event.data.turn) || 0,
       step: Number(result.event.data && result.event.data.step) || 1,
       message: Object.assign({}, previous, {
         id: randomUUID(),
         source: { kind: 'model', provider: 'dsh-tavern', model: 'reply-projection' },
         content: [{ type: 'text', text: bodyText }]
-      })
-    }, { start: result.index, end: result.index, sourceEventSeqs: [result.index] })
+      }),
+      stream: Array.isArray(result.event.data && result.event.data.stream) ? [...result.event.data.stream] : []
+    }
+    if (algebraEnabled(session.id)) {
+      if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用 conversationAlgebra')
+      const adapter = createConversationAlgebraHostAdapter(session, { flush: target => sessionStore.flush(target) })
+      await waitForTransactionReady(adapter)
+      const state = computeFold(sessionEvents(session))
+      await runTransaction(adapter, { expectedHead: state.headSeq, operationId: 'reply-projection:' + randomUUID(), ops: [{
+        kind: 'surface-write',
+        event: { type: 'assistant/message', data: replacement },
+        intent: { surfaceOp: { op: 'replace', start: result.index, end: result.index }, sourceEventSeqs: [result.index] }
+      }] })
+      return
+    }
+    replaceSessionSurface(session, 'assistant/message', replacement,
+      { start: result.index, end: result.index, sourceEventSeqs: [result.index] })
   }
 
   async function resolveChatRuntimePreset(chat) {
@@ -4431,7 +4448,7 @@ export async function apply(ctx) {
       userContent,
       assistantText: assistant === null ? '' : assistant.text
     })
-    if (saved.reply) replaceAssistantReply(session, assistant, saved.reply.sessionText)
+    if (saved.reply) await replaceAssistantReply(session, assistant, saved.reply.sessionText)
   })
 
   ctx.on('agent/error', function (payload) {
