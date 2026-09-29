@@ -107,6 +107,7 @@ import { retireForegroundFrames } from './domain/foreground-frame-retirement.js'
 import { retireForegroundWithAlgebra } from './domain/conversation-algebra-retirement.js'
 import { createConversationReadiness } from './domain/conversation-algebra-readiness.js'
 import { installConversationHistoryGate } from './domain/conversation-algebra-isolation.js'
+import { createConversationHistory } from './domain/conversation-algebra-history.js'
 import { compactionFailureMessage } from './domain/compaction-failure.js'
 import { createForegroundFrameSessionAdapter } from './domain/foreground-frame-session-adapter.js'
 import { HISTORY_RECALL_OUTPUT_SCHEMA, HISTORY_RECALL_TOOL, createHistoryRecall, renderHistoryRecall } from './domain/history-recall.js'
@@ -322,7 +323,13 @@ export async function apply(ctx) {
     getSession: id => sessionStore.get(id) || agentRegistry.get(id)?.session,
     observe: (id, signal) => ctx.get('sessionQuery').observeSession(id, { signal, projectionMode: 'none' }),
     resume: id => agentRegistry.resume({ resumeSessionId: id }),
-    flush: session => sessionStore.flush(session)
+    flush: session => sessionStore.flush(session),
+    writeRegistry: persistConversationRegistry,
+    hasHistoryIntent: async id => Boolean((await chatForSession(id))?.conversationHistoryIntent),
+    recoverHistory: async session => {
+      const chat = await chatForSession(session.id)
+      if (chat?.conversationHistoryIntent) await algebraHistory.recover(session, chat.id)
+    }
   })
   let algebraHistoryInstalled = false
   ctx.inject(['sessionController'], scope => {
@@ -847,6 +854,16 @@ export async function apply(ctx) {
     }
   })
   function chatForSession(sessionId) { return sessionChats.read(sessionId) }
+  async function persistConversationRegistry(sessionId, registry) {
+    const chat = await chatForSession(sessionId)
+    if (!chat) throw new Error('分支注册表缺少对应 Chat')
+    if (JSON.stringify(chat.branchRegistry) === JSON.stringify(registry)) return
+    await rawUpdateChat(chat.id, current => {
+      if (JSON.stringify(current.branchRegistry) === JSON.stringify(registry)) return undefined
+      current.branchRegistry = structuredClone(registry)
+      return current
+    }, { source: 'conversation-algebra.registry' })
+  }
   function sessionStateForSession(sessionId) {
     return requestPerformance.stage('readSessionState', () => sessionChats.readState(sessionId))
   }
@@ -2956,7 +2973,16 @@ export async function apply(ctx) {
     void mvuSettlementReconciler.scan()
   }
   // ---------- 重新生成正文（生成即替换，无确认） ----------
+  const algebraHistory = {
+    ...createConversationHistory({ chats: { update: updateChat }, flush: session => sessionStore.flush(session) }),
+    enabled: sessionId => {
+      if (!algebraEnabled(sessionId)) return false
+      if (!algebraHistoryInstalled) throw new Error('会话历史隔离未就绪，不能回退分支')
+      return true
+    }
+  }
   const { regenerate: regenBody, replayFailed: replayFailedTurn, recover: recoverRegeneration, rollback: rollbackTurn, undoRollback: undoRollbackTurn } = createRoundHistory({
+    algebraHistory,
     diagnostics: mvuDiagnostics,
     chats: { read: readChat, readState: chatPersistence.readSessionState, forSession: chatForSession, readCard: readChatCard,
       readRevision: readChatRevision, write: writeChat, update: updateChat },
@@ -3048,9 +3074,10 @@ export async function apply(ctx) {
         const transactions = events.map(event => ({ seq: event.seq, tag: (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction })).filter(item => item.tag)
         const completed = transactions.filter(item => ['commit', 'begin-commit'].includes(item.tag.phase))
         return { conversationAlgebra: {
-          enabled: algebraEnabled(sessionId), scope: 'foreground-retirement,body-edit', historyReady: algebraHistoryInstalled,
+          enabled: algebraEnabled(sessionId), scope: 'foreground-retirement,body-edit,rollback', historyReady: algebraHistoryInstalled,
           loaded: Boolean(session), committedTransactions: completed.length,
           bodyEditTransactions: completed.filter(item => item.tag.operationId.startsWith('tavern-body-edit:')).length,
+          checkoutTransactions: completed.filter(item => item.tag.operationId.startsWith('checkout:')).length,
           lastCommit: completed.length ? { seq: completed.at(-1).seq, operationId: completed.at(-1).tag.operationId } : null
         } }
       }

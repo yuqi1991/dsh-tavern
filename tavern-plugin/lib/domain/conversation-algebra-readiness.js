@@ -1,5 +1,6 @@
-import { waitForTransactionReady } from './conversation-algebra/index.js'
-import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+import { waitForTransactionReady, committedMetadata } from './conversation-algebra/index.js'
+import { sessionEvents } from './session-events.js'
+import { createConversationAlgebraHostAdapter, setConversationRegistryWriter } from './conversation-algebra-host-adapter.js'
 
 export function hasPendingConversationTransaction(events) {
   const tags=events.map(event=>(event.type==='user/message'?event.data:event.data?.message)?.source?.conversationTransaction).filter(Boolean)
@@ -9,10 +10,15 @@ export function hasPendingConversationTransaction(events) {
 
 /** Lazy cold-session inspection. All writes remain in the host-owned Session;
  * observing a clean cold session does not activate an Agent. */
-export function createConversationReadiness({getSession, observe, resume, flush}) {
+export function createConversationReadiness({getSession, observe, resume, flush, writeRegistry, hasHistoryIntent = async () => false, recoverHistory = async () => {}}) {
   const cold = new Map()
   async function live(session) {
-    await waitForTransactionReady(createConversationAlgebraHostAdapter(session,{flush}))
+    if (typeof writeRegistry === 'function') setConversationRegistryWriter(session, value => writeRegistry(session.id, value))
+    await recoverHistory(session)
+    const metadata = typeof writeRegistry === 'function' ? { write: value => writeRegistry(session.id, value) } : {}
+    await waitForTransactionReady(createConversationAlgebraHostAdapter(session,{flush,...metadata}))
+    const registry = committedMetadata(sessionEvents(session))
+    if (registry && typeof writeRegistry === 'function') await writeRegistry(session.id, registry)
   }
   async function ready(id,signal) {
     signal?.throwIfAborted()
@@ -21,10 +27,14 @@ export function createConversationReadiness({getSession, observe, resume, flush}
     if (cold.has(id)) return cold.get(id)
     const pending=(async()=>{
       const observation=await observe(id,signal)
-      let needsRecovery
-      try { needsRecovery=hasPendingConversationTransaction(observation.events) }
+      let needsRecovery, registry
+      try { needsRecovery=hasPendingConversationTransaction(observation.events); registry=committedMetadata(observation.events) }
       finally { observation[Symbol.dispose]?.() }
-      if (!needsRecovery) return
+      needsRecovery ||= await hasHistoryIntent(id)
+      if (!needsRecovery) {
+        if (registry && typeof writeRegistry === 'function') await writeRegistry(id, registry)
+        return
+      }
       const handle=await resume(id)
       try { await live(handle.agent.session) }
       finally { await handle.dispose() }

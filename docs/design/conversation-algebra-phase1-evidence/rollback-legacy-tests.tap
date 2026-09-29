@@ -1,0 +1,496 @@
+TAP version 13
+# Subtest: rollback after foreground Agent release, stored Session=true
+ok 1 - rollback after foreground Agent release, stored Session=true
+  ---
+  duration_ms: 10.366257
+  type: 'test'
+  ...
+# Subtest: rollback after foreground Agent release, stored Session=false
+ok 2 - rollback after foreground Agent release, stored Session=false
+  ---
+  duration_ms: 2.273855
+  type: 'test'
+  ...
+# Subtest: failed foreground resume leaves rollback data intact and permits retry
+ok 3 - failed foreground resume leaves rollback data intact and permits retry
+  ---
+  duration_ms: 2.165295
+  type: 'test'
+  ...
+# Subtest: 编辑重生成输入同步剧情、原生消息与合成生成请求
+ok 4 - 编辑重生成输入同步剧情、原生消息与合成生成请求
+  ---
+  duration_ms: 5.239026
+  type: 'test'
+  ...
+# Subtest: rc.1 snapshot-only history supports regeneration and rollback without rewriting native events
+ok 5 - rc.1 snapshot-only history supports regeneration and rollback without rewriting native events
+  ---
+  duration_ms: 3.306682
+  type: 'test'
+  ...
+# Subtest: rollback refuses a checkpoint whose round has left the native Surface instead of removing a different round
+ok 6 - rollback refuses a checkpoint whose round has left the native Surface instead of removing a different round
+  ---
+  duration_ms: 0.933936
+  type: 'test'
+  ...
+# Subtest: 配对失败的证据写入现有诊断包，原错误与聊天、原生历史保持不变
+ok 7 - 配对失败的证据写入现有诊断包，原错误与聊天、原生历史保持不变
+  ---
+  duration_ms: 28.316804
+  type: 'test'
+  ...
+# Subtest: 诊断持久化失败不替换原配对错误，也不阻止正常重新生成
+ok 8 - 诊断持久化失败不替换原配对错误，也不阻止正常重新生成
+  ---
+  duration_ms: 3.24896
+  type: 'test'
+  ...
+# Subtest: 生成中误点回退不写入，完成后再次点击能正常回退
+ok 9 - 生成中误点回退不写入，完成后再次点击能正常回退
+  ---
+  duration_ms: 1.756145
+  type: 'test'
+  ...
+# Subtest: 变量结算失败后仍可显式回退已提交正文，不连带回退上一轮 checkpoint
+ok 10 - 变量结算失败后仍可显式回退已提交正文，不连带回退上一轮 checkpoint
+  ---
+  duration_ms: 3.158174
+  type: 'test'
+  ...
+# Subtest: 模型消息面拒绝回退时恢复原剧情，重试仍能回退
+ok 11 - 模型消息面拒绝回退时恢复原剧情，重试仍能回退
+  ---
+  duration_ms: 2.868554
+  type: 'test'
+  ...
+# Subtest: 回退提交后脚本通知失败不会伪装成回退失败
+ok 12 - 回退提交后脚本通知失败不会伪装成回退失败
+  ---
+  duration_ms: 1.870917
+  type: 'test'
+  ...
+# Subtest: 读取 checkpoint 期间重新开始生成时，提交前再次拒绝回退
+ok 13 - 读取 checkpoint 期间重新开始生成时，提交前再次拒绝回退
+  ---
+  duration_ms: 1.078725
+  type: 'test'
+  ...
+# Subtest: body 未完成任务不阻塞回退，旧结果失效
+ok 14 - body 未完成任务不阻塞回退，旧结果失效
+  ---
+  duration_ms: 2.032128
+  type: 'test'
+  ...
+# Subtest: settlement 未完成任务不阻塞回退，旧结果失效
+ok 15 - settlement 未完成任务不阻塞回退，旧结果失效
+  ---
+  duration_ms: 1.363204
+  type: 'test'
+  ...
+# Subtest: candidate 未完成任务不阻塞回退，旧结果失效
+ok 16 - candidate 未完成任务不阻塞回退，旧结果失效
+  ---
+  duration_ms: 1.181624
+  type: 'test'
+  ...
+# Subtest: 读取 checkpoint 时聊天变化不会被旧回退覆盖
+ok 17 - 读取 checkpoint 时聊天变化不会被旧回退覆盖
+  ---
+  duration_ms: 0.972089
+  type: 'test'
+  ...
+# Subtest: 存储拒绝回退时不修改消息面，并释放回退锁
+ok 18 - 存储拒绝回退时不修改消息面，并释放回退锁
+  ---
+  duration_ms: 1.40717
+  type: 'test'
+  ...
+# Subtest: 重复回退请求只执行一次
+ok 19 - 重复回退请求只执行一次
+  ---
+  duration_ms: 1.166024
+  type: 'test'
+  ...
+# Subtest: 补偿期间出现并发修改时拒绝覆盖，并明确报告恢复失败
+ok 20 - 补偿期间出现并发修改时拒绝覆盖，并明确报告恢复失败
+  ---
+  duration_ms: 1.143951
+  type: 'test'
+  ...
+# Subtest: 真实 journal 持久化：消息面失败后 checkpoint 可恢复、重建服务后可重试
+ok 21 - 真实 journal 持久化：消息面失败后 checkpoint 可恢复、重建服务后可重试
+  ---
+  duration_ms: 46.675581
+  type: 'test'
+  ...
+# Subtest: 完整重生成先独立替换唯一正文，再执行后台结算
+ok 22 - 完整重生成先独立替换唯一正文，再执行后台结算
+  ---
+  duration_ms: 2.014484
+  type: 'test'
+  ...
+# Subtest: 当前正文尚在后台结算时，重新生成先取消旧结算再替换正文
+ok 23 - 当前正文尚在后台结算时，重新生成先取消旧结算再替换正文
+  ---
+  duration_ms: 1.951812
+  type: 'test'
+  ...
+# Subtest: 重生成的后台结算失败时保留新正文并允许继续
+ok 24 - 重生成的后台结算失败时保留新正文并允许继续
+  ---
+  duration_ms: 2.586861
+  type: 'test'
+  ...
+# Subtest: 重生成保留真实结算错误但不恢复旧正文：throw=false
+ok 25 - 重生成保留真实结算错误但不恢复旧正文：throw=false
+  ---
+  duration_ms: 2.723595
+  type: 'test'
+  ...
+# Subtest: 重生成保留真实结算错误但不恢复旧正文：throw=true
+ok 26 - 重生成保留真实结算错误但不恢复旧正文：throw=true
+  ---
+  duration_ms: 1.608229
+  type: 'test'
+  ...
+# Subtest: 重生成 throw 恢复原剧情且不排后台结算
+ok 27 - 重生成 throw 恢复原剧情且不排后台结算
+  ---
+  duration_ms: 1.651783
+  type: 'test'
+  ...
+# Subtest: 重生成 missing 恢复原剧情且不排后台结算
+ok 28 - 重生成 missing 恢复原剧情且不排后台结算
+  ---
+  duration_ms: 0.679804
+  type: 'test'
+  ...
+# Subtest: 重生成 empty 恢复原剧情且不排后台结算
+ok 29 - 重生成 empty 恢复原剧情且不排后台结算
+  ---
+  duration_ms: 0.885422
+  type: 'test'
+  ...
+# Subtest: 重新创建流程模块后连续重生成仍替换原轮次；回退恢复 checkpoint 并按顺序通知脚本
+ok 30 - 重新创建流程模块后连续重生成仍替换原轮次；回退恢复 checkpoint 并按顺序通知脚本
+  ---
+  duration_ms: 5.024923
+  type: 'test'
+  ...
+# Subtest: 旧剧本回退保留迁移恢复路径；非游玩模式拒绝回退
+ok 31 - 旧剧本回退保留迁移恢复路径；非游玩模式拒绝回退
+  ---
+  duration_ms: 0.959214
+  type: 'test'
+  ...
+# Subtest: 回退中断前台并重新读取结束后的聊天，不等待后台退出
+ok 32 - 回退中断前台并重新读取结束后的聊天，不等待后台退出
+  ---
+  duration_ms: 1.002679
+  type: 'test'
+  ...
+# Subtest: 后台历史快照缺失时仍回退正文，保留当前状态并提示
+ok 33 - 后台历史快照缺失时仍回退正文，保留当前状态并提示
+  ---
+  duration_ms: 0.904759
+  type: 'test'
+  ...
+# Subtest: 历史后台 pending 标记不会永久锁住连续回退
+ok 34 - 历史后台 pending 标记不会永久锁住连续回退
+  ---
+  duration_ms: 0.995815
+  type: 'test'
+  ...
+# Subtest: 读取历史期间后台更新变量不阻塞正文回退
+ok 35 - 读取历史期间后台更新变量不阻塞正文回退
+  ---
+  duration_ms: 0.955056
+  type: 'test'
+  ...
+# Subtest: rollback immediately rewinds and flushes background surface, failure only warns
+ok 36 - rollback immediately rewinds and flushes background surface, failure only warns
+  ---
+  duration_ms: 3.853919
+  type: 'test'
+  ...
+# Subtest: 真实重新生成与后台调度联动：连续三次只创建一个后台，撤回内容不进入下一请求
+ok 37 - 真实重新生成与后台调度联动：连续三次只创建一个后台，撤回内容不进入下一请求
+  ---
+  duration_ms: 38.35618
+  type: 'test'
+  ...
+# Subtest: 回退先清除 1 次中断，保留已完成剧情和后台状态
+ok 38 - 回退先清除 1 次中断，保留已完成剧情和后台状态
+  ---
+  duration_ms: 2.306599
+  type: 'test'
+  ...
+# Subtest: 回退先清除 3 次中断，保留已完成剧情和后台状态
+ok 39 - 回退先清除 3 次中断，保留已完成剧情和后台状态
+  ---
+  duration_ms: 1.515078
+  type: 'test'
+  ...
+# Subtest: 首次回复停止后也可清除，不要求已存在完整用户与正文配对
+ok 40 - 首次回复停止后也可清除，不要求已存在完整用户与正文配对
+  ---
+  duration_ms: 0.386256
+  type: 'test'
+  ...
+# Subtest: 请求 HTTP 500 且没有正文时仅清除失败轮次（首次=true）
+ok 41 - 请求 HTTP 500 且没有正文时仅清除失败轮次（首次=true）
+  ---
+  duration_ms: 0.36217
+  type: 'test'
+  ...
+# Subtest: 请求 HTTP 500 且没有正文时仅清除失败轮次（首次=false）
+ok 42 - 请求 HTTP 500 且没有正文时仅清除失败轮次（首次=false）
+  ---
+  duration_ms: 0.343695
+  type: 'test'
+  ...
+# Subtest: 剧情恢复聊天变量与元数据：rollback，历史缺省=false
+ok 43 - 剧情恢复聊天变量与元数据：rollback，历史缺省=false
+  ---
+  duration_ms: 2.445587
+  type: 'test'
+  ...
+# Subtest: 剧情恢复聊天变量与元数据：regenerate，历史缺省=false
+ok 44 - 剧情恢复聊天变量与元数据：regenerate，历史缺省=false
+  ---
+  duration_ms: 2.06943
+  type: 'test'
+  ...
+# Subtest: 剧情恢复聊天变量与元数据：failed-regenerate，历史缺省=false
+ok 45 - 剧情恢复聊天变量与元数据：failed-regenerate，历史缺省=false
+  ---
+  duration_ms: 1.304832
+  type: 'test'
+  ...
+# Subtest: 剧情恢复聊天变量与元数据：rollback，历史缺省=true
+ok 46 - 剧情恢复聊天变量与元数据：rollback，历史缺省=true
+  ---
+  duration_ms: 2.235881
+  type: 'test'
+  ...
+# Subtest: 剧情恢复聊天变量与元数据：regenerate，历史缺省=true
+ok 47 - 剧情恢复聊天变量与元数据：regenerate，历史缺省=true
+  ---
+  duration_ms: 5.853355
+  type: 'test'
+  ...
+# Subtest: 剧情恢复聊天变量与元数据：failed-regenerate，历史缺省=true
+ok 48 - 剧情恢复聊天变量与元数据：failed-regenerate，历史缺省=true
+  ---
+  duration_ms: 1.060981
+  type: 'test'
+  ...
+# Subtest: 误回退后撤销恢复正文、变量和 checkpoint，并保留原生日志
+ok 49 - 误回退后撤销恢复正文、变量和 checkpoint，并保留原生日志
+  ---
+  duration_ms: 1.53163
+  type: 'test'
+  ...
+# Subtest: 新操作使撤销恢复点失效：empty-generation
+ok 50 - 新操作使撤销恢复点失效：empty-generation
+  ---
+  duration_ms: 1.07085
+  type: 'test'
+  ...
+# Subtest: 新操作使撤销恢复点失效：edit
+ok 51 - 新操作使撤销恢复点失效：edit
+  ---
+  duration_ms: 0.809024
+  type: 'test'
+  ...
+# Subtest: 回退目标轮次已变化时拒绝删除
+ok 52 - 回退目标轮次已变化时拒绝删除
+  ---
+  duration_ms: 0.466021
+  type: 'test'
+  ...
+# Subtest: 撤销保存失败时恢复回退后的模型上下文，不覆盖正文
+ok 53 - 撤销保存失败时恢复回退后的模型上下文，不覆盖正文
+  ---
+  duration_ms: 1.057364
+  type: 'test'
+  ...
+# Subtest: 失败后成功再回退：先清理失败残留，下一次才回退保留正文
+ok 54 - 失败后成功再回退：先清理失败残留，下一次才回退保留正文
+  ---
+  duration_ms: 1.502875
+  type: 'test'
+  ...
+# Subtest: 压缩移除原生配对后，回退返回可理解提示且不修改存档
+ok 55 - 压缩移除原生配对后，回退返回可理解提示且不修改存档
+  ---
+  duration_ms: 0.46022
+  type: 'test'
+  ...
+# Subtest: 缺失失败清理标记时仍可清理尾部中断，保留上一轮剧情
+ok 56 - 缺失失败清理标记时仍可清理尾部中断，保留上一轮剧情
+  ---
+  duration_ms: 0.807982
+  type: 'test'
+  ...
+# Subtest: 连续未清理的error尾部仅清理失败轮，存储失败后可以重试
+ok 57 - 连续未清理的error尾部仅清理失败轮，存储失败后可以重试
+  ---
+  duration_ms: 1.519678
+  type: 'test'
+  ...
+# Subtest: 连续未清理的aborted尾部仅清理失败轮，存储失败后可以重试
+ok 58 - 连续未清理的aborted尾部仅清理失败轮，存储失败后可以重试
+  ---
+  duration_ms: 1.248062
+  type: 'test'
+  ...
+# Subtest: 撤销回退校验后台恢复后的真实变化：resume
+ok 59 - 撤销回退校验后台恢复后的真实变化：resume
+  ---
+  duration_ms: 1.769901
+  type: 'test'
+  ...
+# Subtest: 撤销回退校验后台恢复后的真实变化：turn/start
+ok 60 - 撤销回退校验后台恢复后的真实变化：turn/start
+  ---
+  duration_ms: 1.036884
+  type: 'test'
+  ...
+# Subtest: 撤销回退校验后台恢复后的真实变化：surface
+ok 61 - 撤销回退校验后台恢复后的真实变化：surface
+  ---
+  duration_ms: 0.951028
+  type: 'test'
+  ...
+# Subtest: 中断重生成后重建模块恢复原正文与状态：legacy=false
+ok 62 - 中断重生成后重建模块恢复原正文与状态：legacy=false
+  ---
+  duration_ms: 2.766217
+  type: 'test'
+  ...
+# Subtest: 中断重生成后重建模块恢复原正文与状态：legacy=true
+ok 63 - 中断重生成后重建模块恢复原正文与状态：legacy=true
+  ---
+  duration_ms: 2.376373
+  type: 'test'
+  ...
+# Subtest: 取消旧结算抛错也恢复原正文并解除重生成锁
+ok 64 - 取消旧结算抛错也恢复原正文并解除重生成锁
+  ---
+  duration_ms: 1.320442
+  type: 'test'
+  ...
+# Subtest: 新正文提交失败恢复原状态且不留下重生成锁
+ok 65 - 新正文提交失败恢复原状态且不留下重生成锁
+  ---
+  duration_ms: 1.321013
+  type: 'test'
+  ...
+# Subtest: 恢复不打断当前进程中的重生成或宿主仍在运行的回合
+ok 66 - 恢复不打断当前进程中的重生成或宿主仍在运行的回合
+  ---
+  duration_ms: 0.924918
+  type: 'test'
+  ...
+# Subtest: 恢复时消息面保存失败保留恢复点，下次重试成功且临时会话释放
+ok 67 - 恢复时消息面保存失败保留恢复点，下次重试成功且临时会话释放
+  ---
+  duration_ms: 1.437448
+  type: 'test'
+  ...
+# Subtest: 历史恢复点丢失时不删除标志或伪造原正文
+ok 68 - 历史恢复点丢失时不删除标志或伪造原正文
+  ---
+  duration_ms: 0.932733
+  type: 'test'
+  ...
+# Subtest: 失败尾部重放：移除被中断的回复后原样重发本轮输入，不回退已完成剧情
+ok 69 - 失败尾部重放：移除被中断的回复后原样重发本轮输入，不回退已完成剧情
+  ---
+  duration_ms: 1.180882
+  type: 'test'
+  ...
+# Subtest: 失败清理钩子缺失时，重放先补清被中断的回复再重发
+ok 70 - 失败清理钩子缺失时，重放先补清被中断的回复再重发
+  ---
+  duration_ms: 0.595181
+  type: 'test'
+  ...
+# Subtest: 重放失败回合会拒绝在宿主机会话补丁尚未握手时执行
+ok 71 - 重放失败回合会拒绝在宿主机会话补丁尚未握手时执行
+  ---
+  duration_ms: 0.388111
+  type: 'test'
+  ...
+# Subtest: 重放只在失败仍拥有尾部时可用，且生成中或已完成回合都拒绝
+ok 72 - 重放只在失败仍拥有尾部时可用，且生成中或已完成回合都拒绝
+  ---
+  duration_ms: 0.363954
+  type: 'test'
+  ...
+# Subtest: 重放与重生成、回退互斥
+ok 73 - 重放与重生成、回退互斥
+  ---
+  duration_ms: 1.358295
+  type: 'test'
+  ...
+# Subtest: native replacement failure after Chat commit must remain recoverable
+ok 74 - native replacement failure after Chat commit must remain recoverable
+  ---
+  duration_ms: 1.734713
+  type: 'test'
+  ...
+# Subtest: failed regeneration must preserve a Guide saved while model is running
+ok 75 - failed regeneration must preserve a Guide saved while model is running
+  ---
+  duration_ms: 1.146116
+  type: 'test'
+  ...
+# Subtest: ordinary active generation must reject regeneration before rolling back Chat
+ok 76 - ordinary active generation must reject regeneration before rolling back Chat
+  ---
+  duration_ms: 0.463796
+  type: 'test'
+  ...
+# Subtest: committed projection flush failure retains intent and retry never appends a second replacement
+ok 77 - committed projection flush failure retains intent and retry never appends a second replacement
+  ---
+  duration_ms: 1.407441
+  type: 'test'
+  ...
+# Subtest: generation starting during diagnostics is rejected again before changing Chat
+ok 78 - generation starting during diagnostics is rejected again before changing Chat
+  ---
+  duration_ms: 0.912864
+  type: 'test'
+  ...
+# Subtest: rollback cannot cancel and consume an active regeneration
+ok 79 - rollback cannot cancel and consume an active regeneration
+  ---
+  duration_ms: 0.743056
+  type: 'test'
+  ...
+# Subtest: rescued history blocks regeneration and rollback without modifying old text
+ok 80 - rescued history blocks regeneration and rollback without modifying old text
+  ---
+  duration_ms: 0.429069
+  type: 'test'
+  ...
+# Subtest: 重新生成携带玩家原始图片，提交后仍保留图片
+ok 81 - 重新生成携带玩家原始图片，提交后仍保留图片
+  ---
+  duration_ms: 1.377473
+  type: 'test'
+  ...
+1..81
+# tests 81
+# suites 0
+# pass 81
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 684.691961

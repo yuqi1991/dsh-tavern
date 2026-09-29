@@ -3,6 +3,11 @@ import { createSessionSurfaceMutator } from './session-surface-mutations.js'
 import { preflightSurfaceRestore, restoreSurface } from './surface-restoration.js'
 import { guardStepComplete } from './conversation-algebra/index.js'
 
+const registryWriters = new WeakMap()
+export function setConversationRegistryWriter(session, write) {
+  registryWriters.set(session, write)
+}
+
 /**
  * Production-side adapter for the conversation-algebra seam. It deliberately
  * lives outside the independently importable algebra directory: all durable
@@ -11,6 +16,7 @@ import { guardStepComplete } from './conversation-algebra/index.js'
  */
 export function createConversationAlgebraHostAdapter(session, metadata = {}) {
   if (!session || typeof session.append !== 'function') throw new TypeError('conversation algebra 缺少宿主 Session')
+  const registryWrite = metadata.write || registryWriters.get(session)
   return Object.freeze({
     sessionKey: session,
     snapshotEvents() {
@@ -20,7 +26,17 @@ export function createConversationAlgebraHostAdapter(session, metadata = {}) {
       if (typeof session.constructor?.fromRestore !== 'function') throw new TypeError('宿主 Session 缺少 detached 预检能力')
       const preview = session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
       const adapter = createConversationAlgebraHostAdapter(preview)
-      for (const write of writes) adapter.append(write.event.type, write.event.data, write.intent)
+      const head = sessionEvents(session).at(-1)?.seq ?? -1
+      const delta = (sessionEvents(preview).at(-1)?.seq ?? -1) - head
+      const translate = seq => seq > head ? seq + delta : seq
+      for (const write of writes) {
+        const intent = structuredClone(write.intent)
+        if (intent.surfaceOp?.op === 'replace') {
+          intent.surfaceOp = { op: 'replace', startSeq: translate(intent.surfaceOp.startSeq ?? intent.surfaceOp.start), endSeq: translate(intent.surfaceOp.endSeq ?? intent.surfaceOp.end) }
+          intent.sourceEventSeqs = intent.sourceEventSeqs.map(translate)
+        }
+        adapter.append(write.event.type, write.event.data, intent)
+      }
       return [...preview.surface.nodes]
     },
     surfaceNodes() { return [...session.surface.nodes] },
@@ -43,6 +59,20 @@ export function createConversationAlgebraHostAdapter(session, metadata = {}) {
       while (prefix < nodes.length && prefix < targetNodes.length && nodes[prefix] === targetNodes[prefix]) prefix++
       if (prefix === nodes.length && prefix === targetNodes.length) return []
       while (prefix > 0 && targets[prefix]?.type === 'tool/result') prefix--
+      if (targets.length > prefix) {
+        // Reuse the existing restoration compiler: restored input must be a
+        // replacement, never a second append-origin human transcript entry.
+        const preview = session.constructor.fromRestore(session.id, structuredClone(events), structuredClone(session.header), session.inheritedEventCount, 'detached')
+        const head = sessionEvents(preview).at(-1)?.seq ?? -1
+        restoreSurface(preview, targetNodes)
+        const delta = head - (events.at(-1)?.seq ?? -1)
+        const translate = seq => seq > head ? seq - delta : seq
+        return sessionEvents(preview).filter(event => event.seq > head && event.surfaceOp !== undefined).map(event => ({
+          kind: 'surface-write', plannedSeq: translate(event.seq),
+          event: { type: event.type, data: structuredClone(event.data) },
+          intent: { surfaceOp: event.surfaceOp === 'append' ? 'append' : { op: 'replace', startSeq: translate(event.surfaceOp.startSeq), endSeq: translate(event.surfaceOp.endSeq) }, ...(event.sourceEventSeqs ? { sourceEventSeqs: event.sourceEventSeqs.map(translate) } : {}) }
+        }))
+      }
       const writes = []
       const suffix = nodes.slice(prefix)
       if (suffix.length) {
@@ -52,7 +82,6 @@ export function createConversationAlgebraHostAdapter(session, metadata = {}) {
           source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'checkout' }
         } }, intent: { surfaceOp: {op:'replace',start:suffix[0],end:suffix.at(-1)}, sourceEventSeqs:suffix } })
       }
-      for (const event of targets.slice(prefix)) writes.push({kind:'surface-write',event:{type:event.type,data:structuredClone(event.data)},intent:{surfaceOp:'append'}})
       return writes
     },
     flush() {
@@ -77,7 +106,7 @@ export function createConversationAlgebraHostAdapter(session, metadata = {}) {
       return restoreSurface(session, targetNodes)
     },
     ...(typeof metadata.read === 'function' ? { readMetadata: metadata.read } : {}),
-    ...(typeof metadata.write === 'function' ? { writeMetadata: metadata.write } : {}),
+    ...(typeof registryWrite === 'function' ? { writeMetadata: registryWrite } : {}),
     ...(typeof metadata.bump === 'function' ? { bump: metadata.bump } : {})
   })
 }

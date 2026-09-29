@@ -34,6 +34,7 @@ function cursorAfterWrite(adapter, cursor, write) {
   const event = added.at(-1)
   if (!event || event.type !== write.event.type || JSON.stringify(event.data) !== JSON.stringify(write.event.data) ||
       added.slice(0, -1).some(item => !isHostMarker(item)) || added.length > 2) throw new Error('事务写入数量或内容异常')
+  if (write.plannedSeq !== undefined && event.seq !== write.plannedSeq) throw new Error('恢复计划事件位置与宿主不一致')
   return event.seq
 }
 
@@ -58,17 +59,38 @@ export function recoverTransaction(adapter) {
         if (!Array.isArray(saved.plan)) throw new Error('旧事务缺少恢复计划，保持隔离')
         const applied = events.filter(event => transactionOf(event)?.operationId === saved.operationId)
         if (applied.length > saved.plan.length) throw new Error('事务记录多于恢复计划')
+        const positions = new Map()
+        const mappedIntent = write => {
+          const intent = normalizeIntent(write.intent)
+          const map = seq => positions.get(seq) ?? seq
+          if (intent.surfaceOp?.op === 'replace') {
+            intent.surfaceOp.startSeq = map(intent.surfaceOp.startSeq)
+            intent.surfaceOp.endSeq = map(intent.surfaceOp.endSeq)
+            intent.sourceEventSeqs = intent.sourceEventSeqs.map(map)
+          }
+          return intent
+        }
         for (let i = 0; i < applied.length; i++) {
           const actual = structuredClone(applied[i])
           const tag = transactionOf(actual)
           delete tag.plan
           const expected = saved.plan[i]
           if (actual.type !== expected.event.type || JSON.stringify(actual.data) !== JSON.stringify(expected.event.data) ||
-              JSON.stringify(actual.surfaceOp) !== JSON.stringify(normalizeIntent(expected.intent).surfaceOp) ||
-              JSON.stringify(actual.sourceEventSeqs) !== JSON.stringify(normalizeIntent(expected.intent).sourceEventSeqs)) throw new Error('事务记录与恢复计划不匹配')
+              JSON.stringify(actual.surfaceOp) !== JSON.stringify(mappedIntent(expected).surfaceOp) ||
+              JSON.stringify(actual.sourceEventSeqs) !== JSON.stringify(mappedIntent(expected).sourceEventSeqs)) throw new Error('事务记录与恢复计划不匹配')
+          if (expected.plannedSeq !== undefined) positions.set(expected.plannedSeq, actual.seq)
         }
         if (events.slice(events.indexOf(begin)).some(event => !isRecoveryLifecycle(event) && !isHostMarker(event) && transactionOf(event)?.operationId !== saved.operationId)) throw new Error('未提交事务后存在外部写入，保持隔离')
-        const remaining = saved.plan.slice(applied.length)
+        // A restored Session appends lifecycle events. Rebase future generated
+        // placeholders, while references to already applied writes follow their
+        // actual positions. The immutable saved plan stays the recovery oracle.
+        const previousPlanned = saved.plan[applied.length - 1]?.plannedSeq
+        const delta = previousPlanned === undefined ? 0 : (events.at(-1)?.seq ?? -1) - previousPlanned
+        for (const write of saved.plan.slice(applied.length)) {
+          if (write.plannedSeq !== undefined) positions.set(write.plannedSeq, write.plannedSeq + delta)
+        }
+        const remaining = saved.plan.slice(applied.length).map(write => ({ ...structuredClone(write),
+          ...(write.plannedSeq === undefined ? {} : { plannedSeq: positions.get(write.plannedSeq) }), intent: mappedIntent(write) }))
         remaining.forEach(write => guardShape(write.event))
         if (typeof adapter.preflight !== 'function') throw new Error('恢复必须进行宿主预检')
         let cursor = snapshot(adapter).at(-1)?.seq ?? -1
@@ -144,7 +166,7 @@ function normalizeIntent(intent) {
   }
 }
 
-function committedMetadata(events) {
+export function committedMetadata(events) {
   const completed = new Set(events.filter(event => ['commit', 'begin-commit'].includes(transactionOf(event)?.phase)).map(event => transactionOf(event).operationId))
   return events.findLast(event => completed.has(transactionOf(event)?.operationId) && transactionOf(event)?.metadata !== undefined)
     ?.data?.source?.conversationTransaction?.metadata
@@ -198,6 +220,10 @@ async function commitTransaction(adapter, { expectedHead, ops = [], operationId,
   if (changesMetadata) writes.push(metadataCarrier(metadata, id))
   const staged = writes.map((write, index) => withTransaction(write, id,
     writes.length === 1 ? 'begin-commit' : index === 0 ? 'begin' : index === writes.length - 1 ? 'commit' : 'continue'))
+  if (staged.some(write => write.plannedSeq !== undefined)) {
+    let cursor = current.headSeq
+    for (const write of staged) { write.plannedSeq ??= cursor + 1; cursor = write.plannedSeq }
+  }
   if (changesMetadata) messageOfWrite(staged.at(-1)).source.conversationTransaction.metadata = metadata
   if (staged.length > 1) {
     messageOfWrite(staged[0]).source.conversationTransaction.plan = structuredClone(staged)
@@ -208,7 +234,11 @@ async function commitTransaction(adapter, { expectedHead, ops = [], operationId,
   const preview = before.map(event => structuredClone(event))
   for (const write of staged) {
     guardShape(write.event)
-    const seq = preview.length === 0 ? 0 : Math.max(...preview.map(event => event.seq)) + 1
+    const nextSeq = preview.length === 0 ? 0 : Math.max(...preview.map(event => event.seq)) + 1
+    // Detached host compilation includes its automatic compatibility marker.
+    // Preserve these positions so references to newly staged placeholders agree.
+    const seq = write.plannedSeq ?? nextSeq
+    if (!Number.isSafeInteger(seq) || seq < nextSeq || seq > nextSeq + 1) throw new GuardError('G1', '恢复计划事件位置无效')
     preview.push({ type: write.event.type, data: structuredClone(write.event.data), ...normalizeIntent(write.intent), seq, time: 0 })
   }
   const previewFold = computeFold(preview)

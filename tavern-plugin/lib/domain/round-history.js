@@ -79,7 +79,7 @@ export function selectRegenerationTarget(chat, session, observe) {
  * Timeline owns revisions; this module owns the workflow, including aborts.
  * Callers supply host adapters, never intermediate rollback or swipe state.
  */
-export function createRoundHistory({ chats, sessions, scripts, timeline, queueSettlement, cancelSettlement, present, diagnostics, sessionPatch }) {
+export function createRoundHistory({ chats, sessions, scripts, timeline, queueSettlement, cancelSettlement, present, diagnostics, sessionPatch, algebraHistory }) {
   const { read: readChat, forSession: chatForSession, readCard: readChatCard,
     readRevision: readChatRevision, write: writeChat, update: updateChat } = chats
   const { read: readScript, continuity: scriptContinuity } = scripts
@@ -454,6 +454,12 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (rollbackSurface === null) throw new Error(availability.reason)
     const hiddenTurn = rollbackSurface.turn
     const shadowedSeqs = rollbackSurface.shadowedSeqs
+    let algebraIntent
+    if (algebraHistory?.enabled(session.id)) {
+      const start = nodes.indexOf(rollbackSurface.userSeq)
+      if (start < 0) throw new Error('回退输入锚点不在当前分支')
+      algebraIntent = await algebraHistory.prepare(session, chat, start > 0 ? nodes[start - 1] : -1)
+    }
     const regeneratedDshTurns = originalChat.regeneratedDshTurns && typeof originalChat.regeneratedDshTurns === 'object' && !Array.isArray(originalChat.regeneratedDshTurns)
       ? originalChat.regeneratedDshTurns : {}
     const regeneratedVisibleTurn = Number(regeneratedDshTurns[String(hiddenTurn)])
@@ -537,6 +543,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       ...(Number(originalChat._storageRevision || 0) ? {} : { before: structuredClone(originalChat) }),
       foreground: { sessionId: session.id || chat.sessionId, nodes: [...nodes] }, background: []
     }
+    if (algebraIntent) undo.foreground.algebraBranchId = algebraIntent.branchId
     if (undo.before) delete undo.before.rollbackUndo
     const rolled = storyTimeline.apply({ chat, intent: rollbackIntent })
     chat = rolled.chat
@@ -551,6 +558,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       ? structuredClone(chat.regeneratedDshTurns) : {}
     delete chat.regeneratedDshTurns[String(hiddenTurn)]
     chat.updatedAt = Date.now()
+    if (algebraIntent) chat.conversationHistoryIntent = { sessionId: session.id, transaction: algebraIntent }
     chat = await updateChat(chat.id, current => {
       if (!isDeepStrictEqual(rollbackBodyMessages(current), rollbackBodyMessages(originalChat)) || current.timeline?.branchId !== originalChat.timeline?.branchId) throw new Error('回退期间正文已被其他操作修改，请刷新后重试')
       return chat
@@ -558,7 +566,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
 
     // 3) 原生消息面：用空消息替换最近一轮的所有 surface 节点（模型不再看到），UI 由客户端隐藏对应 turn tail
     try {
-      replaceSessionSurface(session, 'assistant/message', {
+      if (algebraIntent) chat = await algebraHistory.recover(session, chat.id)
+      else replaceSessionSurface(session, 'assistant/message', {
         turn: rollbackSurface.turn,
         step: rollbackSurface.step,
         message: {
@@ -569,6 +578,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         }
       }, { start: rollbackSurface.userSeq, end: rollbackSurface.endSeq, sourceEventSeqs: shadowedSeqs })
     } catch (error) {
+      if (algebraIntent) throw new Error('回退尚未完成，恢复意图已保留：' + str(error?.message || error), { cause: error })
       // Keep append-only history intact. A rejected surface replacement must not consume the story checkpoint.
       try {
         await updateChat(chat.id, current => {
@@ -661,6 +671,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       const saved = chat.rollbackUndo
       const before = saved.before || await readChatRevision(chat.id, saved.beforeRevision)
       if (!before || before.id !== chat.id) throw new Error('找不到回退前的恢复点')
+      const foregroundIntent = saved.foreground.algebraBranchId
+        ? await algebraHistory.prepare(session, chat, saved.foreground.algebraBranchId) : null
       const targets = [{ session, saved: saved.foreground }]
       for (const checkpoint of saved.background) {
         let worker = sessions.get(checkpoint.sessionId)
@@ -672,16 +684,21 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         if (!background || worker?.phase?.kind === 'running' || !unchangedSinceRollback(background, checkpoint.afterCount)) throw new Error('后台上下文已有变化，不能撤销回退')
         targets.push({ session: background, saved: checkpoint })
       }
-      for (const target of targets) preflightSurfaceRestore(target.session, target.saved.nodes)
+      for (const target of targets) if (!(foregroundIntent && target.session === session)) preflightSurfaceRestore(target.session, target.saved.nodes)
       for (const target of targets) {
+        if (foregroundIntent && target.session === session) continue
         changed.push({ session: target.session, nodes: [...target.session.surface.nodes] })
         restoreSurface(target.session, target.saved.nodes)
         if (sessions.flush) await sessions.flush(target.session)
       }
-      const restored = await updateChat(chat.id, current => {
+      let restored = await updateChat(chat.id, current => {
         assertRollbackSnapshot(current, chat)
         const result = storyTimeline.apply({ chat: current, intent: { kind: 'replacement.abort', restoreChat: before } }).chat
         delete result.rollbackUndo
+        if (foregroundIntent) {
+          result.branchRegistry = current.branchRegistry
+          result.conversationHistoryIntent = { sessionId: session.id, transaction: foregroundIntent }
+        }
         result.tavernHelperLifecycleRevision = Number(current.tavernHelperLifecycleRevision || 0) + 1
         for (const participant of Object.values(result.timeline.participants)) {
           const target = targets.find(item => item.saved.sessionId === participant.sessionId)
@@ -691,6 +708,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         return result
       }, { source: 'rollback.undo' })
       committed = true
+      if (foregroundIntent) restored = await algebraHistory.recover(session, chat.id)
       const result = await view(restored, await readChatCard(restored))
       result.undoneRollback = { turn: saved.turn }
       return result

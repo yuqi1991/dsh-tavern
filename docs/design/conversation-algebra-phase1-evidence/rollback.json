@@ -1,0 +1,47 @@
+[
+  {
+    "path": "lib/domain/conversation-algebra-branches.js",
+    "liveSha256": null,
+    "sha256": "72999b945c15bf6d41ff40a6abd3830599c3c76b831a3f91aa907376ac36ae6e"
+  },
+  {
+    "path": "lib/domain/conversation-algebra-history.js",
+    "liveSha256": null,
+    "sha256": "0dca11ddcb0b21f0eb9252b329f29b7aa46a7397548aa0e2eb50f6b5b75138fa"
+  },
+  {
+    "path": "lib/domain/conversation-algebra-host-adapter.js",
+    "liveSha256": "0ef001041b6c2d131134666a3fb3f5d581f42fddf139a4cab7d0ad80153d2bb0",
+    "sha256": "cc361cc6f597ac683a58039d8a556fda69e55b46a8c116cf05939e8be8f5dc98"
+  },
+  {
+    "path": "lib/domain/conversation-algebra-readiness.js",
+    "liveSha256": "6151c4c9ef14c1caec9c66bbd6175f37881b8dce789b8d1fbe6890221f1122a4",
+    "sha256": "f22b55bd0dc0da87415ae63a7cb86b94f39a62278aad14a9f2a89d4bdb92411f"
+  },
+  {
+    "path": "lib/domain/conversation-algebra/index.js",
+    "liveSha256": "cf4777e7257698c3172cdbd1a13a51182faebe469cf211aa57d091ae810f3553",
+    "sha256": "7a9256d4a32a7ed8f31b3514d0fb8b6bed20c562ef136848ea9b62b67a1a59a8"
+  },
+  {
+    "path": "lib/domain/conversation-algebra/primitives.js",
+    "liveSha256": "cb8abfffe018c94f74fe705e95e1a24279962810f62e2736c03967f1cafb8334",
+    "sha256": "2d63b19544a6fccb5dabc1954852545f45cfcef5eba1b11e0ff4a68b10944c6f"
+  },
+  {
+    "path": "lib/domain/conversation-algebra/transaction.js",
+    "liveSha256": "fd51d7c25e2dcf5e337e36132e7c703353f456bec61c4c4308634759832dca4e",
+    "sha256": "5ca8945b81ad71ccfd3f8711fb7e1082b550e01e59939e188defff07a8432e17"
+  },
+  {
+    "path": "lib/domain/round-history.js",
+    "liveSha256": "48a081f3fd078ef2ed2a2ca50413451f4db0885c5d1461d91a3ef367f59f37ad",
+    "sha256": "561de3b230a4e06310a3dc65f54f14a5d0c72596392b0b8c9fc5f311597b2207"
+  },
+  {
+    "path": "lib/index.js",
+    "liveSha256": "b32ce92dd8d03a2313495204b066a78fbf777cc31c25235bb43d4c5981356040",
+    "sha256": "837e800053a715aa4704d20ee080245837e4eae7ffb605704413bfef45989d0a"
+  }
+]
