@@ -90,6 +90,29 @@ export function checkout(state, ref) {
   const headSeq = target ? target.headSeq : (typeof ref === 'object' && ref !== null ? ref.seq ?? ref.anchorSeq : ref)
   if (!Number.isSafeInteger(headSeq) || headSeq < -1 || headSeq > state.headSeq) throw new TypeError('checkout ref 无效')
   const events = Array.isArray(state?.events) ? state.events : []
-  const targetNodes = headSeq < 0 ? [] : computeFold(events.filter(event => event.seq <= headSeq)).surfaceNodes
+  let targetNodes
+  if (target) {
+    // A saved branch names a historical version, unlike an in-branch anchor.
+    targetNodes = headSeq < 0 ? [] : computeFold(events.filter(event => event.seq <= headSeq)).surfaceNodes
+  } else if (headSeq < 0) targetNodes = []
+  else {
+    // Follow only unambiguous one-node replacements. A range replacement
+    // collapses several positions and cannot identify an interior anchor.
+    let currentSeq = headSeq
+    for (const replacement of state.replacements || []) {
+      if (!replacement.shadowedSeqs.includes(currentSeq)) continue
+      if (replacement.shadowedSeqs.length !== 1) throw new TypeError('checkout 锚点已被范围替换，无法唯一定位')
+      currentSeq = replacement.seq
+    }
+    const index = state.surfaceNodes.indexOf(currentSeq)
+    if (index < 0) throw new TypeError('checkout 锚点不在当前分支')
+    targetNodes = state.surfaceNodes.slice(0, index + 1)
+    const selected = new Set(targetNodes)
+    for (const step of state.steps || []) {
+      if (!step.seqs.some(seq => selected.has(seq))) continue
+      if (!step.seqs.every(seq => selected.has(seq))) throw new TypeError('checkout 锚点拆开工具步骤')
+      guardStepComplete(step)
+    }
+  }
   return [{ kind: 'checkout', branchId: target?.branchId ?? null, headSeq, targetNodes }]
 }
