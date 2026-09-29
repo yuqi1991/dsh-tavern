@@ -1,0 +1,43 @@
+{
+  "pid": 984540,
+  "port": 3081,
+  "logOffset": 13226398,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T08:06:05.861527+00:00",
+  "backup": "/tmp/dsh-tavern-body-edit-backup-20260929-160604",
+  "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
+  "developmentCommit": "65de642",
+  "forkCommit": "d9d1d9dd",
+  "deployedFiles": [
+    "lib/index.js",
+    "lib/domain/body-editor.js"
+  ],
+  "userAcceptance": "pending",
+  "bootstrapHTTP": 200,
+  "status": {
+    "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19": {
+      "enabled": true,
+      "scope": "foreground-retirement,body-edit",
+      "historyReady": true,
+      "loaded": true,
+      "committedTransactions": 14,
+      "bodyEditTransactions": 0,
+      "lastCommit": {
+        "seq": 424,
+        "operationId": "retire:39c60666-62e5-4600-96c8-93c35c0c4783"
+      }
+    },
+    "algebra-disabled-check": {
+      "enabled": false,
+      "scope": "foreground-retirement,body-edit",
+      "historyReady": true,
+      "loaded": false,
+      "committedTransactions": 0,
+      "bodyEditTransactions": 0,
+      "lastCommit": null
+    }
+  },
+  "startupErrors": [],
+  "hashesVerified": true
+}
