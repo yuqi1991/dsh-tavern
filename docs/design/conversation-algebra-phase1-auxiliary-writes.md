@@ -1,6 +1,6 @@
 # 阶段 1 第四项：辅助写入迁移
 
-状态：模板历史写入与用户泡泡投影已部署且通过用户验收。固定背景接线已部署（PID 1114797）并通过用户功能验收（2026-09-29，"正常的"）；第四项其余接线点（`background-surface.js`、`index.js` 正文投影）仍待处理。
+状态：模板历史写入与用户泡泡投影已部署且通过用户验收。固定背景接线已部署（PID 1114797）并通过用户功能验收（2026-09-29，"正常的"）。后台 Surface 多区间回退与正文投影直写已在开发副本和 fork 实现并通过离线测试，尚未部署。
 
 ## 模板历史写入（实现方案 §4 第四项，`template-history.js`）
 
@@ -30,3 +30,21 @@
 开关启用时，固定背景的新快照追加、确认后的新版本追加、旧非空快照的原位迁移均通过 `runTransaction`。开关关闭保留原路径。宿主 Session 测试覆盖首次写入、旧版迁移、重复调用以及关闭路径。开发副本代数测试 147/147 通过；fork 合成测试树含固定背景测试 154/154 通过；语法与 diff 检查通过。
 
 2026-09-29 部署：按实现方案 §6 备份 `/tmp/live-lib-backup-fixedprefix-20260929-232354`，仅复制开发副本 `lib/domain/session-stable-prefix.js` 与 `lib/index.js`（哈希与开发副本一致），带白名单环境变量重启后 PID 1114797。启动窗口无插件加载/语法/模块缺失错误；白名单会话 `getConversationAlgebraStatus` 返回 enabled=true、historyReady=true；`getSession` 只读调用正常。部署证据见开发副本 `deployment/fixed-prefix-live.json`。用户随后在白名单测试会话触发固定背景写入并确认"正常的"，本小节通过用户功能验收。
+
+## 后台 Surface 回退与正文投影（实现方案 §4 第四项收尾）
+
+### `background-surface.js:38` 多区间回退
+
+`rewindBackgroundSurface` 改为 async 并接受 `algebra` 参数。开关启用时全部墓碑收进单个 `runTransaction`（operationId 前缀 `background-rewind:`，墓碑沿用最后 assistant 的 model source，G5）；开关关闭保持原逐组替换路径。分组推导（固定行、边界、连续组）不变。两个调用方接线：`round-history.js` 回退路径按前台 `chat.sessionId` 判定 `algebraHistory.enabled()`；`background-agent-task.js` 任务启动路径经新增 `resolveConversationAlgebra` option（index.js 注入，前台 id 白名单 + 隔离就绪检查）。失败语义不变：任务中止包装、回退警告、needs-rewind 下次重试。
+
+### `lib/index.js` 正文投影直写
+
+`replaceAssistantReply`（`agent/turn-stopping` → `saved.reply.sessionText`）在开关启用时经 `runTransaction` 提交单节点替换（operationId 前缀 `reply-projection:`，replacement 补齐 `stream` 数组满足 G1）；开关关闭保持原路径。该函数在 `agent/turn-stopping` 事件内被 await。
+
+### 证据
+
+- 开发副本 `node --test tests/algebra/*.test.mjs`：153/153（新增 `background-rewind.test.mjs` 4 例、`reply-projection.test.mjs` 2 例）。
+- fork 同命令：152/152；fork `tests/background-surface-projection.test.mjs` 适配 async 后 4/4。
+- `node --check` 全部改动文件通过；`lib/index.js` 经 runtime-loader 冒烟导入通过；`git diff --check` 通过。
+- 开发副本提交 `e5fcb8a`（后台回退）、`3bc5346`（正文投影）；fork `c06341a8`、`08cdb7df`。
+- 尚未部署到运行安装，未做运行安装实测或用户验收；第四项至此四个接线点全部实现（模板历史、固定背景、后台回退、正文投影），部署验收通过前不标记完成。
