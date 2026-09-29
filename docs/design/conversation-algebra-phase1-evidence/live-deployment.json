@@ -24,7 +24,7 @@
   },
   "startupErrors": [],
   "deployedFileCount": 15,
-  "userAcceptance": "pending: edited-input bubble fix",
+  "userAcceptance": "passed: user confirmed edited-input bubble correct after fix",
   "previousTestSession": "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21",
   "statusBeforeSwitch": {
     "ok": true,
@@ -39,5 +39,6 @@
     "runtimeGeneration": "runtime-mumd2t0k-809wgm"
   },
   "bubbleFixBackup": "/tmp/dsh-tavern-user-bubble-backup-20260929-155745",
-  "bubbleFixCommit": "fc42c0e"
+  "bubbleFixCommit": "fc42c0e",
+  "acceptedScope": "phase 1 migration 1 foreground retirement; remaining migrations not accepted"
 }
