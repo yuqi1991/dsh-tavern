@@ -18,7 +18,7 @@
       "sha256": "a031ef6992ba646e74252ab78fa32afaf4ec86cadb01c945f285e5bca1303e85"
     }
   ],
-  "userAcceptance": "pending",
+  "userAcceptance": "passed: user confirmed earliest history restored",
   "browserPagination": [
     {
       "hasMore": true,
