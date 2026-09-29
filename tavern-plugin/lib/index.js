@@ -1957,6 +1957,14 @@ export async function apply(ctx) {
     setupAgent: async function (childCtx) {
       await agentPresets.mount(childCtx, 'tavern-background')
     },
+    resolveConversationAlgebra: async function (input) {
+      const foregroundId = str(input.sessionId)
+      if (!foregroundId.startsWith('background-') && algebraEnabled(foregroundId)) {
+        if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用 conversationAlgebra')
+        return { enabled: true }
+      }
+      return { enabled: false }
+    },
     compactAgent: executeBackgroundCompaction,
     flushSession: async function (session) {
       const sessions = ctx.get('sessions')

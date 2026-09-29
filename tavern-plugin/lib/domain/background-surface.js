@@ -2,8 +2,10 @@ import { replaceSessionSurface } from './session-surface-mutations.js'
 import { restoredSurfaceSeqs } from './surface-restoration.js'
 import { sessionEvents, appendSessionEvent, surfaceReplacementRange } from './session-events.js'
 import { randomUUID } from 'node:crypto'
+import { computeFold, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
+import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
 
-export function rewindBackgroundSurface(session, boundary) {
+export async function rewindBackgroundSurface(session, boundary, algebra = null) {
   if (!Number.isSafeInteger(boundary)) return 0
   const events = sessionEvents(session)
   const nodes = session && session.surface && Array.isArray(session.surface.nodes) ? session.surface.nodes : []
@@ -35,6 +37,21 @@ export function rewindBackgroundSurface(session, boundary) {
     }
   }
   if (source === null) throw new Error('后台 Agent checkpoint 之后存在消息，但找不到可用的模型来源')
+  if (algebra?.enabled === true) {
+    // One transaction owns every group: either the whole rewind is durable or
+    // recovery replays the remainder. Tombstone shape is guarded by the
+    // transaction itself (G1/G5), so only the grouping stays here.
+    const adapter = createConversationAlgebraHostAdapter(session, { flush: algebra.flush })
+    await waitForTransactionReady(adapter)
+    const state = computeFold(sessionEvents(session))
+    const operationId = 'background-rewind:' + randomUUID()
+    await runTransaction(adapter, { expectedHead: state.headSeq, operationId, ops: groups.map(shadowed => ({
+      kind: 'surface-write',
+      event: { type: 'assistant/message', data: { turn, step, stream: [], message: { id: randomUUID(), role: 'assistant', content: [], source } } },
+      intent: { surfaceOp: { op: 'replace', start: shadowed[0], end: shadowed[shadowed.length - 1] }, sourceEventSeqs: shadowed }
+    })) })
+    return groups.reduce((count, group) => count + group.length, 0)
+  }
   for (const shadowed of groups) replaceSessionSurface(session, 'assistant/message', {
     turn,
     step,

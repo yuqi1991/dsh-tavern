@@ -354,7 +354,11 @@ export function createBackgroundAgentTask(options) {
   async function execute({ agent, state, traceSessionId, persistent }, input) {
     state.session = agent.session
     const runtimeInput = state.input
-    try { rewindBackgroundSurface(agent.session, input.rewindTo) }
+    try {
+      const algebra = typeof options.resolveConversationAlgebra === 'function' ? await options.resolveConversationAlgebra(input) : null
+      await rewindBackgroundSurface(agent.session, input.rewindTo,
+        algebra?.enabled === true ? { enabled: true, flush: session => options.flushSession(session) } : null)
+    }
     catch (error) { throw new Error('后台历史回退失败，本次任务已停止，未基于旧上下文继续执行。', { cause: error }) }
     const progress = createBackgroundProgress({idleMs:options.modelIdleTimeoutMs, onCancel:()=>{state.abandoned=true;agent.cancel?.({kind:'user'})}})
     state.progress=progress

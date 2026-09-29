@@ -16,14 +16,14 @@ test('durable rollback excludes tool and reasoning turns including older rollbac
   assert.deepEqual(backgroundSuppressedTurns(events.slice(0, 5)), [])
 })
 
-test('reset reuses the session and retains its fixed prefix while removing task context', () => {
+test('reset reuses the session and retains its fixed prefix while removing task context', async () => {
   let replacement
   const session = { surface: { nodes: [0, 1, 2] }, events: [
     { seq: 0, type: 'user/message', data: { id: 'tavern-session-prefix:bg' } },
     { seq: 1, type: 'user/message', data: { id: 'task' } },
     { seq: 2, type: 'assistant/message', data: { turn: 1, message: { source: { kind: 'model' } } } }
   ], append(type, data, options) { replacement = options.surfaceOp } }
-  assert.equal(rewindBackgroundSurface(session, -1), 2)
+  assert.equal(await rewindBackgroundSurface(session, -1), 2)
   assert.deepEqual(replacement, { op: 'replace', start: 1, end: 2 })
 })
 
@@ -36,13 +36,13 @@ test('large background history scans event sequences once instead of once per ro
  assert.ok(reads<31564*4,`sequence inspected ${reads} times`)
 })
 
-test('V3 reset preserves replaced system head and fixed prefix in surface order', () => {
+test('V3 reset preserves replaced system head and fixed prefix in surface order', async () => {
   const events = Array.from({ length: 18 }, (_, seq) => ({ seq, type: 'step/end', data: {} }))
   events[5] = { seq: 5, type: 'user/message', data: { id: 'tavern-session-prefix:bg' } }
   events[10] = { seq: 10, type: 'system/message', data: { message: { id: 'system' } } }
   events[15] = { seq: 15, type: 'assistant/message', data: { turn: 1, step: 1, message: { source: { kind: 'model' } } } }
   const writes = []
   const session = { events, surface: { nodes: [10, 5, 11, 12, 15, 17] }, append(type, data, options) { writes.push(options) } }
-  assert.equal(rewindBackgroundSurface(session, -1), 4)
+  assert.equal(await rewindBackgroundSurface(session, -1), 4)
   assert.deepEqual(writes, [{ surfaceOp: { op: 'replace', start: 11, end: 17 }, sourceEventSeqs: [11, 12, 15, 17] }])
 })

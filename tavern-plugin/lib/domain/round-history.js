@@ -617,7 +617,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         }
         if (typeof sessions.flush !== 'function') throw new Error('当前宿主未提供后台会话保存接口')
         const checkpoint = { sessionId: participant.sessionId, nodes: [...background.surface.nodes] }
-        rewindBackgroundSurface(background, participant.rewindTo)
+        await rewindBackgroundSurface(background, participant.rewindTo,
+          algebraHistory?.enabled(chat.sessionId) === true ? { enabled: true, flush: sessions.flush } : null)
         checkpoint.afterCount = sessionEvents(background).length
         undo.background.push(checkpoint)
         await sessions.flush(background)
