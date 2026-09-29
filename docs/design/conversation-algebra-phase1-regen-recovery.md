@@ -52,4 +52,4 @@ PID 1013161，HTTP 200，5个部署文件哈希一致，无启动错误。测试
 `regeneration-recovery.complete` 开关启用时，userProjection 与 assistantProjection 收进单个 `runTransaction`（operationId = `regen-complete:<saved.id>`）。事务前 `waitForTransactionReady` 恢复中断尾部；恢复重发布的分支元数据写入当前 Chat 变更行内。开关关闭保持原路径。
 
 - 新增 4 例测试；开发副本 157/157，fork 156/156。开发 `edc9fdc`，fork `c5e10314`。
-- 尚未部署。普通失败回合 replay 清理仍走旧路径。
+- 已于 2026-09-30 部署（PID 1149307，单文件哈希一致，启动与只读冒烟通过），用户功能验收后本小节完成。普通失败回合 replay 清理仍走旧路径。
