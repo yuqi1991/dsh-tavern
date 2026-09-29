@@ -1,24 +1,24 @@
 {
   "backup": "/tmp/dsh-tavern-phase1-backup-20260929-153431",
-  "pid": 973830,
+  "pid": 977672,
   "port": 3081,
-  "logOffset": 13217888,
+  "logOffset": 13220712,
   "profile": "tavern",
   "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
-  "startedAt": "2026-09-29T07:34:55.305690+00:00",
-  "testSession": "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21",
+  "startedAt": "2026-09-29T07:47:26.583204+00:00",
+  "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
   "defaultOffSmokePassed": true,
   "bootstrapHTTP": 200,
   "status": {
-    "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21": {
+    "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19": {
       "enabled": true,
       "scope": "foreground-retirement",
       "historyReady": true,
-      "loaded": false,
+      "loaded": true,
       "committedTransactions": 0,
       "lastCommit": null
     },
-    "algebra-disabled-check": {
+    "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21": {
       "enabled": false,
       "scope": "foreground-retirement",
       "historyReady": true,
@@ -29,5 +29,18 @@
   },
   "startupErrors": [],
   "deployedFileCount": 15,
-  "userAcceptance": "pending"
+  "userAcceptance": "pending: user tested different session while feature disabled",
+  "previousTestSession": "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21",
+  "statusBeforeSwitch": {
+    "ok": true,
+    "conversationAlgebra": {
+      "enabled": false,
+      "scope": "foreground-retirement",
+      "historyReady": true,
+      "loaded": true,
+      "committedTransactions": 0,
+      "lastCommit": null
+    },
+    "runtimeGeneration": "runtime-mumd2t0k-809wgm"
+  }
 }
