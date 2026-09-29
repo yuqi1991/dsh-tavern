@@ -11,7 +11,7 @@ test('模板永久改写用户和回复，恢复磁盘后真实 Agent 不再收�
   const after = structuredClone(before)
   after.messages.find(message => message.role === 'user').text = '新行动'
   after.messages.at(-1).text = '新回复'
-  prepareTemplateHistory(h.target.session, before, after)
+  await prepareTemplateHistory(h.target.session, before, after)
   assert.equal(after.messages.filter(message => message.templateHistoryEdit).length, 2)
   await h.persistence.write(after)
   await synchronizeTemplateHistory(h.target.session, after, () => h.checkpoint())

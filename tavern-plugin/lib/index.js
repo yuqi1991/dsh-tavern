@@ -1388,11 +1388,11 @@ export async function apply(ctx) {
     readChatRevision,
     synchronizeTemplateHistory: async chat => {
       const session = sessionStore.get(chat.sessionId) || agentRegistry.get(chat.sessionId)?.session
-      if (session) await synchronizeTemplateHistory(session, chat, session => sessionStore.flush(session))
+      if (session) await synchronizeTemplateHistory(session, chat, session => sessionStore.flush(session), algebraEnabled(chat.sessionId))
     },
-    prepareTemplateHistory: (before, after) => {
+    prepareTemplateHistory: async (before, after) => {
       const session = sessionStore.get(before.sessionId) || agentRegistry.get(before.sessionId)?.session
-      return session ? prepareTemplateHistory(session, before, after) : after
+      return session ? await prepareTemplateHistory(session, before, after, algebraEnabled(before.sessionId)) : after
     },
     readCard: readChatCard,
     modelFor: chat => modelSelection(chat.sessionId)?.model || '',
@@ -3545,7 +3545,7 @@ export async function apply(ctx) {
           const patch = await playCardSnapshots.replacement(chat, card, args.digest)
           const prepared = await liveCardUpdate.prepare({...chat,...patch}, card, chat)
           const nativeSession = sessionStore.get(sessionId) || agentRegistry.get(sessionId)?.session
-          if (nativeSession) prepareTemplateHistory(nativeSession, chat, prepared)
+          if (nativeSession) await prepareTemplateHistory(nativeSession, chat, prepared, algebraEnabled(sessionId))
           prepared.tavernHelperLifecycleRevision = (Number(chat.tavernHelperLifecycleRevision) || 0) + 1
           const extensions = await readCardExtensions(chat.cardPath, prepared)
           await liveCardUpdate.project(prepared, card, {projections:[]}, {charName:card.name,macroState:chat.macroState,regexScripts:extensions.regexScripts})
@@ -3555,7 +3555,7 @@ export async function apply(ctx) {
               if (current._storageRevision !== chat._storageRevision || agentRegistry.get(sessionId)?.phase?.kind === 'running' || ['pending','running','waiting-runtime'].includes(current.settleStatus)) throw conflict
               return prepared
             }, { source: 'card-context.apply-update' })
-            if (nativeSession) await synchronizeTemplateHistory(nativeSession, saved, session => sessionStore.flush(session))
+            if (nativeSession) await synchronizeTemplateHistory(nativeSession, saved, session => sessionStore.flush(session), algebraEnabled(sessionId))
             return { view: await view(saved, card) }
           } catch (error) { if (error !== conflict) throw error }
         }
@@ -4274,7 +4274,7 @@ export async function apply(ctx) {
     const decision = await next()
     if (decision.kind === 'reject') return decision
     const chat = await chatForSession(sessionId)
-    if (chat) await synchronizeTemplateHistory(payload.agent.session, chat, session => sessionStore.flush(session))
+    if (chat) await synchronizeTemplateHistory(payload.agent.session, chat, session => sessionStore.flush(session), algebraEnabled(sessionId))
     if (chat) await synchronizeBodyEdits(payload.agent.session, chat, session => sessionStore.flush(session), persistClearedBodyEdits)
     const prepared = await foregroundStrategies.prepareStep({
       sessionId,
@@ -4444,7 +4444,7 @@ export async function apply(ctx) {
     if (agent === undefined || agent.session === undefined) return assembly
     if (backgroundAgentRunner.owns(agent.session.id)) return assembly
     const chat = await chatForSession(agent.session.id)
-    if (chat) await synchronizeTemplateHistory(agent.session, chat, session => sessionStore.flush(session))
+    if (chat) await synchronizeTemplateHistory(agent.session, chat, session => sessionStore.flush(session), algebraEnabled(agent.session.id))
     if (chat) await synchronizeBodyEdits(agent.session, chat, session => sessionStore.flush(session), persistClearedBodyEdits)
     if (chat && chat.requestMode !== 'sillytavern' && ['story', 'script'].includes(await turnOrchestrator.modeFor(agent.session.id))) {
       await ensureNativeSystemPrefix(agent.session, chat)
