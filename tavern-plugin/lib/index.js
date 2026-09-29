@@ -1803,7 +1803,8 @@ export async function apply(ctx) {
     const before = readSessionStablePrefix(session)
     const revision = Number(chat.cardContextRevision) || 0
     const text = before?.version === 3 && revision <= before.revision ? '' : await ensurePlayCardSnapshot(chat)
-    const prefix = await ensureSessionStablePrefix(session, text, stablePrefixStorage, revision)
+    const prefix = await ensureSessionStablePrefix(session, text, stablePrefixStorage, revision,
+      { enabled: algebraEnabled(session.id), flush: session => sessionStore.flush(session) })
     if (prefix && prefix.event !== before?.event) await sessionStore.flush(session)
     return prefix
   }

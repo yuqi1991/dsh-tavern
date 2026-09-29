@@ -19,6 +19,7 @@ test('前台确认更新后同版本复用背景，重开 Session 后仍复用',
   let reads = 0, flushes = 0
   const run = vm.runInNewContext(`(${implementation.trim()})`, {
     readSessionStablePrefix, ensureSessionStablePrefix,
+    algebraEnabled: () => false,
     ensurePlayCardSnapshot: async chat => { reads++; return '背景版本 ' + chat.cardContextRevision },
     stablePrefixStorage: undefined, sessionStore: { flush: async () => { flushes++ } }
   })
