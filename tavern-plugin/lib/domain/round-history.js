@@ -71,7 +71,7 @@ export function selectRegenerationTarget(chat, session, observe) {
   const oldSeq = target.assistantSeq
   const oldTurn = target.turn
   const oldSource = target.source
-  return { nodes, eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource }
+  return { nodes, eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource, userSeq: target.userSeq }
 }
 
 /**
@@ -162,9 +162,26 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const { eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource } = selection
     const originalUserText = str(msgs0[oldAssistantIndex - 1].text).trim()
     const editedInput = normalizeEditedInput(inputOverride, originalUserText)
+    const algebraReroll = algebraHistory?.enabled(session.id) === true
+    // Slice A: under algebra, the old body becomes a sibling variant BEFORE the
+    // generation — branch + checkout(anchor = the original input node). The
+    // synthetic turn then appends onto a clean tail; no fold-back range exists.
+    let checkoutIntent = null
+    if (algebraReroll) {
+      const nodes = session.surface?.nodes || []
+      const bySeq = new Map(sessionEvents(session).map(event => [event.seq, event]))
+      let userSeq = null
+      for (let index = nodes.indexOf(oldSeq) - 1; index >= 0; index--) {
+        const event = bySeq.get(nodes[index])
+        const source = event?.data?.source
+        if (event?.type === 'user/message' && source?.kind === 'user') { userSeq = nodes[index]; break }
+      }
+      if (userSeq === null) throw new Error('重新生成的输入锚点不在当前分支')
+      checkoutIntent = await algebraHistory.prepare(session, chat, userSeq)
+    }
     // V3 hosts may reject assistant replacements. Check an isolated copy before
     // rolling back the Chat, cancelling settlement or paying for a new reply.
-    if (session.header?.version >= 3) {
+    if (!algebraReroll && session.header?.version >= 3) {
       const preview = session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
       try {
         replaceSessionSurface(preview, 'assistant/message', {
@@ -227,10 +244,19 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       next.regenRecovery = { id: operationId, beforeRevision: Number(current._storageRevision || 0),
         ...(Number(current._storageRevision || 0) ? {} : { before: structuredClone(current) }),
         sessionId: chat.sessionId, eventStart }
+      if (checkoutIntent) {
+        // Slice A: the pre-planned branch+checkout owns the native surface from
+        // here on; a failed native commit keeps this durable intent for recovery.
+        next.conversationHistoryIntent = { sessionId: session.id, transaction: checkoutIntent }
+        next.regenRecovery.preCheckoutBranchId = checkoutIntent.branchId
+      }
       next.tavernHelperLifecycleRevision = lifecycleRevision
       next.regenInProgress = true
       return next
     }, { source: 'rollback.regen' })
+    // Commit the checkout (and the branch registry projection) before any
+    // generation spends a model call: the model must not see the old body.
+    if (checkoutIntent) chat = await algebraHistory.recover(session, chat.id)
     const rolledMessageCount = (chat.messages || []).length
     const guide = str(guidance).trim()
     // Edited input replaces the original text; guidance still appends as a supplement.
@@ -268,17 +294,39 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       if (body === '') {
         throw new Error('重新生成失败：模型返回空文本')
       }
-      const replacement = planRegenerationSurface({ events: sessionEvents(session), nodes: session.surface.nodes,
-        oldAssistantSeq: oldSeq, eventStart })
-      const userProjection = editedInput === null ? null : planUserInputSurface(session, oldSeq, editedInput)
-      if (editedInput !== null && userProjection === null) {
-        // Surface and stored story must never disagree on the input text.
-        throw new Error('重新生成期间本轮输入的原生消息已变化，未修改输入')
-      }
-      const projection = {
-        data: { turn: oldTurn, step: 1, message: { id: 'tavern-regen:' + operationId,
-          role: 'assistant', content: [{ type: 'text', text: body }], source: oldSource } },
-        range: { start: replacement.start, end: replacement.end, sourceEventSeqs: [...replacement.shadowedSeqs] }
+      // Slice A: after a pre-checkout reroll the generated tail IS the surface —
+      // no fold-back range. Only an edited input rewrites the original node.
+      let userProjection = null
+      if (!checkoutIntent) {
+        const replacement = planRegenerationSurface({ events: sessionEvents(session), nodes: session.surface.nodes,
+          oldAssistantSeq: oldSeq, eventStart })
+        userProjection = editedInput === null ? null : planUserInputSurface(session, oldSeq, editedInput)
+        if (editedInput !== null && userProjection === null) {
+          // Surface and stored story must never disagree on the input text.
+          throw new Error('重新生成期间本轮输入的原生消息已变化，未修改输入')
+        }
+        // Preserve the legacy projection shape so recovery of a legacy-mode
+        // attempt stays valid; the algebra path stores only the input edit.
+        var projection = {
+          data: { turn: oldTurn, step: 1, message: { id: 'tavern-regen:' + operationId,
+            role: 'assistant', content: [{ type: 'text', text: body }], source: oldSource } },
+          range: { start: replacement.start, end: replacement.end, sourceEventSeqs: [...replacement.shadowedSeqs] }
+        }
+      } else if (editedInput !== null) {
+        // Post-checkout the old body is gone from the surface; the original
+        // input node is the last kind-user row and keeps its identity/position.
+        const nodes = session.surface?.nodes || []
+        const bySeq = new Map(sessionEvents(session).map(event => [event.seq, event]))
+        const inputEvent = [...nodes].reverse().map(seq => bySeq.get(seq)).find(event =>
+          event?.type === 'user/message' && event.data?.source?.kind === 'user' && !event.data?.source?.regenerationId)
+        if (inputEvent === undefined) {
+          throw new Error('重新生成期间本轮输入的原生消息已变化，未修改输入')
+        }
+        const inputSource = structuredClone(inputEvent.data.source)
+        userProjection = {
+          data: { id: randomUUID(), role: 'user', content: [{ type: 'text', text: editedInput }], source: inputSource },
+          range: { start: inputEvent.seq, end: inputEvent.seq, sourceEventSeqs: [inputEvent.seq] }
+        }
       }
       // The persisted intent must only reference events already on disk.
       if (typeof sessions.flush === 'function') await sessions.flush(session)
@@ -309,7 +357,19 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
           next.runtimeInputs[String(oldTurn)] = { ...next.runtimeInputs[String(oldTurn)], source: editedInput, text: editedInput }
         }
         next.regenInProgress = true
-        next.regenRecovery = { ...current.regenRecovery, phase: 'committed', projection,
+        // The synthetic attempt's plugin-input row: retired by complete() so the
+        // round keeps exactly one player input (the edited original node).
+        const syntheticInputSeq = (() => {
+          const nodes = session.surface?.nodes || []
+          for (let index = nodes.length - 1; index >= 0; index--) {
+            const event = sessionEvents(session).find(item => item.seq === nodes[index])
+            if (event?.type === 'user/message' && event.data?.source?.plugin === 'dsh-tavern-regen') return event.seq
+          }
+          return undefined
+        })()
+        next.regenRecovery = { ...current.regenRecovery, phase: 'committed',
+          ...(projection ? { projection } : {}),
+          ...(Number.isSafeInteger(syntheticInputSeq) ? { syntheticInputSeq } : {}),
           ...(userProjection !== null ? { userProjection } : {}) }
         next.settleStatus = 'pending'
         next.settleError = null

@@ -159,7 +159,9 @@ test('product failed regenerate restores edited prose and archives the aborted a
   await assert.rejects(history.regenerate('chat','意见','session'),/fixture generation failed/)
   assert.deepEqual(h.chat.messages,before.messages)
   assert.equal(h.chat.regenRecovery,undefined)
-  assert.equal(h.chat.branchRegistry.branches.length,1)
+  // Slice A: a failed reroll archives BOTH the pre-checkout variant (the old
+  // round) and the aborted attempt as named branches.
+  assert.equal(h.chat.branchRegistry.branches.length,2)
   assert.deepEqual(computeFold(h.session.snapshotEvents()).rows.map(e=>(e.data.message??e.data).content[0].text),['推门','旧正文'])
  }finally{patch.dispose()}
 })

@@ -25,6 +25,10 @@ export function createConversationHistory({ chats, flush }) {
   async function prepare(session, current, anchor) {
     return branches(session, structuredClone(current)).plan(anchor)
   }
+  /** Commit a prepared intent immediately, updating the Chat row's registry. */
+  async function commit(session, current, intent) {
+    return await commitConversationHistoryTransaction(session, structuredClone(current), structuredClone(intent), flush)
+  }
   async function recover(session, chatId) {
     return chats.update(chatId, async current => {
       const intent = current?.conversationHistoryIntent
@@ -47,5 +51,5 @@ export function createConversationHistory({ chats, flush }) {
       return current
     }, { source: 'conversation-algebra.history-recover' })
   }
-  return Object.freeze({ prepare, recover })
+  return Object.freeze({ prepare, commit, recover })
 }

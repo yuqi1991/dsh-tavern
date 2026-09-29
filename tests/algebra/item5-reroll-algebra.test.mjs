@@ -131,19 +131,20 @@ test('rollback remains available after an algebra reroll', async () => {
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
-    // Legacy pin: rollback after a reroll restores the synthetic intermediate
-    // checkpoint (the regenerated pair survives under its native turn), NOT an
-    // empty tail. The item-5 checkout migration replaces this with a clean
-    // branch restore; until then this documents current product behavior.
+    // Slice-A pin: rollback after a pre-checkout reroll targets the CURRENT
+    // native round (turn 3) and clears the whole round from the surface —
+    // input and body — while the timeline restore keeps the chat pair
+    // (synthetic-checkpoint quirk on the chat mirror; surface is clean).
     const result = await h.create().rollback('session', 'chat', 2)
-    assert.equal(result.rolledBack.hiddenTurn, 2)
+    assert.equal(result.rolledBack.hiddenTurn, 3)
     const msgs = h.chat.messages
     assert.equal(msgs.length, 3)
     assert.equal(msgs[2].text, '新正文3')
     const fold = foldOf(h)
-    // The algebra checkout cleared the native surface for that round.
     assert.equal(fold.rows.filter(row => row.type === 'user/message' && row.data?.source?.kind === 'user').length, 0)
     assert.equal(fold.rows.filter(row => row.type === 'assistant/message').length, 0)
     assert.deepEqual(fold.surfaceNodes, h.session.surface.nodes)
+    // The pre-reroll variant and this rollback both left named branches.
+    assert.ok((h.chat.branchRegistry?.branches || []).length >= 2)
   } finally { patch.dispose() }
 })

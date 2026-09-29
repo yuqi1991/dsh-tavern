@@ -68,6 +68,15 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       if (!canAbort(current, originalChat, operationId) || current.regenRecovery?.abortTransaction) return
       if (!algebraHistory?.enabled(session.id)) return
       const events = sessionEvents(session)
+      const saved = current.regenRecovery || {}
+      if (saved.preCheckoutBranchId) {
+        // Slice A: the surface was already checked out before generation; abort
+        // restores the pre-checkout branch (the old round), not a suffix cleanup.
+        assertNoPlayerInput(events, eventStart)
+        const transaction = await algebraHistory.prepare(session, current, saved.preCheckoutBranchId)
+        current.regenRecovery = { ...saved, abortTransaction: transaction }
+        return current
+      }
       assertNoPlayerInput(events, eventStart)
       const nodes = [...session.surface.nodes]
       const cleanup = planRegenerationAttemptCleanup({ events, nodes, eventStart })
@@ -75,10 +84,7 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       if (nodes.at(-1) !== cleanup.end) throw new Error('失败恢复只能移走当前后缀，未修改会话')
       const start = nodes.indexOf(cleanup.start)
       const transaction = await algebraHistory.prepare(session, current, start > 0 ? nodes[start - 1] : -1)
-      current.regenRecovery = { ...(current.regenRecovery || {
-        sessionId: session.id, eventStart, before: structuredClone(originalChat),
-        ...(operationId ? { id: operationId } : {})
-      }), abortTransaction: transaction }
+      current.regenRecovery = { ...saved, abortTransaction: transaction }
       return current
     }, { source: 'foreground.regen-abort-intent' })
     // Hold the Chat transaction across native recovery and restoration.
@@ -110,7 +116,39 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       if (!saved || saved.phase !== 'committed' || (operationId && saved.id !== operationId)) return
       if (saved.sessionId !== session.id) throw new Error('重新生成恢复会话不匹配')
       const projection = saved.projection
-      if (!projection) throw new Error('重新生成缺少已提交正文的投影记录')
+      const preCheckout = saved.preCheckoutBranchId !== undefined
+      if (!projection && !preCheckout) throw new Error('重新生成缺少已提交正文的投影记录')
+      // Slice A pre-checkout rerolls carry no fold-back projection: the new
+      // body already lives on the surface; only an edited input remains.
+      if (!projection) {
+        if (saved.userProjection || saved.syntheticInputSeq !== undefined) {
+          const adapter = createConversationAlgebraHostAdapter(session, { flush: sessions.flush, write: registry => { current.branchRegistry = registry } })
+          await waitForTransactionReady(adapter)
+          const intent = 'regen-complete:' + saved.id
+          if (!committedTransaction(sessionEvents(session), intent)) {
+            const ops = []
+            if (saved.userProjection) ops.push({ kind: 'surface-write',
+              event: { type: 'user/message', data: saved.userProjection.data },
+              intent: { surfaceOp: { op: 'replace', start: saved.userProjection.range.start, end: saved.userProjection.range.end }, sourceEventSeqs: saved.userProjection.range.sourceEventSeqs } })
+            if (Number.isSafeInteger(saved.syntheticInputSeq)) {
+              // The regenerated attempt's plugin-input row is scaffolding: the
+              // round's player input stays the (possibly edited) original node.
+              ops.push({ kind: 'surface-write',
+                event: { type: 'user/message', data: { id: 'conversation-tombstone:regen-attempt:' + saved.syntheticInputSeq,
+                  role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'regen-attempt', retiredSeq: saved.syntheticInputSeq } } },
+                intent: { surfaceOp: { op: 'replace', start: saved.syntheticInputSeq, end: saved.syntheticInputSeq }, sourceEventSeqs: [saved.syntheticInputSeq] } })
+            }
+            if (ops.length) {
+              const state = computeFold(sessionEvents(session))
+              await runTransaction(adapter, { expectedHead: state.headSeq, operationId: intent, ops })
+            }
+          }
+          if (typeof sessions.flush === 'function') await sessions.flush(session)
+        }
+        delete current.regenRecovery
+        delete current.regenInProgress
+        return current
+      }
       const algebra = algebraHistory?.enabled(session.id) === true
       const intent = 'regen-complete:' + saved.id
       if (algebra && !committedTransaction(sessionEvents(session), intent)) {
