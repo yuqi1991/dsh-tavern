@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
-import { createConversationAlgebraHostAdapter } from '../../lib/domain/conversation-algebra-host-adapter.js'
-import { planRegenerationAttemptCleanup } from '../../lib/domain/rollback-surface.js'
-import { runTransaction, computeFold, recoverTransaction } from '../../lib/domain/conversation-algebra/index.js'
+import { prepareExpandedPatch } from '../../tavern-plugin/lib/domain/host-session-patch.js'
+import { createConversationAlgebraHostAdapter } from '../../tavern-plugin/lib/domain/conversation-algebra-host-adapter.js'
+import { planRegenerationAttemptCleanup } from '../../tavern-plugin/lib/domain/rollback-surface.js'
+import { runTransaction, computeFold, recoverTransaction } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
 import { user, assistant } from './helpers.mjs'
 
 test('failed regeneration cleanup is one guarded transaction and recovers after a cut', async () => {
