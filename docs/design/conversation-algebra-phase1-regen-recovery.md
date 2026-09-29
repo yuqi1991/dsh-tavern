@@ -36,3 +36,9 @@ PID 1013161，HTTP 200，5个部署文件哈希一致，无启动错误。测试
 ## seq 660 归属修复
 
 线上首次重生成在 seq 660 失败：它是之前 checkout 事务产生的空控制墓碑，旧范围校验拒绝。只读 API 确认 seq 660/661 属于已提交 checkout 事务。修复仅允许精确匹配、已提交且为空的 dsh-tavern checkout/metadata 控制行；非空、未提交、外部玩家输入仍拒绝。新增边界和真实产品重生成回归，开发/fork 各134项通过，旧回归87项通过。仅部署 rollback-surface.js，PID 1015609，备份 /tmp/dsh-tavern-regen-control-backup-20260929-173337。
+
+## 首次打开缺正文修复
+
+用户截图确认首次页面仅显示context注入和技能目录，手动加载旧页后恢复；原诊断只统计节点数量而未统计可见正文，不能据此认定首屏正常。真实宿主分页回归复现：50条append预算被空事务／恢复占位消耗。插件在有代数记录的首次snapshot按当前fold补入最近对话及完整替换来源，保留连续窗口和原cursor、assistant/projection基线。未使用代数的会话保留原分页。来源闭包可使首次窗口大于50条，这是呈现完整性的必要代价，本批未声称大历史性能目标已完成。
+
+开发/fork各137项测试通过，已部署conversation-algebra-isolation.js，PID1019499；备份 /tmp/dsh-tavern-history-opening-backup-20260929-174303。真实浏览器首次打开及刷新（未调用loadOlder）确认13个可见且非空的玩家/助手DOM行、openState=open、getSession成功。用户视觉验收待确认。证据 history-opening-live.json。

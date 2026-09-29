@@ -1,0 +1,56 @@
+{
+  "pid": 1019499,
+  "port": 3081,
+  "logOffset": 13235216,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T09:43:04.883043+00:00",
+  "backup": "/tmp/dsh-tavern-history-opening-backup-20260929-174303",
+  "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
+  "developmentCommit": "1dd5327",
+  "forkCommit": "45a45df6",
+  "files": [
+    {
+      "path": "lib/domain/conversation-algebra-isolation.js",
+      "liveSha256": "9309b04b3fda823c8b1afe74586cf7bbb7c2810fd0f4885d6a8bdaf1d56a7e3c",
+      "sha256": "63617ed22ddc358a0c43ea000d0f264dd4ebea608d48e8cb1d84c8a549703772"
+    }
+  ],
+  "userAcceptance": "pending",
+  "status": {
+    "ok": true,
+    "conversationAlgebra": {
+      "enabled": true,
+      "scope": "foreground-retirement,body-edit,rollback",
+      "historyReady": true,
+      "loaded": true,
+      "committedTransactions": 46,
+      "bodyEditTransactions": 7,
+      "checkoutTransactions": 6,
+      "lastCommit": {
+        "seq": 828,
+        "operationId": "retire:34988a66-9929-4809-9499-1ad8f1a18151"
+      }
+    },
+    "runtimeGeneration": "runtime-mumhnma2-wpgd2l"
+  },
+  "bootstrapHTTP": 200,
+  "browser": {
+    "visibleStory": 13,
+    "kinds": {
+      "context": 156,
+      "turn-process": 35,
+      "assistant-step": 67,
+      "turn-tail": 34,
+      "user": 12,
+      "tool-call": 44
+    },
+    "selected": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
+    "rows": 348,
+    "loading": null,
+    "openState": "open",
+    "nodes": 348,
+    "viewOk": true,
+    "visibleNodes": 348
+  }
+}
