@@ -20,7 +20,7 @@
     "lib/domain/round-history.js",
     "lib/index.js"
   ],
-  "userAcceptance": "pending",
+  "userAcceptance": "passed: user reports rollback, undo, refresh and preserved prior edits normal",
   "bootstrapHTTP": 200,
   "status": {
     "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19": {
@@ -48,5 +48,25 @@
     }
   },
   "startupErrors": [],
-  "hashesVerified": true
+  "hashesVerified": true,
+  "acceptanceEvidence": {
+    "status": {
+      "ok": true,
+      "conversationAlgebra": {
+        "enabled": true,
+        "scope": "foreground-retirement,body-edit,rollback",
+        "historyReady": true,
+        "loaded": true,
+        "committedTransactions": 34,
+        "bodyEditTransactions": 6,
+        "checkoutTransactions": 4,
+        "lastCommit": {
+          "seq": 659,
+          "operationId": "checkout:db172c0f-945d-4ac4-a3d1-a27f2639fa06"
+        }
+      },
+      "runtimeGeneration": "runtime-mumft87l-phcynq"
+    },
+    "errorLineCount": 0
+  }
 }
