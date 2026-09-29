@@ -7,6 +7,18 @@ function installTavernTrajectorySurfaceView(require) {
 			const ELIGIBLE = { "system/message": 1, "user/message": 1, "assistant/message": 1, "tool/result": 1 };
 			const buildNode = proto.buildNode;
 			const replaceView = proto.replaceView;
+			const prepend = proto.prepend;
+			proto.prepend = function () {
+				const publication = prepend.apply(this, arguments);
+				// Earlier evidence can retract a provisional system-header node.
+				// The pinned host's incremental upsert contract forbids retraction;
+				// rebuild the expanded window atomically instead of freezing the view.
+				if (this.activeTargets.has("trajectory")) {
+					this.replacePending = true;
+					return "immediate";
+				}
+				return publication;
+			};
 			proto.buildNode = function (context, target) {
 				const node = buildNode.call(this, context, target);
 				if (target !== "trajectory" || node === null || !context || !Array.isArray(context.matches)) return node;
@@ -197,6 +209,7 @@ function installTavernTrajectorySurfaceView(require) {
 					return projected;
 				}
 				builder.replace = function (input) {
+					evidence.clear();
 					collect(input && input.nodes);
 					replace.call(this, input);
 					return projectSnapshot(this.snapshot());
