@@ -2,6 +2,15 @@ import { replaceSessionSurface } from './session-surface-mutations.js'
 import { sessionEvents } from './session-events.js'
 import { clearRegenerationAttemptSurface, planRegenerationAttemptCleanup, regenerationAttemptTurns, locateRegenerationSurface } from './rollback-surface.js'
 import { commitConversationHistoryTransaction } from './conversation-algebra-history.js'
+import { computeFold, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
+import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+
+function committedTransaction(events, operationId) {
+  return events.some(event => {
+    const tx = (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction
+    return tx?.operationId === operationId && ['commit', 'begin-commit'].includes(tx.phase)
+  })
+}
 
 /** Recover an uncommitted replacement from its durable pre-rollback revision. */
 export function createRegenerationRecovery({ chats, sessions, timeline, isActive, algebraHistory }) {
@@ -102,10 +111,32 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       if (saved.sessionId !== session.id) throw new Error('重新生成恢复会话不匹配')
       const projection = saved.projection
       if (!projection) throw new Error('重新生成缺少已提交正文的投影记录')
-      // An edited player input is committed together with the new body so a
-      // crash never leaves the surface showing the superseded input text.
-      if (saved.userProjection) replaceSessionSurface(session, 'user/message', saved.userProjection.data, saved.userProjection.range)
-      replaceSessionSurface(session, 'assistant/message', projection.data, projection.range)
+      const algebra = algebraHistory?.enabled(session.id) === true
+      const intent = 'regen-complete:' + saved.id
+      if (algebra && !committedTransaction(sessionEvents(session), intent)) {
+        // One transaction owns both writes: an edited player input and its new
+        // body commit together, so a crash never shows the superseded pair.
+        // Recovery of an interrupted attempt may republish committed branch
+        // metadata; route that into the Chat row this mutation already owns.
+        const adapter = createConversationAlgebraHostAdapter(session, { flush: sessions.flush, write: registry => { current.branchRegistry = registry } })
+        await waitForTransactionReady(adapter)
+        if (!committedTransaction(sessionEvents(session), intent)) {
+          const state = computeFold(sessionEvents(session))
+          const ops = []
+          if (saved.userProjection) ops.push({ kind: 'surface-write',
+            event: { type: 'user/message', data: saved.userProjection.data },
+            intent: { surfaceOp: { op: 'replace', start: saved.userProjection.range.start, end: saved.userProjection.range.end }, sourceEventSeqs: saved.userProjection.range.sourceEventSeqs } })
+          ops.push({ kind: 'surface-write',
+            event: { type: 'assistant/message', data: { stream: [], ...projection.data } },
+            intent: { surfaceOp: { op: 'replace', start: projection.range.start, end: projection.range.end }, sourceEventSeqs: projection.range.sourceEventSeqs } })
+          await runTransaction(adapter, { expectedHead: state.headSeq, operationId: intent, ops })
+        }
+      } else if (!algebra) {
+        // An edited player input is committed together with the new body so a
+        // crash never leaves the surface showing the superseded input text.
+        if (saved.userProjection) replaceSessionSurface(session, 'user/message', saved.userProjection.data, saved.userProjection.range)
+        replaceSessionSurface(session, 'assistant/message', projection.data, projection.range)
+      }
       if (typeof sessions.flush === 'function') await sessions.flush(session)
       delete current.regenRecovery
       delete current.regenInProgress
