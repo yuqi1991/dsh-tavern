@@ -155,7 +155,7 @@ export function storyMaterialsText(sections, worldBookContext) {
     blocks.push(str(section.text).trim())
   }
   const worldBook = str(worldBookContext).trim()
-  if (worldBook !== '') blocks.push('<ExtraInfo>\n【常驻世界书】\n' + worldBook + '\n</ExtraInfo>')
+  if (worldBook !== '') blocks.push('<常驻世界书>\n' + worldBook + '\n</常驻世界书>')
   if (blocks.length === 0) return null
   return '<StoryMaterials>\n' + blocks.join('\n\n') + '\n</StoryMaterials>'
 }

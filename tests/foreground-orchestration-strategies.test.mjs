@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { Session } from './fixtures/dsh-session-host.mjs'
 import { sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
-import { createForegroundOrchestrationStrategies, createNativePlayOrchestrationStrategy, createCompatibilityOrchestrationStrategy, projectRegenerationRequestMessages } from '../tavern-plugin/lib/domain/foreground-orchestration-strategies.js'
+import { createForegroundOrchestrationStrategies, createNativePlayOrchestrationStrategy, createCompatibilityOrchestrationStrategy, projectRegenerationRequestMessages, projectContextSystemRoles } from '../tavern-plugin/lib/domain/foreground-orchestration-strategies.js'
 import { ensureSessionStablePrefix, sessionStablePrefixSections } from '../tavern-plugin/lib/domain/session-stable-prefix.js'
 import { ensureSessionSeedTrajectory } from '../tavern-plugin/lib/domain/session-seed-trajectory.js'
 
@@ -200,12 +200,21 @@ test('DeepSeek thinking 请求为没有原始思考的合成 assistant 上下文
   // Runtime preset projection replaces stale preset-boundary messages. The
   // surviving opening is enough to prove the final DeepSeek serialization
   // boundary repairs every assistant message that will actually be sent.
-  assert.equal(assistants.length >= 1, true)
+  assert.equal(projected.messages.some(message => message.source?.form === 'snapshot' && message.role === 'system'), true)
   for (const message of assistants) {
     assert.equal(message.content.some(block => block.type === 'reasoning' && block.text.length > 0), true)
   }
   assert.equal(preset.content.some(block => block.type === 'reasoning'), false)
   assert.equal(opening.content.some(block => block.type === 'reasoning'), false)
+})
+
+test('插件上下文只在请求投影中升为 system，玩家输入保持 user', () => {
+  const original = [userMessage('继续'), pluginMessage('user', '快照', 'dsh-tavern', 'worldbook-snapshot'),
+    pluginMessage('user', '帧', 'dsh-tavern', 'foreground-frame')]
+  const projected = projectContextSystemRoles(original)
+  assert.deepEqual(projected.map(message => message.role), ['user', 'system', 'system'])
+  assert.deepEqual(original.map(message => message.role), ['user', 'user', 'user'])
+  assert.equal(projectContextSystemRoles(projected), projected)
 })
 
 test('带意见重生成只投影为本轮补充要求', () => {

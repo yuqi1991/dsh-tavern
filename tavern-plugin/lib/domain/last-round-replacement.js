@@ -61,6 +61,27 @@ export function replaceLastRound(input = {}) {
   if (Array.isArray(originalAssistant.variables) || Array.isArray(regeneratedAssistant.variables)) {
     replacement.variables = [clone(Array.isArray(regeneratedAssistant.variables) ? regeneratedAssistant.variables[selected] || {} : {})]
   }
-  regeneratedChat.messages = originalChat.messages.slice(0, assistantIndex - 1).concat([clone(originalUser), replacement])
+  // An edited input persists in place of the original text; attachments stay.
+  // Every text-bearing field must move together: text drives the bubble, while
+  // sourceText/swipes/templateInputSource drive template input and swipe UI.
+  // Leaving any of them at the original made the committed message inconsistent
+  // (bubble showed the edit, raw/swipe fields the old text) and looked like the
+  // edit had been ignored. Stale display projections drop for the same reason.
+  const editedInputText = typeof input.inputText === 'string' ? input.inputText : ''
+  const userMessage = clone(originalUser)
+  if (editedInputText.trim() !== '' && str(editedInputText) !== str(originalUser.text)) {
+    const edited = str(editedInputText)
+    userMessage.text = edited
+    if (userMessage.sourceText !== undefined) userMessage.sourceText = edited
+    if (userMessage.swipeId !== undefined || Array.isArray(userMessage.swipes)) {
+      userMessage.swipeId = 0
+      userMessage.swipes = [edited]
+    }
+    if (userMessage.templateInputSource !== undefined) userMessage.templateInputSource = edited
+    delete userMessage.displayText
+    delete userMessage.projectionText
+    delete userMessage.displayMode
+  }
+  regeneratedChat.messages = originalChat.messages.slice(0, assistantIndex - 1).concat([userMessage, replacement])
   return { chat: regeneratedChat, assistant: replacement }
 }

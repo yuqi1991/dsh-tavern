@@ -1,4 +1,5 @@
 import { foregroundFrameText } from './agent-input-frame.js'
+import { buildSkillReminder } from './skill-reminder.js'
 import { worldbookSnapshot } from './worldbook-snapshot.js'
 
 function str(value) {
@@ -31,8 +32,20 @@ export function createForegroundFrameSessionAdapter(options = {}) {
       source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'worldbook-snapshot',
         worldbookSnapshot: snapshot, trace: { frameId: frame.frameId, turn: frame.turn, operationId: frame.operationId } }
     }] : []
+    // 写作技能提醒随本轮输入下发（目录 + 停用清单 + 按需装载指令），下一轮由按轮退役
+    // 清理。skill 目录从事件日志读取，停用清单由调用方从 chat 状态传入。
+    const reminder = buildSkillReminder(input.session, {
+      messages,
+      disabledWritingSkills: input.disabledWritingSkills,
+      trace: { frameId: frame.frameId, chatId: frame.chatId, branchId: frame.branchId, operationId: frame.operationId, turn: frame.turn }
+    })
+    const contextRows = snapshots.concat(reminder === null ? [] : [{
+      id: makeId() + ':skill-reminder', role: 'user',
+      content: [{ type: 'text', text: reminder.text }],
+      source: reminder.source
+    }])
     const text = foregroundFrameText({ contributions })
-    if (text === '') return { messages: messages.concat(snapshots), receipt: { appended: snapshots.length > 0, reason: snapshots.length ? 'appended' : 'empty', frameId: frame.frameId } }
+    if (text === '') return { messages: messages.concat(contextRows), receipt: { appended: contextRows.length > 0, reason: contextRows.length ? 'appended' : 'empty', frameId: frame.frameId } }
     const sections = contributions.map(function (item, index) {
       return {
         name: 'tavern:foreground:' + str(item.slot) + ':' + (index + 1),
@@ -41,7 +54,7 @@ export function createForegroundFrameSessionAdapter(options = {}) {
       }
     })
     return {
-      messages: messages.concat(snapshots, [{
+      messages: messages.concat(contextRows, [{
         id: makeId(),
         role: 'user',
         content: [{ type: 'text', text }],
