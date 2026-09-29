@@ -16,7 +16,7 @@
       "sha256": "63617ed22ddc358a0c43ea000d0f264dd4ebea608d48e8cb1d84c8a549703772"
     }
   ],
-  "userAcceptance": "pending",
+  "userAcceptance": "passed: user confirmed conversation content appears on refresh without loading older history",
   "status": {
     "ok": true,
     "conversationAlgebra": {
@@ -52,5 +52,6 @@
     "nodes": 348,
     "viewOk": true,
     "visibleNodes": 348
-  }
+  },
+  "remainingAcceptance": "aborted regeneration and subsequent normal regeneration"
 }

@@ -1,6 +1,6 @@
 # 第三项第二批：中止重生成的分支恢复
 
-状态：修正后的实现已按用户授权于2026-09-29部署并重启；启动检查通过，用户功能验收待进行；seq 660 归属修复已于同日部署。第三项整体仍未完成。
+状态：修正后的实现已按用户授权于2026-09-29部署并重启；首屏加载问题经用户验收通过。中止重生成及后续正常重生成尚待本批功能验收，第三项整体仍未完成。
 
 ## 修正内容
 
@@ -41,4 +41,4 @@ PID 1013161，HTTP 200，5个部署文件哈希一致，无启动错误。测试
 
 用户截图确认首次页面仅显示context注入和技能目录，手动加载旧页后恢复；原诊断只统计节点数量而未统计可见正文，不能据此认定首屏正常。真实宿主分页回归复现：50条append预算被空事务／恢复占位消耗。插件在有代数记录的首次snapshot按当前fold补入最近对话及完整替换来源，保留连续窗口和原cursor、assistant/projection基线。未使用代数的会话保留原分页。来源闭包可使首次窗口大于50条，这是呈现完整性的必要代价，本批未声称大历史性能目标已完成。
 
-开发/fork各137项测试通过，已部署conversation-algebra-isolation.js，PID1019499；备份 /tmp/dsh-tavern-history-opening-backup-20260929-174303。真实浏览器首次打开及刷新（未调用loadOlder）确认13个可见且非空的玩家/助手DOM行、openState=open、getSession成功。用户视觉验收待确认。证据 history-opening-live.json。
+开发/fork各137项测试通过，已部署conversation-algebra-isolation.js，PID1019499；备份 /tmp/dsh-tavern-history-opening-backup-20260929-174303。真实浏览器首次打开及刷新（未调用loadOlder）确认13个可见且非空的玩家/助手DOM行、openState=open、getSession成功。用户确认“可以了”，首屏加载验收通过。中止重生成的功能验收仍待进行。证据 history-opening-live.json。
