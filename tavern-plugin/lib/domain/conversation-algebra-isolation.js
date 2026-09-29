@@ -1,3 +1,35 @@
+import { computeFold } from './conversation-algebra/index.js'
+
+/** Expand an opening window to include current prose and its replacement
+ * provenance. Host pagination counts empty append placeholders toward its
+ * budget; those placeholders must not crowd every human message off the page.
+ * Keep a contiguous event suffix and the original stream cursor/baselines.
+ */
+function openingStart(events, initialStart, budget) {
+  if (!events.some(event => (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction)) return initialStart
+  const fold = computeFold(events)
+  const selected = fold.views.conversation.slice(-budget)
+  if (!selected.length) return initialStart
+  let cut = Math.min(initialStart, ...selected.map(event => event.seq))
+  // Replacements are positioned at their ancestors. Include every referenced
+  // endpoint, including archival origins used by the append-only chat renderer.
+  for (;;) {
+    let next = cut
+    for (const event of events) {
+      if (event.seq < cut) continue
+      for (const seq of (event.sourceEventSeqs || []).flat(Infinity)) {
+        if (Number.isSafeInteger(seq) && seq >= 0) next = Math.min(next, seq)
+      }
+      if (event.type === 'assistant/message') {
+        const start = events.find(item => item.type === 'step/start' && item.data.turn === event.data.turn && item.data.step === event.data.step)
+        if (start) next = Math.min(next, start.seq)
+      }
+    }
+    if (next === cut) return cut
+    cut = next
+  }
+}
+
 /** Install a reversible gate at the host's history transport, not at its event
  * emitter: persistence must still receive every append while readers wait.
  * `ready(address, signal)` must also inspect cold stored sessions before serving.
@@ -37,6 +69,19 @@ export function installConversationHistoryGate(history, ready) {
     for await (const item of originals.follow.call(this, request, signal)) {
       await ready(request.address, signal)
       signal?.throwIfAborted()
+      if (item.type === 'snapshot' && item.hasMore && item.records.length) {
+        const source = await this.sourceFor(request.address, signal, false)
+        try {
+          // A newer append is delivered later by the existing follower. Never
+          // mix its future events into this opening cursor.
+          const events = source.events.filter(event => event.seq <= item.cursor)
+          const start = openingStart(events, item.records[0].event.seq, request.maxMessages ?? 50)
+          if (start < item.records[0].event.seq) {
+            yield { ...item, records: events.filter(event => event.seq >= start).map(event => ({ type: 'event', event })), hasMore: start > 0 }
+            continue
+          }
+        } finally { source[Symbol.dispose]?.() }
+      }
       yield item
     }
   }
