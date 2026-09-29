@@ -1,0 +1,52 @@
+{
+  "pid": 1000879,
+  "port": 3081,
+  "logOffset": 13230218,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T08:51:26.806125+00:00",
+  "backup": "/tmp/dsh-tavern-rollback-backup-20260929-165125",
+  "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
+  "developmentCommit": "2dea73e",
+  "forkCommit": "645e2e2e",
+  "deployedFiles": [
+    "lib/domain/conversation-algebra-branches.js",
+    "lib/domain/conversation-algebra-history.js",
+    "lib/domain/conversation-algebra-host-adapter.js",
+    "lib/domain/conversation-algebra-readiness.js",
+    "lib/domain/conversation-algebra/index.js",
+    "lib/domain/conversation-algebra/primitives.js",
+    "lib/domain/conversation-algebra/transaction.js",
+    "lib/domain/round-history.js",
+    "lib/index.js"
+  ],
+  "userAcceptance": "pending",
+  "bootstrapHTTP": 200,
+  "status": {
+    "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19": {
+      "enabled": true,
+      "scope": "foreground-retirement,body-edit,rollback",
+      "historyReady": true,
+      "loaded": true,
+      "committedTransactions": 27,
+      "bodyEditTransactions": 5,
+      "checkoutTransactions": 0,
+      "lastCommit": {
+        "seq": 577,
+        "operationId": "retire:5deac84e-b64e-4b67-bfa4-14d4405c3890"
+      }
+    },
+    "algebra-disabled-check": {
+      "enabled": false,
+      "scope": "foreground-retirement,body-edit,rollback",
+      "historyReady": true,
+      "loaded": false,
+      "committedTransactions": 0,
+      "bodyEditTransactions": 0,
+      "checkoutTransactions": 0,
+      "lastCommit": null
+    }
+  },
+  "startupErrors": [],
+  "hashesVerified": true
+}
