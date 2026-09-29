@@ -64,6 +64,9 @@ export async function prepareTemplateHistory(session, before, after, algebraEnab
     if (at >= 0) cursor = at + 1
     const inputRewrite = old.templateInputSource && at >= 0 && textOf(nodes[at].data) !== body(next)
     if (body(old) === body(next) && !inputRewrite) continue
+    // A retry must keep the durable operationId already published to Chat.
+    // A fresh prepare still replaces the marker when the text really changed.
+    if (old === next && next.templateHistoryEdit) continue
     // Archived messages outside the active surface have no native message to replace.
     if (at < 0) continue
     const target = nodes[at]

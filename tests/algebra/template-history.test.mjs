@@ -103,3 +103,17 @@ test('durable template intent replays after a native flush failure and restart',
   assert.equal(sessionEvents(restored).findLast(event => event.type === 'assistant/message').data.message.source.conversationTransaction.operationId,
     next.messages[1].templateHistoryEdit.id)
 })
+
+test('repeated input synchronization keeps its original durable operationId', async () => {
+  const { session, chat } = fixture()
+  chat.messages[0].templateInputSource = '原输入'
+  chat.messages[0].text = '模板后的输入'
+  await prepareTemplateHistory(session, chat, chat, true)
+  const first = structuredClone(chat.messages[0].templateHistoryEdit)
+  assert.equal(first.algebra, 1)
+  await prepareTemplateHistory(session, chat, chat, true)
+  assert.deepEqual(chat.messages[0].templateHistoryEdit, first)
+  await synchronizeTemplateHistory(session, chat, async () => {}, true)
+  assert.equal(session.deriveMessages().find(message => message.role === 'user').content[0].text, '模板后的输入')
+  assert.equal(sessionEvents(session).findLast(event => event.type === 'user/message').data.source.conversationTransaction.operationId, first.id)
+})
