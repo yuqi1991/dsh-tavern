@@ -32,10 +32,17 @@ function tombstone(event, tag) {
   if (event.type === 'system/message') {
     return replacement(event, { ...clone(event.data), message: { ...clone(original), id, content: [] } })
   }
-  return replacement(event, {
+  const write = replacement(event, {
     id, role: 'user', content: [],
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: tag, retiredSeq: event.seq }
+    source: {
+      ...(event.type === 'user/message' && original.source?.kind !== 'skill-catalog' ? clone(original.source) : { kind: 'plugin', plugin: 'dsh-tavern', form: tag }),
+      retiredSeq: event.seq
+    }
   })
+  // A removed tool pair has no surviving call to own a tool/result. Encode its
+  // result as the existing user tombstone convention, never malformed tool data.
+  write.event.type = 'user/message'
+  return write
 }
 
 export function appendStep(state, step) {

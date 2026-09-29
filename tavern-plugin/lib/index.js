@@ -104,6 +104,9 @@ import { createMobileCardImport } from './domain/mobile-card-import.js'
 import { createForegroundHandoff } from './domain/foreground-handoff.js'
 import { createForegroundFrameBuilder } from './domain/agent-input-frame.js'
 import { retireForegroundFrames } from './domain/foreground-frame-retirement.js'
+import { retireForegroundWithAlgebra } from './domain/conversation-algebra-retirement.js'
+import { createConversationReadiness } from './domain/conversation-algebra-readiness.js'
+import { installConversationHistoryGate } from './domain/conversation-algebra-isolation.js'
 import { compactionFailureMessage } from './domain/compaction-failure.js'
 import { createForegroundFrameSessionAdapter } from './domain/foreground-frame-session-adapter.js'
 import { HISTORY_RECALL_OUTPUT_SCHEMA, HISTORY_RECALL_TOOL, createHistoryRecall, renderHistoryRecall } from './domain/history-recall.js'
@@ -311,6 +314,27 @@ export async function apply(ctx) {
   const readPromptTemplateGlobalVariables = promptTemplateGlobalVariables.read
   const writePromptTemplateGlobalVariables = promptTemplateGlobalVariables.save
   let tavernSettingsDocument = await profileData.readJson(settingsPath)
+  // A process-local allowlist permits acceptance on disposable UI-created
+  // sessions without editing profile data or enabling writes for other chats.
+  const algebraTestSessions = new Set(String(process.env.DSH_TAVERN_CONVERSATION_ALGEBRA_SESSIONS || '').split(',').map(value => value.trim()).filter(Boolean))
+  const algebraEnabled = sessionId => tavernSettingsDocument?.conversationAlgebra === true || algebraTestSessions.has(sessionId)
+  const algebraReadiness = createConversationReadiness({
+    getSession: id => sessionStore.get(id) || agentRegistry.get(id)?.session,
+    observe: (id, signal) => ctx.get('sessionQuery').observeSession(id, { signal, projectionMode: 'none' }),
+    resume: id => agentRegistry.resume({ resumeSessionId: id }),
+    flush: session => sessionStore.flush(session)
+  })
+  let algebraHistoryInstalled = false
+  ctx.inject(['sessionController'], scope => {
+    scope.effect(() => {
+      const dispose = installConversationHistoryGate(scope.get('sessionController').history, async (address, signal) => {
+        // Turning off new writes must not bypass recovery of an earlier enabled transaction.
+        await algebraReadiness.ready(address.kind === 'session' ? address.sessionId : address.childSessionId, signal)
+      })
+      algebraHistoryInstalled = true
+      return () => { algebraHistoryInstalled = false; dispose() }
+    })
+  })
   function promptDefaults() {
     return Object.fromEntries(SYSTEM_PROMPT_NAMES.map(function (name) { return [name, prompt(name)] }))
   }
@@ -1730,6 +1754,7 @@ export async function apply(ctx) {
     return result
   }
   const sessionViews = createSessionViewReader({
+    beforeRead: id => algebraReadiness.ready(id),
     readState: sessionStateForSession, readChat: chatForSession,
     resourceVersion: async chat => {
       if (!chat.cardPath || chat.mode === 'card') return ''
@@ -2039,6 +2064,13 @@ export async function apply(ctx) {
     try { return await work(handle.agent) } finally { await handle.dispose() }
   }
   async function retireOldForegroundFrames(agent, keepTurn) {
+    await algebraReadiness.live(agent.session)
+    if (algebraEnabled(agent.session.id)) {
+      if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用 conversationAlgebra')
+      return retireForegroundWithAlgebra(agent.session, {
+        keepTurn, flush: session => sessionStore.flush(session), operationId: 'retire:' + randomUUID()
+      })
+    }
     const count = retireForegroundFrames(agent.session, { keepTurn })
     if (count) await sessionStore.flush(agent.session)
     return count
@@ -3004,6 +3036,18 @@ export async function apply(ctx) {
       case 'organizeCards': return { groups: (await cardOrganization.update(args || {}, await fileResources.list('card'))).groups }
       case 'listCards': return { cards: await listCards() }
       case 'getHostCompatibility': return { compatibility: hostCompatibility }
+      case 'getConversationAlgebraStatus': {
+        const sessionId = str(args?.sessionId)
+        const session = sessionStore.get(sessionId) || agentRegistry.get(sessionId)?.session
+        const events = sessionEvents(session)
+        const transactions = events.map(event => ({ seq: event.seq, tag: (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction })).filter(item => item.tag)
+        const completed = transactions.filter(item => ['commit', 'begin-commit'].includes(item.tag.phase))
+        return { conversationAlgebra: {
+          enabled: algebraEnabled(sessionId), scope: 'foreground-retirement', historyReady: algebraHistoryInstalled,
+          loaded: Boolean(session), committedTransactions: completed.length,
+          lastCommit: completed.length ? { seq: completed.at(-1).seq, operationId: completed.at(-1).tag.operationId } : null
+        } }
+      }
       case 'getSessionPatchStatus': return { patch: sessionPatch.view() }
       case 'getSessionPatchClient': return sessionPatch.serverReady
         ? { source: sessionPatch.clientSource }
@@ -4357,6 +4401,7 @@ export async function apply(ctx) {
   })
 
   ctx.on('system-prompt/assemble', async function (_assembly, context, next) {
+    if (context?.agent?.session) await algebraReadiness.live(context.agent.session)
     const assembly = await next()
     const agent = context && context.agent
     if (agent === undefined || agent.session === undefined) return assembly

@@ -49,6 +49,7 @@ export function memoryAdapter(initial = []) {
     async writeMetadata(value) { metadata = structuredClone(value) },
     async preflightCheckout(nodes) { if (!Array.isArray(nodes)) throw new TypeError('target nodes') },
     async checkout(nodes) { checkedOut = [...nodes] },
+    async planCheckout(nodes) { checkedOut = [...nodes]; return [] },
     checkedOut() { return checkedOut === null ? null : [...checkedOut] },
     metadata() { return structuredClone(metadata) }
   }

@@ -68,7 +68,9 @@ export function tagOfEvent(event, rows = [event]) {
       if (block?.type === 'tool-call' && nonempty(block.id || block.toolCallId)) callNames.set(block.id || block.toolCallId, block.name)
     }
   }
-  if (contentOf(event).some(block => block?.type === 'tool-call' && block.name === 'skill')) return 'skill'
+  const blocks = contentOf(event)
+  if (event?.type === 'assistant/message' && blocks.some(block => block?.type === 'tool-call') && blocks.every(block =>
+    block?.type === 'tool-call' ? block.name === 'skill' : block?.type === 'reasoning' || (block?.type === 'text' && typeof block.text === 'string' && block.text.trim() === ''))) return 'skill'
   if (event?.type === 'tool/result' && callNames.get(toolResultCallId(event)) === 'skill') return 'skill'
   return null
 }
@@ -104,8 +106,15 @@ export function guardStepComplete(step) {
   const rows = Array.isArray(step?.rows) ? step.rows : Array.isArray(step) ? step : []
   if (rows.length === 0) fail('G2', 'step 不得为空')
   rows.forEach(guardShape)
+  if (rows.some(row => ['user/message', 'system/message'].includes(row.type)) && rows.length !== 1) fail('G2', 'user/system 消息各自构成一步')
+  const assistantRows = rows.filter(row => row.type === 'assistant/message')
+  if (rows.some(row => row.type === 'tool/result') && assistantRows.length !== 1) fail('G2', '工具结果需要唯一的 assistant step')
+  if (assistantRows.length > 1) fail('G2', '一个 step 只能包含一个 assistant 消息')
+  const declaredCalls = assistantRows.flatMap(toolCallIdsOf)
+  if (new Set(declaredCalls).size !== declaredCalls.length) fail('G2', 'tool_call id 重复')
   const calls = new Set(rows.flatMap(toolCallIdsOf))
   const results = rows.filter(row => row?.type === 'tool/result').map(toolResultCallId)
+  if (new Set(results).size !== results.length) fail('G2', 'tool_result 重复')
   if (results.some(id => !calls.has(id))) fail('G2', 'tool_result 没有同 step 的 tool_call')
   if ([...calls].some(id => !results.includes(id))) fail('G2', 'assistant step 缺少全部 tool_result')
   const coordinates = rows.filter(row => row?.type !== 'user/message' && row?.data?.turn !== undefined)

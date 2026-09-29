@@ -11,6 +11,56 @@ function evaluatePatchedSessionClient(source, require) {
 	return exports
 }
 
+// RemoteJournalStream advances its durable cursor for every entry, but the UI
+// must publish a whole algebra transaction at once. Keep the loaded window and
+// replace it only at commit; all seqs remain present for host pagination/replay.
+function installConversationPublicationGate(stream) {
+	if (stream.__tavernAlgebraPublicationGate) return;
+	if (!stream.options || typeof stream.options.publish !== "function") throw new Error("会话客户端缺少事务发布接口");
+	const publish = stream.options.publish;
+	let entries = [], page = {}, hasMore = false, pending = null;
+	const tagOf = function (entry) {
+		const event = entry && entry.event;
+		const message = event && (event.type === "user/message" ? event.data : event.data && event.data.message);
+		return message && message.source && message.source.conversationTransaction;
+	};
+	stream.options.publish = function (change) {
+		if (change.type === "replace") {
+			entries = change.entries.slice(); page = change.page; hasMore = change.hasMore;
+			pending = null;
+			const committed = new Set(entries.map(tagOf).filter(function (tag) { return tag && (tag.phase === "commit" || tag.phase === "begin-commit"); }).map(function (tag) { return tag.operationId; }));
+			if (entries.some(function (entry) { const tag = tagOf(entry); return tag && tag.phase === "begin" && !committed.has(tag.operationId); })) throw new Error("拒绝发布未提交的会话快照");
+			return publish(change);
+		}
+		if (change.type === "prepend") {
+			entries = change.entries.concat(entries); hasMore = change.hasMore;
+			if (!pending) return publish(change);
+			return;
+		}
+		if (change.type === "notification") {
+			if (pending) throw new Error("未提交事务中出现模型流，停止发布");
+			return publish(change);
+		}
+		if (change.type !== "append") return publish(change);
+		const tag = tagOf(change.entry);
+		entries.push(change.entry);
+		if (tag && tag.phase === "begin") {
+			if (pending) throw new Error("会话事务交错");
+			pending = tag.operationId;
+		}
+		if (!pending) return publish(change);
+		if (tag && tag.operationId !== pending) throw new Error("会话事务标识不匹配");
+		if (tag && tag.phase === "commit") {
+			pending = null;
+			// Omit stale projections/assistant-stream baselines: a fresh durable
+			// window is folded by the host as one publication.
+			page = { records: entries.slice(), hasMore: hasMore };
+			return publish({ type: "replace", entries: entries.slice(), page: page, hasMore: hasMore });
+		}
+	};
+	stream.__tavernAlgebraPublicationGate = true;
+}
+
 function installTavernSessionHistoryPatch(require, rpc) {
 	let live
 	try { live = require("@deepseek-ai/dsh-api-session-controller/client") }
@@ -49,6 +99,7 @@ function installTavernSessionHistoryPatch(require, rpc) {
 	}
 	proto.follow = async function* () {
 		await ready
+		installConversationPublicationGate(this)
 		yield* (patched ? patched.follow : originalFollow).apply(this, arguments)
 	}
 	Object.defineProperty(proto, "__dshTavernSessionPatch", { value: true })

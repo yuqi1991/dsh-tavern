@@ -1,0 +1,92 @@
+[
+  {
+    "path": "lib/client.js",
+    "sha256": "31cb175dd7333973806fa1044fb29cc6d95432f30b4793773b332fd42591b935",
+    "liveSha256": "e0ef4423202818b8ed1ded5b2ccc55e842f3586ee30baf88d0eff695ad62c06b",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra-host-adapter.js",
+    "sha256": "0ef001041b6c2d131134666a3fb3f5d581f42fddf139a4cab7d0ad80153d2bb0",
+    "liveSha256": "7e7c2936cd7ffeb80f58d5e290b3e1ccfdf0bd6dde457d7a09c1e6e20e21ff78",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra-isolation.js",
+    "sha256": "9309b04b3fda823c8b1afe74586cf7bbb7c2810fd0f4885d6a8bdaf1d56a7e3c",
+    "liveSha256": null,
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra-readiness.js",
+    "sha256": "6151c4c9ef14c1caec9c66bbd6175f37881b8dce789b8d1fbe6890221f1122a4",
+    "liveSha256": null,
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra-retirement.js",
+    "sha256": "ff19946ffc4e57bba53d374e7c77777f3ab13f5b39677a796460afe724c59eae",
+    "liveSha256": null,
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra/fold.js",
+    "sha256": "d58e642c99f6d5d6e5659a6154223098160316585da7d75f6d78efaa11681135",
+    "liveSha256": "d936419be1de4f198c5f85f2233263a5a872afa6d9f74b5e0e5689c4fa67cad5",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra/guards.js",
+    "sha256": "66fca5b100d87450131470447764abc92b6f6bd7ee0a7e81dda1e9a3a0a627ea",
+    "liveSha256": "172e7a75dd4b7f930090f4dcceed0b034fd08e4aa352653b1a080439cae793a1",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra/index.js",
+    "sha256": "cf4777e7257698c3172cdbd1a13a51182faebe469cf211aa57d091ae810f3553",
+    "liveSha256": "2bec8c14ab64c4555b117dad1b8da2c656d7fd34473a33c5a0844361d7edda90",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra/primitives.js",
+    "sha256": "cb8abfffe018c94f74fe705e95e1a24279962810f62e2736c03967f1cafb8334",
+    "liveSha256": "5570a10fc14a53582d5e58ef8f64404cdb39037c41047765600908838d6b027b",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/conversation-algebra/transaction.js",
+    "sha256": "fd51d7c25e2dcf5e337e36132e7c703353f456bec61c4c4308634759832dca4e",
+    "liveSha256": "67c7c142a6eec9336aa7229ccb0331ed28b5754ce93570cad9beafd74d84ae98",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/domain/session-view-reader.js",
+    "sha256": "0b02c9d4f80b2120bcbcdf24a6023fe7845129aa700989ea9944e3c89b318cbd",
+    "liveSha256": "d7d9ede4d714d5cbeaf6fa54896c5b40e7816285eeb5383daea563b53bc91b84",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "lib/index.js",
+    "sha256": "bc8a7856d3f5a8bbd9f2f88cd3cced047f932687301334c53bb7b94358ed616f",
+    "liveSha256": "81bd9df2775eb94262d1fdf473a2931ef33e68c0c8654c0a2edf19b11cc3e0ed",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "src/client/main.js",
+    "sha256": "35976e0ed0434d3f3239954bd7096bd22f05ec58eb59082b4819d2c336b6e131",
+    "liveSha256": "ffebfc2dd4cd01e5f69227434d45c267c86f5ae6a875dafcbc0767bc2fcfbb68",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "src/client/modules/host-session-patch.js",
+    "sha256": "25bd49b46daa2f0439b3974a82db1845a0989844d2991930ce841492fb8f0de1",
+    "liveSha256": "63795466388a6bba3b5989fc50d1e9b086ed0cc60634d497242a4bdab74f44a4",
+    "liveMatchesBaseline": true
+  },
+  {
+    "path": "src/client/modules/trajectory-surface-view.js",
+    "sha256": "d4fa03aaefe447329fe28d4bae362a40ea9c62985b4d63251a20b829c9fd0e91",
+    "liveSha256": null,
+    "liveMatchesBaseline": true
+  }
+]

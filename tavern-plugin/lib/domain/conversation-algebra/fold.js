@@ -61,8 +61,8 @@ function groupSteps(rows) {
     steps.push(grouped)
   }
   for (const item of steps) {
-    const shared = item.rows.map(row => tagOfEvent(row, item.rows)).filter(Boolean)
-    item.tag = shared.length && shared.every(tag => tag === shared[0]) ? shared[0] : item.tag
+    const shared = item.rows.map(row => tagOfEvent(row, item.rows))
+    item.tag = shared.length && shared[0] !== null && shared.every(tag => tag === shared[0]) ? shared[0] : null
   }
   return steps
 }
@@ -93,8 +93,10 @@ export function computeFold(events, { fromCache } = {}) {
   const scaffolding = new Set(steps.filter(step => step.tag !== null).flatMap(step => step.seqs))
   const conversation = rows.filter(event => !scaffolding.has(event.seq) && ['user/message', 'assistant/message'].includes(event.type))
   const headSeq = source.reduce((head, event) => Number.isSafeInteger(event?.seq) ? Math.max(head, event.seq) : head, -1)
-  const unchanged = fromCache && fromCache.headSeq === headSeq
-  const version = unchanged ? fromCache.version : Math.max(0, Number(fromCache?.version) || 0) + 1
+  const version = accepted.filter(event => {
+    const transaction = transactionOf(event)
+    return transaction ? ['commit', 'begin-commit'].includes(transaction.phase) : Boolean(event.surfaceOp)
+  }).length
   return {
     events: source, steps, rows, surface, surfaceNodes: nodes, replacements, headSeq, version,
     views: { conversation, trajectory: rows.slice(), request: rows.slice() }

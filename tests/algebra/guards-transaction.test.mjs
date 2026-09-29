@@ -72,7 +72,10 @@ test('fold ignores a torn transaction tail until its commit marker exists', asyn
     if (calls === 2) throw new Error('injected crash')
     return originalAppend.apply(adapter, args)
   }
-  const ops = appendStep({}, { rows: [user('u1', 'one'), user('u2', 'two')] })
+  const ops = [
+    ...appendStep({}, { rows: [user('u1', 'one')] }),
+    ...appendStep({}, { rows: [user('u2', 'two')] })
+  ]
   await assert.rejects(runTransaction(adapter, { expectedHead: -1, operationId: 'torn', ops }), /injected crash/)
   assert.equal(adapter.events.length, 1)
   assert.deepEqual(computeFold(adapter.events).surfaceNodes, [])
@@ -85,8 +88,8 @@ test('branch and checkout update metadata without model or surface writes', asyn
   const first = await runTransaction(adapter, { expectedHead: 0, operationId: 'branch', ops: branch(state, '主线') })
   const branchId = first.metadata.branches[0].branchId
   const nextState = { ...computeFold(adapter.events), branchRegistry: first.metadata }
-  await runTransaction(adapter, { expectedHead: 0, operationId: 'checkout', ops: checkout(nextState, branchId) })
-  assert.equal(adapter.writes, 0)
+  await runTransaction(adapter, { expectedHead: nextState.headSeq, operationId: 'checkout', ops: checkout(nextState, branchId) })
+  assert.equal(adapter.writes, 2)
   assert.equal(adapter.metadata().activeBranchId, branchId)
   assert.deepEqual(adapter.checkedOut(), [0])
 })

@@ -27,7 +27,7 @@ function canProjectDirty(previous, chat, indices) {
  * Projections consume detached inputs; callers never receive a partial Chat.
  */
 export function createSessionViewReader({ readState, readChat, readChanges, readViewDelta, project, activity,
-  trace, foregroundRunning, synchronize, resourceVersion = async () => '' }) {
+  trace, foregroundRunning, synchronize, beforeRead = async () => {}, resourceVersion = async () => '' }) {
   const cache = new Map()
   async function changes(chat, revision) {
     const target = Number(chat._storageRevision) || 0
@@ -36,6 +36,7 @@ export function createSessionViewReader({ readState, readChat, readChanges, read
     return changed?.revision === target ? new Set(changed.indices) : null
   }
   async function load(sessionId, options = {}) {
+    await beforeRead(sessionId)
     const selected = await trace.stage('readChat', async () => {
       const state = await readState(sessionId)
       if (state === undefined) return { chat: undefined }
@@ -85,6 +86,7 @@ export function createSessionViewReader({ readState, readChat, readChanges, read
     trace.state({ foregroundRunning: foregroundRunning(sessionId), backgroundBusy: currentActivity.busy,
       backgroundRole: currentActivity.role, viewRebuild: rebuild,
       helperMessageCount: Array.isArray(view?.tavernHelper?.messages) ? view.tavernHelper.messages.length : 0 })
+    await beforeRead(sessionId)
     return { view, revision: next.revision, chat }
   }
   async function read(sessionId, options) { return (await load(sessionId, options)).view }

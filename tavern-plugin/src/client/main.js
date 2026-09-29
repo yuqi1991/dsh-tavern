@@ -11364,6 +11364,7 @@ window.__ModuleLoader__.load({
 		exports.createTavernRuntimeGenerationMonitor = createTavernRuntimeGenerationMonitor;
 		// @include modules/assistant-visibility.js
 		installTavernAssistantVisibilityPatch(require);
+		// @include modules/trajectory-surface-view.js
 		// @include modules/host-session-patch.js
 		installTavernSessionHistoryPatch(require, rpc);
 		return module.exports;
