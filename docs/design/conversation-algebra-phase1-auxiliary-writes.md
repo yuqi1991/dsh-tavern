@@ -23,4 +23,4 @@
 
 用户发送 `模板验收标记：<%= 1 + 2 %>` 后报告泡泡未变。只读 RPC 证实模板引擎与 Chat Helper 消息已得到 `3`，但 `getSession.view.inputSources[65]` 仍为模板原文，代数事务计数不能证明该用户泡泡正确。原因是输入投影把 Chat 中第 7 条用户消息按楼层序号写到键 `8`，而当前 Session 对应原生 turn 为 `65`；`runtimeInputs[65]` 的原始文本因此未被覆盖。开发副本已改为按相邻 assistant 的 `turn` 建键，新增红转绿回归。fork 保留其增量投影实现，同样按原生 turn 修正；现有长历史成本测试通过。
 
-按本批授权备份 `/tmp/dsh-tavern-template-input-view-backup-20260929-191856`，仅部署开发副本 `lib/index.js` 与新增 `lib/domain/input-fields-projection.js`，重启后 PID 1051105。开发副本代数测试 144/144 通过；fork 合成代数测试 143/143 通过，输入投影与关联测试 78/78 通过。运行安装只读 RPC 已将已保存的测试消息唯一投影到 `inputSources[65] = 模板验收标记：3。我观察周围，等待回应。`，原错误键 `8` 不再出现；浏览器 HTTP 200、无页面异常，启动日志无插件加载/语法/模块缺失错误。此证据证明读取投影已修正；用户尚未刷新界面复验，功能验收待确认。详细部署证据见开发副本 `deployment/template-input-view-live.json`。
+按本批授权备份 `/tmp/dsh-tavern-template-input-view-backup-20260929-191856`，仅部署开发副本 `lib/index.js` 与新增 `lib/domain/input-fields-projection.js`，重启后 PID 1051105。开发副本代数测试 144/144 通过；fork 合成代数测试 143/143 通过，输入投影与关联测试 78/78 通过。运行安装只读 RPC 已将已保存的测试消息唯一投影到 `inputSources[65] = 模板验收标记：3。我观察周围，等待回应。`，原错误键 `8` 不再出现；浏览器 HTTP 200、无页面异常，启动日志无插件加载/语法/模块缺失错误。用户刷新界面后确认“是的，显示3”，本次用户泡泡投影修复通过界面验收。详细部署证据见开发副本 `deployment/template-input-view-live.json`。
