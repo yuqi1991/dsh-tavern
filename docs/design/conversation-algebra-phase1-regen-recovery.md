@@ -46,3 +46,10 @@ PID 1013161，HTTP 200，5个部署文件哈希一致，无启动错误。测试
 ## 中止重生成批次验收
 
 用户按界面流程中止重生成、刷新、正常重生成并继续对话后确认“正常”。测试会话读取正常，checkoutTransactions 从首屏修复前的 6 增至 9，期间服务端日志无错误。客户端已加载窗口中可见新提交的 checkout 事务；只读诊断不能逐项证明每一次 checkout 的产品来源，因此将用户功能复验与事务计数共同作为本批验收证据。成功重生成的 `complete` 投影仍走旧路径，尚未迁移。
+
+## 成功重生成 complete 投影迁移（2026-09-30）
+
+`regeneration-recovery.complete` 开关启用时，userProjection 与 assistantProjection 收进单个 `runTransaction`（operationId = `regen-complete:<saved.id>`）。事务前 `waitForTransactionReady` 恢复中断尾部；恢复重发布的分支元数据写入当前 Chat 变更行内。开关关闭保持原路径。
+
+- 新增 4 例测试；开发副本 157/157，fork 156/156。开发 `edc9fdc`，fork `c5e10314`。
+- 尚未部署。普通失败回合 replay 清理仍走旧路径。
