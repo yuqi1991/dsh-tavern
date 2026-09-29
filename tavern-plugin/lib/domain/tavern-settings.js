@@ -103,6 +103,9 @@ export function presentTavernSettings(document, defaults) {
     compatibilityMode: true,
     webSearchEnabled: object(document).webSearchEnabled === true,
     systemAppendEnabled: object(document).systemAppendEnabled !== false,
+    // Phase 0 transport experiment. It is intentionally file-only and defaults
+    // off; no settings UI or ordinary patch path exposes it.
+    scaffoldingInjectionExperiment: object(document).scaffoldingInjectionExperiment === true,
     backgroundModel: normalizeBackgroundModel(object(document).backgroundModel),
     backgroundTasks: normalizeBackgroundTasks(object(document).backgroundTasks),
     // Card rendering uses a fixed trusted policy; legacy preferences are no longer applied.

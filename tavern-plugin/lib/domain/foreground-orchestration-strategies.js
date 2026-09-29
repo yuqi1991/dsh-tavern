@@ -3,6 +3,7 @@ import { resolveRuntimePresetMacros } from './runtime-presets.js'
 import { createEphemeralCompatibilityRequest, isCompatibilityConversationRequest } from './compatibility-request.js'
 import { projectRuntimePresetRequest } from './runtime-preset-lifecycle.js'
 import { projectStoryMaterials, projectHistoryBlockTrim } from './story-materials.js'
+import { injectScaffoldingProbe } from './scaffolding-injection-experiment.js'
 
 function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
@@ -410,7 +411,11 @@ export function createForegroundOrchestrationStrategies(options) {
   }
 
   async function assembleSystemPrompt(assembly, input) {
-    return await select(input.chat).assembleSystemPrompt(assembly, input)
+    const assembled = await select(input.chat).assembleSystemPrompt(assembly, input)
+    if (typeof options.scaffoldingInjectionExperiment === 'function' && options.scaffoldingInjectionExperiment() === true) {
+      injectScaffoldingProbe(assembled)
+    }
+    return assembled
   }
 
   return Object.freeze({ prepareStep, projectRequest, completeRequest, clearRequestState, endTurn, assembleSystemPrompt })
