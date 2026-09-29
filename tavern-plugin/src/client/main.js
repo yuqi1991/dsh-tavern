@@ -11365,6 +11365,7 @@ window.__ModuleLoader__.load({
 		// @include modules/assistant-visibility.js
 		installTavernAssistantVisibilityPatch(require);
 		// @include modules/trajectory-surface-view.js
+		// @include modules/user-surface-view.js
 		// @include modules/host-session-patch.js
 		installTavernSessionHistoryPatch(require, rpc);
 		return module.exports;
