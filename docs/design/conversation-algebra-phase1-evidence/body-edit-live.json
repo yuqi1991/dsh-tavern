@@ -13,7 +13,7 @@
     "lib/index.js",
     "lib/domain/body-editor.js"
   ],
-  "userAcceptance": "user reports normal behavior; enabled body-edit transaction evidence still pending (count 0)",
+  "userAcceptance": "passed: user confirmed direct body edit saved normally; committed transaction verified",
   "bootstrapHTTP": 200,
   "status": {
     "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19": {
@@ -47,11 +47,11 @@
       "scope": "foreground-retirement,body-edit",
       "historyReady": true,
       "loaded": true,
-      "committedTransactions": 17,
-      "bodyEditTransactions": 0,
+      "committedTransactions": 18,
+      "bodyEditTransactions": 1,
       "lastCommit": {
-        "seq": 494,
-        "operationId": "retire:0d908c1d-4976-4166-bfe3-c84932721734"
+        "seq": 502,
+        "operationId": "tavern-body-edit:f7ba6b93-010f-42fa-8736-a1cd5204fb1a"
       }
     },
     "runtimeGeneration": "runtime-mumew7aq-l4ugo6"
