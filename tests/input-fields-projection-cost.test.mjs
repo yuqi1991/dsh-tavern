@@ -2,6 +2,20 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createInputFieldsProjection} from '../tavern-plugin/lib/domain/input-fields-projection.js'
 import {createSessionViewSync} from '../tavern-plugin/lib/domain/session-view-sync.js'
+test('template input projects at native turn after synthetic rerolls',()=>{
+ const projector=createInputFieldsProjection()
+ const raw='模板验收标记：<%= 1 + 2 %>。我观察周围，等待回应。'
+ const edited='模板验收标记：3。我观察周围，等待回应。'
+ let chat={id:'native-turn',_storageRevision:1,runtimeInputs:{'65':{source:raw}},messages:[{role:'assistant',turn:1,text:'开场'},{role:'user',text:raw,sourceText:raw,templateInputSource:raw},{role:'assistant',turn:65,text:'回复'}]}
+ const first=projector.project(chat)
+ assert.equal(first.inputSources[65],raw)
+ chat={...chat,_storageRevision:2,messages:[chat.messages[0],{...chat.messages[1],text:edited,sourceText:edited,templateHistoryEdit:{id:'tavern-template-edit:test',algebra:1},tavernPluginData:{template_display:{source:edited,swipe:0,html:'<b>3</b>'}}},chat.messages[2]]}
+ const second=projector.project(chat,{baseRevision:1,indices:[1],changedHeaderFields:[]})
+ assert.equal(second.inputSources[65],edited)
+ assert.equal(second.inputTemplateDisplays[65],'<b>3</b>')
+ assert.equal(Object.hasOwn(second.inputSources,'2'),false)
+ assert.deepEqual(JSON.parse(JSON.stringify(second)),JSON.parse(JSON.stringify(createInputFieldsProjection().project(chat))))
+})
 for(const count of [20,400,10000])test(`input edit projects and syncs only one floor among ${count}`,()=>{
  let visits=0,reads=0
  const projector=createInputFieldsProjection({maxBytes:128*1024*1024,onIndexVisit:()=>visits++})

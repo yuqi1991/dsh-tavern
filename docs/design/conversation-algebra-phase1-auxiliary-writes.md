@@ -18,3 +18,7 @@
 - 运行安装实测仅涵盖启动与只读检查：浏览器经认证打开 HTTP 200、无页面异常；测试会话 `getSession` 成功、历史门就绪，非白名单会话开关为关闭；启动窗口未见插件加载、语法或模块缺失错误。详见开发副本 `deployment/template-history-live.json`。
 - 尚未在运行安装触发模板历史改写，不能称该功能已验收。
 - 幂等修正另行备份 `/tmp/dsh-tavern-template-retry-backup-20260929-183942`，仅部署 `lib/domain/template-history.js`；新 PID 1038660，浏览器及只读会话冒烟再次通过。详见开发副本 `deployment/template-history-retry-live.json`。功能验收请以此版本为准。
+
+## 用户验收发现：模板输入泡泡仍显示原文
+
+用户发送 `模板验收标记：<%= 1 + 2 %>` 后报告泡泡未变。只读 RPC 证实模板引擎与 Chat Helper 消息已得到 `3`，但 `getSession.view.inputSources[65]` 仍为模板原文，代数事务计数不能证明该用户泡泡正确。原因是输入投影把 Chat 中第 7 条用户消息按楼层序号写到键 `8`，而当前 Session 对应原生 turn 为 `65`；`runtimeInputs[65]` 的原始文本因此未被覆盖。开发副本已改为按相邻 assistant 的 `turn` 建键，新增红转绿回归。fork 保留其增量投影实现，同样按原生 turn 修正；现有长历史成本测试通过。修正版尚未部署，功能验收仍待完成。
