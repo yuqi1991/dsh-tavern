@@ -1,6 +1,6 @@
 # 阶段 1 第四项：辅助写入迁移
 
-状态：模板历史写入与用户泡泡投影已部署且通过用户验收。固定背景接线已部署并通过用户功能验收。后台 Surface 多区间回退与正文投影直写已部署（PID 1137452）并通过启动与只读冒烟，写入路径待用户功能验收。
+状态：模板历史写入与用户泡泡投影已部署且通过用户验收。固定背景接线已部署并通过用户功能验收。后台 Surface 多区间回退已部署并通过用户功能验收（2026-09-30，运行时 2 笔 background-rewind 事务、fold 一致、0 挂起）。正文投影直写已部署，本轮验收中无投影差异故事务分支未在运行时触发（提前返回与 legacy 一致），作为残留项跟踪。
 
 ## 模板历史写入（实现方案 §4 第四项，`template-history.js`）
 
@@ -52,3 +52,7 @@
 ## 2026-09-30 部署：后台回退 + 正文投影
 
 按实现方案 §6 备份 `/tmp/live-lib-backup-aux-final-20260930-002708`，白名单复制 4 个文件（哈希与开发副本一致），带白名单环境变量重启后 PID 1137452。启动窗口无插件加载/语法/模块缺失错误；白名单会话只读 RPC 正常。部署证据见开发副本 `deployment/auxiliary-writes-final-live.json`。写入路径尚未在运行安装触发，用户验收前不标记第四项完成。
+
+## 2026-09-30 用户验收核查
+
+用户在白名单会话执行验收操作后确认。只读核查结果：后台会话 `background-94cc453c` 含 2 笔已提交 `background-rewind` 事务（seq 46/61，单写 begin-commit），fold==host 成立、0 挂起；前台会话 head 1511、154 事务行 0 挂起，分支注册表会话元数据与 Chat registry 12/12 一致，journal 尾部为完整 rollback→history-recover→undo-point 链。正文投影本轮无差异（原始文本 == sessionText，1539 字符一致），`replaceAssistantReply` 提前返回与 legacy 行为一致；其事务分支有离线测试但无运行时证据，记为残留项，待下一次真实投影差异自然覆盖。部署证据见开发副本 `deployment/auxiliary-writes-final-live.json`。
