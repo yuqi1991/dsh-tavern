@@ -1,9 +1,11 @@
 import { replaceSessionSurface } from './session-surface-mutations.js'
 import { sessionEvents } from './session-events.js'
-import { clearRegenerationAttemptSurface, regenerationAttemptTurns, locateRegenerationSurface } from './rollback-surface.js'
+import { clearRegenerationAttemptSurface, planRegenerationAttemptCleanup, regenerationAttemptTurns, locateRegenerationSurface } from './rollback-surface.js'
+import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+import { runTransaction } from './conversation-algebra/index.js'
 
 /** Recover an uncommitted replacement from its durable pre-rollback revision. */
-export function createRegenerationRecovery({ chats, sessions, timeline, isActive }) {
+export function createRegenerationRecovery({ chats, sessions, timeline, isActive, algebraHistory }) {
   const recovering = new Set()
 
   async function originalState(chat) {
@@ -46,7 +48,16 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       }
       const abortedTurns = regenerationAttemptTurns({ events, eventStart })
       // Retain the durable recovery point if the native flush fails.
-      clearRegenerationAttemptSurface({ session, eventStart })
+      if (algebraHistory?.enabled(session.id)) {
+        const cleanup = planRegenerationAttemptCleanup({ events, nodes: session.surface?.nodes, eventStart })
+        if (cleanup) {
+          const adapter = createConversationAlgebraHostAdapter(session, { flush: sessions.flush })
+          const source = cleanup.shadowedSeqs.map(seq => events.find(event => event.seq === seq)).find(Boolean)
+          if (!source) throw new Error('重新生成恢复范围缺少原始事件')
+          await runTransaction(adapter, { expectedHead: events.at(-1)?.seq ?? -1, operationId: 'regen-abort:' + operationId,
+            ops: [{ kind: 'surface-write', event: { type: 'user/message', data: { id: 'conversation-regen-abort:' + operationId, role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern-regeneration-abort' } } }, intent: { surfaceOp: { op: 'replace', start: cleanup.start, end: cleanup.end }, sourceEventSeqs: cleanup.shadowedSeqs } }] })
+        }
+      } else clearRegenerationAttemptSurface({ session, eventStart })
       if (typeof sessions.flush === 'function') await sessions.flush(session)
       const next = timeline.apply({ chat: current, intent: { kind: 'replacement.abort', restoreChat: originalChat } }).chat
       delete next.regenInProgress

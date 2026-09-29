@@ -89,7 +89,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
   const pendingRollbacks = new Set()
   const pendingRegenerations = new Set()
   const pendingReplays = new Set()
-  const regenerationRecovery = createRegenerationRecovery({ chats, sessions, timeline, isActive: id => pendingRegenerations.has(id) })
+  const regenerationRecovery = createRegenerationRecovery({ chats, sessions, timeline, isActive: id => pendingRegenerations.has(id), algebraHistory })
 
   async function regenerate(chatId, guidance, sessionId, inputOverride) {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())

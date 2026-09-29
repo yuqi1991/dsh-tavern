@@ -414,6 +414,18 @@ function regenerationAttemptEnd(events, eventStart) {
   return Infinity
 }
 
+export function planRegenerationAttemptCleanup(input) {
+  const events = Array.isArray(input?.events) ? input.events : []
+  const nodes = Array.isArray(input?.nodes) ? input.nodes : []
+  const eventStart = Math.max(0, Number(input?.eventStart) || 0)
+  const end = regenerationAttemptEnd(events, eventStart)
+  return planSurfaceRecovery({ nodes, ownership: input.ownership || createSurfaceOwnership(events),
+    selectOrigin: event => event.seq >= eventStart && event.seq < end,
+    inScope: event => event.seq >= eventStart,
+    ignore: event => event?.data?.source?.plugin === 'dsh-tavern-regeneration-abort',
+    message: '重新生成临时消息不是连续区间，无法安全清理' })
+}
+
 export function planFailedTurnSurface(input) {
   const events = Array.isArray(input && input.events) ? input.events : []
   const nodes = Array.isArray(input && input.nodes) ? input.nodes : []
