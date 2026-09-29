@@ -1,6 +1,6 @@
 # 第三项第二批：中止重生成的分支恢复
 
-状态：用户已授权部署；修正后的开发与离线验证完成，运行安装验收待进行。第三项整体仍未完成。
+状态：修正后的实现已按用户授权于2026-09-29部署并重启；启动检查通过，用户功能验收待进行。第三项整体仍未完成。
 
 ## 修正内容
 
@@ -28,3 +28,7 @@
 运行验收：在 session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19，等后台任务结束，启动“重新生成正文”，出现输出后用界面停止生成。确认原正文保留、状态面板正常、轨迹没有残留失败的新正文；刷新后再次重生成一次并正常完成，再继续发一轮。仅使用正常 UI 停止，不杀进程、不编辑文件。实现方检查 checkoutTransactions 比基线增加及日志；保存分支操作仍使用 checkout: 前缀。
 
 备份及回滚仍按§6白名单协议。新 abortTransaction 或分支写入后，不得还原成不理解该意图的旧实现；关闭新写入并保留本批恢复代码，先核对恢复完成。所有 Session 与 Chat 写入经现有宿主 API，禁数据手术。
+
+## 运行安装启动证据
+
+PID 1013161，HTTP 200，5个部署文件哈希一致，无启动错误。测试会话 loaded/enabled/historyReady=true；其他会话开关关闭。checkoutTransactions 验收基线为5。备份 `/tmp/dsh-tavern-regen-abort-backup-20260929-172728`。部署证据见 deployment/regen-recovery-live.json（fork中位于conversation-algebra-phase1-evidence）。启动检查不代表用户中止重生成的功能验收已通过。

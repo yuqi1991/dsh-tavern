@@ -1,0 +1,48 @@
+{
+  "pid": 1013161,
+  "port": 3081,
+  "logOffset": 13232299,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T09:27:29.157674+00:00",
+  "backup": "/tmp/dsh-tavern-regen-abort-backup-20260929-172728",
+  "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
+  "developmentCommit": "3d1274f",
+  "forkCommit": "ad08bc73",
+  "deployedFiles": [
+    "lib/domain/regeneration-recovery.js",
+    "lib/domain/rollback-surface.js",
+    "lib/domain/round-history.js",
+    "lib/domain/conversation-algebra-history.js",
+    "lib/index.js"
+  ],
+  "userAcceptance": "pending",
+  "bootstrapHTTP": 200,
+  "status": {
+    "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19": {
+      "enabled": true,
+      "scope": "foreground-retirement,body-edit,rollback",
+      "historyReady": true,
+      "loaded": true,
+      "committedTransactions": 38,
+      "bodyEditTransactions": 6,
+      "checkoutTransactions": 5,
+      "lastCommit": {
+        "seq": 720,
+        "operationId": "retire:150fd2f2-62da-4068-9f33-815309c7555e"
+      }
+    },
+    "algebra-disabled-check": {
+      "enabled": false,
+      "scope": "foreground-retirement,body-edit,rollback",
+      "historyReady": true,
+      "loaded": false,
+      "committedTransactions": 0,
+      "bodyEditTransactions": 0,
+      "checkoutTransactions": 0,
+      "lastCommit": null
+    }
+  },
+  "startupErrors": [],
+  "hashesVerified": true
+}
