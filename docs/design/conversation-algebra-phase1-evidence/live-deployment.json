@@ -1,0 +1,33 @@
+{
+  "backup": "/tmp/dsh-tavern-phase1-backup-20260929-153431",
+  "pid": 973830,
+  "port": 3081,
+  "logOffset": 13217888,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T07:34:55.305690+00:00",
+  "testSession": "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21",
+  "defaultOffSmokePassed": true,
+  "bootstrapHTTP": 200,
+  "status": {
+    "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21": {
+      "enabled": true,
+      "scope": "foreground-retirement",
+      "historyReady": true,
+      "loaded": false,
+      "committedTransactions": 0,
+      "lastCommit": null
+    },
+    "algebra-disabled-check": {
+      "enabled": false,
+      "scope": "foreground-retirement",
+      "historyReady": true,
+      "loaded": false,
+      "committedTransactions": 0,
+      "lastCommit": null
+    }
+  },
+  "startupErrors": [],
+  "deployedFileCount": 15,
+  "userAcceptance": "pending"
+}

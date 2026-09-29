@@ -1,6 +1,6 @@
 # 阶段 1 第一次迁移：脚手架退役接线
 
-范围：实现方案 §4 第 1 项。仅开发副本，未部署；正文编辑/回退/RPC/UI 后续迁移未完成。
+范围：实现方案 §4 第 1 项。2026-09-29 经用户确认已部署；运行启动检查通过，等待人工功能验收。正文编辑/回退/RPC/UI 后续迁移未完成。
 
 ## 本次接线
 
@@ -14,7 +14,8 @@
 
 - 静态检查通过：白名单 JS 语法、独立 algebra import、client build --check、git diff --check。
 - 离线测试通过：开发副本及保留 fork 独立改动的集成副本，各 67 pass / 0 fail / 0 skip。
-- 运行安装实测：未进行。本交付尚未部署、未重启，不能称作阶段 1 验收通过。
+- 运行安装启动检查通过：15 个白名单文件哈希一致、HTTP 200、插件无启动错误、historyReady=true；默认关闭与测试会话单独开启的诊断均通过。当前 PID 973830。真实游玩/事务提交/浏览器验收待用户执行，不能称作阶段 1 验收通过。
+- 备份：`/tmp/dsh-tavern-phase1-backup-20260929-153431`。部署证据：`deployment/live-deployment.json`（fork 中位于 `conversation-algebra-phase1-evidence/live-deployment.json`）。测试开关仅存在当前进程环境，普通启动不会自动保留白名单。
 - 真实宿主 Cordis history 与 SessionEventStream 的离线测试覆盖持久化等待、提交前不发布、提交后单次发布、重连、翻页、dispose；完整 apply 在模拟服务和隔离 DSH_HOME 中通过，不等价于真实服务器或浏览器验收。
 - 10 万随机序列覆盖范围沿用原测试；并发、checkout、故障截断和恢复由独立定向测试覆盖，不声称随机测试覆盖所有组合。
 - 修复安装基线源码/生成物漂移：恢复已运行的改输入 UI 和轨迹折叠到 src/client。AST 对比去除新增 publication gate 后，与原 lib/client.js 完全相同。
