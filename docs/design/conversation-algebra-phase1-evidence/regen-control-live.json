@@ -1,0 +1,40 @@
+{
+  "pid": 1015609,
+  "port": 3081,
+  "logOffset": 13232778,
+  "profile": "tavern",
+  "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
+  "startedAt": "2026-09-29T09:33:38.803494+00:00",
+  "backup": "/tmp/dsh-tavern-regen-control-backup-20260929-173337",
+  "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
+  "developmentCommit": "2cdaf7e",
+  "forkCommit": "f283272e",
+  "files": [
+    {
+      "path": "lib/domain/rollback-surface.js",
+      "liveSha256": "1b6f52c67632bad8797a1ad48a27f5d165ee9c66ca8f3c3d9120cfb711d3e232",
+      "sha256": "63b463e50057ab3ec7375eefb6807a10c7324bc4c8d3b2a1ab8e20cac1dbcfa4"
+    }
+  ],
+  "userAcceptance": "pending",
+  "bootstrapHTTP": 200,
+  "status": {
+    "ok": true,
+    "conversationAlgebra": {
+      "enabled": true,
+      "scope": "foreground-retirement,body-edit,rollback",
+      "historyReady": true,
+      "loaded": true,
+      "committedTransactions": 40,
+      "bodyEditTransactions": 6,
+      "checkoutTransactions": 6,
+      "lastCommit": {
+        "seq": 749,
+        "operationId": "checkout:123c5eab-6cb7-4549-9b94-fdf4751a1a05"
+      }
+    },
+    "runtimeGeneration": "runtime-mumhbhhd-jpyc2t"
+  },
+  "startupErrors": [],
+  "hashesVerified": true
+}

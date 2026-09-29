@@ -1,6 +1,6 @@
 # 第三项第二批：中止重生成的分支恢复
 
-状态：修正后的实现已按用户授权于2026-09-29部署并重启；启动检查通过，用户功能验收待进行。第三项整体仍未完成。
+状态：修正后的实现已按用户授权于2026-09-29部署并重启；启动检查通过，用户功能验收待进行；seq 660 归属修复已于同日部署。第三项整体仍未完成。
 
 ## 修正内容
 
@@ -32,3 +32,7 @@
 ## 运行安装启动证据
 
 PID 1013161，HTTP 200，5个部署文件哈希一致，无启动错误。测试会话 loaded/enabled/historyReady=true；其他会话开关关闭。checkoutTransactions 验收基线为5。备份 `/tmp/dsh-tavern-regen-abort-backup-20260929-172728`。部署证据见 deployment/regen-recovery-live.json（fork中位于conversation-algebra-phase1-evidence）。启动检查不代表用户中止重生成的功能验收已通过。
+
+## seq 660 归属修复
+
+线上首次重生成在 seq 660 失败：它是之前 checkout 事务产生的空控制墓碑，旧范围校验拒绝。只读 API 确认 seq 660/661 属于已提交 checkout 事务。修复仅允许精确匹配、已提交且为空的 dsh-tavern checkout/metadata 控制行；非空、未提交、外部玩家输入仍拒绝。新增边界和真实产品重生成回归，开发/fork 各134项通过，旧回归87项通过。仅部署 rollback-surface.js，PID 1015609，备份 /tmp/dsh-tavern-regen-control-backup-20260929-173337。
