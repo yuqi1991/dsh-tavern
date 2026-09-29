@@ -1,9 +1,30 @@
-# 第三项第二批：失败生成尾部清理
+# 第三项第二批：中止重生成的分支恢复
 
-状态：开发与离线验证完成，待独立部署授权；第三项整体仍未完成。
+状态：用户已授权部署；修正后的开发与离线验证完成，运行安装验收待进行。第三项整体仍未完成。
 
-失败生成没有提交 Story Round。开启 conversationAlgebra 时，临时尾部清理计划通过 `planRegenerationAttemptCleanup` 转成单个受保护的 `runTransaction`，沿用宿主 surface replace 和 G5 合法 user 墓碑；flush、expectedHead、detached 预检和恢复标记由事务层负责。关闭开关及旧 Chat 意图继续使用兼容清理，便于已存在的旧 `regenRecovery` 数据恢复。
+## 修正内容
 
-新增真实宿主 Session 回归：失败尾部清理后的 fold 只保留原输入和已提交正文，重启恢复不重复追加。完整开发副本 121 项测试全绿。运行安装尚未部署。
+之前的 265e0a0 只是把旧墓碑写入包进事务，没有实现本批所需 branch+checkout。原名为“after a cut”的测试也没有注入故障。该部署方案已撤回，旧121项数字不作为本批恢复证据。
 
-本批不迁移重生成成功提交的 `complete` 投影、不删除 `regeneration-recovery.js`，也不改 reroll 生成流程；它们仍属于后续独立接线。部署白名单和验证结果待下一步生成。
+现在实际 createRegenerationRecovery.abort：验证失败尝试为当前后缀 → 用已有 createConversationHistory.prepare 预检 branch+checkout → 单独保存 regenRecovery.abortTransaction → 提交同一意图 → 恢复原 Chat 正文及变量，保留已提交 branchRegistry。新分支完整引用失败尝试版本，checkout 返回当前已提交前缀，因此此前正文编辑保留。无新写通路。
+
+保存意图后，即使关闭新写入开关，重试仍执行该意图；无新意图且开关关闭时走旧兼容路径。首次写入前重启只接受宿主 session/end-seed 头变化，其他外部写入拒绝。历史读取屏障检测 abortTransaction，在服务历史或生成前恢复；并发读取等待正在执行的 abort/recover。
+
+## 证据
+
+- 静态检查通过：白名单 JS node --check、独立 algebra import、git diff --check、client build --check。
+- 开发副本与保留 fork 独立改动的集成副本各130项离线测试全绿。
+- 集成副本的旧 round-history、regeneration-recovery、regeneration-abort-safety 共91项回归全绿。
+- 专项9项测试调用实际 abort/recover：首条写入前、首条写入后、原生提交后、flush失败、Chat最终保存失败；恢复时关闭新写入开关。另覆盖旧路径兼容、后来玩家输入拒绝零写入、并发读取等待。
+- 使用真正的宿主 zstd Persistence API 与 Chat journal，在开发隔离目录存储中断状态，再关闭／重新打开并恢复。没有直接改压缩文件。
+- 产品 regenerate 入口模拟失败，验证原正文恢复、变量保留、失败尝试分支保存；这些测试使用隔离 Session，不等价于运行安装实测。
+
+## 范围与验收
+
+仅迁移中止/失败重生成的临时后缀恢复。普通失败回合 replay 清理、成功重生成 complete 投影仍保留旧路径；第三项整体、第五项 reroll 重构均未完成。
+
+本批部署5个服务端文件：regeneration-recovery.js、rollback-surface.js、round-history.js、conversation-algebra-history.js、index.js。新增的两个文件修改用于复用已有分支提交与接入读取恢复屏障；没有客户端改动。SHA256 白名单见 deployment/regen-recovery.json；原3文件清单已更新。无需再次授权，用户已明确同意本批部署。
+
+运行验收：在 session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19，等后台任务结束，启动“重新生成正文”，出现输出后用界面停止生成。确认原正文保留、状态面板正常、轨迹没有残留失败的新正文；刷新后再次重生成一次并正常完成，再继续发一轮。仅使用正常 UI 停止，不杀进程、不编辑文件。实现方检查 checkoutTransactions 比基线增加及日志；保存分支操作仍使用 checkout: 前缀。
+
+备份及回滚仍按§6白名单协议。新 abortTransaction 或分支写入后，不得还原成不理解该意图的旧实现；关闭新写入并保留本批恢复代码，先核对恢复完成。所有 Session 与 Chat 写入经现有宿主 API，禁数据手术。

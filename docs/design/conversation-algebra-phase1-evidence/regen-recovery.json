@@ -1,0 +1,27 @@
+[
+  {
+    "path": "lib/domain/regeneration-recovery.js",
+    "liveSha256": "531cfd42ddf04119d4c73cd7b0c4350f88dc389363ddffc1cfb9e5bd4e076854",
+    "sha256": "bb33f92107415d8f969d3ef3f7e73967b409d0297866d546a9f3d168de510e8e"
+  },
+  {
+    "path": "lib/domain/rollback-surface.js",
+    "liveSha256": "b0b36473c29758b5bd5bfd3ddddc8a34e515db3795537683634e3f6e87e11220",
+    "sha256": "1b6f52c67632bad8797a1ad48a27f5d165ee9c66ca8f3c3d9120cfb711d3e232"
+  },
+  {
+    "path": "lib/domain/round-history.js",
+    "liveSha256": "561de3b230a4e06310a3dc65f54f14a5d0c72596392b0b8c9fc5f311597b2207",
+    "sha256": "8d8078784d4f425e6248c72d42926f46bd96a0c58839298f1deac0aa014085c3"
+  },
+  {
+    "path": "lib/domain/conversation-algebra-history.js",
+    "liveSha256": "0dca11ddcb0b21f0eb9252b329f29b7aa46a7397548aa0e2eb50f6b5b75138fa",
+    "sha256": "b847b32709891033bb4d767ac2a81e15d1645effcc60e74e7325c7023bfd0dae"
+  },
+  {
+    "path": "lib/index.js",
+    "liveSha256": "837e800053a715aa4704d20ee080245837e4eae7ffb605704413bfef45989d0a",
+    "sha256": "7291b0a15831d545ae37e53af0263015b31a8ae1eaa5cdcb93f61bd2e4cbb59a"
+  }
+]

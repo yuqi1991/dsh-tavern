@@ -141,3 +141,25 @@ test('foreground rollback recovered after flush failure still provides a usable 
   assert.equal(h.chat.messages.length,3);assert.equal(h.chat.conversationHistoryIntent,undefined)
  }finally{patch.dispose()}
 })
+
+test('product failed regenerate restores edited prose and archives the aborted attempt',async()=>{
+ const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
+ const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ try{
+  const h=harness({checkpoint:true,journal:true}),before=structuredClone(h.chat)
+  h.beforeGenerate(()=>{
+    const turn=3
+    h.session.append('turn/start',{turn})
+    appendSessionEvent(h.session,'user/message',h.agent.input,{surfaceOp:'append'})
+    appendSessionEvent(h.session,'assistant/message',{turn,step:1,message:{id:'failed-partial',role:'assistant',source:{kind:'model',provider:'fixture',model:'fixture'},content:[{type:'text',text:'半截新正文'}]}},{surfaceOp:'append'})
+    h.session.append('turn/end',{turn,reason:{kind:'aborted'}})
+  })
+  h.setGeneration('throw')
+  const history=h.create()
+  await assert.rejects(history.regenerate('chat','意见','session'),/fixture generation failed/)
+  assert.deepEqual(h.chat.messages,before.messages)
+  assert.equal(h.chat.regenRecovery,undefined)
+  assert.equal(h.chat.branchRegistry.branches.length,1)
+  assert.deepEqual(computeFold(h.session.snapshotEvents()).rows.map(e=>(e.data.message??e.data).content[0].text),['推门','旧正文'])
+ }finally{patch.dispose()}
+})

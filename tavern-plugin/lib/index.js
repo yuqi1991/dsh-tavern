@@ -325,10 +325,14 @@ export async function apply(ctx) {
     resume: id => agentRegistry.resume({ resumeSessionId: id }),
     flush: session => sessionStore.flush(session),
     writeRegistry: persistConversationRegistry,
-    hasHistoryIntent: async id => Boolean((await chatForSession(id))?.conversationHistoryIntent),
+    hasHistoryIntent: async id => {
+      const chat = await chatForSession(id)
+      return Boolean(chat?.conversationHistoryIntent || chat?.regenRecovery?.abortTransaction)
+    },
     recoverHistory: async session => {
       const chat = await chatForSession(session.id)
       if (chat?.conversationHistoryIntent) await algebraHistory.recover(session, chat.id)
+      if (chat?.regenRecovery?.abortTransaction) await recoverRegeneration(chat.id)
     }
   })
   let algebraHistoryInstalled = false

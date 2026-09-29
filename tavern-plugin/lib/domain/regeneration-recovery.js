@@ -1,12 +1,12 @@
 import { replaceSessionSurface } from './session-surface-mutations.js'
 import { sessionEvents } from './session-events.js'
 import { clearRegenerationAttemptSurface, planRegenerationAttemptCleanup, regenerationAttemptTurns, locateRegenerationSurface } from './rollback-surface.js'
-import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
-import { runTransaction } from './conversation-algebra/index.js'
+import { commitConversationHistoryTransaction } from './conversation-algebra-history.js'
 
 /** Recover an uncommitted replacement from its durable pre-rollback revision. */
 export function createRegenerationRecovery({ chats, sessions, timeline, isActive, algebraHistory }) {
-  const recovering = new Set()
+  const recovering = new Map()
+  const aborting = new Map()
 
   async function originalState(chat) {
     const saved = chat.regenRecovery
@@ -35,31 +35,56 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
     return attempt ? attempt.seq : events.length
   }
 
-  async function abort({ chatId, originalChat, session, eventStart, operationId }) {
-    // Hold the Chat store transaction across projection cleanup and flush. A
-    // concurrent observer must not invalidate restoration after cleanup succeeds.
-    return await chats.update(chatId, async current => {
-      if (!current || current.regenRecovery?.phase === 'committed' || current.regenInProgress !== true ||
-          (operationId && current.regenRecovery?.id !== operationId) ||
-          Number(current.tavernHelperLifecycleRevision || 0) > Number(originalChat.tavernHelperLifecycleRevision || 0) + 1) return
+  function canAbort(current, originalChat, operationId) {
+    return current && current.regenRecovery?.phase !== 'committed' && current.regenInProgress === true &&
+      (!operationId || current.regenRecovery?.id === operationId) &&
+      Number(current.tavernHelperLifecycleRevision || 0) <= Number(originalChat.tavernHelperLifecycleRevision || 0) + 1
+  }
+  function assertNoPlayerInput(events, eventStart) {
+    if (events.some(event => event.seq >= eventStart && event.type === 'user/message' && event.data?.source?.kind === 'user')) {
+      throw new Error('重新生成后已有新的玩家输入，未清理或覆盖后续对话')
+    }
+  }
+
+  function abort(input) {
+    if (aborting.has(input.chatId)) return aborting.get(input.chatId)
+    const pending = abortWork(input).finally(() => { if (aborting.get(input.chatId) === pending) aborting.delete(input.chatId) })
+    aborting.set(input.chatId, pending)
+    return pending
+  }
+  async function abortWork({ chatId, originalChat, session, eventStart, operationId }) {
+    // Persist the exact branch+checkout intent before the first native write.
+    // Retries use this decision even after the new-write switch is disabled.
+    await chats.update(chatId, async current => {
+      if (!canAbort(current, originalChat, operationId) || current.regenRecovery?.abortTransaction) return
+      if (!algebraHistory?.enabled(session.id)) return
       const events = sessionEvents(session)
-      if (events.some(event => event.seq >= eventStart && event.type === 'user/message' && event.data?.source?.kind === 'user')) {
-        throw new Error('重新生成后已有新的玩家输入，未清理或覆盖后续对话')
-      }
+      assertNoPlayerInput(events, eventStart)
+      const nodes = [...session.surface.nodes]
+      const cleanup = planRegenerationAttemptCleanup({ events, nodes, eventStart })
+      if (!cleanup) return
+      if (nodes.at(-1) !== cleanup.end) throw new Error('失败恢复只能移走当前后缀，未修改会话')
+      const start = nodes.indexOf(cleanup.start)
+      const transaction = await algebraHistory.prepare(session, current, start > 0 ? nodes[start - 1] : -1)
+      current.regenRecovery = { ...(current.regenRecovery || {
+        sessionId: session.id, eventStart, before: structuredClone(originalChat),
+        ...(operationId ? { id: operationId } : {})
+      }), abortTransaction: transaction }
+      return current
+    }, { source: 'foreground.regen-abort-intent' })
+    // Hold the Chat transaction across native recovery and restoration.
+    return await chats.update(chatId, async current => {
+      if (!canAbort(current, originalChat, operationId)) return
+      const events = sessionEvents(session)
+      assertNoPlayerInput(events, eventStart)
       const abortedTurns = regenerationAttemptTurns({ events, eventStart })
       // Retain the durable recovery point if the native flush fails.
-      if (algebraHistory?.enabled(session.id)) {
-        const cleanup = planRegenerationAttemptCleanup({ events, nodes: session.surface?.nodes, eventStart })
-        if (cleanup) {
-          const adapter = createConversationAlgebraHostAdapter(session, { flush: sessions.flush })
-          const source = cleanup.shadowedSeqs.map(seq => events.find(event => event.seq === seq)).find(Boolean)
-          if (!source) throw new Error('重新生成恢复范围缺少原始事件')
-          await runTransaction(adapter, { expectedHead: events.at(-1)?.seq ?? -1, operationId: 'regen-abort:' + operationId,
-            ops: [{ kind: 'surface-write', event: { type: 'user/message', data: { id: 'conversation-regen-abort:' + operationId, role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern-regeneration-abort' } } }, intent: { surfaceOp: { op: 'replace', start: cleanup.start, end: cleanup.end }, sourceEventSeqs: cleanup.shadowedSeqs } }] })
-        }
-      } else clearRegenerationAttemptSurface({ session, eventStart })
+      const transaction = current.regenRecovery?.abortTransaction
+      if (transaction) await commitConversationHistoryTransaction(session, current, transaction, sessions.flush)
+      else clearRegenerationAttemptSurface({ session, eventStart })
       if (typeof sessions.flush === 'function') await sessions.flush(session)
       const next = timeline.apply({ chat: current, intent: { kind: 'replacement.abort', restoreChat: originalChat } }).chat
+      if (transaction) next.branchRegistry = structuredClone(current.branchRegistry)
       delete next.regenInProgress
       delete next.regenRecovery
       next.tavernHelperLifecycleRevision = Number(current.tavernHelperLifecycleRevision || 0) + 1
@@ -88,9 +113,15 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
     }, { source: 'foreground.regen-projected' })
   }
 
-  async function recover(chatId) {
-    if (isActive(chatId) || recovering.has(chatId)) return
-    recovering.add(chatId)
+  function recover(chatId) {
+    if (aborting.has(chatId)) return aborting.get(chatId)
+    if (recovering.has(chatId)) return recovering.get(chatId)
+    if (isActive(chatId)) return Promise.resolve()
+    const pending = recoverWork(chatId).finally(() => { if (recovering.get(chatId) === pending) recovering.delete(chatId) })
+    recovering.set(chatId, pending)
+    return pending
+  }
+  async function recoverWork(chatId) {
     let handle
     try {
       if (chats.readState && !(await chats.readState(chatId))?.regenInProgress) return
@@ -115,8 +146,7 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       }
       return await abort({ chatId, originalChat: before, session, eventStart, operationId: chat.regenRecovery?.id })
     } finally {
-      try { if (handle) await handle.dispose() }
-      finally { recovering.delete(chatId) }
+      if (handle) await handle.dispose()
     }
   }
 
