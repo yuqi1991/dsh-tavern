@@ -1,0 +1,17 @@
+[
+  {
+    "path": "lib/client.js",
+    "liveSha256": "31cb175dd7333973806fa1044fb29cc6d95432f30b4793773b332fd42591b935",
+    "sha256": "1dcb17810e3834818597305ecd21fceb0ec4b8cfd5d60a3201af6b5450d885e9"
+  },
+  {
+    "path": "src/client/main.js",
+    "liveSha256": "35976e0ed0434d3f3239954bd7096bd22f05ec58eb59082b4819d2c336b6e131",
+    "sha256": "acba13248f22e357329696581c01cffbec63d18c42c136dff865fa188fa1ab0b"
+  },
+  {
+    "path": "src/client/modules/user-surface-view.js",
+    "liveSha256": null,
+    "sha256": "0380aa83bea83127cd6a020fa37cb32438f282337ca321196073d1625612840f"
+  }
+]

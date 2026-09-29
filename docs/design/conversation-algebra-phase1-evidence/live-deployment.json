@@ -1,11 +1,11 @@
 {
   "backup": "/tmp/dsh-tavern-phase1-backup-20260929-153431",
-  "pid": 977672,
+  "pid": 980936,
   "port": 3081,
-  "logOffset": 13220712,
+  "logOffset": 13225539,
   "profile": "tavern",
   "source": "/home/claw/workspace/dsh-tarvern/apps/dsh-tavern",
-  "startedAt": "2026-09-29T07:47:26.583204+00:00",
+  "startedAt": "2026-09-29T07:57:46.607005+00:00",
   "testSession": "session-ebefd02d-a2d2-4d20-a9a1-d43cb9db3b19",
   "defaultOffSmokePassed": true,
   "bootstrapHTTP": 200,
@@ -15,21 +15,16 @@
       "scope": "foreground-retirement",
       "historyReady": true,
       "loaded": true,
-      "committedTransactions": 0,
-      "lastCommit": null
-    },
-    "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21": {
-      "enabled": false,
-      "scope": "foreground-retirement",
-      "historyReady": true,
-      "loaded": false,
-      "committedTransactions": 0,
-      "lastCommit": null
+      "committedTransactions": 13,
+      "lastCommit": {
+        "seq": 400,
+        "operationId": "retire:ecd01bd7-0946-4364-8663-2a0e10ab9182"
+      }
     }
   },
   "startupErrors": [],
   "deployedFileCount": 15,
-  "userAcceptance": "pending: user tested different session while feature disabled",
+  "userAcceptance": "pending: edited-input bubble fix",
   "previousTestSession": "session-01cd86eb-f6ee-4c5d-9750-1693b5befa21",
   "statusBeforeSwitch": {
     "ok": true,
@@ -42,5 +37,7 @@
       "lastCommit": null
     },
     "runtimeGeneration": "runtime-mumd2t0k-809wgm"
-  }
+  },
+  "bubbleFixBackup": "/tmp/dsh-tavern-user-bubble-backup-20260929-155745",
+  "bubbleFixCommit": "fc42c0e"
 }
