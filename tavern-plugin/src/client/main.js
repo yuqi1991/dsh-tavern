@@ -9455,6 +9455,16 @@ window.__ModuleLoader__.load({
 			function apply(sessionId, turns, regeneratedDshTurns) {
 				// Reconcile both directions: an older observer may have hidden a
 				// restored turn after the action's immediate DOM update.
+				// Phone-scale guard: the body observer fires on our own hides and
+				// on streaming layout churn alike. Same inputs plus an unchanged
+				// tracked-row population means the previous pass is still valid;
+				// skipping it keeps long histories interactive on mobile.
+				const rowKey = suppressedDshTurnsRevisionOf(turns, regeneratedDshTurns, sessionId);
+				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"], [data-chat-turn]');
+				let population = 0
+				for (let i = 0; i < tails.length; i++) if (tails[i].getAttribute("data-chat-turn")) population++
+				if (applyMemo && applyMemo.key === rowKey && applyMemo.population === population) return
+				applyMemo = { key: rowKey, population: population }
 				restoreHiddenRows();
 				applySuppressedDshTurns(turns, regeneratedDshTurns);
 				applyRegeneratedDshTurns(regeneratedDshTurns);
@@ -9477,6 +9487,10 @@ window.__ModuleLoader__.load({
 					const source = row.querySelector('[data-context-source]');
 					if (source && source.textContent.trim() === "dsh-tavern-surface-restore") hideRow(row);
 				}
+			}
+			let applyMemo = null
+			function suppressedDshTurnsRevisionOf(turns, regeneratedDshTurns, sessionId) {
+				return sessionId + "|" + (Array.isArray(turns) ? turns.join(",") : "") + "|" + JSON.stringify(regeneratedDshTurns || {})
 			}
 			function regenerated(sessionId, view, tail) {
 				const adopted = view && view.adopted;
