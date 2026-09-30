@@ -70,7 +70,7 @@ export function dropTagged(state, tag) {
   return targets.flatMap(step => step.rows.map(row => tombstone(row, tag)))
 }
 
-export function branch(state, label) {
+export function branch(state, label, meta = null) {
   const existing = Array.isArray(state?.branchRegistry?.branches) ? state.branchRegistry.branches : []
   const id = `branch-${Math.max(-1, state?.headSeq ?? -1)}-${existing.length + 1}`
   return [{ kind: 'branch', branch: {
@@ -79,7 +79,10 @@ export function branch(state, label) {
     anchorSeq: state?.surfaceNodes?.at(-1) ?? null,
     headSeq: state?.headSeq ?? -1,
     createdAt: Date.now(),
-    active: false
+    active: false,
+    // P2-B: the chat-visible turn this variant replaces, when known; older
+    // records without it stay valid (variant projection skips them).
+    ...(meta && Number.isSafeInteger(meta.turn) ? { turn: meta.turn } : {})
   } }]
 }
 

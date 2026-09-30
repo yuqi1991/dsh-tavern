@@ -19,10 +19,10 @@ export function createConversationBranches(session, { flush, writeRegistry }) {
     const registry = committedMetadata(sessionEvents(session))
     if (registry) await writeRegistry(structuredClone(registry))
   }
-  async function plan(ref, label = '回退前 ' + new Date().toISOString()) {
+  async function plan(ref, label = '回退前 ' + new Date().toISOString(), meta = null) {
     await ready()
     const before = state()
-    const saved = branch(before, label)
+    const saved = branch(before, label, meta)
     const ops = [...saved, ...checkout(before, ref)]
     // Exact native admission, including tool pairing, before a caller publishes
     // its durable Story Timeline intent.

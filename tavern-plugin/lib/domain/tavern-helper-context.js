@@ -1,6 +1,3 @@
-import { createIndexedArrayApi } from './indexed-array.js'
-import { freezeJson } from './freeze-json.js'
-const helperIndex = createIndexedArrayApi({valid: row => Boolean(row && !row.stub)})
 import { assertPluginJson } from './tavern-chat-plugin-data.js'
 import { projectAgentContent } from './runtime-content-projection.js'
 
@@ -54,11 +51,17 @@ function tavernHelperRole(source) {
 }
 
 /** Project one Chat floor into the synchronous Tavern Helper message shape. */
-export function projectTavernHelperMessage(source, messageId) {
+export function projectTavernHelperMessage(source, messageId, variants = null) {
   const swipeId = selectedSwipe(source)
-  const swipes = Array.isArray(source.swipes) && source.swipes.length > 0
+  // P2-B: branch-derived variants outrank stored mirrors, which new rounds no
+  // longer write; without either, the single body remains the one variant.
+  const stored = Array.isArray(source.swipes) && source.swipes.length > 0
     ? source.swipes.map(str)
-    : [str(source.sourceText || source.text)]
+    : null
+  const activeText = str(source.sourceText || source.text)
+  const swipes = Array.isArray(variants) && variants.length > 0
+    ? [activeText].concat(variants.filter(text => text !== activeText))
+    : stored ?? [activeText]
   const variables = Array.isArray(source.variables) ? clone(source.variables) : []
   const projected = {
     pluginData: clone(source.tavernPluginData || {}),
@@ -108,6 +111,7 @@ function rememberAssistantTurn(turnMessageIds, source, messageId, role) {
 export function projectTavernHelperContext(chat, options = {}) {
   const sources = Array.isArray(chat && chat.messages) ? chat.messages : []
   const previousMessages = Array.isArray(options.previousMessages) ? options.previousMessages : null
+  const variantBodies = options.variantBodies && typeof options.variantBodies === 'object' ? options.variantBodies : null
   const dirtyIndices = options.dirtyIndices instanceof Set ? options.dirtyIndices : null
   const skeletonUntil = Number.isSafeInteger(options.skeletonUntil) ? Math.max(0, options.skeletonUntil) : 0
   const dirty = dirtyIndices ? new Set(dirtyIndices) : null
@@ -116,17 +120,9 @@ export function projectTavernHelperContext(chat, options = {}) {
     const nextCount = sources.length
     for (let index = Math.min(previousCount, nextCount); index < nextCount; index++) dirty.add(index)
   }
-  let messages = []
-  let turnMessageIds = {}
-  const indexedReuse = options.indexed && options.layoutChanged === false && dirty && options.previousContext
-    && helperIndex.info(previousMessages)?.complete && previousMessages.length === sources.length
-    && options.previousContext.chatId === str(chat.id)
-    && options.previousContext.lifecycleRevision === Math.max(0,Number(chat.tavernHelperLifecycleRevision)||0)
-  if (indexedReuse) {
-    messages = helperIndex.update(previousMessages,[...dirty].map(id => [id,freezeJson(projectTavernHelperMessage(sources[id],id))]))
-    turnMessageIds = options.previousContext.turnMessageIds
-  }
-  for (let index = 0; !indexedReuse && index < sources.length; index++) {
+  const messages = []
+  const turnMessageIds = {}
+  for (let index = 0; index < sources.length; index++) {
     const source = sources[index]
     if (!source || typeof source !== 'object') continue
     const messageId = messages.length
@@ -140,14 +136,10 @@ export function projectTavernHelperContext(chat, options = {}) {
     } else if (index < skeletonUntil) {
       projected = projectTavernHelperMessageSkeleton(source, messageId)
     } else {
-      projected = projectTavernHelperMessage(source, messageId)
+      projected = projectTavernHelperMessage(source, messageId, variantBodies ? variantBodies[String(Math.max(0, Number(source.turn) || 0))] ?? null : null)
     }
     messages.push(projected)
     rememberAssistantTurn(turnMessageIds, source, messageId, projected.role)
-  }
-  if (options.indexed && !indexedReuse) {
-    messages = helperIndex.from(messages.map(freezeJson))
-    turnMessageIds = freezeJson(turnMessageIds)
   }
   const result = {
     version: 1,
@@ -314,9 +306,4 @@ export function replaceTavernHelperMessages(chat, patches) {
     updated.push({ messageId, swipeId })
   }
   return updated
-}
-
-// Indexed production projections have a cached completeness aggregate.
-export function helperMessagesComplete(messages) {
-  return helperIndex.info(messages)?.complete ?? !messages.some(message=>message?.stub === true)
 }

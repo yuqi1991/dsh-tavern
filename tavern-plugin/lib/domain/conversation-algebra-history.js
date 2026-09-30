@@ -22,8 +22,8 @@ export function createConversationHistory({ chats, flush }) {
       current.branchRegistry = registry
     } })
   }
-  async function prepare(session, current, anchor) {
-    return branches(session, structuredClone(current)).plan(anchor)
+  async function prepare(session, current, anchor, meta = null) {
+    return branches(session, structuredClone(current)).plan(anchor, undefined, meta)
   }
   /** Commit a prepared intent immediately, updating the Chat row's registry. */
   async function commit(session, current, intent) {
