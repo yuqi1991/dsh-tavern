@@ -832,5 +832,63 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     }
   }
 
-  return Object.freeze({ regenerate, replayFailed: replayFailedTurn, recover: regenerationRecovery.recover, rollback: rollbackTurn, undoRollback })
+  /** Variant switcher (spec §9.2, D4): move the live pointer among the sibling
+   * variants of the LAST assistant floor. Variants are branch records tagged
+   * with this floor's turn (P2-B); the live generation line is archived as a
+   * branch the first time the user leaves it, so every variant — including the
+   * current body — is addressable by branchId and the selection persists in
+   * the registry's activeBranchId. */
+  async function switchVariant(sessionId, chatId, targetIndex) {
+    const chat = str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
+    if (!chat) throw new Error('聊天不存在: ' + chatId)
+    const agent = sessions.get(chat.sessionId)
+    const session = agent?.session || sessions.getSession?.(chat.sessionId)
+    if (!session) throw new Error('无法访问 DSH 会话: ' + chat.sessionId)
+    if (agent?.phase?.kind === 'running') throw new Error('前台正在生成，请完成或停止后再切换变体')
+    if (!algebraHistory?.enabled(session.id)) throw new Error('当前会话未启用会话历史隔离，不能切换变体')
+    const index = Number(targetIndex)
+    if (!Number.isSafeInteger(index) || index < 0) throw new Error('变体序号无效: ' + targetIndex)
+    const lastAssistant = [...(chat.messages || [])].findLast(message => message && message.role === 'assistant' && message.greeting !== true)
+    const turn = Number(lastAssistant?.turn) || 0
+    if (turn <= 0) throw new Error('没有可切换的剧情楼层')
+    const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeBranchId: null, activeHeadSeq: null }
+    const siblings = registry.branches
+      .filter(branch => branch && Number(branch.turn) === turn)
+      .sort((left, right) => Number(left.headSeq) - Number(right.headSeq))
+    const liveHead = Number(registry.activeHeadSeq)
+    const selectedNow = siblings.findIndex(branch => Number(branch.headSeq) === liveHead)
+    // Enumeration: the live line is index 0 while it is active; each archived
+    // sibling follows in headSeq order. Leaving index 0 archives the line as
+    // the first sibling, keeping every earlier variant's index stable.
+    const count = selectedNow >= 0 ? siblings.length : 1 + siblings.length
+    if (index >= count) throw new Error('变体序号超出范围: ' + index + '/' + count)
+    let intent
+    if (index === 0 && selectedNow < 0) {
+      // Already on the live line.
+      const result = await view(chat, await readChatCard(chat))
+      result.switchedVariant = { turn, index: 0 }
+      return result
+    }
+    if (index > 0 && selectedNow < 0) {
+      // Archive the live line first so it stays addressable for the trip back.
+      intent = await algebraHistory.prepare(session, chat, siblings[index - 1].branchId, { turn })
+    } else {
+      // While a branch is active the enumeration IS the sibling list (no live
+      // slot), so the index maps directly onto registry positions.
+      const target = siblings[selectedNow >= 0 ? index : index - 1]
+      intent = await algebraHistory.move(session, chat, target.branchId)
+    }
+    const updated = await updateChat(chat.id, current => {
+      const next = structuredClone(current)
+      next.conversationHistoryIntent = { sessionId: session.id, transaction: intent }
+      next.tavernHelperLifecycleRevision = Number(current.tavernHelperLifecycleRevision || 0) + 1
+      return next
+    }, { source: 'variant.switch' })
+    const switched = await algebraHistory.recover(session, chat.id)
+    const result = await view(switched, await readChatCard(switched))
+    result.switchedVariant = { turn, index }
+    return result
+  }
+
+  return Object.freeze({ regenerate, replayFailed: replayFailedTurn, recover: regenerationRecovery.recover, rollback: rollbackTurn, undoRollback, switchVariant })
 }

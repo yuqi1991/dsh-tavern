@@ -31,6 +31,18 @@ export function createConversationBranches(session, { flush, writeRegistry }) {
     await runTransaction(previewAdapter, { ops, operationId: 'preflight:' + randomUUID() })
     return { version: 1, expectedHead: before.headSeq, operationId: 'checkout:' + randomUUID(), branchId: saved[0].branch.branchId, ops }
   }
+  /** Checkout-only intent for pointer moves that must NOT archive the current
+   * line (variant switching). The caller's registry projection keeps every
+   * existing branch; only activeHeadSeq moves. */
+  async function move(ref) {
+    await ready()
+    const before = state()
+    const ops = checkout(before, ref)
+    const preview = session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
+    const previewAdapter = createConversationAlgebraHostAdapter(preview, { flush: async () => {}, write: async () => {} })
+    await runTransaction(previewAdapter, { ops, operationId: 'preflight:' + randomUUID() })
+    return { version: 1, expectedHead: before.headSeq, operationId: 'checkout:' + randomUUID(), branchId: null, ops }
+  }
   async function commit(intent) {
     await ready()
     const events = sessionEvents(session)
@@ -40,5 +52,5 @@ export function createConversationBranches(session, { flush, writeRegistry }) {
     })) return state()
     return (await runTransaction(adapter, intent)).fold
   }
-  return Object.freeze({ state, ready, plan, commit })
+  return Object.freeze({ state, ready, plan, move, commit })
 }

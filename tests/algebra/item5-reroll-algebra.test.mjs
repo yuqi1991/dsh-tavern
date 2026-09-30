@@ -85,6 +85,35 @@ test('algebra reroll tags the saved variant branch with the replaced turn', asyn
   } finally { patch.dispose() }
 })
 
+test('variant switcher checks out the archived body and back to the live line', async () => {
+  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  try {
+    const h = harness()
+    await h.create().regenerate('chat', '', 'session')
+    // After one reroll the live line is 新正文; the reroll archived 旧正文.
+    // Enumeration while the live line is active: [新正文(0, live), 旧正文(1)].
+    const round = h.create()
+    const switched = await round.switchVariant('session', 'chat', 1)
+    assert.equal(switched.switchedVariant.index, 1)
+    const fold = foldOf(h)
+    const bodyRows = fold.rows.filter(row => row.type === 'assistant/message')
+    assert.equal(bodyRows.length, 1)
+    assert.equal(bodyRows[0].data.message.content[0].text, '旧正文')
+    // Leaving index 0 archived the live line, so enumeration becomes registry
+    // order: [旧正文(0), 新正文(1)]. Switch back to the new body = index 1.
+    const back = await round.switchVariant('session', 'chat', 1)
+    assert.equal(back.switchedVariant.index, 1)
+    const foldBack = foldOf(h)
+    const bodyRowsBack = foldBack.rows.filter(row => row.type === 'assistant/message')
+    assert.equal(bodyRowsBack.length, 1)
+    assert.equal(bodyRowsBack[0].data.message.content[0].text.startsWith('新正文'), true)
+    // Out-of-range index is rejected without moving the surface.
+    await assert.rejects(round.switchVariant('session', 'chat', 5), /超出范围/)
+    const foldAfter = foldOf(h)
+    assert.equal(foldAfter.rows.filter(row => row.type === 'assistant/message')[0].data.message.content[0].text.startsWith('新正文'), true)
+  } finally { patch.dispose() }
+})
+
 test('algebra reroll keeps one visible round and a saved variant branch', async () => {
   const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
   try {

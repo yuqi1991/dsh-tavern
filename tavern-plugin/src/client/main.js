@@ -10191,6 +10191,41 @@ window.__ModuleLoader__.load({
 				);
 			}
 
+			// Spec §9.2/D4: variant switcher for the LAST assistant floor only.
+			// ‹ n/m ›: left/right check out sibling branches; past the end = regenerate.
+			function TavernVariantSwitcher(props) {
+				const [busy, setBusy] = React.useState(false);
+				const frontRunning = props.useSession(function (snapshot) { return snapshot.running === true; });
+				const latestMessageId = props.useChat(latestTavernAssistantMessageId);
+				const live = useLiveTavernView(props.sessionId, "variant:" + String(frontRunning) + ":" + String(latestMessageId || ""));
+				const variantSwitch = live.view && live.view.variantSwitch;
+				if (!variantSwitch || variantSwitch.available !== true || variantSwitch.count <= 1) return null;
+				const selected = Math.max(0, Math.min(Number(variantSwitch.count) - 1, Number(variantSwitch.selected) || 0));
+				const blocked = busy || frontRunning;
+				async function switchTo(index) {
+					if (blocked || index === selected) return;
+					setBusy(true);
+					try {
+						await rpc("switchVariant", { index: index }, props.sessionId);
+						liveTavernView.invalidate(props.sessionId);
+						notifyTavernDataChanged(["sessions"], "variant-switch");
+					} catch (err) { tavernErrorHub.report("切换变体", err); }
+					finally { setBusy(false); }
+				}
+				function step(delta) {
+					const next = selected + delta;
+					if (next > Number(variantSwitch.count) - 1) return; // past-the-end = regenerate, handled by the regen button
+					if (next < 0) return;
+					switchTo(next);
+				}
+				const h = React.createElement;
+				return h("div", { className: "dsh-tavern-variant-switcher", role: "group", "aria-label": "正文变体" },
+					h("button", { type: "button", className: "dsh-tavern-btn", "aria-label": "上一个变体", disabled: blocked || selected <= 0, onClick: function () { step(-1); } }, "‹"),
+					h("span", { className: "dsh-tavern-variant-index", title: "当前变体 / 全部变体" }, (selected + 1) + " / " + variantSwitch.count),
+					h("button", { type: "button", className: "dsh-tavern-btn", "aria-label": "下一个变体", disabled: blocked || selected >= Number(variantSwitch.count) - 1, onClick: function () { step(1); } }, "›")
+				);
+			}
+
 			function TavernRollbackAction(props) {
 				const [rolling, setRolling] = React.useState(false);
 				const regenPanelState = useRegenPanel();
@@ -10503,7 +10538,8 @@ window.__ModuleLoader__.load({
 					React.createElement("button", { type: "button", className: "dsh-tavern-choice-trigger", "aria-haspopup": "menu", "aria-expanded": open, onClick: function () { setOpen(function (value) { return !value; }); } }, "更多 ▾"),
 					React.createElement("div", { className: "dsh-tavern-more-menu", role: "menu", hidden: !open, onClick: function (event) { if (event.target && event.target.closest && event.target.closest("button:not(:disabled)")) setOpen(false); } },
 						React.createElement(TavernStopBackgroundAction, Object.assign({}, props, { inMenu: true })),
-						React.createElement(TavernEditBodyAction, props),
+						React.createElement(TavernVariantSwitcher, props),
+					React.createElement(TavernEditBodyAction, props),
 						React.createElement(TavernRollbackAction, props),
 						React.createElement(TavernUndoRollbackAction, props),
 						React.createElement(TavernCompactionAction, Object.assign({}, props, { inMenu: true })))

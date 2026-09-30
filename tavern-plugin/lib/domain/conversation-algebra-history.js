@@ -25,6 +25,11 @@ export function createConversationHistory({ chats, flush }) {
   async function prepare(session, current, anchor, meta = null) {
     return branches(session, structuredClone(current)).plan(anchor, undefined, meta)
   }
+  /** Checkout-only pointer move (variant switching); never archives a branch. */
+  async function move(session, current, ref) {
+    return branches(session, structuredClone(current)).move(ref)
+  }
+
   /** Commit a prepared intent immediately, updating the Chat row's registry. */
   async function commit(session, current, intent) {
     return await commitConversationHistoryTransaction(session, structuredClone(current), structuredClone(intent), flush)
@@ -51,5 +56,5 @@ export function createConversationHistory({ chats, flush }) {
       return current
     }, { source: 'conversation-algebra.history-recover' })
   }
-  return Object.freeze({ prepare, commit, recover })
+  return Object.freeze({ prepare, move, commit, recover })
 }
