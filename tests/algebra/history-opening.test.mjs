@@ -27,7 +27,7 @@ test('first opening includes current story even when latest 50 append messages a
   assert.ok(frame.records.some(r=>r.event.type==='user/message'&&r.event.data.id==='input'))
   assert.equal(frame.cursor,71)
   for(let i=1;i<frame.records.length;i++)assert.equal(frame.records[i].event.seq,frame.records[i-1].event.seq+1)
- }finally{abort.abort();await follow.return()}
+ }finally{abort.abort();await follow?.return?.()}
 })
 
 test('opening includes original input behind a restored replacement and retains stream metadata',async()=>{
@@ -58,4 +58,28 @@ test('opening for unmodified host sessions keeps its original page budget',async
  }finally{abort.abort();await stream.return();dispose()}
  assert.ok(released>=2)
  assert.equal(history.closeFollowers.size,0)
+})
+
+test('opening window is capped for heavily regenerated long sessions',async()=>{
+ const {Context}=await import('/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js')
+ const {Session}=await import('/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js')
+ const {SessionHistoryController}=await import('/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-api-session-controller/lib/types/history.js')
+ const {installConversationHistoryGate}=await import('../../tavern-plugin/lib/domain/conversation-algebra-isolation.js')
+ const {user,assistant}=await import('./helpers.mjs')
+ const ctx=new Context(),session=Session.create('opening-cap',undefined,{...Session.create('opening-cap').header,cwd:'/tmp'})
+ for(const row of [user('input','player'),assistant('body','current body',1)])session.append(row.type,row.data,{surfaceOp:'append'})
+ // Long tail of regenerate-style controls: each replacement cites a low-seq ancestor.
+ for(let i=0;i<900;i++){
+  const target=1+Math.floor(i/2)
+  session.append('user/message',user('cap:'+i,null,{kind:'plugin',plugin:'dsh-tavern',form:'conversation-metadata',conversationTransaction:{operationId:'o'+i,phase:'begin-commit'}}).data,{surfaceOp:'append'})
+ }
+ ctx.provide('sessionQuery',{async observeSession(){return {header:session.header,events:session.snapshotEvents(),cursor:session.seq-1,inheritedEventCount:0,source:'live',[Symbol.dispose](){}}}})
+ const history=new SessionHistoryController(ctx,()=>{})
+ installConversationHistoryGate(history,async()=>{})
+ const abort=new AbortController()
+ const follow=history.follow({address:{kind:'session',sessionId:'opening-cap'},assistantStream:true},abort.signal)
+ try{
+  const frame=(await follow.next()).value
+  assert.ok(frame.records.length<=460,'window must stay bounded, got '+frame.records.length)
+ }finally{abort.abort();await follow.return()}
 })

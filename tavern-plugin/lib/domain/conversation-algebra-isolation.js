@@ -4,8 +4,14 @@ import { computeFold } from './conversation-algebra/index.js'
  * provenance. Host pagination counts empty append placeholders toward its
  * budget; those placeholders must not crowd every human message off the page.
  * Keep a contiguous event suffix and the original stream cursor/baselines.
+ *
+ * The provenance closure is capped: heavily regenerated sessions reference
+ * ancestors all the way back to the seed, and an unbounded walk hands the
+ * client the whole log as its first snapshot — on mobile that freezes the
+ * conversation. Rows beyond the cap stay reachable through load-older; only
+ * the opening window shrinks.
  */
-function openingStart(events, initialStart, budget) {
+function openingStart(events, initialStart, budget, closureCap = 400) {
   if (!events.some(event => (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction)) return initialStart
   const fold = computeFold(events)
   const selected = fold.views.conversation.slice(-budget)
@@ -26,8 +32,17 @@ function openingStart(events, initialStart, budget) {
       }
     }
     if (next === cut) return cut
+    if (events.length - next > closureCap) return cut
     cut = next
   }
+}
+
+/** Hard ceiling on the first-snapshot event suffix. The provenance walk above
+ * stays within it; this floor also guards the selected-seed minimum, which in
+ * long sessions lands near the log head (original user rows keep low seqs
+ * forever). Rows above the ceiling load through load-older like stock. */
+function capOpeningStart(events, start, closureCap = 400) {
+  return Math.max(start, events.length - closureCap)
 }
 
 /** Install a reversible gate at the host's history transport, not at its event
@@ -75,7 +90,7 @@ export function installConversationHistoryGate(history, ready) {
           // A newer append is delivered later by the existing follower. Never
           // mix its future events into this opening cursor.
           const events = source.events.filter(event => event.seq <= item.cursor)
-          const start = openingStart(events, item.records[0].event.seq, request.maxMessages ?? 50)
+          const start = capOpeningStart(events, openingStart(events, item.records[0].event.seq, request.maxMessages ?? 50))
           if (start < item.records[0].event.seq) {
             yield { ...item, records: events.filter(event => event.seq >= start).map(event => ({ type: 'event', event })), hasMore: start > 0 }
             continue
