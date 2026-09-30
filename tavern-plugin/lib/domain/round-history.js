@@ -622,7 +622,14 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       [hiddenTurn], Number.isSafeInteger(regeneratedVisibleTurn) && regeneratedVisibleTurn > 0 ? [regeneratedVisibleTurn] : []))).sort(function (left, right) { return left - right })
     chat.regeneratedDshTurns = chat.regeneratedDshTurns && typeof chat.regeneratedDshTurns === 'object' && !Array.isArray(chat.regeneratedDshTurns)
       ? structuredClone(chat.regeneratedDshTurns) : {}
-    delete chat.regeneratedDshTurns[String(hiddenTurn)]
+    // Slice-A rerolls keep the body under its native turn while the chat row
+    // stays keyed by the visible turn: the mapping entry is key=visible,
+    // value=native. A rollback hides the native turn, so drop the entry whose
+    // VALUE matches — deleting only the key leaves the value advertised as a
+    // visible regeneration and the client re-shows the rolled-back tail.
+    for (const key of Object.keys(chat.regeneratedDshTurns)) {
+      if (Number(key) === hiddenTurn || Number(chat.regeneratedDshTurns[key]) === hiddenTurn) delete chat.regeneratedDshTurns[key]
+    }
     chat.updatedAt = Date.now()
     if (algebraIntent) chat.conversationHistoryIntent = { sessionId: session.id, transaction: algebraIntent }
     chat = await updateChat(chat.id, current => {
