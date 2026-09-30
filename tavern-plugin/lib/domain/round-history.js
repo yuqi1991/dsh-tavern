@@ -927,10 +927,15 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (body !== null) {
       await updateChat(chat.id, current => {
         const messages = Array.isArray(current?.messages) ? [...current.messages] : []
+        const suppressed = new Set((Array.isArray(current?.suppressedDshTurns) ? current.suppressedDshTurns : []).map(Number))
+        // Rewrite the floor the user SEES: pre-fix reroll stacks can leave hidden
+        // assistant slots after the visible one; editing those never shows.
         let assistantIndex = -1
         for (let index = messages.length - 1; index >= 0; index--) {
           const message = messages[index]
-          if (message && typeof message === 'object' && message.role === 'assistant' && message.greeting !== true) { assistantIndex = index; break }
+          if (!message || typeof message !== 'object' || message.role !== 'assistant' || message.greeting === true) continue
+          if (suppressed.has(Number(message.turn))) continue
+          assistantIndex = index; break
         }
         if (assistantIndex < 1 || messages[assistantIndex - 1]?.role !== 'user') return current
         const assistant = { ...messages[assistantIndex], text: body, sourceText: body, turn }
