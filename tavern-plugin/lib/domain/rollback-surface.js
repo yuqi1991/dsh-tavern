@@ -426,10 +426,15 @@ function regenerationAttemptEnd(events, eventStart) {
   for (const event of events) {
     if (!event || event.seq < eventStart) continue
     if (event.type === 'turn/end' || (event.type === 'user/message' && event.data?.source?.kind === 'user')) return event.seq
+    // Transaction control rows (branch metadata carriers, empty tombstones)
+    // are never attempt content; scanning them would open a phantom attempt
+    // before the real turn/start.
+    if ((event.data?.source?.conversationTransaction || event.data?.source?.retiredSeq) !== undefined &&
+        event.type !== 'assistant/message' && event.type !== 'tool/result' && !Array.isArray(event.data?.content)?.length) continue
     if (event.type === 'turn/start') {
       if (started) return event.seq
       started = true
-    } else if (event.surfaceOp === 'append' && ['user/message', 'assistant/message', 'tool/result'].includes(event.type)) {
+    } else if (!started && event.surfaceOp === 'append' && ['user/message', 'assistant/message', 'tool/result'].includes(event.type)) {
       // Legacy recovery can start at the injected input, after turn/start.
       // A later turn/start is still a boundary if turn/end was never written.
       started = true
