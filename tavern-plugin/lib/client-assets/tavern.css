@@ -1791,6 +1791,9 @@ header .nL4_yW_moreButton { display: none !important; }
 .dsh-tavern-script-code-scroll pre { flex: 1 0 auto; margin: 0; padding: 12px; color: var(--dsw-alias-label-primary); font: inherit; white-space: pre; overflow-wrap: normal; word-break: normal; }
 .dsh-tavern-script-code-scroll code { font: inherit; }
 .dsh-tavern-script-code > summary:focus-visible, .dsh-tavern-script-code-scroll:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: -2px; }
-.dsh-tavern-variant-switcher { display: inline-flex; align-items: center; gap: 6px; justify-self: center; padding: 4px 2px; }
-.dsh-tavern-variant-switcher .dsh-tavern-btn { min-width: 30px; padding: 2px 8px; }
-.dsh-tavern-variant-index { font-size: 12px; font-weight: 650; color: var(--dsh-tavern-accent); font-variant-numeric: tabular-nums; user-select: none; }
+.dsh-tavern-variant-switcher { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 6px 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); margin-bottom: 4px; }
+.dsh-tavern-variant-switcher .dsh-tavern-variant-label { font-size: 12px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows { display: inline-flex; align-items: center; gap: 8px; }
+.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button { width: 30px; padding: 4px 0; text-align: center; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-interactive-bg-normal, transparent); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1; }
+.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+.dsh-tavern-variant-index { font-size: 12px; font-weight: 650; color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; user-select: none; min-width: 28px; text-align: center; }

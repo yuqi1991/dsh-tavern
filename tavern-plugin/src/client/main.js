@@ -10220,9 +10220,12 @@ window.__ModuleLoader__.load({
 				}
 				const h = React.createElement;
 				return h("div", { className: "dsh-tavern-variant-switcher", role: "group", "aria-label": "正文变体" },
-					h("button", { type: "button", className: "dsh-tavern-btn", "aria-label": "上一个变体", disabled: blocked || selected <= 0, onClick: function () { step(-1); } }, "‹"),
-					h("span", { className: "dsh-tavern-variant-index", title: "当前变体 / 全部变体" }, (selected + 1) + " / " + variantSwitch.count),
-					h("button", { type: "button", className: "dsh-tavern-btn", "aria-label": "下一个变体", disabled: blocked || selected >= Number(variantSwitch.count) - 1, onClick: function () { step(1); } }, "›")
+					h("span", { className: "dsh-tavern-variant-label" }, "正文变体"),
+					h("span", { className: "dsh-tavern-variant-arrows" },
+						h("button", { type: "button", "aria-label": "上一个变体", disabled: blocked || selected <= 0, onClick: function () { step(-1); } }, "‹"),
+						h("span", { className: "dsh-tavern-variant-index", title: "当前变体 / 全部变体" }, (selected + 1) + " / " + variantSwitch.count),
+						h("button", { type: "button", "aria-label": "下一个变体", disabled: blocked || selected >= Number(variantSwitch.count) - 1, onClick: function () { step(1); } }, "›")
+					)
 				);
 			}
 
