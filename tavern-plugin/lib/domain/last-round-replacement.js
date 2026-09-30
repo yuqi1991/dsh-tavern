@@ -49,13 +49,12 @@ export function replaceLastRound(input = {}) {
   if (!regeneratedAssistant || regeneratedAssistant.role !== 'assistant') throw new Error('重新生成没有产生助手回复')
 
   const selected = selectedIndex(regeneratedAssistant)
-  const source = Array.isArray(regeneratedAssistant.swipes) && regeneratedAssistant.swipes[selected] !== undefined
-    ? str(regeneratedAssistant.swipes[selected])
-    : str(regeneratedAssistant.sourceText || regeneratedAssistant.text)
+  // Phase 2 (P2-A): swipes[]/swipeId stop being written — the helper surface
+  // materializes a single-variant projection when the field is absent, and
+  // multi-variant projection arrives with branch enumeration. Existing stored
+  // arrays are preserved untouched for old-chat read compatibility.
   const replacement = Object.assign({}, clone(originalAssistant), clone(regeneratedAssistant), {
-    turn: originalAssistant.turn,
-    swipeId: 0,
-    swipes: [source]
+    turn: originalAssistant.turn
   })
   delete replacement.bodyEdit
   if (Array.isArray(originalAssistant.variables) || Array.isArray(regeneratedAssistant.variables)) {
@@ -63,20 +62,15 @@ export function replaceLastRound(input = {}) {
   }
   // An edited input persists in place of the original text; attachments stay.
   // Every text-bearing field must move together: text drives the bubble, while
-  // sourceText/swipes/templateInputSource drive template input and swipe UI.
-  // Leaving any of them at the original made the committed message inconsistent
-  // (bubble showed the edit, raw/swipe fields the old text) and looked like the
-  // edit had been ignored. Stale display projections drop for the same reason.
+  // sourceText/templateInputSource drive template input. Stale display
+  // projections drop for the same reason. swipes mirrors are intentionally
+  // left at their original values (see P2-A note above).
   const editedInputText = typeof input.inputText === 'string' ? input.inputText : ''
   const userMessage = clone(originalUser)
   if (editedInputText.trim() !== '' && str(editedInputText) !== str(originalUser.text)) {
     const edited = str(editedInputText)
     userMessage.text = edited
     if (userMessage.sourceText !== undefined) userMessage.sourceText = edited
-    if (userMessage.swipeId !== undefined || Array.isArray(userMessage.swipes)) {
-      userMessage.swipeId = 0
-      userMessage.swipes = [edited]
-    }
     if (userMessage.templateInputSource !== undefined) userMessage.templateInputSource = edited
     delete userMessage.displayText
     delete userMessage.projectionText

@@ -45,7 +45,7 @@ function harness({ algebra = true, editedText = null } = {}) {
     revisions.set(chat._storageRevision, structuredClone(chat))
     chat = timeline.complete({ chat: begun.chat, operationId: begun.value.operationId, basedOn: begun.value.basedOn, outcome: { status: 'success' }, apply(draft) {
       draft.messages.push({ role: 'user', text: agent.input.content[0].text, sourceText: agent.input.content[0].text },
-        { role: 'assistant', turn, text, sourceText: text, swipes: [text], swipeId: 0 })
+        { role: 'assistant', turn, text, sourceText: text })
     } }).chat
     appendSessionEvent(session, 'user/message', { ...agent.input, turn }, { surfaceOp: 'append' })
     appendSessionEvent(session, 'assistant/message', { turn, step: 1, message: { id: 'gen-' + turn, role: 'assistant', source: MODEL, content: [{ type: 'text', text }] } }, { surfaceOp: 'append' })
@@ -77,9 +77,9 @@ test('edited-input reroll rewrites the player bubble and session input in place'
     assert.equal(msgs[1].role, 'user')
     assert.equal(msgs[1].text, '改成敲窗')
     assert.equal(msgs[1].sourceText, '改成敲窗')
-    // swipes mirror sync is conditional: only when the user message already
-    // carries the field (legacy behavior pinned for item-5 cutover).
-    if (msgs[1].swipes !== undefined) assert.equal(msgs[1].swipes[0], '改成敲窗')
+    // P2-A: regen no longer writes swipes mirrors. Stored arrays (legacy
+    // chats) are preserved untouched rather than rewritten.
+    if (msgs[1].swipes !== undefined) assert.notEqual(msgs[1].swipes[0], '改成敲窗')
     assert.equal(result.adopted.inputEdited, true)
     assert.equal(result.adopted.inputText, '改成敲窗')
     // Session surface: the ORIGINAL input node position now carries the edited
@@ -134,5 +134,22 @@ test('edited-input reroll keeps nativeCommits userText in sync for future rollba
     h.chat.nativeCommits = { '2': { turn: 2, userText: '推门', before: structuredClone(h.chat) } }
     await h.create().regenerate('chat', '', 'session', '改成敲窗')
     assert.equal(h.chat.nativeCommits['2'].userText, '改成敲窗')
+  } finally { patch.dispose() }
+})
+
+test('P2-A regen leaves stored swipes mirrors untouched (legacy compat)', async () => {
+  const patch = await import('../../tavern-plugin/lib/domain/host-session-patch.js').then(m => m.prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' }))
+  try {
+    const h = harness()
+    // Legacy chat whose last round carries stored swipes.
+    h.chat.messages[2].swipes = ['旧正文', '旧变体']
+    h.chat.messages[2].swipeId = 1
+    h.chat.messages[1].swipes = ['推门']
+    await h.create().regenerate('chat', '', 'session', '改成敲窗')
+    // New body lands in text/sourceText; mirrors keep their legacy values.
+    assert.equal(h.chat.messages[2].text, '新正文3')
+    assert.deepEqual(h.chat.messages[2].swipes, ['旧正文', '旧变体'])
+    assert.equal(h.chat.messages[2].swipeId, 1)
+    assert.deepEqual(h.chat.messages[1].swipes, ['推门'])
   } finally { patch.dispose() }
 })
