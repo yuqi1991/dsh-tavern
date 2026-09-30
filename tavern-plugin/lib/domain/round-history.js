@@ -65,11 +65,17 @@ export function selectRegenerationTarget(chat, session, observe) {
       : msgs0[oldAssistantIndex - 1] === null || typeof msgs0[oldAssistantIndex - 1] !== 'object' ? 'previous-message-invalid' : 'previous-message-not-user')
     throw new Error('没有可重新生成的玩家输入与正文组合')
   }
-  const target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: msgs0[oldAssistantIndex].turn })
+  // Slice-A rerolls keep the regenerated body under its NATIVE turn (no
+  // fold-back); map the chat's visible turn through the recorded mapping so a
+  // second reroll finds the surface row.
+  const mapping = chat.regeneratedDshTurns && typeof chat.regeneratedDshTurns === 'object' && !Array.isArray(chat.regeneratedDshTurns)
+    ? chat.regeneratedDshTurns : {}
+  const nativeTurn = Number(mapping[String(msgs0[oldAssistantIndex].turn)]) || msgs0[oldAssistantIndex].turn
+  const target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: nativeTurn })
   if (target === null) { report('native-target-missing'); throw new Error('原生消息流中找不到与当前剧情轮次对应的正文消息') }
   report('selected', target)
   const oldSeq = target.assistantSeq
-  const oldTurn = target.turn
+  const oldTurn = msgs0[oldAssistantIndex].turn
   const oldSource = target.source
   return { nodes, eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource, userSeq: target.userSeq }
 }

@@ -148,3 +148,23 @@ test('rollback remains available after an algebra reroll', async () => {
     assert.ok((h.chat.branchRegistry?.branches || []).length >= 2)
   } finally { patch.dispose() }
 })
+
+test('a second reroll finds the native turn left by the first', async () => {
+  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  try {
+    const h = harness()
+    await h.create().regenerate('chat', '', 'session')
+    await h.create().regenerate('chat', '', 'session')
+    const msgs = h.chat.messages
+    assert.equal(msgs.length, 3)
+    assert.equal(msgs[2].text, '新正文4')
+    const fold = foldOf(h)
+    const userRows = fold.rows.filter(row => row.type === 'user/message' && row.data?.source?.kind === 'user')
+    assert.equal(userRows.length, 1)
+    const bodyRows = fold.rows.filter(row => row.type === 'assistant/message')
+    assert.equal(bodyRows.length, 1)
+    assert.equal(bodyRows[0].data.message.content[0].text, '新正文4')
+    assert.deepEqual(fold.surfaceNodes, h.session.surface.nodes)
+    assert.equal(h.chat.regenRecovery, undefined)
+  } finally { patch.dispose() }
+})
