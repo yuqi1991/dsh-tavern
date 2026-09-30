@@ -23,3 +23,12 @@ finalize 仍写 `swipes+variables` 数组（MVU 按 swipeId 索引，index.js 15
 ## 验收边界
 - 旧会话（带存储 swipes）：helper 面板显示不变（读穿透）。
 - 新会话：重生成后 `messages[i].swipes` 不再出现；MVU/模板不受影响（P2-C/D 完成前 finalize 的 MVU 数组照写——那是 P2-C 的对象，不是回退）。
+
+## P2-B 部署记录（2026-09-30）
+
+- 提交：dev `7dc7bbf`，fork `4bfc9dd9`（已推送 `feat/conversation-algebra-retirement`）
+- 测试：`tests/algebra/variant-bodies.test.mjs` 2/2；全套 `node --test tests/algebra/*.test.mjs` 172/172
+- 部署文件（备份于 `/tmp/dsh-tavern-p2b-backup-0930/`）：`lib/domain/variant-bodies.js`（新增）、`conversation-algebra-branches.js`、`conversation-algebra-history.js`、`conversation-algebra/primitives.js`、`round-history.js`、`tavern-helper-context.js`、`lib/index.js`
+- 重启：直接拉起 `runtime/bin/dsh --profile tavern`（DSH_HOME=工作区根），白名单 env 确认 `session-ebefd02d-…`
+- 只读冒烟：`getHostCompatibility` 200 verified；`getConversationAlgebraStatus`（白名单会话）`enabled:true, historyReady:true`
+- 待验收：白名单会话内重掷一轮 → helper 面板该楼层出现 `‹ 1/2 ›` 变体（新正文为 active，旧正文为分支变体）
