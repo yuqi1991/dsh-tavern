@@ -528,7 +528,15 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     }
     const regeneratedDshTurns = originalChat.regeneratedDshTurns && typeof originalChat.regeneratedDshTurns === 'object' && !Array.isArray(originalChat.regeneratedDshTurns)
       ? originalChat.regeneratedDshTurns : {}
-    const regeneratedVisibleTurn = Number(regeneratedDshTurns[String(hiddenTurn)])
+    // Slice-A rerolls key the mapping by the chat-visible turn and store the
+    // native turn as the value: hiddenTurn is the native one, so the visible
+    // turn to suppress is the entry's KEY, not mapping[native] (legacy only
+    // worked because the fold-back made key == native).
+    let regeneratedVisibleTurn = Number(regeneratedDshTurns[String(hiddenTurn)])
+    if (!Number.isSafeInteger(regeneratedVisibleTurn) || regeneratedVisibleTurn <= 0) {
+      const visibleKey = Object.keys(regeneratedDshTurns).find(key => Number(regeneratedDshTurns[key]) === hiddenTurn)
+      if (visibleKey !== undefined) regeneratedVisibleTurn = Number(visibleKey)
+    }
 
     // 1) 定位要回退的最后一组 user + assistant
     const msgs = chat.messages || []
