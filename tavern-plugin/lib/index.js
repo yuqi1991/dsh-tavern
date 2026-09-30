@@ -28,7 +28,7 @@ import { createScriptNavigation } from './domain/script-navigation.js'
 import { createSessionInventory } from './domain/session-inventory.js'
 import { createSessionViewSync } from './domain/session-view-sync.js'
 import { projectInputFields } from './domain/input-fields-projection.js'
-import { projectVariantBodies } from './domain/variant-bodies.js'
+import { projectVariantBodies, distinctFloorVariants } from './domain/variant-bodies.js'
 import { setFailedErrorVisibility, setAllFailedErrorVisibility } from './domain/failed-error-visibility.js'
 import { createManualCharacterDesign } from './domain/manual-character-design.js'
 import { prepareTemplateHistory, synchronizeTemplateHistory } from './domain/template-history.js'
@@ -1546,7 +1546,7 @@ export async function apply(ctx) {
       latestAssistantMessageId,
       forkTurnsByMessageId,
       latestAssistantTurn: latestStoryTurn,
-      variantSwitch: variantSwitchView(chat, latestStoryTurn, variantBodies),
+      variantSwitch: variantSwitchView(chat, latestStoryTurn),
       inputSources,
       inputTemplateDisplays,
       variantBodies,
@@ -1676,17 +1676,15 @@ export async function apply(ctx) {
    * Selected 0 = the live body; each archived sibling tagged with this turn is
    * one variant. Availability requires algebra (checkout) and no live body on a
    * rolled-back branch without an anchor record. */
-  function variantSwitchView(chat, turn, variantBodies) {
+  function variantSwitchView(chat, turn) {
     if (!(turn > 0)) return { available: false, turn: 0, count: 1, selected: 0, reason: '没有剧情楼层' }
     const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeHeadSeq: null }
-    const siblings = registry.branches
-      .filter(branch => branch && Number(branch.turn) === turn)
-      .sort((left, right) => Number(right.headSeq) - Number(left.headSeq))
+    const variants = distinctFloorVariants(sessionStore.get(str(chat.sessionId)) || agentRegistry.get(str(chat.sessionId))?.session, registry, turn)
     const activeHead = Number(registry.activeHeadSeq)
-    const selectedNow = siblings.findIndex(branch => Number(branch.headSeq) === activeHead)
+    const selectedNow = variants.findIndex(variant => variant.headSeq === activeHead)
     // Same enumeration as switchVariant: the live line occupies slot 0 while
-    // active; once a branch is checked out the enumeration is the sibling list.
-    const count = selectedNow >= 0 ? siblings.length : 1 + siblings.length
+    // active; distinct archived variants follow, newest first.
+    const count = selectedNow >= 0 ? variants.length : 1 + variants.length
     if (count <= 1) return { available: false, turn, count: 1, selected: 0, reason: '' }
     if (!algebraEnabled(chat.sessionId)) return { available: false, turn, count, selected: 0, reason: '当前会话未启用会话历史隔离' }
     const selected = selectedNow >= 0 ? selectedNow : 0

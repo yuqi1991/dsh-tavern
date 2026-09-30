@@ -11,6 +11,7 @@ import { rollbackAvailability, clearFailedTurnSurface, locateRegenerationSurface
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
 import { diagnosticIdentity, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
 import { computeFold } from './conversation-algebra/index.js'
+import { distinctFloorVariants } from './variant-bodies.js'
 
 function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
@@ -884,18 +885,15 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const turn = Number(lastAssistant?.turn) || 0
     if (turn <= 0) throw new Error('没有可切换的剧情楼层')
     const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeBranchId: null, activeHeadSeq: null }
-    // Newest-first: the most recent variant (the just-archived live line) keeps
-    // slot 0, older variants follow — the body the user is looking at never
-    // jumps slots when the live line is archived.
-    const siblings = registry.branches
-      .filter(branch => branch && Number(branch.turn) === turn)
-      .sort((left, right) => Number(right.headSeq) - Number(left.headSeq))
+    // Distinct variants, newest first: repeated archives of one body collapse
+    // to their newest branch, so ‹ n/m › counts what the floor can actually show.
+    const variants = distinctFloorVariants(session, registry, turn)
     const liveHead = Number(registry.activeHeadSeq)
-    const selectedNow = siblings.findIndex(branch => Number(branch.headSeq) === liveHead)
+    const selectedNow = variants.findIndex(variant => variant.headSeq === liveHead)
     // Enumeration: the live line is index 0 while it is active; each archived
     // sibling follows in headSeq order. Leaving index 0 archives the line as
     // the first sibling, keeping every earlier variant's index stable.
-    const count = selectedNow >= 0 ? siblings.length : 1 + siblings.length
+    const count = selectedNow >= 0 ? variants.length : 1 + variants.length
     if (index >= count) throw new Error('变体序号超出范围: ' + index + '/' + count)
     let intent
     if (index === 0 && selectedNow < 0) {
@@ -905,12 +903,18 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       return result
     }
     if (index > 0 && selectedNow < 0) {
-      // Archive the live line first so it stays addressable for the trip back.
-      intent = await algebraHistory.prepare(session, chat, siblings[index - 1].branchId, { turn })
+      // Archive the live line first so it stays addressable for the trip back —
+      // unless a variant already records this exact tip (repeated switches must
+      // not mint duplicate branches for one body).
+      const liveTip = sessionEvents(session).at(-1)?.seq ?? -1
+      const recorded = variants.some(variant => variant.headSeq === liveTip)
+      if (recorded) {
+        intent = await algebraHistory.move(session, chat, variants.find(variant => variant.headSeq === liveTip).branchId)
+      } else {
+        intent = await algebraHistory.prepare(session, chat, variants[index - 1].branchId, { turn })
+      }
     } else {
-      // While a branch is active the enumeration IS the sibling list (no live
-      // slot), so the index maps directly onto registry positions.
-      const target = siblings[selectedNow >= 0 ? index : index - 1]
+      const target = variants[selectedNow >= 0 ? index : index - 1]
       intent = await algebraHistory.move(session, chat, target.branchId)
     }
     const updated = await updateChat(chat.id, current => {

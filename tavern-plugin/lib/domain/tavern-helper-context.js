@@ -59,9 +59,10 @@ export function projectTavernHelperMessage(source, messageId, variants = null) {
     ? source.swipes.map(str)
     : null
   const activeText = str(source.sourceText || source.text)
-  const swipes = Array.isArray(variants) && variants.length > 0
-    ? [activeText].concat(variants.filter(text => text !== activeText))
-    : stored ?? [activeText]
+  const distinct = Array.isArray(variants)
+    ? variants.filter((text, position) => text !== activeText && variants.indexOf(text) === position)
+    : []
+  const swipes = distinct.length > 0 ? [activeText].concat(distinct) : stored ?? [activeText]
   const variables = Array.isArray(source.variables) ? clone(source.variables) : []
   const projected = {
     pluginData: clone(source.tavernPluginData || {}),

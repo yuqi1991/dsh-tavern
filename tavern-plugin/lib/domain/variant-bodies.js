@@ -26,10 +26,41 @@ export function projectVariantBodies(session, registry) {
       const text = body && body.type === 'assistant/message'
         ? (body.data?.message?.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('') : ''
       if (text.trim() === '') continue
-      ;(bodies[turn] = bodies[turn] || []).push(text)
+      // Repeated archives of one body fold to the same text; keep one slot.
+      const list = bodies[turn] = bodies[turn] || []
+      if (!list.includes(text)) list.push(text)
     } catch { /* A branch head that no longer folds (archival edge) is skipped. */ }
   }
   entry = { headSeq, registryKey, bodies }
   variantCache.set(session, entry)
   return bodies
+}
+
+/** Distinct variants of one floor, newest first (P2 switcher enumeration).
+ * Branches folding to identical text are the same variant; the newest branch
+ * carrying that text is its address. The live line is NOT included — callers
+ * add it while it is active. */
+export function distinctFloorVariants(session, registry, turn) {
+  if (!session || !Number.isSafeInteger(Number(turn)) || turn <= 0) return {}
+  if (!Array.isArray(registry?.branches)) return {}
+  const branches = registry.branches
+    .filter(branch => branch && Number(branch.turn) === Number(turn))
+    .sort((left, right) => Number(right.headSeq) - Number(left.headSeq))
+  if (!branches.length) return {}
+  const events = sessionEvents(session)
+  const variants = []
+  const seen = new Set()
+  for (const branch of branches) {
+    let text = ''
+    try {
+      const rows = computeFold(events.filter(event => event.seq <= branch.headSeq)).views.conversation
+      const body = rows.length ? rows[rows.length - 1] : null
+      text = body && body.type === 'assistant/message'
+        ? (body.data?.message?.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('') : ''
+    } catch { text = '' }
+    if (text.trim() === '' || seen.has(text)) continue
+    seen.add(text)
+    variants.push({ text, branchId: branch.branchId, headSeq: Number(branch.headSeq) })
+  }
+  return variants
 }
