@@ -186,3 +186,19 @@ test('undo rollback releases the restored round from suppression', async () => {
     assert.equal(h.chat.messages.length, chatAfterRollback ? h.chat.messages.length : 3)
   } finally { patch.dispose() }
 })
+
+test('reroll after rollback+undo finds the restored original row', async () => {
+  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  try {
+    const h = harness()
+    await h.create().regenerate('chat', '', 'session')      // round now native turn 3
+    await h.create().rollback('session', 'chat', 2)          // clears the round
+    await h.create().undoRollback('session', 'chat')         // restores ORIGINAL rows (turn 2)
+    const result = await h.create().regenerate('chat', '', 'session')  // must find restored row
+    assert.equal(result.adopted.hiddenTurn, 2)
+    const fold = foldOf(h)
+    assert.equal(fold.rows.filter(row => row.type === 'user/message' && row.data?.source?.kind === 'user').length, 1)
+    assert.equal(fold.rows.filter(row => row.type === 'assistant/message').length, 1)
+    assert.deepEqual(fold.surfaceNodes, h.session.surface.nodes)
+  } finally { patch.dispose() }
+})

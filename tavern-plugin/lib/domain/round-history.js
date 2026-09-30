@@ -70,8 +70,15 @@ export function selectRegenerationTarget(chat, session, observe) {
   // second reroll finds the surface row.
   const mapping = chat.regeneratedDshTurns && typeof chat.regeneratedDshTurns === 'object' && !Array.isArray(chat.regeneratedDshTurns)
     ? chat.regeneratedDshTurns : {}
-  const nativeTurn = Number(mapping[String(msgs0[oldAssistantIndex].turn)]) || msgs0[oldAssistantIndex].turn
-  const target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: nativeTurn })
+  const visibleTurn = Number(msgs0[oldAssistantIndex].turn) || msgs0[oldAssistantIndex].turn
+  const nativeTurn = Number(mapping[String(visibleTurn)]) || visibleTurn
+  // After rollback+undo the round's live surface row is the RESTORED original
+  // (native visible turn), not the regenerated native turn the mapping still
+  // names — that body stays on the rolled-back branch. Probe both.
+  let target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: nativeTurn })
+  if (target === null && nativeTurn !== visibleTurn) {
+    target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: visibleTurn })
+  }
   if (target === null) { report('native-target-missing'); throw new Error('原生消息流中找不到与当前剧情轮次对应的正文消息') }
   report('selected', target)
   const oldSeq = target.assistantSeq
