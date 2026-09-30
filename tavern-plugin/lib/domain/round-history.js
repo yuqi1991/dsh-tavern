@@ -10,6 +10,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { rollbackAvailability, clearFailedTurnSurface, locateRegenerationSurface, planRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
 import { diagnosticIdentity, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
+import { computeFold } from './conversation-algebra/index.js'
 
 function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
@@ -85,6 +86,37 @@ export function selectRegenerationTarget(chat, session, observe) {
   const oldTurn = msgs0[oldAssistantIndex].turn
   const oldSource = target.source
   return { nodes, eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource, userSeq: target.userSeq }
+}
+
+/** Last story-body text from the CURRENT fold (post-checkout). `turns` is the
+ * set of native turns this floor may occupy (visible turn + its regenerated
+ * mapping); an empty set accepts the fold's last body row. */
+function variantBodyFromSession(session, turns) {
+  const fold = computeFold(sessionEvents(session))
+  const rows = fold.views.conversation || []
+  const accepted = turns instanceof Set && turns.size > 0 ? turns : null
+  let body = null
+  for (const row of rows) {
+    if (row?.type !== 'assistant/message') continue
+    const message = (row.data || {}).message || {}
+    if ((message.source || {}).kind !== 'model') continue
+    const text = (message.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
+    if (text.trim() === '') continue
+    if (accepted === null || accepted.has(Number((row.data || {}).turn) || 0)) body = text
+  }
+  // A checked-out variant whose native turn is outside the mapping (archival
+  // edge) still owns the surface: the fold's last body is its body.
+  if (body === null) {
+    for (let index = rows.length - 1; index >= 0; index--) {
+      const row = rows[index]
+      if (row?.type !== 'assistant/message') continue
+      const message = (row.data || {}).message || {}
+      if ((message.source || {}).kind !== 'model') continue
+      const text = (message.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
+      if (text.trim() !== '') return text
+    }
+  }
+  return body
 }
 
 /**
@@ -885,6 +917,29 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       return next
     }, { source: 'variant.switch' })
     const switched = await algebraHistory.recover(session, chat.id)
+    // The checked-out fold now ends with the target variant's body; rewrite the
+    // chat's last round so the bubble, helper floors and later reads follow the
+    // pointer instead of keeping whatever the last reroll merged.
+    const mapping = switched.regeneratedDshTurns && typeof switched.regeneratedDshTurns === 'object' && !Array.isArray(switched.regeneratedDshTurns)
+      ? switched.regeneratedDshTurns : {}
+    const turns = new Set([turn, Number(mapping[String(turn)]) || 0].filter(value => value > 0))
+    const body = variantBodyFromSession(session, turns)
+    if (body !== null) {
+      await updateChat(chat.id, current => {
+        const messages = Array.isArray(current?.messages) ? [...current.messages] : []
+        let assistantIndex = -1
+        for (let index = messages.length - 1; index >= 0; index--) {
+          const message = messages[index]
+          if (message && typeof message === 'object' && message.role === 'assistant' && message.greeting !== true) { assistantIndex = index; break }
+        }
+        if (assistantIndex < 1 || messages[assistantIndex - 1]?.role !== 'user') return current
+        const assistant = { ...messages[assistantIndex], text: body, sourceText: body, turn }
+        delete assistant.bodyEdit
+        delete assistant.displayRuntime
+        messages[assistantIndex] = assistant
+        return { ...current, messages, updatedAt: Date.now() }
+      }, { source: 'variant.switch-body' })
+    }
     const result = await view(switched, await readChatCard(switched))
     result.switchedVariant = { turn, index }
     return result
