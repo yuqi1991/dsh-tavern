@@ -945,7 +945,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         return { ...current, messages, updatedAt: Date.now() }
       }, { source: 'variant.switch-body' })
     }
-    const result = await view(switched, await readChatCard(switched))
+    // Re-read the chat: the body rewrite above landed in a newer revision than
+    // `switched`, and the client renders this response directly.
+    const latest = await readChat(chat.id)
+    const result = await view(latest ?? switched, await readChatCard(latest ?? switched))
     result.switchedVariant = { turn, index }
     return result
   }
