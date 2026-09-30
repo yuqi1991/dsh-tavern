@@ -192,7 +192,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       if (userSeq === null) throw new Error('重新生成的输入锚点不在当前分支')
       // P2-B: tag the saved variant with the chat-visible turn it replaces so
       // the helper surface can enumerate this floor's variants.
-      checkoutIntent = await algebraHistory.prepare(session, chat, userSeq, undefined, { turn: Number(oldTurn) || undefined })
+      checkoutIntent = await algebraHistory.prepare(session, chat, userSeq, { turn: Number(oldTurn) || undefined })
     }
     // V3 hosts may reject assistant replacements. Check an isolated copy before
     // rolling back the Chat, cancelling settlement or paying for a new reply.

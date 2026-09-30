@@ -6,12 +6,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import { prepareExpandedPatch } from '../../tavern-plugin/lib/domain/host-session-patch.js'
-import { createRoundHistory } from '../../tavern-plugin/lib/domain/round-history.js'
-import { createStoryTimeline } from '../../tavern-plugin/lib/domain/story-timeline.js'
-import { createConversationHistory } from '../../tavern-plugin/lib/domain/conversation-algebra-history.js'
-import { computeFold } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
-import { appendSessionEvent } from '../../tavern-plugin/lib/domain/session-events.js'
+import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
+import { createRoundHistory } from '../../lib/domain/round-history.js'
+import { createStoryTimeline } from '../../lib/domain/story-timeline.js'
+import { createConversationHistory } from '../../lib/domain/conversation-algebra-history.js'
+import { computeFold } from '../../lib/domain/conversation-algebra/index.js'
+import { appendSessionEvent } from '../../lib/domain/session-events.js'
 
 const MODEL = { kind: 'model', provider: 'fixture', model: 'fixture' }
 
@@ -70,6 +70,20 @@ function harness() {
 }
 
 function foldOf(h) { return computeFold(h.session.snapshotEvents()) }
+
+test('algebra reroll tags the saved variant branch with the replaced turn', async () => {
+  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  try {
+    const h = harness()
+    await h.create().regenerate('chat', '', 'session')
+    // The reroll pre-checkout must reach prepare's 4th (meta) parameter, not a
+    // dropped 5th one (regression: turn tag silently lost at the call site).
+    const registry = h.chat.branchRegistry
+    const tagged = (registry?.branches || []).filter(branch => Number.isSafeInteger(branch.turn) && branch.turn > 0)
+    assert.equal(tagged.length, 1)
+    assert.equal(tagged[0].turn, 2)
+  } finally { patch.dispose() }
+})
 
 test('algebra reroll keeps one visible round and a saved variant branch', async () => {
   const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
