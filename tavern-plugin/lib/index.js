@@ -1681,7 +1681,7 @@ export async function apply(ctx) {
     const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeHeadSeq: null }
     const siblings = registry.branches
       .filter(branch => branch && Number(branch.turn) === turn)
-      .sort((left, right) => Number(left.headSeq) - Number(right.headSeq))
+      .sort((left, right) => Number(right.headSeq) - Number(left.headSeq))
     const activeHead = Number(registry.activeHeadSeq)
     const selectedNow = siblings.findIndex(branch => Number(branch.headSeq) === activeHead)
     // Same enumeration as switchVariant: the live line occupies slot 0 while

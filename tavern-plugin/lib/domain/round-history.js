@@ -884,9 +884,12 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const turn = Number(lastAssistant?.turn) || 0
     if (turn <= 0) throw new Error('没有可切换的剧情楼层')
     const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeBranchId: null, activeHeadSeq: null }
+    // Newest-first: the most recent variant (the just-archived live line) keeps
+    // slot 0, older variants follow — the body the user is looking at never
+    // jumps slots when the live line is archived.
     const siblings = registry.branches
       .filter(branch => branch && Number(branch.turn) === turn)
-      .sort((left, right) => Number(left.headSeq) - Number(right.headSeq))
+      .sort((left, right) => Number(right.headSeq) - Number(left.headSeq))
     const liveHead = Number(registry.activeHeadSeq)
     const selectedNow = siblings.findIndex(branch => Number(branch.headSeq) === liveHead)
     // Enumeration: the live line is index 0 while it is active; each archived

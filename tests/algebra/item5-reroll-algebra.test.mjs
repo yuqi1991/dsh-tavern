@@ -102,10 +102,11 @@ test('variant switcher checks out the archived body and back to the live line', 
     // The chat floor must follow the pointer, not keep the last reroll's merge.
     const chatFloor = [...h.chat.messages].findLast(message => message && message.role === 'assistant' && message.greeting !== true)
     assert.equal(chatFloor.text, '旧正文')
-    // Leaving index 0 archived the live line, so enumeration becomes registry
-    // order: [旧正文(0), 新正文(1)]. Switch back to the new body = index 1.
-    const back = await round.switchVariant('session', 'chat', 1)
-    assert.equal(back.switchedVariant.index, 1)
+    // Leaving index 0 archived the live line; newest-first enumeration keeps the
+    // just-archived new body at slot 0, the old variant at slot 1. Switching to
+    // index 0 returns to the new body.
+    const back = await round.switchVariant('session', 'chat', 0)
+    assert.equal(back.switchedVariant.index, 0)
     const foldBack = foldOf(h)
     const bodyRowsBack = foldBack.rows.filter(row => row.type === 'assistant/message')
     assert.equal(bodyRowsBack.length, 1)
