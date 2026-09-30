@@ -782,6 +782,21 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
           result.conversationHistoryIntent = { sessionId: session.id, transaction: foregroundIntent }
         }
         result.tavernHelperLifecycleRevision = Number(current.tavernHelperLifecycleRevision || 0) + 1
+        // The rolled-back round is live again: its suppression entries must go,
+        // or the client keeps hiding a restored round's rows (native turn from
+        // the fold, visible turn under a slice-A reroll mapping).
+        const restoredTurns = new Set([Number(saved.turn) || 0])
+        const mapping = result.regeneratedDshTurns && typeof result.regeneratedDshTurns === 'object' && !Array.isArray(result.regeneratedDshTurns)
+          ? result.regeneratedDshTurns : {}
+        for (const key of Object.keys(mapping)) {
+          if (Number(key) === Number(saved.turn) || Number(mapping[key]) === Number(saved.turn)) {
+            restoredTurns.add(Number(key))
+            restoredTurns.add(Number(mapping[key]))
+          }
+        }
+        if (Array.isArray(result.suppressedDshTurns) && result.suppressedDshTurns.some(turn => restoredTurns.has(Number(turn)))) {
+          result.suppressedDshTurns = result.suppressedDshTurns.filter(turn => !restoredTurns.has(Number(turn)))
+        }
         for (const participant of Object.values(result.timeline.participants)) {
           const target = targets.find(item => item.saved.sessionId === participant.sessionId)
           if (target) Object.assign(participant, { status: 'current', syncedRevision: result.timeline.revision,

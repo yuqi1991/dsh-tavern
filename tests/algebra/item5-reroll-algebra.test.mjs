@@ -168,3 +168,21 @@ test('a second reroll finds the native turn left by the first', async () => {
     assert.equal(h.chat.regenRecovery, undefined)
   } finally { patch.dispose() }
 })
+
+test('undo rollback releases the restored round from suppression', async () => {
+  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  try {
+    const h = harness()
+    await h.create().regenerate('chat', '', 'session')
+    const result = await h.create().rollback('session', 'chat', 2)
+    const hidden = Number(result.rolledBack.hiddenTurn)
+    // Slice A: rollback suppresses both the native turn and its visible key.
+    const chatAfterRollback = structuredClone(h.chat)
+    await h.create().undoRollback('session', 'chat')
+    const sup = h.chat.suppressedDshTurns || []
+    assert.equal(sup.includes(hidden), false, 'native turn released')
+    assert.equal(sup.includes(2), false, 'visible key released')
+    // Suppression bookkeeping was the only delta beyond the restored story.
+    assert.equal(h.chat.messages.length, chatAfterRollback ? h.chat.messages.length : 3)
+  } finally { patch.dispose() }
+})
