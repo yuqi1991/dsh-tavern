@@ -41,8 +41,8 @@ export function projectVariantBodies(session, registry) {
  * carrying that text is its address. The live line is NOT included — callers
  * add it while it is active. */
 export function distinctFloorVariants(session, registry, turn) {
-  if (!session || !Number.isSafeInteger(Number(turn)) || turn <= 0) return {}
-  if (!Array.isArray(registry?.branches)) return {}
+  if (!session || !Number.isSafeInteger(Number(turn)) || turn <= 0) return []
+  if (!Array.isArray(registry?.branches)) return []
   const branches = registry.branches
     .filter(branch => branch && Number(branch.turn) === Number(turn))
     .sort((left, right) => Number(right.headSeq) - Number(left.headSeq))
