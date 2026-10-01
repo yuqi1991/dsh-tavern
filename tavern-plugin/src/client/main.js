@@ -10207,10 +10207,10 @@ window.__ModuleLoader__.load({
 					setBusy(true);
 					try {
 						const result = await rpc("switchVariant", { index: index }, props.sessionId);
-						if (result && result.view) {
-							liveTavernView.setView(props.sessionId, result.view);
-							historyProjection.rolledBack(props.sessionId, result.view);
-						}
+						// A switch changes no turn suppression — feeding historyProjection
+						// here re-hides rows against a stale DOM and blanks the page.
+						// Only the live view store carries the new floor.
+						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						liveTavernView.invalidate(props.sessionId);
 						notifyTavernDataChanged(["sessions"], "variant-switch");
 					} catch (err) { tavernErrorHub.report("切换变体", err); }
