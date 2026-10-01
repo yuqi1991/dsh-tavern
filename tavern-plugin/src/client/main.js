@@ -10206,7 +10206,11 @@ window.__ModuleLoader__.load({
 					if (blocked || index === selected) return;
 					setBusy(true);
 					try {
-						await rpc("switchVariant", { index: index }, props.sessionId);
+						const result = await rpc("switchVariant", { index: index }, props.sessionId);
+						if (result && result.view) {
+							liveTavernView.setView(props.sessionId, result.view);
+							historyProjection.rolledBack(props.sessionId, result.view);
+						}
 						liveTavernView.invalidate(props.sessionId);
 						notifyTavernDataChanged(["sessions"], "variant-switch");
 					} catch (err) { tavernErrorHub.report("切换变体", err); }
