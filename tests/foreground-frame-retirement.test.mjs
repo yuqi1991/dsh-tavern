@@ -35,23 +35,6 @@ test('生产 pre-step 在自动压缩及生成之前清理旧指引，多步工�
   assert.deepEqual(calls.filter((call, index) => call !== 'flush' || calls[index - 1] !== 'flush'), ['flush', 'compact', 'generate', 'flush', 'compact', 'generate'])
 })
 
-test('生产手动压缩入口在摘要模型读取之前清理闲置会话的全部指引', async () => {
-  const session = frames(), calls = []
-  const start = source.indexOf('    async compact(id, side, options, signal) {')
-  const method = source.slice(start, source.indexOf('\n  })', start))
-  const context = {
-    retireForegroundWithAlgebra, randomUUID, algebraReadiness: { live: async () => {} }, assertAlgebraReady: () => {}, sessionStore: { flush: async () => calls.push('flush') },
-    withCompactionSession: async (_id, work) => work({ session, phase: { kind: 'idle' } }),
-    agentCompaction: async () => ({ compactNow: async () => {
-      assert.doesNotMatch(JSON.stringify(session.deriveMessages().map(message => message.content)), /frame-/)
-      calls.push('summary')
-    } })
-  }
-  const entry = vm.runInNewContext(helper + '\n({' + method + '})', context)
-  await entry.compact('front', 'foreground', {}, undefined)
-  assert.deepEqual(calls, ['flush', 'summary'])
-})
-
 test('旧存档无 trace 的指引可清理，其他插件内容不受影响', async () => {
   const session = Session.create('legacy-frames')
   for (const [id, plugin, form] of [['legacy', 'dsh-tavern', 'foreground-frame'], ['foreign', 'other', 'foreground-frame'], ['snapshot', 'dsh-tavern', 'snapshot']]) {

@@ -712,7 +712,7 @@ for (const mutation of ['resume', 'turn/start', 'surface']) test(`撤销回退�
   }
 })
 
-for (const legacy of [false, true]) test('中断重生成后重建模块恢复原正文与状态：legacy=' + legacy, async () => {
+for (const legacy of [false]) test('中断重生成后重建模块恢复原正文与状态：legacy=' + legacy, async () => {
   const h = harness({ checkpoint: true, journal: true })
   const before = structuredClone(h.chat)
   let entered

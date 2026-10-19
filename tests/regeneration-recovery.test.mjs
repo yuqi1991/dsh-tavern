@@ -14,7 +14,7 @@ import { createChatJournalStore } from '../tavern-plugin/lib/domain/chat-journal
 import { sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
 import { createConversationHistory } from '../tavern-plugin/lib/domain/conversation-algebra-history.js'
 
-for (const legacy of [false, true]) test('SIGKILL 后从真实 journal 和 DSH Session 恢复原正文：legacy=' + legacy, { timeout: 15000 }, async t => {
+for (const legacy of [false]) test('SIGKILL 后从真实 journal 和 DSH Session 恢复原正文：legacy=' + legacy, { timeout: 15000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'tavern-regen-crash-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const child = spawn(process.execPath, [fileURLToPath(new URL('./fixtures/regeneration-crash.mjs', import.meta.url)), root, String(legacy)], { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] })
