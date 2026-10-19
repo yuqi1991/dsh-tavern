@@ -11,6 +11,22 @@ function displayDependencies(options) {
   return {...options, macroState: {userName: options.macroState?.userName}}
 }
 
+// SillyTavern renders each floor at its own depth (messages after it), so a rule with
+// maxDepth 2 draws a heavy status bar on the latest floors only. Depths past the largest
+// bound any enabled rule names all behave alike: they share one projection and cache key,
+// and only the floors within that bound are re-projected when a new message arrives.
+function depthBound(options) {
+  let bound = null
+  for (const rule of options.regexScripts || []) {
+    if (!rule || rule.disabled === true || rule.enabled === false) continue
+    for (const value of [rule.minDepth, rule.maxDepth]) {
+      const number = Number(value)
+      if (value !== null && value !== undefined && value !== '' && Number.isFinite(number) && number >= 0) bound = Math.max(bound ?? 0, number)
+    }
+  }
+  return bound
+}
+
 // Derived, disposable state only. The journal remains the authority for changed indices.
 export function createIncrementalReplyView({ readChanges, maxBytes = 8 * 1024 * 1024, maxEntries = 4, onIndexVisit = () => {}, onStatusMatch = () => {}, onStatusFilter = () => {}, onStatusFallback = () => {} } = {}) {
   const cache = new Map()
@@ -68,10 +84,22 @@ export function createIncrementalReplyView({ readChanges, maxBytes = 8 * 1024 * 
       indices = Array.from({length: messages.length}, (_, i) => i)
       stats.rebuilt++
     }
+    const bound = depthBound(options)
+    // New messages move every floor deeper; only floors that were within the bound can change.
+    if (compatible && bound !== null) {
+      const from = Math.max(0, Math.min(messages.length, previous.roles.length) - bound - 2)
+      const tail = Array.from({length: messages.length - from}, (_, i) => from + i)
+      indices = [...new Set([...indices, ...tail])].sort((left, right) => left - right)
+    }
     const rowEdits = new Map(), roleEdits = new Map(), beforeEdits = new Map()
     const at = (edits,values,id) => edits.has(id) ? edits.get(id) : values[id]
     const projectionEdits = [], targetEdits = []
-    const projectMessages = projectReplyHistory.prepare(options)
+    const prepared = new Map()
+    const projectMessages = (list, index) => {
+      const depth = bound === null ? options.depth : Math.min(messages.length - 1 - index, bound + 1)
+      if (!prepared.has(depth)) prepared.set(depth, projectReplyHistory.prepare(bound === null ? options : {...options, depth}))
+      return prepared.get(depth)(list)
+    }
     for (const index of indices) {
       const message = messages[index]
       beforeEdits.set(index, index === 0 ? 1 : at(beforeEdits,before,index-1) + (at(roleEdits,roles,index-1) === 'user' ? 1 : 0))
@@ -80,7 +108,7 @@ export function createIncrementalReplyView({ readChanges, maxBytes = 8 * 1024 * 
       if (message?.role !== 'assistant') { rowEdits.set(index,null); projectionEdits.push([index,undefined]); continue }
       const turn = Math.max(0, Number(message.turn) || (message.greeting === true ? 1 : beforeEdits.get(index)))
       if (turn === 0) { rowEdits.set(index,null); projectionEdits.push([index,undefined]); continue }
-      const row = freezeJson(projectMessages([{...message, turn}]))
+      const row = freezeJson(projectMessages([{...message, turn}], index))
       rowEdits.set(index,row)
       projectionEdits.push([index,row.projections[0]])
       stats.projectedMessages++
