@@ -39,9 +39,8 @@ function harness() {
     describeTavernActivity: value => value, isPlayMode: () => true,
     window: { confirm: () => { calls.push('confirm'); return true } },
     rpc: async () => { calls.push('rpc'); if (fail) throw new Error('本次回复未完成'); return { view: { rollbackWarning: warning } } },
-    historyProjection: { rolledBack: () => calls.push('project'), restored: () => calls.push('restore') },
     setCandidatePanel() { calls.push('set-candidate-panel') }, setRegenPanel() { calls.push('set-regen-panel') }, setCandidateGuidePanel() { calls.push('set-guide-panel') },
-    liveTavernView: { invalidate: () => calls.push('refresh-view') },
+    liveTavernView: { setView: () => calls.push('set-view'), invalidate: () => calls.push('refresh-view') },
     tavernCoordination: { invalidate: () => calls.push('refresh-activity') },
     notifyTavernDataChanged: () => calls.push('notify'),
     tavernErrorHub: { report: (name, error) => calls.push(name + ': ' + error.message) },
@@ -103,7 +102,7 @@ test('更多菜单收起回退和压缩，并可再次关闭', () => {
   assert.equal(more.children[0].props['aria-expanded'], true)
   assert.equal(more.children[1].props.hidden, false)
   assert.equal(more.children[1].props.role, 'menu')
-  assert.deepEqual(more.children[1].children.map(child => child.type.name || child.children[0]), ['TavernStopBackgroundAction', 'TavernEditBodyAction', 'TavernRollbackAction', 'TavernUndoRollbackAction', 'TavernCompactionAction'])
+  assert.deepEqual(more.children[1].children.map(child => child.type.name || child.children[0]), ['TavernStopBackgroundAction', 'TavernVariantSwitcher', 'TavernEditBodyAction', 'TavernRollbackAction', 'TavernUndoRollbackAction', 'TavernCompactionAction'])
 })
 
 test('实际回退组件在前台、后台和重生成期间禁用，完成后允许点击', async () => {
@@ -118,7 +117,7 @@ test('实际回退组件在前台、后台和重生成期间禁用，完成后�
   h.running(false); h.background(false); h.regen(false)
   assert.equal(h.button().props.disabled, false)
   await h.button().props.onClick()
-  assert.ok(h.calls.includes('project'))
+  assert.ok(h.calls.includes('set-view'))
   assert.ok(!h.calls.includes('confirm'), '点击回退直接执行，不弹确认框')
   assert.equal(h.button().props.disabled, false)
 })
@@ -146,18 +145,18 @@ test('实际回退组件在请求被拒后解除忙碌并刷新，下一次点�
   assert.equal(h.button().props.disabled, false)
   assert.ok(h.calls.includes('refresh-view'))
   assert.ok(h.calls.includes('refresh-activity'))
-  assert.ok(!h.calls.includes('project'), '失败不隐藏正文')
+  assert.ok(!h.calls.includes('set-view'), '失败不应用结果视图')
   h.fail(false)
   await h.button().props.onClick()
   assert.equal(h.calls.filter(call => call === 'rpc').length, 2)
-  assert.equal(h.calls.filter(call => call === 'project').length, 1)
+  assert.equal(h.calls.filter(call => call === 'set-view').length, 1)
 })
 
 test('脚本联动警告保留成功回退投影，不显示为回退失败', async () => {
   const h = harness()
   h.running(false); h.warning('回退已完成，但脚本联动失败')
   await h.button().props.onClick()
-  assert.ok(h.calls.includes('project'))
+  assert.ok(h.calls.includes('set-view'))
   assert.ok(h.calls.includes('回退提示: 回退已完成，但脚本联动失败'))
   assert.ok(!h.calls.some(call => call.startsWith('回退本轮:')))
 })
@@ -174,7 +173,7 @@ test('回退到开场白后仍可撤销，运行期间禁用', async () => {
   assert.deepEqual(h.calls, [])
   h.running(false)
   await h.undo().props.onClick()
-  assert.ok(h.calls.includes('restore'))
+  assert.ok(h.calls.includes('set-view'))
 })
 
 
@@ -211,9 +210,8 @@ test('失败尾部显示一键重放，点击直接重发而不是打开意见�
 test('提交失败重放走 replayTurn，刷新视图与回合投影并清空面板', async () => {
   const seen = []
   const context = {
-    rpc: async (...args) => { seen.push(['rpc'].concat(args)); return { view: { suppressedDshTurns: [3], replayed: { turn: 3 } } } },
+    rpc: async (...args) => { seen.push(['rpc'].concat(args)); return { view: { replayed: { turn: 3 } } } },
     liveTavernView: { setView: (sessionId, view) => seen.push(['setView', sessionId, view]) },
-    historyProjection: { regenerated: (sessionId, view, tail) => seen.push(['regenerated', sessionId, view, tail]) },
     setCandidatePanel: value => seen.push(['setCandidatePanel', value]),
     setRegenPanel: value => seen.push(['setRegenPanel', value]),
     setCandidateGuidePanel: value => seen.push(['setCandidateGuidePanel', value]),
@@ -228,11 +226,9 @@ test('提交失败重放走 replayTurn，刷新视图与回合投影并清空面
   assert.deepEqual(Object.keys(seen[0][2]), [], '重放不携带意见参数')
   assert.equal(seen[1][0], 'setView')
   assert.equal(seen[1][1], 'session')
-  assert.equal(seen[2][0], 'regenerated')
-  assert.equal(seen[2][3], null, '重放不依赖点击时的回合尾部')
-  assert.equal(JSON.stringify(seen.slice(3)), JSON.stringify([
+  assert.equal(JSON.stringify(seen.slice(2)), JSON.stringify([
     ['setRegenPanel', null], ['setCandidatePanel', null], ['setCandidateGuidePanel', null],
     ['notify', ['sessions'], 'play-controls'], ['invalidate', 'session']
   ]))
-  assert.deepEqual(Array.from(result.view.suppressedDshTurns), [3])
+  assert.deepEqual(result.view.replayed.turn, 3)
 })

@@ -1,6 +1,7 @@
 import { sharedWorldbookSearch } from '../tavern-plugin/lib/domain/worldbook-search.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Session } from './fixtures/dsh-session-host.mjs'
 
 // Match DSH's final complete-section restoration, after middleware runs.
 function completeSystem(sections) {
@@ -340,7 +341,6 @@ test('变量工具返回失败后仍可修正，成功或耗尽次数后撤下�
 
 test('后台固定背景只保存一次，连续候选、结算和恢复均进入固定 system 而非剧情历史', async () => {
   const packets = []
-  const events = []
   const history = []
   const planner = createContextPlanner({ prompt: () => '' })
   const card = { name: '测试人物', description: '固定背景A', personality: '固定性格', scenario: '固定场景', mes_example: '固定示例', system_prompt: '每轮系统要求', post_history_instructions: '每轮末尾要求' }
@@ -348,13 +348,10 @@ test('后台固定背景只保存一次，连续候选、结算和恢复均进�
   let resumes = 0
   const savedPrefixes = new Map()
   const stablePrefixStorage = { async read(id) { return savedPrefixes.get(id) }, async write(id, value) { savedPrefixes.set(id, value) } }
+  // The resident Session outlives each Agent handle, like the persisted one.
+  const session = Session.create('background')
+  const events = { filter: predicate => session.snapshotEvents().filter(predicate) }
   async function open(options) {
-    const session = { id: 'background', events, append(type, data, intent) {
-      const event = { type, data: structuredClone(data), ...(intent || {}) }
-      events.push(event)
-      if (type === 'user/message' && data.id === 'tavern-session-prefix:' + session.id && !history.some(message => message.id === data.id)) history.push(event.data)
-      return event
-    } }
     const variables = new Map()
     const sections = []
     let assemble, pending
@@ -369,9 +366,10 @@ test('后台固定背景只保存一次，连续候选、结算和恢复均进�
           const assembly = await assemble(null, { agent: { session } }, async () => ({ sections, tools: [] }))
           const system = completeSystem(sections)
           history.push(message)
-          const request = { sessionId: 'background', system, messages: history.slice() }
+          const request = { sessionId: 'background', system, messages: [...session.deriveMessages().filter(message => message.role !== 'system'), ...history] }
           packets.push({ system: request.system, messages: request.messages, text: message.content[0].text })
-          events.push({ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"choices":[]}' }] } } })
+          session.append('assistant/message', { turn: packets.length, step: 1, stream: [], message: { id: 'reply-' + packets.length, role: 'assistant',
+            content: [{ type: 'text', text: '{"choices":[]}' }], source: { kind: 'model', provider: 'test', model: 'fake' } } }, { surfaceOp: 'append' })
         })() }, async whenIdle() { await pending }
       }, async dispose() {}
     }
@@ -381,7 +379,7 @@ test('后台固定背景只保存一次，连续候选、结算和恢复均进�
     async create(options) { creates++; return open(options) },
     async resume(options) { resumes++; return open(options) }
   }
-  let runner = createBackgroundAgentRunner({ agents, id: () => 'background', stablePrefixStorage })
+  let runner = createBackgroundAgentRunner({ agents, id: () => 'background', stablePrefixStorage, flushSession: async () => {} })
   async function candidate(persistentSessionId = '') {
     const context = await planner.plan({ purpose: 'candidate', card, chat: { guides: [{ text: '最新Guide' }], posture: '最新姿势' }, task: '候选JSON规则', constantWorldBookContext: '固定世界设定' })
     return runner.run({ sessionId: 'parent', persistent: true, persistentSessionId, task: 'candidate', selection: { provider: 'test', model: 'fake' },
@@ -396,7 +394,7 @@ test('后台固定背景只保存一次，连续候选、结算和恢复均进�
   card.post_history_instructions = '修改后的末尾要求'
   await candidate('background')
   await runner.dispose()
-  runner = createBackgroundAgentRunner({ agents, stablePrefixStorage })
+  runner = createBackgroundAgentRunner({ agents, stablePrefixStorage, flushSession: async () => {} })
   await candidate('background')
   assert.equal(creates, 1)
   assert.equal(resumes, 1)
@@ -1075,15 +1073,25 @@ test('常驻后台 Agent 每轮只挂载本轮工具', async () => {
 
 for (const rewindFails of [false, true]) test('后台 Surface 回退失败时停止任务: ' + rewindFails, async () => {
   const parent = { id: 'parent-session', session: { header: { cwd: '/tmp/tavern', delegationDepth: 0 } } }
-  const sourceEvents = [
-    { seq: 0, type: 'user/message', data: { text: '有效正文' } },
-    { seq: 1, type: 'assistant/message', data: { turn: 1, step: 1, message: { source: { kind: 'model', provider: 'test', model: 'scripted' }, content: [{ type: 'text', text: '有效候选' }] } } },
-    { seq: 2, type: 'turn/end', data: {} },
-    { seq: 3, type: 'user/message', data: { text: '已废弃正文' } },
-    { seq: 4, type: 'assistant/message', data: { turn: 2, step: 1, message: { source: { kind: 'model', provider: 'test', model: 'scripted' }, content: [{ type: 'text', text: '已废弃候选' }] } } },
-    { seq: 5, type: 'turn/end', data: {} }
-  ]
-  const appendCalls = []
+  const model = { kind: 'model', provider: 'test', model: 'scripted' }
+  const replyEvent = (text, turn) => ['assistant/message', { turn, step: 1, stream: [], message: { id: 'reply-' + turn, role: 'assistant', content: [{ type: 'text', text }], source: model } }]
+  const session = Session.create('old-candidate')
+  const putUser = (id, text) => session.append('user/message', { id, role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } }, { surfaceOp: 'append' })
+  putUser('valid', '有效正文')
+  session.append(...replyEvent('有效候选', 1), { surfaceOp: 'append' })
+  session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
+  putUser('stale', '已废弃正文')
+  session.append(...replyEvent('已废弃候选', 2), { surfaceOp: 'append' })
+  session.append('turn/end', { turn: 2, reason: { kind: 'completed' } })
+  const stale = session.snapshotEvents().filter(event => ['stale', 'reply-2'].includes(event.data.id ?? event.data.message?.id)).map(event => event.seq)
+  const rewindBoundary = session.snapshotEvents().find(event => event.type === 'turn/end').seq
+  const appended = []
+  const hostAppend = session.append.bind(session)
+  session.append = function (type, data, options) {
+    if (rewindFails && options?.surfaceOp?.op === 'replace') throw new Error('fixture: 历史消息面不可回退')
+    appended.push({ type, data, options })
+    return hostAppend(type, data, options)
+  }
   let createCalls = 0
   let resumeCalls = 0, followups = 0
   const agents = {
@@ -1097,23 +1105,14 @@ for (const rewindFails of [false, true]) test('后台 Surface 回退失败时停
         tools: { restrict() {}, register() {} },
         on(name, listener) { listeners.push({ name, listener }) }
       })
-      const events = structuredClone(sourceEvents)
       let work = Promise.resolve()
       const child = {
-        session: {
-          events,
-          surface: { nodes: [0, 1, 3, 4] },
-          append(type, data, options) {
-            if (rewindFails) throw new Error('fixture: 历史消息面不可回退')
-            appendCalls.push({ type, data, options })
-            events.push({ seq: events.length, type, data, ...(options || {}) })
-          }
-        },
+        session,
         followup() {
           followups++
           work = Promise.resolve().then(function () {
-            events.push({ seq: events.length, type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '回退后候选' }] } } })
-            events.push({ seq: events.length, type: 'turn/end', data: {} })
+            session.append(...replyEvent('回退后候选', 3), { surfaceOp: 'append' })
+            session.append('turn/end', { turn: 3, reason: { kind: 'completed' } })
           })
         },
         async whenIdle() { await work }
@@ -1125,26 +1124,28 @@ for (const rewindFails of [false, true]) test('后台 Surface 回退失败时停
       throw new Error('回退不应创建新的后台 Agent')
     }
   }
-  const runner = createBackgroundAgentRunner({ agents, id: () => 'new-candidate' })
+  const runner = createBackgroundAgentRunner({ agents, id: () => 'new-candidate', flushSession: async () => {} })
   const pending = runner.run({
     sessionId: parent.id,
     selection: { provider: 'test', model: 'scripted' },
     system: '候选规则', messages: [], tools: [], persistent: true,
-    persistentSessionId: 'old-candidate', rewindTo: 2
+    persistentSessionId: 'old-candidate', rewindTo: rewindBoundary
   })
 
-  if (rewindFails) { await assert.rejects(pending, /后台历史回退失败/); assert.equal(appendCalls.length, 0); assert.equal(createCalls, 0); assert.equal(followups, 0); return }
+  if (rewindFails) { await assert.rejects(pending, /后台历史回退失败/); assert.equal(appended.length, 0); assert.equal(createCalls, 0); assert.equal(followups, 0); return }
   const result = await pending
   assert.equal(result.traceSessionId, 'old-candidate')
-  assert.equal(result.traceBoundary, rewindFails ? 7 : 8)
   assert.equal(resumeCalls, 1)
   assert.equal(createCalls, 0)
-  if (rewindFails) { assert.equal(appendCalls.length, 0); return }
-  assert.equal(appendCalls.length, 1)
-  assert.equal(appendCalls[0].type, 'assistant/message')
-  assert.deepEqual(appendCalls[0].data.message.content, [])
-  assert.deepEqual(appendCalls[0].options.surfaceOp, { op: 'replace', start: 3, end: 4 })
-  assert.deepEqual(appendCalls[0].options.sourceEventSeqs, [3, 4])
+  // The rewind is one tombstone over the abandoned task, written before the new task runs.
+  const rewrite = appended.filter(call => call.options?.surfaceOp?.op === 'replace')
+  assert.equal(rewrite.length, 1)
+  assert.equal(rewrite[0].type, 'assistant/message')
+  assert.deepEqual(rewrite[0].data.message.content, [])
+  assert.deepEqual(rewrite[0].options.sourceEventSeqs, stale)
+  assert.equal(appended.indexOf(rewrite[0]), 0)
+  assert.equal(result.traceBoundary, session.snapshotEvents().at(-1).seq)
+  assert.deepEqual(session.deriveMessages().map(message => message.id), ['valid', 'reply-1', 'reply-3'])
 })
 
 test('后台回合没有回复时透传 DSH 的真实终止错误', async () => {
@@ -1245,9 +1246,9 @@ test('persistent background tools change with configuration without creating ano
 test('常驻后台会话在下一任务替换世界书，任务内固定且不改历史', async () => {
   let assemble, pending, current = '当前DLC', creates = 0
   const seen = [], prompts = [], sections = []
-  const session = { id: 'dynamic-book-background', header: {}, events: [], append(type, data) { const event = { type, data, seq: this.events.length }; this.events.push(event); return event } }
+  const session = Session.create('dynamic-book-background')
   const runner = createBackgroundAgentRunner({
-    id: () => session.id,
+    id: () => session.id, flushSession: async () => {},
     resolveStablePrefix: async () => '【故事设定 · 人物卡】\n人物\n【常驻世界书】\n开局DLC',
     resolveCurrentWorldbook: async () => current,
     agents: { get: () => ({ session: { header: {} } }), async create(options) {
@@ -1257,7 +1258,7 @@ test('常驻后台会话在下一任务替换世界书，任务内固定且不�
         current = '任务中途变化'
         const result = await assemble({}, { agent: { session } }, async () => ({ sections: [], tools: [] }))
         seen.push(completeSystem(sections))
-        session.append('assistant/message', { message: { content: [{ type: 'text', text: '完成' }] } })
+        session.append('assistant/message', { turn: prompts.length, step: 1, stream: [], message: { id: 'done-' + prompts.length, role: 'assistant', content: [{ type: 'text', text: '完成' }], source: { kind: 'model', provider: 'test', model: 'test' } } }, { surfaceOp: 'append' })
       })() }, async whenIdle() { await pending } }, async dispose() {} }
     } }
   })
@@ -1275,7 +1276,7 @@ test('常驻后台会话在下一任务替换世界书，任务内固定且不�
     assert.match(seen[0], /当前DLC/)
     assert.doesNotMatch(seen.join('\n'), /开局DLC|任务中途变化/)
     assert.doesNotMatch(seen[1], /当前DLC/)
-    assert.match(JSON.stringify(session.events), /开局DLC/)
+    assert.match(JSON.stringify(session.snapshotEvents()), /开局DLC/)
   } finally { await runner.dispose() }
 })
 
@@ -1324,9 +1325,9 @@ test('temporary settlement tools conclude only after both submissions, without a
 test('生图已有空前缀会话补入开局 system，连续任务保持背景且不混入正文', async () => {
   let assemble, pending, reads = 0, personaOverride = readSceneImageSystemInstruction()
   const seen = [], sections = [], personas = []
-  const session = { id: 'image-opening-context', header: {}, events: [], append(type, data) { const event = { type, data, seq: this.events.length }; this.events.push(event); return event } }
+  const session = Session.create('image-opening-context')
   const runner = createBackgroundAgentRunner({
-    id: () => session.id,
+    id: () => session.id, flushSession: async () => {},
     imageSystemPrompt: () => personaOverride,
     resolveStablePrefix: async () => { reads++; return '【用户已确认的长期偏好】\n偏好标记\n【故事设定 · 人物卡】\n人物标记\n【常驻世界书】\n常驻标记' },
     resolveCurrentWorldbook: async () => undefined,
@@ -1335,7 +1336,7 @@ test('生图已有空前缀会话补入开局 system，连续任务保持背景�
       return { agent: { session, followup(message) { pending = (async () => {
         const result = await assemble({}, { agent: { session } }, async () => ({ sections: personas.map(text => ({ name: 'persona', text })), tools: [] }))
         seen.push({ system: completeSystem(personas), message })
-        session.append('assistant/message', { message: { content: [{ type: 'text', text: '完成' }] } })
+        session.append('assistant/message', { turn: seen.length, step: 1, stream: [], message: { id: 'done-' + seen.length, role: 'assistant', content: [{ type: 'text', text: '完成' }], source: { kind: 'model', provider: 'test', model: 'fake' } } }, { surfaceOp: 'append' })
       })() }, async whenIdle() { await pending } }, async dispose() {} }
     } }
   })
@@ -1349,7 +1350,7 @@ test('生图已有空前缀会话补入开局 system，连续任务保持背景�
       assert.doesNotMatch(JSON.stringify(seen.map(item => item.message)), new RegExp(marker))
     }
     assert.doesNotMatch(seen[0].system, /当前场景一|历史场景二/)
-    assert.equal(session.events.filter(event => event.data?.id === 'tavern-session-prefix:' + session.id).length, 1)
+    assert.equal(session.snapshotEvents().filter(event => event.data?.id === 'tavern-session-prefix:' + session.id).length, 1)
     personaOverride = '已修改的生图系统指令'
     await runner.run({ sessionId: 'parent', persistent: true, task: 'image', selection: { provider: 'test', model: 'fake' }, messages: [], tools: [] })
     assert.match(seen[2].system, /已修改的生图系统指令/)
@@ -1360,15 +1361,16 @@ test('生图已有空前缀会话补入开局 system，连续任务保持背景�
 for (const task of ['settlement', 'image']) test(task + ' 已有会话在明确更新人物卡后切换背景', async () => {
   let assemble, pending, revision = 0, background = '开局人物设定', backgroundReads = 0
   const seen = [], sections = []
-  const session = { id: 'updated-' + task, header: {}, events: [], append(type, data) { const event = { type, data, seq: this.events.length + 1 }; this.events.push(event); return event } }
+  const session = Session.create('updated-' + task)
   const runner = createBackgroundAgentRunner({
+    flushSession: async () => {},
     resolveStablePrefixRevision: async () => revision, resolveStablePrefix: async () => { backgroundReads++; return background },
     agents: { get: () => ({ session: { header: {} } }), async create(options) {
       await options.setup({ systemPrompt: { section(value) { sections.push(value) }, suppressRuntimeContext() {} }, tools: { restrict() {}, register() {} }, on(event, callback) { if (event === 'system-prompt/assemble') assemble = callback } })
       return { agent: { session, followup() { pending = (async () => {
         const result = await assemble({}, { agent: { session } }, async () => ({ sections: [], tools: [] }))
         seen.push(completeSystem(sections))
-        session.append('assistant/message', { message: { content: [{ type: 'text', text: '完成' }] } })
+        session.append('assistant/message', { turn: seen.length, step: 1, stream: [], message: { id: 'done-' + seen.length, role: 'assistant', content: [{ type: 'text', text: '完成' }], source: { kind: 'model', provider: 'test', model: 'fake' } } }, { surfaceOp: 'append' })
       })() }, async whenIdle() { await pending } }, async dispose() {} }
     } }
   })
@@ -1381,7 +1383,7 @@ for (const task of ['settlement', 'image']) test(task + ' 已有会话在明确�
     assert.doesNotMatch(seen[1], /开局人物设定/)
     assert.match(seen[1], /已确认的新版设定/)
     assert.equal(seen[1], seen[2])
-    assert.equal(session.events.filter(e => e.data?.id === 'tavern-session-prefix:' + session.id + ':revision-1').length, 1)
+    assert.equal(session.snapshotEvents().filter(e => e.data?.id === 'tavern-session-prefix:' + session.id + ':revision-1').length, 1)
     assert.equal(backgroundReads, 2, 'unchanged revision reuses the saved background')
   } finally { await runner.dispose() }
 })

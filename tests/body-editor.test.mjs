@@ -15,6 +15,7 @@ function fixture(text = '原正文', seeded = false) {
   const agent = { get session() { return session }, phase: { kind: 'idle', lastTurn: 2 } }
   let busy = false, failWrite = false, failFlush = false
   const options = {
+    assertAlgebraReady: () => {},
     chats: { forSession: async () => structuredClone(chat), update: async (_id, fn) => { if (failWrite) throw Error('write failed'); chat = fn(structuredClone(chat)); chat._storageRevision++; return structuredClone(chat) } },
     sessions: { get: () => agent, flush: async () => { if (failFlush) throw Error('flush failed') } },
     timeline: createStoryTimeline(), activity: () => ({ busy }), project: async text => projectReplyLayers(text), present: async chat => chat

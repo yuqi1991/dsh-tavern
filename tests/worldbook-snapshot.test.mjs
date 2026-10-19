@@ -2,13 +2,17 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Session } from './fixtures/dsh-session-host.mjs'
 import { appendSessionEvent, sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
-import { replaceSessionSurface } from '../tavern-plugin/lib/domain/session-surface-mutations.js'
 import { worldbookSnapshot } from '../tavern-plugin/lib/domain/worldbook-snapshot.js'
 import { createForegroundFrameSessionAdapter } from '../tavern-plugin/lib/domain/foreground-frame-session-adapter.js'
 import { createForegroundFrameBuilder } from '../tavern-plugin/lib/domain/agent-input-frame.js'
-import { retireForegroundFrames } from '../tavern-plugin/lib/domain/foreground-frame-retirement.js'
+import { retireForegroundWithAlgebra } from '../tavern-plugin/lib/domain/conversation-algebra-retirement.js'
+import { selectSurface } from '../tavern-plugin/lib/domain/surface-restoration.js'
 import { worldbookPlacement } from '../tavern-plugin/lib/domain/worldbook-placement.js'
 
+// Native replacement, as the host adapter performs it for compaction.
+function replaceSurface(session, type, data, { start, end, sourceEventSeqs }) {
+  return session.append(type, data, { surfaceOp: { op: 'replace', startSeq: start, endSeq: end }, sourceEventSeqs })
+}
 function append(session, text) {
   const snapshot = worldbookSnapshot(session, text)
   if (!snapshot) return null
@@ -38,15 +42,15 @@ test('恢复与分支读取自己的有效历史；回退和压缩后不会误�
   const branch = Session.create('snapshot-branch', checkpoint, { ...session.header, id: 'snapshot-branch' })
   assert.equal(worldbookSnapshot(branch, '晴'), null)
   assert.ok(worldbookSnapshot(branch, '雨'))
-  replaceSessionSurface(session, 'user/message', { id: 'rewind', role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern' } },
+  replaceSurface(session, 'user/message', { id: 'rewind', role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern' } },
     { start: rain.seq, end: rain.seq, sourceEventSeqs: [rain.seq] })
   assert.equal(worldbookSnapshot(session, '晴'), null)
   const nodes = [...session.surface.nodes]
-  replaceSessionSurface(session, 'user/message', { id: 'summary', role: 'user', content: [{ type: 'text', text: '故事摘要' }], source: { kind: 'plugin', plugin: 'dsh-tavern' } },
+  replaceSurface(session, 'user/message', { id: 'summary', role: 'user', content: [{ type: 'text', text: '故事摘要' }], source: { kind: 'plugin', plugin: 'dsh-tavern' } },
     { start: nodes[0], end: nodes.at(-1), sourceEventSeqs: nodes })
   assert.ok(worldbookSnapshot(session, '晴'))
 })
-test('前台快照独立于短期指引，清理指引后仍保留；下一轮同值不重发', () => {
+test('前台快照独立于短期指引，清理指引后仍保留；下一轮同值不重发', async () => {
   const session = Session.create('snapshot-frame')
   const adapter = createForegroundFrameSessionAdapter()
   function prepare(turn, text) {
@@ -58,7 +62,7 @@ test('前台快照独立于短期指引，清理指引后仍保留；下一轮�
     return result.messages
   }
   assert.equal(prepare(1, '<天气>晴</天气>').length, 2)
-  retireForegroundFrames(session)
+  await retireForegroundWithAlgebra(session, { keepTurn: 2, flush: async () => {}, operationId: 'retire-snapshot-frames' })
   assert.match(JSON.stringify(session.deriveMessages()), /<天气>晴/)
   assert.equal(prepare(2, '<天气>晴</天气>').length, 1)
   assert.equal(prepare(3, '<天气>雨</天气>').length, 2)
@@ -83,14 +87,14 @@ test('任意 EJS 都进入动态区域，包括配置读取和无状态表达式
   assert.deepEqual([...placement.foregroundRefs].sort(), ['computed', 'config'])
 })
 
-import { clearFailedTurnSurface, clearRegenerationAttemptSurface } from '../tavern-plugin/lib/domain/rollback-surface.js'
-test('失败轮清理后重试会重新发送，已成功的旧快照仍可复用', () => {
+import { clearFailedTurnSurface } from '../tavern-plugin/lib/domain/rollback-surface.js'
+test('失败轮清理后重试会重新发送，已成功的旧快照仍可复用', async () => {
   const session = Session.create('snapshot-failure')
   append(session, '晴')
   appendSessionEvent(session, 'turn/start', { turn: 2 })
   append(session, '雨')
   appendSessionEvent(session, 'turn/end', { turn: 2, reason: { kind: 'error', message: 'fixture' } })
-  assert.ok(clearFailedTurnSurface({ session, turn: 2 }))
+  assert.ok(await clearFailedTurnSurface({ session, turn: 2, flush: async () => {} }))
   assert.equal(worldbookSnapshot(session, '晴'), null)
   assert.ok(worldbookSnapshot(session, '雨'))
 })
@@ -124,12 +128,13 @@ test('真实 Agent 请求中，同值省略、新值只追加且保留此前完�
   assert.equal(snapshots(h.requests[2]).length, 2)
 })
 
-test('放弃重生成时清理临时快照，恢复原版本', () => {
+test('放弃重生成时回到原上下文，临时快照不再生效', () => {
   const session = Session.create('snapshot-regeneration')
   append(session, '晴')
-  const eventStart = session.seq
+  const original = [...session.surface.nodes]
   append(session, '雨')
-  assert.ok(clearRegenerationAttemptSurface({ session, eventStart }))
+  // Abandoning a regeneration checks the surface out to the saved nodes (ADR-0009).
+  selectSurface(session, original)
   assert.equal(worldbookSnapshot(session, '晴'), null)
   assert.ok(worldbookSnapshot(session, '雨'))
 })

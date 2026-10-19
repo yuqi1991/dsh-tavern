@@ -1125,13 +1125,6 @@ test('持久 Helper Host 复用同一脚本 iframe、发送生命周期事件并
   runtime.dispose()
 })
 
-test('用户气泡优先展示持久化原始输入，不展示 promptOnly 的 Session 投影', () => {
-  const sessionContent = [{ type: 'text', text: '<interactive_input>\n原始输入\n</interactive_input>' }]
-
-  assert.equal(client.tavernUserTextForTurn({ inputSources: { 2: '原始输入' } }, 2, sessionContent), '原始输入')
-  assert.equal(client.tavernUserTextForTurn({}, 2, sessionContent), '<interactive_input>\n原始输入\n</interactive_input>')
-})
-
 test('开场 iframe 只选择现有 swipe，不伪造 MVU 或修改正式消息', async () => {
   const preview = { swipes: ['首页', '', '海边开场'], openingIds: ['primary', null, 'alternate:1'], selectedIndex: 0 }
   const document = client.buildTavernFrameDocument({ content: '<video controls></video>', token: 'preview-token', openingPreview: preview })

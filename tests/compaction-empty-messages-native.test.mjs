@@ -19,9 +19,10 @@ for (const side of ['foreground', 'background']) {
       t.after(() => handle.dispose())
       agent = handle.agent
     }
-    await ensureSessionStablePrefix(agent.session, '不可丢失的固定背景')
+    const flush = async () => {}
+    await ensureSessionStablePrefix(agent.session, '不可丢失的固定背景', undefined, 0, flush)
     appendSessionEvent(agent.session, 'user/message', { id: 'frame', role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'foreground-frame' } }, { surfaceOp: 'append' })
-    await ensureSessionStablePrefix(agent.session, '不可丢失的固定背景：更新后的世界书', undefined, 1)
+    await ensureSessionStablePrefix(agent.session, '不可丢失的固定背景：更新后的世界书', undefined, 1, flush)
     appendSessionEvent(agent.session, 'user/message', { id: 'cleanup', role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern-failed-turn-cleanup' } }, { surfaceOp: 'append' })
     agent.followup({ id: 'story', role: 'user', content: [{ type: 'text', text: '花店旧事。'.repeat(500) }], source: { kind: 'user' } })
     await agent.whenIdle()

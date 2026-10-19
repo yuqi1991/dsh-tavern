@@ -440,7 +440,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     try {
       // 1) 移除被中断的内容：清掉失败回合留在原生消息面上的节点。清理钩子
       // 正常已在失败时执行过，此处重复调用对已清理的回合是无操作。
-      await clearFailedTurnSurface({ session, turn: target.turn, flush: sessions.flush })
+      const cleared = await clearFailedTurnSurface({ session, turn: target.turn, flush: sessions.flush })
       // 2) 同步隐藏该回合残留的正文与错误提示，再原样重发本轮输入。
       await updateChat(chat.id, function (current) {
         if (current === null || typeof current !== 'object') return current

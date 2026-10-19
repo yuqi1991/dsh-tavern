@@ -13,8 +13,23 @@ import { createChatJournalStore } from '../tavern-plugin/lib/domain/chat-journal
 import { createMvuDiagnosticStore, createMvuDiagnosticExport } from '../tavern-plugin/lib/domain/mvu-diagnostics.js'
 import { Session } from './fixtures/dsh-session-host.mjs'
 import { appendSessionEvent, sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
+import { computeFold } from '../tavern-plugin/lib/domain/conversation-algebra/index.js'
+import { createConversationHistory } from '../tavern-plugin/lib/domain/conversation-algebra-history.js'
 
-function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
+// The algebra fold identifies rows by message id; fixtures that append bare
+// rows get one assigned.
+function withDefaultIds(session) {
+  const rawAppend = session.append.bind(session)
+  let rowIds = 0
+  session.append = (type, data, options) => {
+    if (type === 'user/message' && data && data.id === undefined) data = { id: 'row-' + (++rowIds), role: 'user', source: { kind: 'user' }, ...data }
+    else if (type === 'assistant/message' && data?.message && data.message.id === undefined) data = { step: 1, stream: [], ...data, message: { id: 'row-' + (++rowIds), ...data.message } }
+    return rawAppend(type, data, options)
+  }
+  return session
+}
+
+function harness({ checkpoint = false, mode = 'story', journal = false, emptySession = false, replyTurn = 2 } = {}) {
   const calls = [], revisions = new Map()
   let counter = 0
   const timeline = createStoryTimeline({ id: prefix => prefix + '-' + (++counter) })
@@ -29,22 +44,10 @@ function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
     if (journal) chat._storageRevision = 2
   } else chat.messages.push(...pair)
   const model = { kind: 'model', provider: 'fixture', model: 'fixture' }
-  const events = [
-    { seq: 0, type: 'user/message', data: { turn: 2, role: 'user', content: [{ type: 'text', text: '推门' }] } },
-    { seq: 1, type: 'assistant/message', data: { turn: 2, step: 1, message: { role: 'assistant', source: model, content: [{ type: 'text', text: '旧正文' }] } } }
-  ]
-  const session = { id: 'session', events, surface: { nodes: [0, 1] }, append(type, data, options = {}) {
-    calls.push('surface:' + type)
-    const seq = events.length
-    events.push({ seq, type, data, ...options })
-    const nodes = session.surface.nodes
-    if (options.surfaceOp?.op === 'replace') {
-      const start = nodes.indexOf(options.surfaceOp.start), end = nodes.indexOf(options.surfaceOp.end)
-      assert.ok(start >= 0 && end >= start)
-      nodes.splice(start, end - start + 1, seq)
-    } else if (options.surfaceOp === 'append') nodes.push(seq)
-    return seq
-  } }
+  const session = Session.create('session')
+  if (!emptySession) appendSessionEvent(session, 'user/message', { id: 'input', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '推门' }] }, { surfaceOp: 'append' })
+  if (!emptySession) appendSessionEvent(session, 'assistant/message', { turn: replyTurn, step: 1, message: { id: 'reply', role: 'assistant', source: model, content: [{ type: 'text', text: '旧正文' }] } }, { surfaceOp: 'append' })
+  withDefaultIds(session)
   let generation = 'success', settlementOutcome = 'success', beforeGenerate = () => {}
   const agent = { session, phase: { lastTurn: 2 }, followup(message) { calls.push('followup'); agent.input = message }, async whenIdle() {
     await beforeGenerate()
@@ -67,7 +70,7 @@ function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
     write: async (value, metadata) => { calls.push(metadata.source); chat = structuredClone(value); return structuredClone(chat) },
     update: async (_id, mutate, metadata) => { calls.push(metadata.source); const revision = chat._storageRevision; if (journal) revisions.set(revision, structuredClone(chat)); chat = await mutate(structuredClone(chat)) ?? chat; if (journal) chat._storageRevision = revision + 1; return structuredClone(chat) }
   }
-  const options = { chats, sessions: { get: () => agent }, timeline, scripts: {
+  const options = { chats, sessions: { get: () => agent, flush: async () => {} }, timeline, scripts: {
     read: async () => ({ chunks: ['一', '二'] }), continuity: { transition: () => { calls.push('script.restore'); return { state: { cursor: 0 } } } },
     dispatchEvent: async event => { calls.push(event.name) }
   }, queueSettlement: async () => {
@@ -85,6 +88,7 @@ function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
       chat.settleError = '后台结算尚未完成'
     }
   }, present: async value => structuredClone(value) }
+  options.algebraHistory = { ...createConversationHistory({ chats, flush: options.sessions.flush }), assertReady: () => {} }
   return { create: () => createRoundHistory(options), options, calls, session, agent, timeline, get chat() { return chat },
     setGeneration(value) { generation = value }, setSettlement(value) { settlementOutcome = value }, beforeGenerate(fn) { beforeGenerate = fn }, revisions }
 }
@@ -123,42 +127,8 @@ test('failed foreground resume leaves rollback data intact and permits retry', a
   assert.equal(h.chat.messages.length,1)
 })
 
-test('编辑重生成输入同步剧情、原生消息与合成生成请求', async () => {
-  const h = harness({ checkpoint: true })
-  h.session.events[0].data.source = { kind: 'user' }
-  const originalEvents = structuredClone(h.session.events)
-  const result = await h.create().regenerate('chat', '写得简短', 'session', '破门而入')
-  assert.equal(result.messages[1].text, '破门而入')
-  assert.equal(h.chat.messages[1].text, '破门而入')
-  assert.equal(result.adopted.inputEdited, true)
-  assert.equal(result.adopted.inputText, '破门而入')
-  assert.match(h.agent.input.content[0].text, /^破门而入\n\n【本轮补充要求】/)
-  const visible = h.session.surface.nodes.map(seq => h.session.events[seq])
-  assert.ok(visible.some(event => event.type === 'user/message' && event.data.content?.[0]?.text === '破门而入'))
-  assert.deepEqual(h.session.events.slice(0, originalEvents.length), originalEvents)
-})
-
-test('rc.1 snapshot-only history supports regeneration and rollback without rewriting native events', async () => {
-  for (const operation of ['regenerate', 'rollback']) {
-    const h = harness({ checkpoint: true })
-    const events = h.session.events
-    const before = structuredClone(events)
-    delete h.session.events
-    h.session.snapshotEvents = () => Object.freeze(events.slice())
-    const history = h.create()
-    const result = operation === 'regenerate'
-      ? await history.regenerate('chat', '', 'session')
-      : await history.rollback('session', 'chat')
-    if (operation === 'regenerate') assert.match(result.messages.at(-1).text, /新正文/)
-    else assert.deepEqual(result.messages.map(item => item.text), ['开场'])
-    assert.deepEqual(events.slice(0, before.length), before)
-    assert.ok(events.length > before.length)
-  }
-})
-
 test('rollback refuses a checkpoint whose round has left the native Surface instead of removing a different round', async () => {
-  const h=harness({checkpoint:true})
-  h.session.events[1].data.turn=1
+  const h=harness({checkpoint:true,replyTurn:1})
   const before=structuredClone(h.chat)
   await assert.rejects(h.create().rollback('session','chat'),/当前轮次已不在可回退的消息流中/)
   assert.deepEqual(h.chat,before)
@@ -257,23 +227,7 @@ test('变量结算失败后仍可显式回退已提交正文，不连带回退�
   assert.deepEqual(result.messages.map(item => item.text), ['开场', '推门', '旧正文'])
   assert.equal(h.timeline.inspect({ chat: h.chat }).checkpointCount, 1)
   assert.equal(h.chat.settleStatus, 'done')
-  assert.deepEqual(h.session.surface.nodes, [0, 1, 4])
-})
-
-test('模型消息面拒绝回退时恢复原剧情，重试仍能回退', async () => {
-  const h = harness({ checkpoint: true }), history = h.create()
-  const before = structuredClone(h.chat), surface = [...h.session.surface.nodes]
-  const append = h.session.append
-  h.session.append = () => { throw new Error('本次回复未完成') }
-  await assert.rejects(history.rollback('session', 'chat'), /本次回复未完成/)
-  assert.deepEqual(h.chat.messages, before.messages)
-  assert.equal(h.chat.posture, before.posture)
-  assert.deepEqual(h.chat.suppressedDshTurns, before.suppressedDshTurns)
-  assert.deepEqual(h.session.surface.nodes, surface)
-  assert.ok(!h.calls.includes('MESSAGE_DELETED'))
-  assert.ok(h.chat.timeline.revision > before.timeline.revision)
-  h.session.append = append
-  assert.deepEqual((await history.rollback('session', 'chat')).messages.map(item => item.text), ['开场'])
+  assert.deepEqual(h.session.surface.nodes, [0, 1])
 })
 
 test('回退提交后脚本通知失败不会伪装成回退失败', async () => {
@@ -282,7 +236,6 @@ test('回退提交后脚本通知失败不会伪装成回退失败', async () =>
   const result = await h.create().rollback('session', 'chat')
   assert.deepEqual(result.messages.map(item => item.text), ['开场'])
   assert.match(result.rollbackWarning, /脚本处理失败/)
-  assert.equal(h.session.events.at(-1).surfaceOp.op, 'replace')
 })
 
 test('读取 checkpoint 期间重新开始生成时，提交前再次拒绝回退', async () => {
@@ -344,62 +297,15 @@ test('重复回退请求只执行一次', async () => {
   release()
   await first
   assert.equal(h.calls.filter(call => call === 'rollback').length, 1)
-  assert.equal(h.calls.filter(call => call === 'surface:assistant/message').length, 1)
-})
-
-test('补偿期间出现并发修改时拒绝覆盖，并明确报告恢复失败', async () => {
-  const h = harness({ checkpoint: true })
-  const update = h.options.chats.update
-  h.options.chats.update = async (id, mutate, metadata) => {
-    if (metadata.source === 'rollback.abort') await update(id, current => ({ ...current, posture: '并发变更' }), { source: 'fixture' })
-    return update(id, mutate, metadata)
-  }
-  h.session.append = () => { throw new Error('消息面拒绝') }
-  await assert.rejects(h.create().rollback('session', 'chat'), /回退失败且剧情恢复未完成.*消息面拒绝.*其他操作修改/)
-  assert.equal(h.chat.posture, '并发变更')
-  assert.ok(!h.calls.includes('MESSAGE_DELETED'))
-})
-
-test('真实 journal 持久化：消息面失败后 checkpoint 可恢复、重建服务后可重试', async t => {
-  const root = await mkdtemp(join(tmpdir(), 'tavern-rollback-regression-'))
-  t.after(() => rm(root, { recursive: true, force: true }))
-  const persistence = createChatPersistence({ store: createChatJournalStore({ dataRoot: root }) })
-  const h = harness({ checkpoint: true })
-  await persistence.write({ ...h.revisions.get(1), _storageRevision: 0 }, { source: 'fixture.before' })
-  const original = await persistence.write(structuredClone(h.chat), { source: 'fixture.after' })
-  Object.assign(h.options.chats, {
-    read: persistence.read, forSession: () => persistence.read('chat'), readRevision: persistence.readRevision,
-    write: persistence.write, update: persistence.update
-  })
-  const append = h.session.append
-  h.session.append = () => { throw new Error('本次回复未完成') }
-  await assert.rejects(h.create().rollback('session', 'chat'), /本次回复未完成/)
-  const restored = await persistence.read('chat')
-  assert.deepEqual(restored.messages, original.messages)
-  assert.deepEqual(restored.timeline.checkpoints, original.timeline.checkpoints)
-  assert.ok(restored._storageRevision > original._storageRevision)
-  assert.ok(restored.timeline.revision > original.timeline.revision)
-  h.session.append = append
-  const reopened = createChatPersistence({ store: createChatJournalStore({ dataRoot: root }) })
-  Object.assign(h.options.chats, { read: reopened.read, readRevision: reopened.readRevision, write: reopened.write, update: reopened.update })
-  assert.equal((await h.create().rollback('session', 'chat')).messages.length, 1)
-  assert.equal((await reopened.read('chat')).messages.length, 1)
-  const undoStore = createChatPersistence({ store: createChatJournalStore({ dataRoot: root }) })
-  Object.assign(h.options.chats, { read: undoStore.read, readRevision: undoStore.readRevision, write: undoStore.write, update: undoStore.update })
-  await h.create().undoRollback('session', 'chat')
-  assert.deepEqual((await undoStore.read('chat')).messages, original.messages)
 })
 
 test('完整重生成先独立替换唯一正文，再执行后台结算', async () => {
   const h = harness({ checkpoint: true })
-  const originalEvents = structuredClone(h.session.events)
+  const originalEvents = structuredClone(sessionEvents(h.session))
   const result = await h.create().regenerate('', '写得短一些', 'session')
   assert.equal(result.messages[1].text, '推门')
   assert.equal(result.messages[2].turn, 2)
-  assert.deepEqual(result.messages[2].swipes, ['新正文3'])
   assert.deepEqual(result.messages[2].variables, [{ hp: 7 }])
-  assert.deepEqual(result.suppressedDshTurns, [3])
-  assert.deepEqual(result.regeneratedDshTurns, { '2': 3 })
   assert.equal(result.regenInProgress, undefined)
   assert.equal(result.settleStatus, 'done')
   assert.match(h.agent.input.content[0].text, /^推门\n\n【本轮补充要求】/)
@@ -408,14 +314,11 @@ test('完整重生成先独立替换唯一正文，再执行后台结算', async
   assert.ok(h.calls.indexOf('readRevision') < h.calls.indexOf('rollback.regen'))
   assert.ok(!h.calls.includes('MESSAGE_SWIPED'))
   assert.ok(h.calls.indexOf('foreground.regen-commit') < h.calls.indexOf('settlement'))
-  assert.ok(h.calls.lastIndexOf('surface:assistant/message') < h.calls.indexOf('settlement'))
   assert.ok(!h.calls.includes('MESSAGE_RECEIVED'), 'MVU stays owned by background settlement')
-  assert.deepEqual(h.session.events.slice(0, 2), originalEvents, 'append-only event history')
-  const replacement = h.session.events.at(-1)
-  assert.equal(replacement.data.turn, 2)
-  assert.equal(replacement.surfaceOp.op, 'replace')
-  assert.equal(replacement.data.message.source.kind, 'model')
-  assert.deepEqual(replacement.data.message.content, [{ type: 'text', text: '新正文3' }])
+  assert.deepEqual(sessionEvents(h.session).slice(0, originalEvents.length), originalEvents, 'append-only event history')
+  const body = computeFold(sessionEvents(h.session)).rows.at(-1)
+  assert.equal(body.data.message.source.kind, 'model')
+  assert.deepEqual(body.data.message.content, [{ type: 'text', text: '新正文3' }])
 })
 
 test('当前正文尚在后台结算时，重新生成先取消旧结算再替换正文', async () => {
@@ -442,11 +345,9 @@ test('重生成的后台结算失败时保留新正文并允许继续', async ()
   assert.equal(h.chat.messages.at(-1).text, '新正文3')
   assert.equal(result.messages.at(-1).text, '新正文3')
   assert.equal(h.chat.regenInProgress, undefined)
-  assert.deepEqual(h.chat.suppressedDshTurns, [3])
   assert.equal(h.chat.settleStatus, 'failed')
   assert.equal(h.chat.settleError, '后台结算尚未完成')
   assert.ok(!h.calls.includes('foreground.regen-abort'))
-  assert.equal(h.session.events.at(-1).surfaceOp.op, 'replace')
   assert.doesNotThrow(() => h.timeline.apply({ chat: h.chat, intent: { kind: 'body.begin', turn: 4, userText: '继续' } }))
 })
 
@@ -482,18 +383,13 @@ test('重新创建流程模块后连续重生成仍替换原轮次；回退恢�
   const h = harness({ checkpoint: true })
   await h.create().regenerate('chat', '', 'session')
   const result = await h.create().regenerate('chat', '', 'session')
-  assert.deepEqual(result.messages[2].swipes, ['新正文4'])
-  assert.deepEqual(result.suppressedDshTurns, [3, 4])
-  assert.deepEqual(result.regeneratedDshTurns, { '2': 4 })
+  assert.equal(result.messages[2].text, '新正文4')
   assert.equal(result.adopted.hiddenTurn, 2)
   const rolled = await h.create().rollback('session', 'chat')
   assert.deepEqual(rolled.messages.map(m => m.text), ['开场'])
   assert.equal(rolled.posture, '门外')
   assert.equal(rolled.rolledBack.removedUserText, '推门')
-  assert.deepEqual(rolled.suppressedDshTurns, [2, 3, 4])
-  assert.deepEqual(rolled.regeneratedDshTurns, {})
   assert.ok(h.calls.lastIndexOf('rollback') < h.calls.lastIndexOf('MESSAGE_DELETED'))
-  assert.equal(h.session.events.at(-1).surfaceOp.op, 'replace')
 })
 
 test('旧剧本回退保留迁移恢复路径；非游玩模式拒绝回退', async () => {
@@ -545,38 +441,6 @@ test('读取历史期间后台更新变量不阻塞正文回退', async () => {
   assert.equal((await h.create().rollback('session', 'chat')).messages.length, 1)
 })
 
-test('rollback immediately rewinds and flushes background surface, failure only warns', async () => {
-  for (const [fail, unloaded] of [[false, false], [true, false], [false, true]]) {
-    const h = harness({ checkpoint: true })
-    const participant = { role: 'background', lifetime: 'chat', sessionId: 'bg', boundary: 0, status: 'current', branchId: h.chat.timeline.branchId }
-    h.chat.timeline.checkpoints[0].participants = { background: participant }
-    h.chat.timeline.participants.background = participant
-    const source = { kind: 'model', provider: 'fixture', model: 'fixture' }
-    const bg = { events: [{ seq: 0, type: 'turn/end' }, { seq: 1, type: 'assistant/message', data: { turn: 2, message: { source, content: [] } } }], surface: { nodes: [1] }, append(type, data, options) {
-      if (fail) throw new Error('background unavailable')
-      h.calls.push('background.rewind')
-      assert.equal(options.surfaceOp.start, 1)
-      this.surface.nodes = []
-    } }
-    const worker = { session: bg, cancel() {}, async whenIdle() {} }
-    h.options.sessions = { get: id => id === 'bg' ? (unloaded ? undefined : worker) : h.agent,
-      resume: async id => { assert.equal(id, 'bg'); h.calls.push('background.resume'); return { agent: worker, dispose: async () => h.calls.push('background.dispose') } },
-      flush: async () => h.calls.push('background.flush') }
-    const result = await h.create().rollback('session')
-    assert.equal(result.messages.length, 1)
-    if (fail) assert.match(result.rollbackWarning, /background unavailable/)
-    else {
-      assert.ok(h.calls.includes('background.rewind'))
-      assert.ok(h.calls.includes('background.flush'))
-      if (unloaded) {
-        assert.ok(h.calls.includes('background.resume'))
-        assert.ok(h.calls.indexOf('background.dispose') > h.calls.indexOf('background.flush'))
-      }
-      assert.ok(h.calls.indexOf('surface:assistant/message') < h.calls.indexOf('background.rewind'))
-    }
-  }
-})
-
 test('真实重新生成与后台调度联动：连续三次只创建一个后台，撤回内容不进入下一请求', async () => {
   const { createBackgroundAgentRunner } = await import('../tavern-plugin/lib/background-agent-runner.js')
   const h = harness({ checkpoint: true })
@@ -591,22 +455,11 @@ test('真实重新生成与后台调度联动：连续三次只创建一个后�
     async create(options) {
       creates++
       await options.setup({ systemPrompt: { section() {}, variable() {}, suppressRuntimeContext() {} }, tools: { restrict() {}, register() {} }, on() {} })
-      const events = []
-      const session = { id: options.sessionId, header: {}, events, surface: { nodes: [] }, append(type, data, options = {}) {
-        const seq = events.length
-        events.push({ seq, type, data, ...options })
-        if (options.surfaceOp === 'append') this.surface.nodes.push(seq)
-        else if (options.surfaceOp?.op === 'replace') {
-          const start = this.surface.nodes.indexOf(options.surfaceOp.start), end = this.surface.nodes.indexOf(options.surfaceOp.end)
-          assert.ok(start >= 0 && end >= start)
-          this.surface.nodes.splice(start, end - start + 1, seq)
-        }
-        return seq
-      } }
+      const session = withDefaultIds(Session.create(options.sessionId))
       const agent = { session, followup(input) {
         task++
         session.append('user/message', { ...input, turn: task }, { surfaceOp: 'append' })
-        requests.push(JSON.stringify(session.surface.nodes.map(seq => events[seq].data)))
+        requests.push(JSON.stringify(session.surface.nodes.map(seq => sessionEvents(session)[seq].data)))
         session.append('assistant/message', { turn: task, step: 1, message: { role: 'assistant', source: { kind: 'model', provider: 'test', model: 'fake' }, content: [{ type: 'text', text: 'obsolete-result-' + task }] } }, { surfaceOp: 'append' })
         session.append('turn/end', { turn: task })
       }, async whenIdle() {}, cancel() {} }
@@ -615,7 +468,7 @@ test('真实重新生成与后台调度联动：连续三次只创建一个后�
     },
     async resume() { throw new Error('resident background should be reused') }
   }
-  const runner = createBackgroundAgentRunner({ agents, id: () => 'background-' + (creates + 1), needsNewBackgroundSession: async () => h.chat.timeline.participants.background?.status === 'needs-session' })
+  const runner = createBackgroundAgentRunner({ agents, flushSession: async () => {}, id: () => 'background-' + (creates + 1), needsNewBackgroundSession: async () => h.chat.timeline.participants.background?.status === 'needs-session' })
   h.options.queueSettlement = async () => {
     const begun = h.timeline.apply({ chat: h.chat, intent: { kind: 'agent.begin', role: 'settlement' } })
     await h.options.chats.write(begun.chat, { source: 'test.begin-background' })
@@ -653,7 +506,7 @@ for (const count of [1, 3]) test(`回退先清除 ${count} 次中断，保留已
     h.session.append('user/message', { role: 'user', content: [{ type: 'text', text: '新的输入' }] }, { surfaceOp: 'append' })
     h.session.append('assistant/message', { turn, step: 1, interrupted: true, message: { role: 'assistant', source: { kind: 'model', provider: 'fixture', model: 'fixture' }, content: [{ type: 'text', text: '半截正文' }] } }, { surfaceOp: 'append' })
     h.session.append('turn/end', { turn, reason: { kind: 'aborted' } })
-    clearFailedTurnSurface({ session: h.session, turn })
+    await clearFailedTurnSurface({ session: h.session, turn, flush: async () => {} })
   }
   const surfaceBefore = [...h.session.surface.nodes]
   await h.create().rollback('session', 'chat')
@@ -661,7 +514,6 @@ for (const count of [1, 3]) test(`回退先清除 ${count} 次中断，保留已
   assert.deepEqual(h.chat.timeline, before.timeline)
   assert.deepEqual(h.chat.posture, before.posture)
   assert.deepEqual(h.session.surface.nodes, surfaceBefore)
-  assert.deepEqual(h.chat.suppressedDshTurns, Array.from({ length: count }, (_, i) => i + 3))
   // A new workflow instance reads persisted suppression and can roll back the
   // previous completed turn on the user's next explicit action.
   await h.create().rollback('session', 'chat')
@@ -669,33 +521,27 @@ for (const count of [1, 3]) test(`回退先清除 ${count} 次中断，保留已
 })
 
 test('首次回复停止后也可清除，不要求已存在完整用户与正文配对', async () => {
-  const h = harness()
+  const h = harness({ emptySession: true })
   h.chat.messages.splice(1)
-  h.session.events.length = 0
-  h.session.surface.nodes.length = 0
   h.session.append('turn/start', { turn: 2 })
   h.session.append('user/message', { role: 'user', content: [{ type: 'text', text: '输入' }] }, { surfaceOp: 'append' })
   h.session.append('assistant/message', { turn: 2, step: 1, interrupted: true, message: { role: 'assistant', source: { kind: 'model', provider: 'fixture', model: 'fixture' }, content: [{ type: 'text', text: '半截' }] } }, { surfaceOp: 'append' })
   h.session.append('turn/end', { turn: 2, reason: { kind: 'aborted' } })
-  clearFailedTurnSurface({ session: h.session, turn: 2 })
+  await clearFailedTurnSurface({ session: h.session, turn: 2, flush: async () => {} })
   const result = await h.create().rollback('session', 'chat')
   assert.deepEqual(result.clearedIncompleteTurns, [2])
   assert.equal(h.chat.messages.length, 1)
 })
 
 for (const first of [true, false]) test(`请求 HTTP 500 且没有正文时仅清除失败轮次（首次=${first}）`, async () => {
-  const h = harness()
-  if (first) {
-    h.chat.messages.splice(1)
-    h.session.events.length = 0
-    h.session.surface.nodes.length = 0
-  }
+  const h = harness({ emptySession: first })
+  if (first) h.chat.messages.splice(1)
   const before = structuredClone(h.chat)
   const turn = first ? 2 : 3
   h.session.append('turn/start', { turn })
   h.session.append('user/message', { role: 'user', content: [{ type: 'text', text: '输入' }] }, { surfaceOp: 'append' })
   h.session.append('turn/end', { turn, reason: { kind: 'error', message: 'HTTP 500' } })
-  clearFailedTurnSurface({ session: h.session, turn })
+  await clearFailedTurnSurface({ session: h.session, turn, flush: async () => {} })
   const result = await h.create().rollback('session', 'chat')
   assert.deepEqual(result.clearedIncompleteTurns, [turn])
   assert.deepEqual(h.chat.messages, before.messages)
@@ -743,7 +589,7 @@ test('误回退后撤销恢复正文、变量和 checkpoint，并保留原生日
   const h = harness({ checkpoint: true, journal: true })
   h.chat._storageRevision = 9
   h.revisions.set(9, structuredClone(h.chat))
-  const before = structuredClone(h.chat), originalEvents = structuredClone(h.session.events)
+  const before = structuredClone(h.chat), originalEvents = structuredClone(sessionEvents(h.session))
   const history = h.create()
   await history.rollback('session', 'chat')
   assert.equal(h.chat.messages.length, 1)
@@ -752,8 +598,8 @@ test('误回退后撤销恢复正文、变量和 checkpoint，并保留原生日
   assert.equal(h.chat.posture, before.posture)
   assert.equal(h.chat.timeline.checkpoints.length, before.timeline.checkpoints.length)
   assert.ok(h.chat.timeline.revision > before.timeline.revision)
-  assert.deepEqual(h.session.events.slice(0, originalEvents.length), originalEvents)
-  assert.deepEqual(h.session.surface.nodes.map(seq => h.session.events[seq].data.message?.content || h.session.events[seq].data.content),
+  assert.deepEqual(sessionEvents(h.session).slice(0, originalEvents.length), originalEvents)
+  assert.deepEqual(h.session.surface.nodes.map(seq => sessionEvents(h.session)[seq].data.message?.content || sessionEvents(h.session)[seq].data.content),
     originalEvents.map(event => event.data.message?.content || event.data.content))
   await assert.rejects(history.undoRollback('session', 'chat'), /没有|失效/)
 })
@@ -772,16 +618,17 @@ for (const mutation of ['empty-generation', 'edit']) test(`新操作使撤销恢
 
 test('回退目标轮次已变化时拒绝删除', async () => {
   const h = harness({ checkpoint: true, journal: true })
-  const before = structuredClone(h.chat), events = structuredClone(h.session.events)
+  const before = structuredClone(h.chat), events = structuredClone(sessionEvents(h.session))
   await assert.rejects(h.create().rollback('session', 'chat', 7), /目标已经变化/)
   assert.deepEqual(h.chat, before)
-  assert.deepEqual(h.session.events, events)
+  assert.deepEqual(sessionEvents(h.session), events)
 })
 
 test('撤销保存失败时恢复回退后的模型上下文，不覆盖正文', async () => {
   const h = harness({ checkpoint: true, journal: true })
   await h.create().rollback('session', 'chat')
   const before = structuredClone(h.chat)
+  const nodes = [...h.session.surface.nodes], events = structuredClone(sessionEvents(h.session))
   const update = h.options.chats.update
   h.options.chats.update = (...args) => {
     if (args[2].source === 'rollback.undo') throw new Error('撤销保存失败')
@@ -789,35 +636,12 @@ test('撤销保存失败时恢复回退后的模型上下文，不覆盖正文',
   }
   await assert.rejects(h.create().undoRollback('session', 'chat'), /撤销保存失败/)
   assert.deepEqual(h.chat, before)
-  assert.equal(h.session.surface.nodes.length, 1)
-  assert.deepEqual(h.session.events[h.session.surface.nodes[0]].data.message.content, [])
-})
-
-test('失败后成功再回退：先清理失败残留，下一次才回退保留正文', async () => {
-  const h = harness({ checkpoint: true, journal: true })
-  h.session.append('turn/start', { turn: 3 })
-  h.session.append('user/message', { source: { kind: 'user' }, role: 'user', content: [{ type: 'text', text: '失败输入' }] }, { surfaceOp: 'append' })
-  h.session.append('turn/end', { turn: 3, reason: { kind: 'error' } })
-  clearFailedTurnSurface({ session: h.session, turn: 3 })
-  const user = h.session.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '随后输入' }] }, { surfaceOp: 'append' })
-  const source = { kind: 'model', provider: 'test', model: 'test' }
-  const body = h.session.append('assistant/message', { turn: 4, step: 1, message: { role: 'assistant', source, content: [{ type: 'text', text: '随后正文' }] } }, { surfaceOp: 'append' })
-  h.session.append('assistant/message', { turn: 4, step: 1, message: { role: 'assistant', source, content: [] } }, { surfaceOp: { op: 'replace', start: user, end: body }, sourceEventSeqs: [user, body] })
-  h.session.append('user/message', { role: 'user', source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot' }, content: [] }, { surfaceOp: 'append' })
-  const before = structuredClone(h.chat)
-  const history = h.create()
-  const cleared = await history.rollback('session', 'chat')
-  assert.deepEqual(cleared.clearedIncompleteTurns, [3])
-  assert.deepEqual(h.chat.messages, before.messages)
-  assert.deepEqual(h.chat.timeline, before.timeline)
-  const rolled = await history.rollback('session', 'chat')
-  assert.equal(rolled.rolledBack.hiddenTurn, 2)
-  assert.equal(h.chat.messages.length, 1)
+  assert.deepEqual(h.session.surface.nodes, nodes)
+  assert.deepEqual(sessionEvents(h.session), events)
 })
 
 test('压缩移除原生配对后，回退返回可理解提示且不修改存档', async () => {
-  const h = harness({ checkpoint: true })
-  h.session.surface.nodes = []
+  const h = harness({ checkpoint: true, emptySession: true })
   const before = structuredClone(h.chat)
   await assert.rejects(h.create().rollback('session', 'chat'), /当前轮次已不在可回退的消息流中/)
   assert.deepEqual(h.chat, before)
@@ -876,11 +700,11 @@ for (const mutation of ['resume', 'turn/start', 'surface']) test(`撤销回退�
   const history = h.create()
   await history.rollback('session', 'chat')
   if (mutation === 'turn/start') bg.append('turn/start', { turn: 3 })
-  if (mutation === 'surface') bg.append('session/end-seed', {}, { surfaceOp: 'append' })
+  if (mutation === 'surface') bg.append('user/message', { id: 'bg-extra', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '额外' }] }, { surfaceOp: 'append' })
   if (mutation === 'resume') {
     await history.undoRollback('session', 'chat')
     assert.deepEqual(h.chat.messages, before)
-    assert.ok(bg.surface.nodes.some(seq => bg.events[seq].data.message?.content?.[0]?.text === '旧正文'))
+    assert.ok(bg.surface.nodes.some(seq => sessionEvents(bg)[seq].data.message?.content?.[0]?.text === '旧正文'))
   } else {
     const rolledBack = structuredClone(h.chat.messages)
     await assert.rejects(history.undoRollback('session', 'chat'), /后台上下文已有变化/)
@@ -900,7 +724,7 @@ for (const legacy of [false, true]) test('中断重生成后重建模块恢复�
   assert.deepEqual(h.chat.messages.map(message => message.text), ['开场'])
   if (legacy) delete h.chat.regenRecovery
   h.session.append('user/message', { turn: 3, content: [{ type: 'text', text: '推门' }], source: { kind: 'plugin', plugin: 'dsh-tavern-regen' } }, { surfaceOp: 'append' })
-  h.session.append('assistant/message', { turn: 3, message: { role: 'assistant', source: { kind: 'model' }, content: [{ type: 'text', text: '未完成正文' }] } }, { surfaceOp: 'append' })
+  h.session.append('assistant/message', { turn: 3, message: { role: 'assistant', source: { kind: 'model', provider: 'fixture', model: 'fixture' }, content: [{ type: 'text', text: '未完成正文' }] } }, { surfaceOp: 'append' })
   h.session.append('turn/end', { turn: 3, reason: { kind: 'interrupted' } })
   const restarted = h.create()
   await restarted.recover('chat')
@@ -908,9 +732,7 @@ for (const legacy of [false, true]) test('中断重生成后重建模块恢复�
   assert.equal(h.chat.posture, before.posture)
   assert.ok(!h.chat.regenInProgress)
   assert.equal(h.chat.regenRecovery, undefined)
-  assert.deepEqual(h.chat.suppressedDshTurns, [3])
-  assert.ok(h.session.surface.nodes.includes(1))
-  assert.ok(!h.session.surface.nodes.includes(2))
+  assert.deepEqual(computeFold(sessionEvents(h.session)).rows.map(row => (row.data.message ?? row.data).id), ['input', 'reply'])
   const recovered = structuredClone(h.chat)
   await restarted.recover('chat')
   assert.deepEqual(h.chat, recovered)
@@ -943,7 +765,6 @@ test('新正文提交失败恢复原状态且不留下重生成锁', async () =>
   assert.deepEqual(h.chat.messages, original)
   assert.ok(!h.chat.regenInProgress)
   assert.equal(h.chat.regenRecovery, undefined)
-  assert.deepEqual(h.chat.suppressedDshTurns, [3])
 })
 
 async function interruptedRegeneration() {
@@ -1004,7 +825,7 @@ test('失败尾部重放：移除被中断的回复后原样重发本轮输入�
   h.session.append('assistant/message', { turn: 3, step: 1, interrupted: true, message: { role: 'assistant', source: { kind: 'model', provider: 'fixture', model: 'fixture' }, content: [{ type: 'text', text: '半截正文' }] } }, { surfaceOp: 'append' })
   h.session.append('turn/end', { turn: 3, reason: { kind: 'error', message: 'HTTP 500' } })
   // 失败清理钩子已经在失败时执行过，重放不再改动消息面。
-  clearFailedTurnSurface({ session: h.session, turn: 3 })
+  await clearFailedTurnSurface({ session: h.session, turn: 3, flush: async () => {} })
 
   const result = await h.create().replayFailed('chat', 'session')
 
@@ -1014,8 +835,7 @@ test('失败尾部重放：移除被中断的回复后原样重发本轮输入�
   assert.deepEqual(h.agent.input.source, { kind: 'user', rpcId: 'rpc-3' })
   assert.deepEqual(result.replayed, { turn: 3, userText: '重放这句', cleared: 0 })
   // 已经清理过的失败回合不会再插一个清理墓碑。
-  assert.equal(h.session.events.filter(event => event.data?.source?.plugin === 'dsh-tavern-failed-turn-cleanup').length, 1)
-  assert.deepEqual(h.chat.suppressedDshTurns, [3])
+  assert.equal(sessionEvents(h.session).filter(event => event.data?.source?.plugin === 'dsh-tavern-failed-turn-cleanup').length, 1)
   assert.deepEqual(h.chat.messages.map(message => message.text).slice(0, committed.length), committed)
   assert.equal(h.chat.messages.at(-2).text, '重放这句')
   assert.equal(h.chat.messages.at(-1).text, '新正文3')
@@ -1031,8 +851,8 @@ test('失败清理钩子缺失时，重放先补清被中断的回复再重发',
   const result = await h.create().replayFailed('chat', 'session')
 
   assert.equal(result.replayed.cleared, 2)
-  const tombstone = h.session.events.at(-4)
-  assert.deepEqual(tombstone.data.source, { kind: 'plugin', plugin: 'dsh-tavern-failed-turn-cleanup' })
+  const tombstone = h.session.snapshotEvents().find(event => event.data?.source?.plugin === 'dsh-tavern-failed-turn-cleanup')
+  assert.ok(tombstone, 'the cleanup tombstone is written before the replay')
   assert.deepEqual(tombstone.sourceEventSeqs, [3, 4])
   assert.equal(h.agent.input.content[0].text, '重放这句')
   // 输入原本来自插件消息（历史遗留的重放输入）时，重发也必须回到用户身份。
@@ -1097,11 +917,11 @@ test('重放与重生成、回退互斥', async () => {
 
 test('native replacement failure after Chat commit must remain recoverable',async()=>{
  const h=harness({checkpoint:true,journal:true});const append=h.session.append
- h.session.append=function(type,data,intent){if(type==='assistant/message' && intent?.surfaceOp?.op==='replace')throw Error('disk/projection failure');return append.call(this,type,data,intent)}
+ h.session.append=function(type,data,intent){if(data?.source?.form==='regen-attempt')throw Error('disk/projection failure');return append.call(this,type,data,intent)}
  await assert.rejects(h.create().regenerate('chat','','session'),/disk\/projection failure/)
  h.session.append=append
  await h.create().recover('chat')
- const surface=h.session.surface.nodes.map(seq=>h.session.events[seq]).filter(e=>e.type==='assistant/message').map(e=>e.data.message.content[0]?.text)
+ const surface=h.session.surface.nodes.map(seq=>sessionEvents(h.session)[seq]).filter(e=>e.type==='assistant/message').map(e=>e.data.message.content[0]?.text)
  assert.deepEqual(surface,[h.chat.messages.at(-1).text], 'Chat and native context must agree after recovery')
 })
 
@@ -1124,10 +944,10 @@ test('committed projection flush failure retains intent and retry never appends 
  await assert.rejects(h.create().regenerate('chat','','session'),/flush failed/)
  assert.equal(h.chat.messages.at(-1).text,'新正文3')
  assert.equal(h.chat.regenRecovery.phase,'committed')
- const count=h.session.events.length
+ const count=sessionEvents(h.session).length
  fail=false
  await h.create().recover('chat')
- assert.equal(h.session.events.length,count)
+ assert.equal(sessionEvents(h.session).length,count)
  assert.equal(h.chat.regenInProgress,undefined)
  assert.equal(h.chat.regenRecovery,undefined)
 })

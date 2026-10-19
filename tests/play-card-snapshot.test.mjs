@@ -244,11 +244,11 @@ test('游玩中切换画像仅修改固定前缀，保留 200 轮历史、变量
     userProfileEnabled: false, messages: Array.from({ length: 200 }, (_, turn) => ({ turn, text: '历史' })), variables: { hp: 12 }, mvu: { enabled: true }, runtimePresetSnapshot: { id: 'preset' } }
   const original = structuredClone(chat)
   const session = Session.create('profile-toggle')
-  await ensureSessionStablePrefix(session, chat.cardContextSnapshot, undefined, 0)
+  await ensureSessionStablePrefix(session, chat.cardContextSnapshot, undefined, 0, async () => {})
   const enabled = await snapshots.preferenceReplacement(chat, true)
   assert.deepEqual(chat, original)
   chat = { ...chat, ...enabled }
-  await ensureSessionStablePrefix(session, chat.cardContextSnapshot, undefined, chat.cardContextRevision)
+  await ensureSessionStablePrefix(session, chat.cardContextSnapshot, undefined, chat.cardContextRevision, async () => {})
   assert.match(sessionStablePrefixSections(session).map(s => s.text).join('\n'), /温和叙事/)
   assert.equal(chat.userProfileRevision, 3)
   assert.equal(chat.cardContextRevision, 1)
@@ -257,7 +257,7 @@ test('游玩中切换画像仅修改固定前缀，保留 200 轮历史、变量
   preference = { revision: 4, text: '【用户已确认的长期偏好】\n新的偏好' }
   const disabled = await snapshots.preferenceReplacement(chat, false)
   chat = { ...chat, ...disabled }
-  await ensureSessionStablePrefix(session, chat.cardContextSnapshot, undefined, chat.cardContextRevision)
+  await ensureSessionStablePrefix(session, chat.cardContextSnapshot, undefined, chat.cardContextRevision, async () => {})
   assert.equal(chat.cardContextSnapshot, original.cardContextSnapshot)
   assert.doesNotMatch(sessionStablePrefixSections(session).map(s => s.text).join('\n'), /温和叙事|新的偏好/)
   assert.equal(chat.userProfileRevision, 0)

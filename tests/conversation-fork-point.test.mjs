@@ -67,9 +67,22 @@ test('原生分叉边界按所选回合确定，不把后续模型历史带入',
 })
 
 test('重新生成使用实际生成回合的边界，保留折叠后的正文', () => {
-  const session = native()
-  session.events.push({ seq: 9, type: 'assistant/message', data: { turn: 2, message: { id: 'replaced', source: { kind: 'model' }, content: [{ type: 'text', text: 'replacement' }] } } })
-  assert.equal(conversationForkBoundary(session, { regeneratedDshTurns: { 2: 3 } }, 2), 8)
+  // Floor 2 was rerolled: its body is generated in native turn 3 and copied
+  // over the floor's node, so the floor projection hosts it on turn 3.
+  const events = [], nodes = []
+  const model = { kind: 'model' }
+  for (const turn of [1, 2, 3]) {
+    events.push({ seq: events.length, type: 'turn/start', data: { turn } })
+    events.push({ seq: events.length, type: 'user/message', data: { id: 'u' + turn, role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'input' + turn }] }, surfaceOp: 'append' })
+    events.push({ seq: events.length, type: 'assistant/message', data: { turn, message: { id: 'm' + turn, source: model, content: [{ type: 'text', text: 'reply' + turn }] } }, surfaceOp: 'append' })
+    events.push({ seq: events.length, type: 'turn/end', data: { turn, reason: { kind: 'completed' } } })
+  }
+  events.push({ seq: 12, type: 'assistant/message', data: { turn: 2, message: { id: 'replaced', source: model, content: [{ type: 'text', text: 'replacement' }] } },
+    surfaceOp: { op: 'replace', start: 6, end: 6 }, sourceEventSeqs: [6, 10] })
+  nodes.push(1, 2, 5, 12)
+  const session = { events, surface: { nodes } }
+  const state = { messages: [{ role: 'assistant', turn: 1 }, { role: 'assistant', turn: 2 }] }
+  assert.equal(conversationForkBoundary(session, state, 2), 11)
   assert.throws(() => conversationForkBoundary(session, {}, 2), /后续上下文/)
 })
 

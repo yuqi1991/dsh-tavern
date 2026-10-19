@@ -118,7 +118,7 @@ test('前后台固定系统背景连续压缩三次仍不变，原事件和恢�
   const engine = new FixtureCompaction(ctx, { auto: false })
   for (const preset of ['tavern', 'tavern-background']) {
     const session = ctx.sessions.create('fixed-' + preset, { meta: { agentPreset: preset } })
-    await ensureSessionStablePrefix(session, fixed)
+    await ensureSessionStablePrefix(session, fixed, undefined, 0, async () => {})
     const system = sessionStablePrefixSections(session).map(s => s.text).join('\n')
     session.append('request/header', { header: { config: { provider: 'fixture', model: 'summary' }, ...(session.header.version < 3 ? { system } : {}) }, reason: 'initial' })
     if (session.header.version >= 3) {
@@ -136,7 +136,7 @@ test('前后台固定系统背景连续压缩三次仍不变，原事件和恢�
       assert.deepEqual(session.snapshotEvents().slice(0, original.length), original)
       const restored = Session.create(session.id, session.snapshotEvents(), session.header)
       assert.equal(sessionStablePrefixSections(restored).map(s => s.text).join('\n'), fixed)
-      await ensureSessionStablePrefix(restored, '修改后的卡片不影响旧局')
+      await ensureSessionStablePrefix(restored, '修改后的卡片不影响旧局', undefined, 0, async () => {})
       assert.equal(sessionStablePrefixSections(restored).map(s => s.text).join('\n'), fixed)
     }
   }
@@ -170,13 +170,14 @@ test('带明确来源的正文替换不依赖预设名，保持 assistant 角色
 
 
 test('撤销回退恢复带 usage 的模型正文后仍可统计，历史和用量不重写', native, async t => {
-  const {restoreSurface} = await import('../tavern-plugin/lib/domain/surface-restoration.js')
+  const {selectSurface} = await import('../tavern-plugin/lib/domain/surface-restoration.js')
   const {ctx, Session} = await harness(t)
   const session = Session.create('undo-meter', [], {...Session.create('undo-meter').header, agentPreset: 'tavern'})
   const original = completed(session, {inputTokens: 100, outputTokens: 50, totalTokens: 150})
   const target = [...session.surface.nodes]
   appendSessionEvent(session, 'assistant/message', {turn: 1, step: 1, message: {id: 'rollback', role: 'assistant', content: [], source}}, {surfaceOp: {op: 'replace', start: original.seq, end: original.seq}, sourceEventSeqs: [original.seq]})
-  restoreSurface(session, target)
+  // Undo returns to the saved nodes by selection (ADR-0009), not by copying rows.
+  selectSurface(session, target)
   const before = JSON.stringify(session.snapshotEvents())
   t.after(installTavernTokenMeter(ctx.tokenMeter))
   assert.ok(ctx.tokenMeter.measure(session).totalTokens > 0)
@@ -200,7 +201,7 @@ test('后续切换预设不改变旧替换的归属，伪造恢复内容仍被�
 
 test('多次编辑产生非递增 Surface 序号后，替换历史仍可原生计量', native, async t => {
   const { ctx, Session } = await harness(t)
-  const { replaceSessionSurface } = await import('../tavern-plugin/lib/domain/session-surface-mutations.js')
+  const replaceSessionSurface = (target, type, data, { start, end, sourceEventSeqs }) => appendSessionEvent(target, type, data, { surfaceOp: { op: 'replace', start, end }, sourceEventSeqs })
   const session = ctx.sessions.create('edited-order', { meta: { agentPreset: 'tavern' } })
   const first = completed(session)
   const tail = session.append('user/message', { id: 'tail', role: 'user', content: [{type:'text',text:'继续'}], source:{kind:'human'} }, {surfaceOp:'append'})

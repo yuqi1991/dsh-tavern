@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Session } from './fixtures/dsh-session-host.mjs'
 import { createWorldbookFilter } from '../tavern-plugin/lib/domain/worldbook-filter.js'
 import { createBackgroundAgentRunner } from '../tavern-plugin/lib/background-agent-runner.js'
 import { createBackgroundTaskCoordinator } from '../tavern-plugin/lib/domain/background-task-coordinator.js'
@@ -32,12 +33,12 @@ function harness() {
     let work
     const agent = { session, followup(message) {
       calls.push({ sessionId: session.id, message, tools: [...tools.keys()] })
-      session.append('user/message', message)
+      session.append('user/message', message, { surfaceOp: 'append' })
       work = (async () => {
         await beforeSubmit()
         if (fail) throw Error('模型失败')
         if (tools.has('worldbook_filter_submit')) await tools.get('worldbook_filter_submit').execute({ selected: ['entry:0'] })
-        session.append('assistant/message', { message: { id: 'answer-' + session.events.length, role: 'assistant', content: [{ type: 'text', text: '完成' }], source: { kind: 'model', provider: 'test', model: 'scripted' } } })
+        session.append('assistant/message', { turn: 1, step: 1, stream: [], message: { id: 'answer-' + session.snapshotEvents().length, role: 'assistant', content: [{ type: 'text', text: '完成' }], source: { kind: 'model', provider: 'test', model: 'scripted' } } }, { surfaceOp: 'append' })
       })()
     }, whenIdle: () => work }
     return { agent, dispose: async () => {} }
@@ -45,19 +46,14 @@ function harness() {
   const agents = { get: id => id === 'parent' ? { id, session: { header: {} } } : undefined,
     async create(input) {
       created.push(input.sessionId)
-      const session = { id: input.sessionId, header: input.meta, events: [], surface: { nodes: [] },
-        append(type, data, meta = {}) {
-          const seq = this.events.length
-          this.events.push({ type, data, seq, ...meta })
-          if (meta.surfaceOp?.op === 'replace') this.surface.nodes = this.surface.nodes.filter(n => n < meta.surfaceOp.start || n > meta.surfaceOp.end)
-          if (type.endsWith('/message')) this.surface.nodes.push(seq)
-        } }
+      const session = Session.create(input.sessionId)
       sessions.set(session.id, session)
       return handle(session, input.setup)
     },
     async resume(input) { resumed.push(input.resumeSessionId); return handle(sessions.get(input.resumeSessionId), input.setup) }
   }
   const makeRunner = () => createBackgroundAgentRunner({ agents, id: () => 'background-' + ++sequence,
+    flushSession: async () => {},
     needsNewBackgroundSession: async () => (await store.readChat()).timeline?.participants.background?.status === 'needs-session' })
   let runner = makeRunner()
   const filter = createWorldbookFilter({ selection: () => selection, runAgent: input => runner.run(input),
@@ -89,7 +85,7 @@ test('筛选、结算与候选共用一个持久 Agent，重启后恢复相同�
   assert.deepEqual(h.resumed, [first.traceSessionId])
   assert.deepEqual(Object.keys((await h.store.readChat()).timeline.participants), ['background'])
   assert.deepEqual(h.calls[2].tools, [])
-  const descriptors = [...h.sessions.values()].flatMap(s => s.events).filter(e => e.type === 'subagent/descriptor')
+  const descriptors = [...h.sessions.values()].flatMap(s => s.snapshotEvents()).filter(e => e.type === 'subagent/descriptor')
   assert.equal(descriptors.length, 1)
   assert.equal(descriptors[0].data.mode, 'continuable')
   assert.equal(descriptors[0].data.label, '酒馆后台 Agent')
@@ -161,8 +157,9 @@ test('回退后筛选沿用后台 Session 并遮蔽废弃任务；压缩后回�
     } else {
       assert.equal(result.traceSessionId, initial.traceSessionId)
       const session = h.sessions.get(initial.traceSessionId)
-      assert.ok(session.events.some(event => event.surfaceOp?.op === 'replace'))
-      assert.ok(!session.surface.nodes.some(seq => JSON.stringify(session.events[seq]).includes('即将废弃的行动')))
+      const events = session.snapshotEvents()
+      assert.ok(events.some(event => event.surfaceOp?.op === 'replace'))
+      assert.ok(!session.surface.nodes.some(seq => JSON.stringify(events[seq]).includes('即将废弃的行动')))
     }
   }
 })

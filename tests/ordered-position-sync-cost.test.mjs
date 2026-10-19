@@ -6,18 +6,18 @@ for(const count of [20,400,10000])test(`positional wire sync retains the ${count
  let visits=0
  const index=createImmutableOrderedJsonIndex({visit:()=>visits++})
  const rows=index.from(Array.from({length:count},(_,i)=>[i,{turn:i+1,text:'body'+i}]))
- const sync=createSessionViewSync(),first=sync('s',{replyProjections:rows})
+ const sync=createSessionViewSync(),first=sync('s',{mvuReceipts:rows})
  const appended=index.update(rows,[[count,{turn:count+1,text:'new'}]])
  visits=0
- const next=sync('s',{replyProjections:appended},first.viewCursor)
+ const next=sync('s',{mvuReceipts:appended},first.viewCursor)
  assert.ok(visits<500,`append visits: ${visits}`)
- assert.deepEqual(next.viewDelta.set.map(([path])=>path),[['replyProjections','length'],['replyProjections',count]])
+ assert.deepEqual(next.viewDelta.set.map(([path])=>path),[['mvuReceipts','length'],['mvuReceipts',count]])
  assert.deepEqual(next.viewDelta.remove,[])
  visits=0
- const last=sync('s',{replyProjections:rows},next.viewCursor)
+ const last=sync('s',{mvuReceipts:rows},next.viewCursor)
  assert.ok(visits<500,`truncate visits: ${visits}`)
- assert.deepEqual(last.viewDelta.set,[[['replyProjections','length'],count]])
- assert.deepEqual(last.viewDelta.remove,[['replyProjections',count]])
+ assert.deepEqual(last.viewDelta.set,[[['mvuReceipts','length'],count]])
+ assert.deepEqual(last.viewDelta.remove,[['mvuReceipts',count]])
 })
 
 test('membership edits include shifted positions even when the total length is unchanged',()=>{
@@ -25,7 +25,7 @@ test('membership edits include shifted positions even when the total length is u
  for(const edits of [[[3,undefined],[6,{id:6}]],[[0,{id:0}]],[[7,undefined]],[[1,{id:'edited'}],[7,undefined]]]){
   const next=index.update(old,edits),actual=new Set(immutableArrayChanges(old,next))
   for(let i=0;i<next.length;i++)if(old[i]!==next[i])assert.ok(actual.has(i),`missing changed position ${i}`)
-  const sync=createSessionViewSync(),first=sync('s',{replyProjections:old}),delta=sync('s',{replyProjections:next},first.viewCursor).viewDelta
+  const sync=createSessionViewSync(),first=sync('s',{mvuReceipts:old}),delta=sync('s',{mvuReceipts:next},first.viewCursor).viewDelta
   const reconstructed=Array.from(old)
   for(const [path,value] of delta.set)reconstructed[path[1]]=value
   assert.deepEqual(reconstructed,Array.from(next))
@@ -36,14 +36,14 @@ for(const count of [20,400,10000])test(`balanced middle replacement does not ins
  let visits=0
  const index=createImmutableOrderedJsonIndex({visit:()=>visits++})
  const rows=index.from(Array.from({length:count},(_,i)=>[i*2,{turn:i+1,text:'body'+i}]))
- const sync=createSessionViewSync(),first=sync('s',{replyProjections:rows})
+ const sync=createSessionViewSync(),first=sync('s',{mvuReceipts:rows})
  const position=Math.floor(count/2)
  const next=index.update(rows,[[position*2,undefined],[position*2+1,{turn:position+1,text:'replacement'}]])
  visits=0
  assert.deepEqual(immutableArrayChanges(rows,next),[position])
- const delta=sync('s',{replyProjections:next},first.viewCursor).viewDelta
+ const delta=sync('s',{mvuReceipts:next},first.viewCursor).viewDelta
  assert.ok(visits<500,`replacement visits: ${visits}`)
- assert.deepEqual(delta.set.map(([path])=>path),[['replyProjections',position]])
+ assert.deepEqual(delta.set.map(([path])=>path),[['mvuReceipts',position]])
  assert.deepEqual(delta.remove,[])
 })
 

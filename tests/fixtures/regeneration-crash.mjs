@@ -7,6 +7,7 @@ import { createStoryTimeline } from '../../tavern-plugin/lib/domain/story-timeli
 import { createChatPersistence } from '../../tavern-plugin/lib/domain/chat-persistence.js'
 import { createChatJournalStore } from '../../tavern-plugin/lib/domain/chat-journal-store.js'
 import { appendSessionEvent, sessionEvents } from '../../tavern-plugin/lib/domain/session-events.js'
+import { createConversationHistory } from '../../tavern-plugin/lib/domain/conversation-algebra-history.js'
 
 const [root, legacy] = process.argv.slice(2)
 const committed = legacy.startsWith('committed-')
@@ -36,15 +37,17 @@ const agent = { session, phase: { kind: 'idle', lastTurn: 2 }, followup(message)
   process.send({ ready: true })
   await new Promise(() => {})
 } }
-await createRoundHistory({
-  chats: { ...persistence, update: async (...args) => {
+const chats = { ...persistence, update: async (...args) => {
     const result = await persistence.update(...args)
     if (committed && args[2]?.source === 'foreground.regen-commit' && legacy === 'committed-before') await crashPoint()
     return result
-  }, forSession: () => persistence.read('chat'), readCard: async () => ({}) },
-  sessions: { get: () => agent, flush: async current => {
+  }, forSession: () => persistence.read('chat'), readCard: async () => ({}) }
+const sessions = { get: () => agent, flush: async current => {
     await saveSession(current)
     if (legacy === 'committed-after' && (await persistence.read('chat')).regenRecovery?.phase === 'committed') await crashPoint()
-  } }, scripts: {}, timeline: createStoryTimeline(),
+  } }
+await createRoundHistory({
+  chats, sessions, scripts: {}, timeline: createStoryTimeline(),
+  algebraHistory: { ...createConversationHistory({ chats, flush: sessions.flush }), assertReady: () => {} },
   queueSettlement: async () => { throw new Error('must not settle') }, present: async chat => chat
 }).regenerate('chat', '', session.id)

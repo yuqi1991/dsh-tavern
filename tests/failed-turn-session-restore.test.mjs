@@ -4,6 +4,8 @@ import { Session, adoptSessionEvent } from './fixtures/dsh-session-host.mjs'
 import { sessionEvents, appendSessionEvent } from '../tavern-plugin/lib/domain/session-events.js'
 import { rollbackAvailability, clearFailedTurnSurface, locateRegenerationSurface, locateRollbackSurface } from '../tavern-plugin/lib/domain/rollback-surface.js'
 
+const flush = async () => {}
+
 function fixture() {
   const session = Session.create('failed-turn-restore')
   const source = { kind: 'model', provider: 'test', model: 'test' }
@@ -15,9 +17,9 @@ function fixture() {
   return session
 }
 
-test('失败清理经过真实 DSH 消息校验及恢复，不损坏历史或误认玩家输入', () => {
+test('失败清理经过真实 DSH 消息校验及恢复，不损坏历史或误认玩家输入', async () => {
   const session = fixture()
-  assert.equal(clearFailedTurnSurface({ session, turn: 2 }), 1)
+  assert.equal(await clearFailedTurnSurface({ session, turn: 2, flush }), 1)
   const persisted = JSON.parse(JSON.stringify(sessionEvents(session)))
   for (const event of persisted) adoptSessionEvent(event)
   const restored = Session.create(session.id, persisted, session.header)
@@ -31,9 +33,9 @@ test('失败清理经过真实 DSH 消息校验及恢复，不损坏历史或误
   assert.equal(sessionEvents(restored)[1].data.message.content[0].text, '原正文')
 })
 
-test('失败轮只有用户输入、从未获得模型来源，也能清理并恢复', () => {
+test('失败轮只有用户输入、从未获得模型来源，也能清理并恢复', async () => {
   const session = fixture()
-  clearFailedTurnSurface({ session, turn: 2 })
+  await clearFailedTurnSurface({ session, turn: 2, flush })
   const marker = sessionEvents(session).at(-1)
   assert.equal(marker.type, 'user/message')
   assert.equal(marker.data.source.kind, 'plugin')
@@ -72,14 +74,14 @@ test('连续回退经过真实 DSH 消息面替换与恢复，直到只剩开场
 })
 
 
-test('真实宿主重载后可发现遗漏清理的失败输入，清理后模型不再读取它', () => {
+test('真实宿主重载后可发现遗漏清理的失败输入，清理后模型不再读取它', async () => {
   const original = fixture()
   const session = Session.create(original.id, JSON.parse(JSON.stringify(sessionEvents(original))), original.header)
   const chat = { messages: [{ role: 'user' }, { role: 'assistant', turn: 1 }] }
   const status = rollbackAvailability(chat, { events: sessionEvents(session), nodes: session.surface.nodes })
   assert.equal(status.canClearIncompleteReply, true)
   assert.deepEqual(status.unclearedTurns, [2])
-  for (const turn of status.unclearedTurns) clearFailedTurnSurface({ session, turn })
+  for (const turn of status.unclearedTurns) await clearFailedTurnSurface({ session, turn, flush })
   const restored = Session.create(session.id, JSON.parse(JSON.stringify(sessionEvents(session))), session.header)
   const visible = JSON.stringify(restored.deriveMessages())
   assert.doesNotMatch(visible, /重新生成/)
@@ -88,7 +90,8 @@ test('真实宿主重载后可发现遗漏清理的失败输入，清理后模�
 })
 
 test('新轮退役历史提示词后失败，清理及重载保留上一轮正文和退役标记', async () => {
-  const { retireForegroundFrames } = await import('../tavern-plugin/lib/domain/foreground-frame-retirement.js')
+  const { retireForegroundWithAlgebra } = await import('../tavern-plugin/lib/domain/conversation-algebra-retirement.js')
+  const retire = (session, keepTurn) => retireForegroundWithAlgebra(session, { keepTurn, flush, operationId: 'retire:' + session.seq })
   for (const traced of [true, false]) {
     let session = Session.create('retired-frame-failure')
     session.append('turn/start', { turn: 1 })
@@ -98,13 +101,13 @@ test('新轮退役历史提示词后失败，清理及重载保留上一轮正�
     session.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
     for (const turn of [2, 3]) {
       session.append('turn/start', { turn })
-      retireForegroundFrames(session, { keepTurn: turn })
+      await retire(session, turn)
       session.append('user/message', { id: 'retry-' + turn, role: 'user', content: [{ type: 'text', text: '失败输入' }], source: { kind: 'user' } }, { surfaceOp: 'append' })
       session.append('turn/end', { turn, reason: { kind: 'error' } })
       const status = rollbackAvailability({ messages: [{ role: 'user' }, { role: 'assistant', turn: 1 }] }, { events: sessionEvents(session), nodes: session.surface.nodes })
       assert.ok(status.unclearedTurns.includes(turn))
-      assert.equal(clearFailedTurnSurface({ session, turn }), 1)
-      assert.equal(clearFailedTurnSurface({ session, turn }), 0)
+      assert.equal(await clearFailedTurnSurface({ session, turn, flush }), 1)
+      assert.equal(await clearFailedTurnSurface({ session, turn, flush }), 0)
       session = Session.create(session.id, JSON.parse(JSON.stringify(sessionEvents(session))), session.header)
       assert.match(JSON.stringify(session.deriveMessages()), /成功正文/)
       assert.doesNotMatch(JSON.stringify(session.deriveMessages()), /失败输入|旧提示词/)
@@ -114,7 +117,8 @@ test('新轮退役历史提示词后失败，清理及重载保留上一轮正�
 })
 
 test('失败轮更新历史系统槽位后，纯思考残留可回退清理，重载保留历史和后续正文', async () => {
-  const { retireForegroundFrames } = await import('../tavern-plugin/lib/domain/foreground-frame-retirement.js')
+  const { retireForegroundWithAlgebra } = await import('../tavern-plugin/lib/domain/conversation-algebra-retirement.js')
+  const retire = (session, keepTurn) => retireForegroundWithAlgebra(session, { keepTurn, flush, operationId: 'retire:' + session.seq })
   for (const laterTurn of [false, true]) {
     let session = Session.create('reasoning-only-system-refresh')
     const source = { kind: 'model', provider: 'test', model: 'test' }
@@ -132,13 +136,13 @@ test('失败轮更新历史系统槽位后，纯思考残留可回退清理，�
     assert.equal(status.canClearIncompleteReply, true)
     if (laterTurn) {
       session.append('turn/start', { turn: 3 })
-      retireForegroundFrames(session, { keepTurn: 3 })
+      await retire(session, 3)
       appendSessionEvent(session, 'assistant/message', { turn: 3, step: 1, message: { id: 'later', role: 'assistant', content: [{ type: 'text', text: '后续正文' }], source } }, { surfaceOp: 'append' })
       session.append('turn/end', { turn: 3, reason: { kind: 'completed' } })
     }
     session = Session.create(session.id, JSON.parse(JSON.stringify(sessionEvents(session))), session.header)
-    assert.equal(clearFailedTurnSurface({ session, turn: 2 }), 3)
-    assert.equal(clearFailedTurnSurface({ session, turn: 2 }), 0)
+    assert.equal(await clearFailedTurnSurface({ session, turn: 2, flush }), 3)
+    assert.equal(await clearFailedTurnSurface({ session, turn: 2, flush }), 0)
     session = Session.create(session.id, JSON.parse(JSON.stringify(sessionEvents(session))), session.header)
     const visible = JSON.stringify(session.deriveMessages())
     assert.match(visible, /新系统提示/)

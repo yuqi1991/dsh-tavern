@@ -25,8 +25,27 @@ test('only successful full reads from the committed turn are handed off; latest 
   assert.equal(foregroundWorldbookReads({ messages: [{ role: 'assistant', turn: 1, greeting: true }] }, session), '')
 })
 test('rollback, regeneration and missing sessions never reuse another turn or background reads', () => {
-  const session = { events: [...read(2, 'original', [entry('62', '旧正文')]), ...read(7, 'regenerated', [entry('62', '重生成正文')])] }
-  assert.match(foregroundWorldbookReads({ messages: [{ role: 'assistant', turn: 2 }], regeneratedDshTurns: { 2: 7 } }, session), /重生成正文/)
+  // A rerolled floor keeps chat turn 2 while its body lives on the native turn 7
+  // that generated it; the floor projection names that host turn.
+  const events = []
+  const add = (type, data, extra = {}) => { events.push({ seq: events.length, type, data, ...extra }); return events.length - 1 }
+  const model = { kind: 'model', provider: 'p', model: 'm' }
+  const reply = (turn, text) => add('assistant/message', { turn, step: 1, message: { role: 'assistant', content: [{ type: 'text', text }], source: model } }, { surfaceOp: 'append' })
+  add('turn/start', { turn: 2 })
+  const input = add('user/message', { role: 'user', content: [{ type: 'text', text: '继续' }], source: { kind: 'user' } }, { surfaceOp: 'append' })
+  for (const row of read(2, 'original', [entry('62', '旧正文')])) add(row.type, row.data)
+  const original = reply(2, '旧正文')
+  add('turn/end', { turn: 2 })
+  add('turn/start', { turn: 7 })
+  const regen = add('user/message', { role: 'user', content: [{ type: 'text', text: '重生成' }], source: { kind: 'plugin', plugin: 'dsh-tavern-regen' } }, { surfaceOp: 'append' })
+  for (const row of read(7, 'regenerated', [entry('62', '重生成正文')])) add(row.type, row.data)
+  const regenerated = reply(7, '重生成正文')
+  add('turn/end', { turn: 7 })
+  const copy = add('assistant/message', { turn: 2, step: 1, message: { role: 'assistant', content: [{ type: 'text', text: '重生成正文' }], source: model } },
+    { surfaceOp: { op: 'replace', startSeq: original, endSeq: regenerated }, sourceEventSeqs: [original, regen, regenerated] })
+  const session = { events, surface: { nodes: [input, copy] } }
+  assert.match(foregroundWorldbookReads({ messages: [{ role: 'assistant', turn: 2 }] }, session), /重生成正文/)
+  assert.doesNotMatch(foregroundWorldbookReads({ messages: [{ role: 'assistant', turn: 2 }] }, session), /旧正文/)
   assert.equal(foregroundWorldbookReads({ messages: [{ role: 'assistant', turn: 1 }] }, session), '')
   assert.equal(foregroundWorldbookReads({ messages: [{ role: 'assistant', turn: 2 }] }, undefined), '')
 })

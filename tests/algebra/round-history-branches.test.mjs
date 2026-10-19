@@ -205,3 +205,22 @@ test('product reroll succeeds after checkout left empty control rows behind the 
   assert.match(JSON.stringify(h.session.deriveMessages()),/重生成成功正文/)
  }finally{patch.dispose()}
 })
+
+test('replaying a failed turn reports how many interrupted nodes it cleared', async () => {
+  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
+  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+  try {
+  const h = harness()
+  h.session.append('turn/start', { turn: 3 })
+  h.session.append('user/message', { id: 'failed-input', role: 'user', content: [{ type: 'text', text: '重放这句' }], source: { kind: 'user' } }, { surfaceOp: 'append' })
+  h.session.append('assistant/message', { turn: 3, step: 1, stream: [], interrupted: true, message: { id: 'failed-reply', role: 'assistant', source: { kind: 'model', provider: 'fixture', model: 'fixture' }, content: [{ type: 'text', text: '半截正文' }] } }, { surfaceOp: 'append' })
+  h.session.append('turn/end', { turn: 3, reason: { kind: 'aborted' } })
+
+  // Used to throw ReferenceError ("cleared is not defined") after the resend.
+  const result = await h.create().replayFailed('chat', 'session')
+
+  assert.equal(result.replayed.turn, 3)
+  assert.equal(result.replayed.cleared, 2)
+  assert.equal(h.agent.input.content[0].text, '重放这句')
+  } finally { patch.dispose() }
+})

@@ -69,7 +69,7 @@ test('游玩固定背景来自原生系统装配，预设前后段保持顺序�
   const savedPrefixes = new Map()
   const storage = { async read(id) { return savedPrefixes.get(id) }, async write(id, value) { savedPrefixes.set(id, value) } }
   let cardText = '人物卡固定基本信息\n常驻世界书'
-  await ensureSessionStablePrefix(session, cardText, storage)
+  await ensureSessionStablePrefix(session, cardText, storage, 0, async () => {})
   await ensureSessionSeedTrajectory(session)
   const run = strategies({ nativePlay: {
     async modeFor() { return 'story' },
@@ -78,7 +78,7 @@ test('游玩固定背景来自原生系统装配，预设前后段保持顺序�
       front: { entries: [{ role: 'user', content: '预设前置指令' }] },
       back: { entries: [{ role: 'system', content: '预设后置指令' }] }
     } },
-    async ensureSessionPrefix() { return await ensureSessionStablePrefix(session, cardText, storage) },
+    async ensureSessionPrefix() { return await ensureSessionStablePrefix(session, cardText, storage, 0, async () => {}) },
     async prepareTurn() { return { frame: { userInput: { projectedText: '本轮玩家输入' } } } },
     appendFrame(input) { return { messages: input.messages.concat([pluginMessage('user', '本轮动态指令', 'dsh-tavern', 'foreground-frame')]), receipt: {} } },
     recordFrame() {}, async visibleTools() { return [] },

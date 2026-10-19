@@ -12,6 +12,7 @@ import { createStoryTimeline } from '../tavern-plugin/lib/domain/story-timeline.
 import { createChatPersistence } from '../tavern-plugin/lib/domain/chat-persistence.js'
 import { createChatJournalStore } from '../tavern-plugin/lib/domain/chat-journal-store.js'
 import { sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
+import { createConversationHistory } from '../tavern-plugin/lib/domain/conversation-algebra-history.js'
 
 for (const legacy of [false, true]) test('SIGKILL 后从真实 journal 和 DSH Session 恢复原正文：legacy=' + legacy, { timeout: 15000 }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'tavern-regen-crash-'))
@@ -32,10 +33,11 @@ for (const legacy of [false, true]) test('SIGKILL 后从真实 journal 和 DSH S
   const stored = JSON.parse(await readFile(join(root, 'session.json'), 'utf8'))
   const session = Session.create(stored.id, stored.events, stored.header)
   let disposed = 0
+  const sessions = { get: () => undefined, resume: async () => ({ agent: { session, phase: { kind: 'idle' } }, dispose: async () => { disposed++ } }),
+    flush: async current => writeFile(join(root, 'session.json'), JSON.stringify({ id: current.id, header: current.header, events: sessionEvents(current) })) }
   const history = createRoundHistory({
-    chats: persistence, scripts: {}, timeline: createStoryTimeline(),
-    sessions: { get: () => undefined, resume: async () => ({ agent: { session, phase: { kind: 'idle' } }, dispose: async () => { disposed++ } }),
-      flush: async current => writeFile(join(root, 'session.json'), JSON.stringify({ id: current.id, header: current.header, events: sessionEvents(current) })) }
+    chats: persistence, scripts: {}, timeline: createStoryTimeline(), sessions,
+    algebraHistory: { ...createConversationHistory({ chats: persistence, flush: sessions.flush }), assertReady: () => {} }
   })
   await history.recover('chat')
   assert.equal(disposed, 1)
@@ -46,7 +48,6 @@ for (const legacy of [false, true]) test('SIGKILL 后从真实 journal 和 DSH S
   assert.equal(restored.posture, '原状态')
   assert.ok(!restored.regenInProgress)
   assert.equal(restored.regenRecovery, undefined)
-  assert.deepEqual(restored.suppressedDshTurns, [3])
   const saved = JSON.parse(await readFile(join(root, 'session.json'), 'utf8'))
   const native = Session.create(saved.id, saved.events, saved.header)
   const visible = JSON.stringify(native.deriveMessages())
@@ -70,7 +71,8 @@ for (const stage of ['committed-before', 'committed-after']) test('SIGKILL after
   assert.equal((await chats.read('chat')).regenRecovery.phase,'committed')
   const stored=JSON.parse(await readFile(join(root,'session.json'),'utf8'))
   const session=Session.create(stored.id,stored.events,stored.header)
-  const history=createRoundHistory({chats,scripts:{},timeline:createStoryTimeline(),sessions:{get:()=>({session,phase:{kind:'idle'}}),flush:async current=>writeFile(join(root,'session.json'),JSON.stringify({id:current.id,header:current.header,events:sessionEvents(current)}))}})
+  const sessions={get:()=>({session,phase:{kind:'idle'}}),flush:async current=>writeFile(join(root,'session.json'),JSON.stringify({id:current.id,header:current.header,events:sessionEvents(current)}))}
+  const history=createRoundHistory({chats,scripts:{},timeline:createStoryTimeline(),sessions,algebraHistory:{...createConversationHistory({chats,flush:sessions.flush}),assertReady:()=>{}}})
   await history.recover('chat')
   const restored=await chats.read('chat')
   assert.equal(restored.messages.at(-1).text,'未完成的新正文')

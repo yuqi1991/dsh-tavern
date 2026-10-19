@@ -31,4 +31,17 @@ const result = spawnSync(process.execPath, ['--import', path.join(SOURCE_ROOT, '
   stdio: 'inherit',
 })
 if (result.error) throw result.error
-process.exit(result.status ?? 1)
+
+// The conversation-algebra tests install the Session patch themselves and assert
+// the unpatched behaviour, so they run in their own process without the preload.
+const algebra = readdirSync(path.join(SOURCE_ROOT, 'tests/algebra'))
+  .filter(name => name.endsWith('.test.mjs'))
+  .sort()
+  .map(name => path.join(SOURCE_ROOT, 'tests/algebra', name))
+const algebraResult = spawnSync(process.execPath, ['--test', ...algebra], {
+  cwd: SOURCE_ROOT,
+  env: { ...process.env, DSH_BOOT_MODULE: boot },
+  stdio: 'inherit',
+})
+if (algebraResult.error) throw algebraResult.error
+process.exit(result.status || algebraResult.status || 0)

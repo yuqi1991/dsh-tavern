@@ -28,7 +28,7 @@ test('游玩控制不注册或覆盖原生子代理目录，也不显示后台�
     }
   }
   browser.createPlayControlsFeatureModule().register({ slots, ctx: {
-    sessions: {}, get() { return {} }, effect(activate) { return activate() },
+    sessions: { list: { getSnapshot() { return { byId: {} } }, subscribe() { return () => {} } } }, get() { return {} }, effect(activate) { return activate() },
     betterSidebar: { registerTab() { return () => {} } }
   } })
   assert.deepEqual(entries.filter(entry => entry.name === lineage), [nativeEntry], '即使换 priority，也不能抢占原生子代理目录')

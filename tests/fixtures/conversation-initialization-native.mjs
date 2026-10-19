@@ -97,13 +97,13 @@ export async function createInitializationNative(bootPath, { preset, contextWind
       chats: { resolve: registry.resolve, publish: registry.publish, write }, snapshots, timeline,
       presets: { fullSnapshot: async () => null }, settings: async () => ({}),
       logger: { warn() {} }, cardGreeting: () => '工作台', emptyCardWorkspace: () => ({}), id: () => randomUUID(), present: async chat => structuredClone(chat),
-      native: { wait: async () => target, selection: () => selection, ensurePrefix: (session, text) => ensureSessionStablePrefix(session, text, storage),
+      native: { wait: async () => target, selection: () => selection, ensurePrefix: (session, text) => ensureSessionStablePrefix(session, text, storage, 0, flush),
         flush: session => target.agent ? ctx.sessions.flush(session) : flush(session) }
     })
     importer = createChatHistoryImportService({ initialization, cards: { read: async () => card }, worldBooks, store: data,
       planner: createContextPlanner({ prompt: () => 'Native fixture writing rules' }),
       chats: { resolve: registry.resolve, publish: registry.publish, read: persistence.read, readRevision: persistence.readRevision, write: persistence.write },
-      native: { wait: async () => target, ensurePrefix: (session, text) => ensureSessionStablePrefix(session, text, storage), flush } })
+      native: { wait: async () => target, ensurePrefix: (session, text) => ensureSessionStablePrefix(session, text, storage, 0, flush), flush } })
     return initialization
   }
   return {
@@ -158,7 +158,7 @@ export async function createInitializationNative(bootPath, { preset, contextWind
       handles.clear()
       await createAgent(seed)
       // Promote any legacy prefix before first request, as the host opening boundary does.
-      await ensureSessionStablePrefix(target.session, '', storage)
+      await ensureSessionStablePrefix(target.session, '', storage, 0, flush)
       target.agent.followup({ id: randomUUID(), role: 'user', content: [{ type: 'text', text: '继续。' }], source: { kind: 'human' } })
       await target.agent.whenIdle()
     },

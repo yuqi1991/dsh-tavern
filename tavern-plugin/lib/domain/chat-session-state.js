@@ -1,4 +1,3 @@
-import { createImmutableTurnFields } from './freeze-json.js'
 import { createMvuReceiptIndex } from './mvu-receipt-index.js'
 import { copyJsonTree } from './copy-json-tree.js'
 import { copyLazyHistoryHeader } from './lazy-history-read.js'
@@ -68,40 +67,12 @@ export function settlementTurn(chat) {
     return 0
   }
 
-export function createSessionStateView({ activity: activityOf, evidence: evidenceOf, sharedReceipts = false, sharedMappings = false }) {
+export function createSessionStateView({ activity: activityOf, evidence: evidenceOf, sharedReceipts = false }) {
   const receiptIndex = createMvuReceiptIndex({shared:sharedReceipts})
   const rollbackCache = new Map()
-  const mappingCache = new Map(), mappingIds = new WeakMap(), mappingFields = createImmutableTurnFields()
-  let mappingSequence = 0
-  function normalizedMappings(chat, changes) {
-    const previous = sharedMappings && mappingCache.get(chat.id)
-    const revision = chat._storageRevision
-    if (previous && Number.isSafeInteger(revision) && (previous.revision === revision
-      || previous.revision === changes?.baseRevision && Array.isArray(changes?.changedHeaderFields)
-        && !changes.changedHeaderFields.includes('regeneratedDshTurns'))) {
-      if (revision >= previous.revision) previous.revision = revision
-      return previous.value
-    }
-    const source = chat.regeneratedDshTurns
-    const normalized = Object.fromEntries(Object.entries(source && typeof source === 'object' && !Array.isArray(source) ? source : {})
-      .map(([turn, visibleTurn]) => [String(Number(turn)), Number(visibleTurn)])
-      .filter(([turn, visibleTurn]) => Number.isSafeInteger(Number(turn)) && Number(turn) > 0 && Number.isSafeInteger(visibleTurn) && visibleTurn > 0))
-    const value = sharedMappings ? mappingFields.from(normalized) : normalized
-    if (sharedMappings && chat.id && Number.isSafeInteger(revision) && mappingFields.bytes(value) <= 8*1024*1024
-      && (!previous || revision >= previous.revision)) {
-      mappingCache.delete(chat.id); mappingCache.set(chat.id, { revision, value })
-      while (mappingCache.size > 8) mappingCache.delete(mappingCache.keys().next().value)
-    }
-    return value
-  }
-  function copyRollback(value) {
-    return sharedMappings ? { ...copyJsonTree({...value,regeneratedDshTurns:undefined}), regeneratedDshTurns:value.regeneratedDshTurns } : copyJsonTree(value)
-  }
 
   function mvuReceiptsOf(chat, changes) { return receiptIndex(chat,activityOf(chat),changes) }
   function rollbackViewFields(chat, evidence = evidenceOf(chat.sessionId), changes) {
-    const mappings = normalizedMappings(chat, changes)
-    if (sharedMappings && !mappingIds.has(mappings)) mappingIds.set(mappings, ++mappingSequence)
     const session = evidence.session, events = evidence.events
     const nodes = session?.surface?.nodes
     // Only the native immutable-log contract supplies a reliable O(1) stamp.
@@ -110,14 +81,14 @@ export function createSessionStateView({ activity: activityOf, evidence: evidenc
     const native = session?.header?.version >= 3 && typeof session.snapshotEvents === 'function'
       && Array.isArray(events) && Object.isFrozen(events) && Array.isArray(nodes) && Number.isSafeInteger(generation)
     const key = native ? JSON.stringify([chat.sessionId,chat.messages?.length,chat.tavernHelperLifecycleRevision,
-      chat.importHistory?.rescue,chat.importHistory?.operationId,chat.hiddenDshErrorTurns,chat.suppressedDshTurns,sharedMappings ? mappingIds.get(mappings) : chat.regeneratedDshTurns,
+      chat.importHistory?.rescue,chat.importHistory?.operationId,chat.hiddenDshErrorTurns,
       nodes.length,nodes[0],nodes.at(-1),generation]) : null
     const previous = rollbackCache.get(chat.id)
     if (native && changes?.layoutChanged === false && previous?.session.deref() === session
       && previous.events.deref() === events && previous.key === key
       && (previous.revision === chat._storageRevision || previous.revision === changes.baseRevision)) {
       previous.revision = chat._storageRevision
-      return {...copyRollback(previous.value),undoRollbackTurn:canUndoRollback(chat,session) ? chat.rollbackUndo.turn : null}
+      return {...copyJsonTree(previous.value),undoRollbackTurn:canUndoRollback(chat,session) ? chat.rollbackUndo.turn : null}
     }
     const rollbackState = Array.isArray(nodes) ? rollbackAvailability(chat, { events: evidence.events, nodes }) : {
       canRollback: false, canClearIncompleteReply: false,
@@ -138,9 +109,9 @@ export function createSessionStateView({ activity: activityOf, evidence: evidenc
       rollbackUnavailableReason: rollbackState.reason
     }
     if (native && chat.id && Number.isSafeInteger(chat._storageRevision)
-      && key.length + (sharedMappings ? JSON.stringify({...result,regeneratedDshTurns:undefined}).length + mappingFields.bytes(mappings) : JSON.stringify(result).length) < 1024*1024) {
+      && key.length + JSON.stringify(result).length < 1024*1024) {
       rollbackCache.delete(chat.id)
-      rollbackCache.set(chat.id,{key,revision:chat._storageRevision,session:new WeakRef(session),events:new WeakRef(events),value:copyRollback(result)})
+      rollbackCache.set(chat.id,{key,revision:chat._storageRevision,session:new WeakRef(session),events:new WeakRef(events),value:copyJsonTree(result)})
       while(rollbackCache.size>8)rollbackCache.delete(rollbackCache.keys().next().value)
     }
     return result

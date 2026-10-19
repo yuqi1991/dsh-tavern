@@ -4,7 +4,10 @@ import vm from 'node:vm'
 import { readFile } from 'node:fs/promises'
 
 const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
-const extract = (name, next) => source.slice(source.indexOf((name === 'sceneImagePurchaseConfirmation' ? 'async ' : '') + 'function ' + name + '('), source.indexOf('function ' + next + '('))
+const extract = (name, next) => {
+  const start = source.indexOf((name === 'sceneImagePurchaseConfirmation' ? 'async ' : '') + 'function ' + name + '(')
+  return source.slice(start, source.indexOf('function ' + next + '(', start))
+}
 
 test('one repaint entry opens optional feedback; blank repaints and feedback adjusts without replacing old images', async () => {
   const slots = [], calls = []
@@ -23,7 +26,7 @@ test('one repaint entry opens optional feedback; blank repaints and feedback adj
     window: { dispatchEvent() {} }, CustomEvent: class {},
     rpc: async (method, args) => { calls.push({ method, args }); if (failure) throw new Error('connection lost') }
   })
-  const Component = vm.runInContext(extract('SceneIllustration', 'TavernAssistantNodeView') + ';SceneIllustration', context)
+  const Component = vm.runInContext(extract('SceneIllustration', 'register') + ';SceneIllustration', context)
   const nodes = tree => tree && typeof tree === 'object' ? [tree, ...(tree.children || []).flat(Infinity).flatMap(nodes)] : []
   const render = () => { cursor = 0; return nodes(Component({ sessionId: 'session', turn: 1 })) }
   const button = label => render().find(n => n.type === 'button' && n.children.includes(label))
@@ -163,7 +166,7 @@ test('received image can be saved from the renderer while generation is disabled
     useSceneImageRecord: () => record, sceneImageStageLabel: () => 'working', window: { dispatchEvent() {} }, CustomEvent: class {},
     rpc: async (method, args) => { calls.push({ method, args }) }
   })
-  const Component = vm.runInContext(extract('SceneIllustration', 'TavernAssistantNodeView') + ';SceneIllustration', context)
+  const Component = vm.runInContext(extract('SceneIllustration', 'register') + ';SceneIllustration', context)
   const nodes = tree => tree && typeof tree === 'object' ? [tree, ...(tree.children || []).flat(Infinity).flatMap(nodes)] : []
   const render = () => { cursor = 0; return nodes(Component({ sessionId: 'session', turn: 1 })) }
   const controls = render()
@@ -211,7 +214,7 @@ test('reference chooser never preselects a group member, freezes consent and per
     URLSearchParams, useSceneImageRecord: () => record, sceneImageStageLabel: () => '', window: { dispatchEvent() {}, confirm() { assert.fail('reference consent must be visible with the person chooser') } }, CustomEvent: class {},
     rpc: async (method, args) => { calls.push({ method, args }); record.reference.bindings = args.enabled ? [{ versionId: 'picture', personId: args.personId, name: '同名' }] : [] }
   })
-  const Component = vm.runInContext(extract('SceneIllustration', 'TavernAssistantNodeView') + ';SceneIllustration', context)
+  const Component = vm.runInContext(extract('SceneIllustration', 'register') + ';SceneIllustration', context)
   const nodes = tree => tree && typeof tree === 'object' ? [tree, ...(tree.children || []).flat(Infinity).flatMap(nodes)] : []
   const render = () => { cursor = 0; return nodes(Component({ sessionId: 'session', turn: 1 })) }
   const button = name => render().find(node => node.type === 'button' && node.children.includes(name))
@@ -283,7 +286,7 @@ test('delete selected image, handle cancellation/errors, then regenerate the emp
       if (method === 'removeSceneImage') { record.versions = record.versions.filter(v => v.id !== args.versionId); record.hasDeletedImages = true; record.status = record.versions.length ? 'succeeded' : 'idle' }
     }
   })
-  const Component = vm.runInContext(extract('SceneIllustration', 'TavernAssistantNodeView') + ';SceneIllustration', context)
+  const Component = vm.runInContext(extract('SceneIllustration', 'register') + ';SceneIllustration', context)
   const nodes = tree => tree && typeof tree === 'object' ? [tree, ...(tree.children || []).flat(Infinity).flatMap(nodes)] : []
   const render = () => { cursor = 0; return nodes(Component({ sessionId: 'session', turn: 3 })) }
   const button = label => render().find(n => n.type === 'button' && n.children.includes(label))

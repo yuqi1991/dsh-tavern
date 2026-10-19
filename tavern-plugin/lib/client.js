@@ -741,7 +741,6 @@ window.__ModuleLoader__.load({
 		  const ordered = typeof createOrderedNumericIndex === "function" ? (createSessionViewReader.receiptOrderedIndex ||= createOrderedNumericIndex()) : null;
 		  const turnFields = ordered ? (createSessionViewReader.turnFields ||= createTurnFieldIndex()) : null;
 		  const projectionLookup = createSessionViewReader.projectionLookup ||= createTurnLookup(index);
-		  const storyTurnLookup = createSessionViewReader.storyTurnLookup ||= createStoryTurnLookup();
 		  let sequence = 0;
 		  return function begin(sessionId) {
 		    const base = sessions.get(sessionId);
@@ -750,7 +749,7 @@ window.__ModuleLoader__.load({
 		      cursor: base && base.cursor,
 		      receiptSync: ordered ? 1 : undefined,
 		      accept(result) {
-		        let view = result.view, projectionChanges = null, storyChanges = null, storyKeys = null;
+		        let view = result.view, projectionChanges = null;
 		        if (result.viewDelta) {
 		          if (!base || result.viewDelta.baseCursor !== base.cursor) throw new Error("会话增量已过期，请重新读取");
 		          const delta = result.viewDelta;
@@ -788,14 +787,13 @@ window.__ModuleLoader__.load({
 		              && projectionEdits.every(([path]) => path[1] === "length" || Number.isSafeInteger(path[1]));
 
 		            const fieldUpdates = new Map();
-		            for (const field of ["inputSources", "inputTemplateDisplays", "regeneratedDshTurns"]) {
+		            for (const field of ["inputSources", "inputTemplateDisplays"]) {
 		              const source = base.view?.[field];
 		              const sets = delta.set.filter(([path]) => path[0] === field);
 		              const removes = delta.remove.filter(path => path[0] === field);
 		              if (turnFields?.has(source) && sets.every(([path]) => path.length === 2 && turnFields.validKey(path[1]))
 		                && removes.every(path => path.length === 2 && turnFields.validKey(path[1]))) {
 		                fieldUpdates.set(field, turnFields.update(source, sets.map(([path,value]) => [path[1],value]), removes.map(path => path[1])));
-		                if (field === "regeneratedDshTurns") storyKeys = [...new Set([...sets.map(([path]) => String(path[1])), ...removes.map(path => String(path[1]))])];
 		              }
 		            }
 		            function parent(path) {
@@ -877,18 +875,17 @@ window.__ModuleLoader__.load({
 		          if (!index.info(view.replyProjections)) view = {...view,replyProjections:index.from(view.replyProjections)};
 		          projectionLookup.remember(view.replyProjections);
 		        }
-		        if (turnFields) for (const field of ["inputSources", "inputTemplateDisplays", "regeneratedDshTurns"]) {
+		        if (turnFields) for (const field of ["inputSources", "inputTemplateDisplays"]) {
 		          const value = turnFields.from(view?.[field]);
 		          if (value !== view?.[field]) view = {...view, [field]: value};
 		        }
-		        storyChanges = storyTurnLookup.remember(view?.regeneratedDshTurns, base?.view?.regeneratedDshTurns, storyKeys);
 		        const latest = sessions.get(sessionId);
 		        if (!latest || latest.sequence < requestSequence) {
 		          sessions.delete(sessionId);
 		          sessions.set(sessionId, { view, cursor: result.viewCursor, sequence: requestSequence });
 		          while (sessions.size > maxSessions) sessions.delete(sessions.keys().next().value);
 		        }
-		        return Object.assign({}, result, { view, viewBase: result.viewDelta ? base.view : undefined, projectionChanges, storyChanges });
+		        return Object.assign({}, result, { view, viewBase: result.viewDelta ? base.view : undefined, projectionChanges });
 		      }
 		    };
 		  };
@@ -956,56 +953,6 @@ window.__ModuleLoader__.load({
 		    return row || null;
 		  }
 		  return {remember,row,read:(rows,turn)=>row(rows,turn)?.receipt || null,max:rows=>versions.get(rows)?._max || 0,has:rows=>versions.has(rows)};
-		}
-
-		function createStoryTurnLookup() {
-		  const versions = new WeakMap();
-		  const ordered = typeof createOrderedNumericIndex === "function" ? createOrderedNumericIndex({visit: () => createSessionViewReader.onStoryLookupVisit?.()}) : null;
-		  const validKey = key => /^(0|[1-9]\d*)$/.test(key) && Number(key) < 0xffffffff;
-		  function remember(source, before, keys) {
-		    if (!source || typeof source !== "object") return null;
-		    if (versions.has(source)) return source === before ? [] : null;
-		    const previous = versions.get(before);
-		    if (ordered && previous?.root && Array.isArray(keys) && keys.every(validKey)) {
-		      let root = previous.root;
-		      const hosts = new Set();
-		      function change(host, story, remove) {
-		        if (Number.isNaN(host)) return;
-		        hosts.add(host);
-		        let rows = ordered.get(root, host) || ordered.from([]);
-		        rows = ordered.update(rows, [[Number(story), remove ? undefined : Number(story)]]);
-		        root = ordered.update(root, [[host, rows.length ? rows : undefined]]);
-		      }
-		      for (const key of keys) if (Object.prototype.hasOwnProperty.call(before, key)) change(Number(before[key]), key, true);
-		      for (const key of keys) if (Object.prototype.hasOwnProperty.call(source, key)) change(Number(source[key]), key, false);
-		      versions.set(source, { root });
-		      return [...hosts];
-		    }
-		    const names = Object.keys(source);
-		    if (ordered && names.every(validKey)) {
-		      const hosts = new Map();
-		      for (const story of names) {
-		        const host = Number(source[story]);
-		        if (Number.isNaN(host)) continue;
-		        if (!hosts.has(host)) hosts.set(host, []);
-		        hosts.get(host).push([Number(story), Number(story)]);
-		      }
-		      versions.set(source, { root: ordered.from([...hosts].map(([host, rows]) => [host, ordered.from(rows)])) });
-		    } else {
-		      const turns = new Map();
-		      for (const story of names) {
-		        const turn = Number(source[story]);
-		        if (!Number.isNaN(turn) && !turns.has(turn)) turns.set(turn, Number(story));
-		      }
-		      versions.set(source, { turns });
-		    }
-		    return null;
-		  }
-		  return { remember, has: source => versions.has(source), read(source, turn) {
-		    const key = Number(turn), version = versions.get(source);
-		    if (version?.root && !Number.isNaN(key)) return ordered.get(version.root, key)?.[0] ?? key;
-		    return version?.turns?.has(key) ? version.turns.get(key) : key;
-		  } };
 		}
 
 		// Canonical array-index keys retain ordinary object enumeration order. Legacy
@@ -1379,10 +1326,6 @@ window.__ModuleLoader__.load({
 					&& record.state.phase === state.phase && record.state.error === state.error) {
 					const delta = result.viewDelta;
 					const paths = delta.set.map(entry => entry[0]).concat(delta.remove);
-					if (paths.some(path => path[0] === "regeneratedDshTurns")) {
-						if (Array.isArray(result.storyChanges)) for (const turn of result.storyChanges) paths.push(["$storyHostTurn", String(turn)]);
-						else paths.push(["$storyHostTurn"]);
-					}
 					if (paths.some(path => path[0] === "replyProjections")) {
 						const change = result.projectionChanges;
 						if (change) {
@@ -1413,7 +1356,6 @@ window.__ModuleLoader__.load({
 					const paths = [];
 					for (const key of keys) if (Object.prototype.hasOwnProperty.call(before, key) !== Object.prototype.hasOwnProperty.call(after, key)
 						|| !Object.is(before[key], after[key])) paths.push([key]);
-					if (paths.some(path => path[0] === "regeneratedDshTurns")) paths.push(["$storyHostTurn"]);
 					if (paths.some(path => path[0] === "replyProjections")) paths.push(["$projectionTurn"], ["$projectionLatestTurn"]);
 					if (paths.some(path => path[0] === "mvuReceipts")) paths.push(["$mvuReceiptTurn"]);
 					if (Boolean(record.state.view?.tavernHelper) !== Boolean(state.view?.tavernHelper)) paths.push(["$helperAvailable"]);
@@ -4486,44 +4428,6 @@ window.__ModuleLoader__.load({
 		// null requests a read-only snapshot; an obsolete receipt cannot roll state back.
 		// Untouched history remains shared. This function also runs inside script iframes.
 		function applyTavernVariableReceipt(previous, delta) {
-		    if (previous && delta && delta.version === 2) {
-		        if (delta.chatId !== previous.chatId || delta.lifecycleRevision < Number(previous.lifecycleRevision || 0)) return previous;
-		        if (delta.lifecycleRevision !== Number(previous.lifecycleRevision || 0)) return null;
-		        if (delta.kind === 'transaction') {
-		            if (previous.transaction?.eventId !== delta.eventId) return previous;
-		            if (delta.sequence <= previous.transaction.sequence) return previous;
-		            if (delta.baseSequence !== previous.transaction.sequence || delta.sequence !== delta.baseSequence + 1) return null;
-		        } else if (delta.kind === 'committed') {
-		            if (delta.stateRevision < previous.stateRevision) return previous;
-		            if (delta.baseRevision !== previous.stateRevision || previous.messagesPending) return null;
-		        } else if (delta.kind === 'dispatch') {
-		            if (previous.transaction || delta.baseRevision !== previous.stateRevision || previous.messagesPending) return null;
-		        } else return null;
-		        const context = Object.assign({}, previous, delta.header || {}, {
-		            stateRevision: delta.stateRevision,
-		            transaction: { eventId: delta.eventId, sequence: delta.kind === 'dispatch' ? 0 : delta.sequence }
-		        });
-		        if (delta.kind === 'committed') delete context.transaction;
-		        const api = applyTavernVariableReceipt.indexApi;
-		        const length = delta.kind === 'dispatch' ? delta.messageCount : (previous.messages || []).length;
-		        if (!Number.isInteger(length) || length < 0 || length > 0xffffffff) return null;
-		        const entries = [];
-		        for (const source of delta.messages || []) {
-		            const index = source.message_id;
-		            if (!Number.isInteger(index) || index < 0 || index >= length) return null;
-		            const message = JSON.parse(JSON.stringify(source));
-		            // Dispatch used to decorate every floor. A compact floor must keep
-		            // these aliases too: official MVU compares name with SillyTavern.name2.
-		            message.mes = message.message;
-		            message.is_user = message.role === 'user'; message.is_system = message.role === 'system';
-		            if (!message.name) message.name = message.is_user ? (context.playerName || '你') : (context.characterName || context.character?.name || '角色');
-		            entries.push([index, message]);
-		        }
-		        context.messages = api.update(previous.messages || [], entries, length);
-		        if (!api.info(context.messages).complete) return null;
-		        for (const key of ['chatVariables', 'scriptVariables', 'scriptPrompts']) if (Object.hasOwn(delta, key)) context[key] = JSON.parse(JSON.stringify(delta[key]));
-		        return context;
-		    }
 		    if (!previous || !delta || delta.version !== 1) return null;
 		    if (delta.chatId !== previous.chatId || delta.lifecycleRevision < Number(previous.lifecycleRevision || 0)) return previous;
 		    if (delta.lifecycleRevision !== Number(previous.lifecycleRevision || 0)) return null;
@@ -4533,11 +4437,11 @@ window.__ModuleLoader__.load({
 		    const context = Object.assign({}, previous, { stateRevision: delta.stateRevision });
 		    if (delta.message) {
 		        if (!Number.isInteger(delta.messageId) || !previous.messages || !previous.messages[delta.messageId]) return null;
-
+		        context.messages = previous.messages.slice();
 		        const message = Object.assign({}, previous.messages[delta.messageId], copy(delta.message));
 		        // Retain the parent runtime's compatibility aliases without copying history.
 		        if (Object.prototype.hasOwnProperty.call(message, 'mes')) message.mes = message.message;
-		        context.messages = applyTavernVariableReceipt.indexApi.update(previous.messages, [[delta.messageId, message]]);
+		        context.messages[delta.messageId] = message;
 		    } else if (delta.chatVariables) context.chatVariables = copy(delta.chatVariables);
 		    else if (delta.scriptVariables) context.scriptVariables = copy(delta.scriptVariables);
 		    else return null;

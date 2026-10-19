@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { rollbackAvailability, pendingFailedSurfaceTurns, abortedRegenerationTurns, clearFailedTurnSurface, hasRollbackMessages, locateRollbackSurface, planFailedTurnSurface, planRegenerationSurface, regenerationAttemptTurns, replayableFailedTurn } from '../tavern-plugin/lib/domain/rollback-surface.js'
+import { rollbackAvailability, pendingFailedSurfaceTurns, hasRollbackMessages, locateRollbackSurface, planFailedTurnSurface, replayableFailedTurn } from '../tavern-plugin/lib/domain/rollback-surface.js'
 
 function modelSource() {
   return { kind: 'model', provider: 'test', model: 'test-model' }
@@ -134,26 +134,6 @@ test('连续回退时跳过上一轮回退留下的助手墓碑，继续定位�
   assert.deepEqual(located.shadowedSeqs, [5, 8, 20])
 })
 
-test('失败重生成的模型轮次可从尝试区间和持久清理墓碑重建', () => {
-  const events = []
-  events[20] = { seq: 20, type: 'user/message', data: { source: { kind: 'plugin', plugin: 'dsh-tavern-regen' } } }
-  events[21] = {
-    seq: 21,
-    type: 'assistant/message',
-    data: { turn: 3, message: { source: modelSource(), content: [{ type: 'text', text: '临时正文' }] } }
-  }
-  events[22] = {
-    seq: 22,
-    type: 'user/message',
-    data: { source: { kind: 'plugin', plugin: 'dsh-tavern-regeneration-abort' }, content: [] },
-    surfaceOp: { op: 'replace', start: 20, end: 21 },
-    sourceEventSeqs: [20, 21]
-  }
-
-  assert.deepEqual(regenerationAttemptTurns({ events, eventStart: 20 }), [3])
-  assert.deepEqual(abortedRegenerationTurns({ events }), [3])
-})
-
 test('回退按钮只在权威消息尾部存在用户输入与正文组合时显示', () => {
   const opening = { role: 'assistant', greeting: true, text: '开场白' }
   const user = { role: 'user', text: '本轮输入' }
@@ -162,42 +142,6 @@ test('回退按钮只在权威消息尾部存在用户输入与正文组合时�
   assert.equal(hasRollbackMessages([opening]), false)
   assert.equal(hasRollbackMessages([opening, user]), false)
   assert.equal(hasRollbackMessages([opening, user, assistant]), true)
-})
-
-test('重新生成正文完整遮蔽旧正文、失败回合残留和合成输入', () => {
-  const events = []
-  events[48] = {
-    seq: 48,
-    type: 'assistant/message',
-    data: { turn: 2, step: 1, message: { role: 'assistant', source: modelSource() } },
-    surfaceOp: 'append'
-  }
-  events[52] = { seq: 52, type: 'turn/start', data: { turn: 3 } }
-  events[60] = { seq: 60, type: 'turn/end', data: { turn: 3, reason: { kind: 'error' } } }
-  events[55] = { seq: 55, type: 'user/message', data: { role: 'user' }, surfaceOp: 'append' }
-  events[56] = { seq: 56, type: 'user/message', data: { role: 'user' }, surfaceOp: 'append' }
-  events[69] = { seq: 69, type: 'user/message', data: { role: 'user' }, surfaceOp: 'append' }
-  events[70] = { seq: 70, type: 'user/message', data: { role: 'user' }, surfaceOp: 'append' }
-  events[99] = {
-    seq: 99,
-    type: 'assistant/message',
-    data: { turn: 4, step: 1, message: { role: 'assistant', source: modelSource() } },
-    surfaceOp: 'append'
-  }
-
-  const planned = planRegenerationSurface({
-    events,
-    nodes: [6, 13, 14, 48, 55, 56, 69, 70, 99],
-    oldAssistantSeq: 48,
-    eventStart: 65
-  })
-
-  assert.deepEqual(planned, {
-    start: 48,
-    end: 99,
-    finalAssistantSeq: 99,
-    shadowedSeqs: [48, 55, 56, 69, 70, 99]
-  })
 })
 
 test('失败的正文回合从模型消息面移除本轮全部残留节点', () => {
@@ -219,26 +163,6 @@ test('失败的正文回合从模型消息面移除本轮全部残留节点', ()
     shadowedSeqs: [55, 56]
   })
 
-  const calls = []
-  const session = {
-    events,
-    surface: { nodes: [6, 13, 14, 48, 55, 56] },
-    append(type, data, options) { calls.push({ type, data, options }) }
-  }
-  assert.equal(clearFailedTurnSurface({ session, turn: 3, id: function () { return 'cleanup-id' } }), 2)
-  assert.deepEqual(calls, [{
-    type: 'user/message',
-    data: {
-      id: 'cleanup-id',
-      role: 'user',
-      content: [],
-      source: { kind: 'plugin', plugin: 'dsh-tavern-failed-turn-cleanup' }
-    },
-    options: {
-      surfaceOp: { op: 'replace', start: 55, end: 56 },
-      sourceEventSeqs: [55, 56]
-    }
-  }])
 })
 
 function failedThenRolledBack() {
@@ -271,7 +195,7 @@ test('旧 snapshot 不冒充用户输入，清理失败轮次后仍能定位上�
 })
 
 
-test('回退可用性要求聊天与原生轮次配对，允许重生成映射，不接受孤立输入', () => {
+test('回退可用性要求聊天与原生轮次配对，不接受孤立输入', () => {
   const chat = { messages: [{ role: 'user' }, { role: 'assistant', turn: 2 }] }
   const events = [
     { seq: 0, type: 'user/message', data: { role: 'user' } },
@@ -282,8 +206,6 @@ test('回退可用性要求聊天与原生轮次配对，允许重生成映射�
   assert.equal(rollbackAvailability(chat, { events, nodes: [] }).canRollback, false)
   events[1].data.turn = 3
   assert.equal(rollbackAvailability(chat, { events, nodes: [0, 1] }).canRollback, false)
-  chat.regeneratedDshTurns = { 2: 3 }
-  assert.equal(rollbackAvailability(chat, { events, nodes: [0, 1] }).canRollback, true)
 })
 
 test('压缩摘要不能冒充已经压缩掉的玩家输入', () => {

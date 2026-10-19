@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Session } from './fixtures/dsh-session-host.mjs'
 import { sessionEvents, appendSessionEvent } from '../tavern-plugin/lib/domain/session-events.js'
-import { replaceSessionSurface } from '../tavern-plugin/lib/domain/session-surface-mutations.js'
+import { createSessionSurfaceMutator } from '../tavern-plugin/lib/domain/session-surface-mutations.js'
 import { projectCandidateScriptContext as project } from '../tavern-plugin/lib/domain/candidate-script-context.js'
+
+const replaceSessionSurface = (session, type, data, range) => createSessionSurfaceMutator(session).replace(type, data, range)
 
 function input(body = 'x'.repeat(15000), position = 1) {
   const heading = '【剧本候选参考 · 游标 ' + position + ' / 3】'

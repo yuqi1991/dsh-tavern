@@ -2,11 +2,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Session } from './fixtures/dsh-session-host.mjs'
 import { sessionEvents, appendSessionEvent } from '../tavern-plugin/lib/domain/session-events.js'
-import { replaceSessionSurface } from '../tavern-plugin/lib/domain/session-surface-mutations.js'
 import { projectWorldbookFilterContext } from '../tavern-plugin/lib/domain/worldbook-filter-context.js'
 
 const input = candidates => ({ task: 'worldbook-filter', messages: [{ role: 'user', content: [{ type: 'text', text: JSON.stringify({ currentInput: '当前输入', recent: [], candidates }) }] }] })
 const candidate = (ref = 'entry:1', text = 'x'.repeat(15000)) => ({ ref, text, hits: [{ key: '当前关键词' }] })
+// Native replacement, as the host adapter performs it for compaction.
+function replaceSurface(session, type, data, { start, end, sourceEventSeqs }) {
+  return session.append(type, data, { surfaceOp: { op: 'replace', startSeq: start, endSeq: end }, sourceEventSeqs })
+}
 const items = result => JSON.parse(result.payloadText).candidates
 function append(session, projected, id = 'first') {
   const lead = '【最近剧情与本次任务】\n[用户]\n'
@@ -35,7 +38,7 @@ test('restart reconstructs from current surface; compaction cannot reuse raw arc
   const event = append(session, projectWorldbookFilterContext(session, input([candidate()])))
   session = Session.create(session.id, sessionEvents(session), session.header)
   assert.ok(items(projectWorldbookFilterContext(session, input([candidate()])))[0].bodyReference)
-  replaceSessionSurface(session, 'user/message', { id: 'summary', role: 'user', content: [{ type: 'text', text: '压缩摘要，没有全文' }], source: { kind: 'plugin', plugin: 'compaction' } },
+  replaceSurface(session, 'user/message', { id: 'summary', role: 'user', content: [{ type: 'text', text: '压缩摘要，没有全文' }], source: { kind: 'plugin', plugin: 'compaction' } },
     { start: event.seq, end: event.seq, sourceEventSeqs: [event.seq] })
   assert.equal(items(projectWorldbookFilterContext(session, input([candidate()])))[0].text.length, 15000)
 })
@@ -44,7 +47,7 @@ test('a surviving reference is not proof when its source body was removed', () =
   const session = Session.create('references')
   const first = append(session, projectWorldbookFilterContext(session, input([candidate()])))
   append(session, projectWorldbookFilterContext(session, input([candidate()])), 'reference-only')
-  replaceSessionSurface(session, 'user/message', { id: 'empty', role: 'user', content: [], source: { kind: 'plugin', plugin: 'compaction' } },
+  replaceSurface(session, 'user/message', { id: 'empty', role: 'user', content: [], source: { kind: 'plugin', plugin: 'compaction' } },
     { start: first.seq, end: first.seq, sourceEventSeqs: [first.seq] })
   assert.equal(items(projectWorldbookFilterContext(session, input([candidate()])))[0].text.length, 15000)
 })

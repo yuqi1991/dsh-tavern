@@ -86,12 +86,12 @@ for(const count of [20,400,10000])test(`large internal header records detach onl
   get(target,key,receiver){reads++;return Reflect.get(target,key,receiver)},
   ownKeys(target){enumerations++;return Reflect.ownKeys(target)}
  })
- const header=copyLazyHistoryHeader({regeneratedDshTurns:source,runtimeInputs:source})
+ const header=copyLazyHistoryHeader({runtimeInputs:source})
  const spread={...header}
  assert.equal(reads,0);assert.equal(enumerations,0)
  assert.equal(spread.runtimeInputs['0'].value,0);assert.equal(reads,1)
  spread.runtimeInputs['0'].value=99
- assert.equal(header.regeneratedDshTurns['0'].value,0)
+ assert.equal(source['0'].value,0,'the detached copy never writes through to its source')
  spread.runtimeInputs.new={value:1};delete spread.runtimeInputs['1']
  assert.equal(Object.hasOwn(spread.runtimeInputs,'1'),false)
  assert.equal(copyLazyHistoryHeader({runtimeInputs:source}).runtimeInputs['0'].value,0)

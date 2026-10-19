@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { Session } from './fixtures/dsh-session-host.mjs'
 import * as surface from '../tavern-plugin/lib/domain/rollback-surface.js'
 
 import { selectRegenerationTarget } from '../tavern-plugin/lib/domain/round-history.js'
@@ -54,44 +55,18 @@ function select(events, nodes) {
   return { oldSeq, oldTurn, oldSource, oldAssistantIndex }
 }
 
-test('失败清理、重试成功、再次失败和再次重生成始终替换同一剧情轮次', () => {
-  const events = [assistant(0, 6)]
-  const nodes = [0]
-  const session = {
-    events,
-    surface: { nodes },
-    append(type, data, options = {}) {
-      const seq = events.length
-      events.push({ seq, type, data, ...options })
-      if (options.surfaceOp === 'append') nodes.push(seq)
-      else if (options.surfaceOp) {
-        const start = nodes.indexOf(options.surfaceOp.start)
-        const end = nodes.indexOf(options.surfaceOp.end)
-        assert.ok(start >= 0 && end >= start)
-        nodes.splice(start, end - start + 1, seq)
-      }
-      return seq
-    }
-  }
-  let previous = 0
+test('失败清理后再次失败，重新生成目标仍是同一剧情轮次的已保存正文', async () => {
+  const session = Session.create('failed-turn-target')
+  const reply = (turn, id) => ({ turn, step: 1, stream: [], message: { id, role: 'assistant', source: model, content: [{ type: 'text', text: '正文' }] } })
+  const body = session.append('assistant/message', reply(6, 'saved'), { surfaceOp: 'append' })
+  const target = () => select(session.snapshotEvents(), [...session.surface.nodes])
   for (const failedTurn of [7, 9]) {
     session.append('turn/start', { turn: failedTurn })
-    session.append('assistant/message', assistant(0, failedTurn).data, { surfaceOp: 'append' })
+    session.append('assistant/message', reply(failedTurn, 'failed-' + failedTurn), { surfaceOp: 'append' })
     session.append('turn/end', { turn: failedTurn })
-    assert.equal(surface.clearFailedTurnSurface({ session, turn: failedTurn }), 1)
-    const target = select(events, nodes)
-    assert.equal(target.oldSeq, previous)
-    const eventStart = events.length
-    session.append('user/message', { content: '重新生成' }, { surfaceOp: 'append' })
-    session.append('assistant/message', assistant(0, failedTurn + 1).data, { surfaceOp: 'append' })
-    const plan = surface.planRegenerationSurface({ events, nodes, oldAssistantSeq: target.oldSeq, eventStart })
-    assert.deepEqual(plan.shadowedSeqs, nodes)
-    previous = session.append('assistant/message', assistant(0, target.oldTurn, target.oldSource, []).data, {
-      surfaceOp: { op: 'replace', start: plan.start, end: plan.end },
-      sourceEventSeqs: plan.shadowedSeqs
-    })
-    assert.deepEqual(nodes, [previous])
-    assert.equal(select(events, nodes).oldTurn, 6)
+    assert.equal(await surface.clearFailedTurnSurface({ session, turn: failedTurn, flush: async () => {} }), 1)
+    assert.equal(target().oldSeq, body.seq)
+    assert.equal(target().oldTurn, 6)
   }
 })
 

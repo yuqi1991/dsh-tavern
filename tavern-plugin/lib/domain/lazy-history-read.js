@@ -60,7 +60,7 @@ export function copyLazyHistoryHeader(source) {
   const timeline=source.timeline, undo=source.rollbackUndo
   const head={...source}
   const records = new Map()
-  for (const key of ['regeneratedDshTurns','runtimeInputs']) {
+  for (const key of ['runtimeInputs']) {
     const value = head[key]
     if (value && typeof value === 'object' && !Array.isArray(value)) { records.set(key,value);head[key]=undefined }
   }
