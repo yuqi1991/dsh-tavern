@@ -136,9 +136,12 @@ export function replaceTavernHelperWorldbookOperations(view, requested) {
   for (const value of requested) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('世界书条目必须是对象')
     const uid = value.uid === undefined ? nextUid++ : value.uid
-    if (!Number.isSafeInteger(uid) || uid < 0 || seen.has(String(uid))) throw new Error('世界书条目编号无效或重复')
-    seen.add(String(uid))
     const before = byUid.get(String(uid))
+    // An existing entry keeps whatever id its card gave it (some cards use UUID strings,
+    // as SillyTavern allows); it is written back by position, so the uid only pairs
+    // the entry with its source. Only a new entry needs a fresh integer uid.
+    if (seen.has(String(uid)) || (!before && (!Number.isSafeInteger(uid) || uid < 0))) throw new Error('世界书条目编号无效或重复')
+    seen.add(String(uid))
     const defaults = projectEntry({ comment: '', order: 100, position: 0, depth: 4 })
     const after = mergedEntry(before || defaults, value)
     const full = entryPatch(after)
