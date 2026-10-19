@@ -19,13 +19,14 @@ export function createMvuWorkingCopy(base, eventId) {
   }
 }
 
-export function projectMvuReceipt(work, targets) {
+export function projectMvuReceipt(work, targets, variantBodies = null) {
   const chat = work.chat
   const indices = [...new Set(targets.filter(t => Number.isInteger(t.messageId)).map(t => t.messageId))]
   return { version: 2, kind: 'transaction', chatId: chat.id,
     lifecycleRevision: chat.tavernHelperLifecycleRevision || 0, stateRevision: chat._storageRevision || 0,
     eventId: work.eventId, baseSequence: work.sequence, sequence: ++work.sequence,
-    messages: indices.map(index => projectTavernHelperMessage(chat.messages[index], index)),
+    messages: indices.map(index => projectTavernHelperMessage(chat.messages[index], index,
+      variantBodies ? variantBodies[String(Math.max(0, Number(chat.messages[index]?.turn) || 0))] ?? null : null)),
     ...(targets.some(t => t.type === 'chat') ? { chatVariables: structuredClone(chat.variables || {}) } : {}),
     ...(targets.some(t => t.type === 'script') ? { scriptVariables: structuredClone(chat.tavernHelperScriptVariables || {}) } : {}),
     ...(targets.some(t => t.type === 'prompts') ? { scriptPrompts: structuredClone(chat.tavernScriptPrompts || []) } : {}) }

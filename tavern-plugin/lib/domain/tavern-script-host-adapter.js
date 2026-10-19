@@ -112,13 +112,22 @@ export function createTavernScriptHostAdapter(options = {}) {
     if (typeof options.hasScripts !== 'function' || !await options.hasScripts(chat)) throw new Error('当前人物卡没有启用脚本运行时')
   }
 
+  // Branch-derived variants of every floor; the stored Chat swipes are not the source.
+  function variantBodiesFor(chat) {
+    return typeof options.variantBodiesOf === 'function' ? options.variantBodiesOf(chat) : null
+  }
+
+  function projectContext(chat) {
+    return projectTavernHelperContext(chat, { variantBodies: variantBodiesFor(chat) })
+  }
+
   function mutationIsCurrent(chat, expectedLifecycleRevision) {
     if (expectedLifecycleRevision === undefined || expectedLifecycleRevision === null) return true
     return Math.max(0, Number(chat && chat.tavernHelperLifecycleRevision) || 0) === Math.max(0, Number(expectedLifecycleRevision) || 0)
   }
 
   function staleMutation(chat) {
-    return { updated: false, stale: true, context: projectTavernHelperContext(chat) }
+    return { updated: false, stale: true, context: projectContext(chat) }
   }
 
   async function resolveChat(sessionId) {
@@ -158,8 +167,8 @@ export function createTavernScriptHostAdapter(options = {}) {
       updated: true,
       transactional: true,
       ...(multiple ? { targets: target } : { target }),
-      ...(transaction.compact ? { contextDelta: projectMvuReceipt(transaction.work, multiple ? target : [target]) }
-        : { context: projectTavernHelperContext(transaction.draft) })
+      ...(transaction.compact ? { contextDelta: projectMvuReceipt(transaction.work, multiple ? target : [target], variantBodiesFor(transaction.draft)) }
+        : { context: projectContext(transaction.draft) })
     }
   }
 
@@ -168,7 +177,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       const chat = await mutationChat(sessionId, eventId)
       await assertScriptEnabled(chat)
       if (!mutationIsCurrent(chat, expectedLifecycleRevision)) return staleMutation(chat)
-      if (!mutateScriptPrompts(chat, operation)) return { updated: false, context: projectTavernHelperContext(chat) }
+      if (!mutateScriptPrompts(chat, operation)) return { updated: false, context: projectContext(chat) }
       const transactional = transactionResult(sessionId, { type: 'prompts' }, false, eventId)
       if (transactional !== null) return transactional
       let saved
@@ -184,7 +193,7 @@ export function createTavernScriptHostAdapter(options = {}) {
         chat._storageRevision = saved._storageRevision
         chat.updatedAt = saved.updatedAt
       }
-      return { updated: true, context: projectTavernHelperContext(chat) }
+      return { updated: true, context: projectContext(chat) }
     })
   }
 
@@ -304,7 +313,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       // Project only the affected floor, never the complete history. Keep the
       // selected swipe semantics of the full compatibility projection.
       const changes = updated.type === 'message'
-        ? { messageId: updated.messageId, message: { ...projectTavernHelperContext({ messages: [chat.messages[updated.messageId]] }).messages[0], message_id: updated.messageId } }
+        ? { messageId: updated.messageId, message: { ...projectContext({ messages: [chat.messages[updated.messageId]] }).messages[0], message_id: updated.messageId } }
         : updated.type === 'chat' ? { chatVariables: structuredClone(chat.variables || {}) }
           : { scriptVariables: structuredClone(chat.tavernHelperScriptVariables || {}) }
       return { updated: true, target: updated, contextDelta: {
@@ -312,7 +321,7 @@ export function createTavernScriptHostAdapter(options = {}) {
         baseRevision, stateRevision: chat._storageRevision, ...changes
       } }
     }
-    return { updated: true, target: updated, context: projectTavernHelperContext(chat) }
+    return { updated: true, target: updated, context: projectContext(chat) }
   }
 
   async function updateMessages(sessionId, messages, expectedLifecycleRevision, eventId) {
@@ -348,7 +357,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       }
       throw error
     }
-    return { updated: true, targets: updated, context: projectTavernHelperContext(chat) }
+    return { updated: true, targets: updated, context: projectContext(chat) }
   }
 
   async function createMessages(sessionId, messages, option, expectedLifecycleRevision, eventId) {
@@ -368,7 +377,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       throw error
     }
     if (typeof options.publishCreatedMessages === 'function') await options.publishCreatedMessages(chat, created)
-    return { updated: true, targets: created, context: projectTavernHelperContext(chat) }
+    return { updated: true, targets: created, context: projectContext(chat) }
   }
 
   async function worldbookRecord(sessionId, requestedName, template = false, suppliedChat) {
@@ -485,7 +494,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       return applyChatPluginData(latest, baselines, request)
     }, { source: 'tavern-helper.chat-plugin-data' })
     if (!saved) throw new Error('聊天已不存在，插件数据未保存')
-    return { updated: true, context: projectTavernHelperContext(saved) }
+    return { updated: true, context: projectContext(saved) }
   }
 
   function assertTemplateChat(chat) {
@@ -643,9 +652,11 @@ export function createTavernScriptHostAdapter(options = {}) {
       if (previousVariables !== undefined) message.variables = [structuredClone(previousVariables)]
       draft.messages = draft.messages.concat(message)
     }
-    const projected = projectTavernHelperContext(indices ? { ...draft, messages: [] } : draft)
+    const projected = projectContext(indices ? { ...draft, messages: [] } : draft)
     if (indices) {
-      projected.messages = indices.map(i => projectTavernHelperMessage(draft.messages[i], i))
+      const variantBodies = variantBodiesFor(chat)
+      projected.messages = indices.map(i => projectTavernHelperMessage(draft.messages[i], i,
+        variantBodies ? variantBodies[String(Math.max(0, Number(draft.messages[i]?.turn) || 0))] ?? null : null))
       // An indexed dispatch is allowed only when floor identity/turn mapping
       // did not change. Keep the browser's already complete turn index.
       delete projected.turnMessageIds
@@ -680,13 +691,13 @@ export function createTavernScriptHostAdapter(options = {}) {
     const operationId = str(input.operationId).trim()
     if (operationId === '') throw new Error('MVU 变量结算缺少 operationId')
     const expectedLifecycleRevision = Math.max(0, Number(input.expectedLifecycleRevision) || 0)
-    if (!mutationIsCurrent(current, expectedLifecycleRevision)) return { updated: false, stale: true, context: projectTavernHelperContext(current) }
+    if (!mutationIsCurrent(current, expectedLifecycleRevision)) return { updated: false, stale: true, context: projectContext(current) }
     const messageId = Number(input.messageId)
     if (!Number.isInteger(messageId) || messageId < 0 || messageId >= current.messages.length) throw new Error('MVU 变量结算楼层不存在')
     const message = current.messages[messageId]
     const swipeId = Number(input.swipeId)
     if (!Number.isInteger(swipeId) || swipeId < 0 || swipeId !== Math.max(0, Number(message.swipeId) || 0)) {
-      return { updated: false, stale: true, context: projectTavernHelperContext(current) }
+      return { updated: false, stale: true, context: projectContext(current) }
     }
     const command = str(input.command).trim()
     if (command === '') throw new Error('MVU 变量结算命令为空')
@@ -699,7 +710,7 @@ export function createTavernScriptHostAdapter(options = {}) {
     const beforeDispatch = options.scriptDispatch.status?.(sessionId)
     if (beforeDispatch?.busy) {
       await record('runtime-deferred', { availability: beforeDispatch })
-      return { updated: false, deferred: true, deferredReason: 'runtime-busy', context: projectTavernHelperContext(current) }
+      return { updated: false, deferred: true, deferredReason: 'runtime-busy', context: projectContext(current) }
     }
     const originalText = str((message.swipes && message.swipes[swipeId]) ?? message.sourceText ?? message.text)
     const eventId = 'mvu-work:' + randomUUID()
@@ -768,7 +779,7 @@ export function createTavernScriptHostAdapter(options = {}) {
         await record('runtime-initialization-failed', { error })
         return { updated: false, rejected: true, retryable: false, validation,
           diagnostics: [{ kind: 'initialization', level: 'error', initializationFailed: true, message: error }],
-          context: projectTavernHelperContext(current) }
+          context: projectContext(current) }
       }
       if (availability?.initializationError) return await initializationRejected(availability.initializationError)
       // MVU is a local capability of the chat. A temporarily absent browser
@@ -777,7 +788,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       // it when the executor registers again.
       if (availability && availability.ready !== true) {
         await record('runtime-deferred', { availability })
-        return { updated: false, deferred: true, deferredReason: 'runtime-not-ready', context: projectTavernHelperContext(current) }
+        return { updated: false, deferred: true, deferredReason: 'runtime-not-ready', context: projectContext(current) }
       }
       const dispatched = await options.scriptDispatch.dispatch(sessionId, 'MESSAGE_RECEIVED', [messageId], eventContext, { eventId: transaction.eventId, signal: input.signal, ...(lazy ? { contextForBaseline: executionContext } : {}) })
       await record('runtime-completed', { handled: dispatched.handled === true, timedOut: dispatched.timedOut === true, executionLost: dispatched.executionLost === true, claimTimedOut: dispatched.claimTimedOut === true, phase: dispatched.phase, disposed: dispatched.disposed === true, error: dispatched.error, diagnostics: dispatched.diagnostics || [] })
@@ -785,14 +796,14 @@ export function createTavernScriptHostAdapter(options = {}) {
         if (dispatched.initializationFailed === true) return await initializationRejected(str(dispatched.error))
         if (dispatched.unavailable === true || (input.durable === true && (dispatched.disposed === true || dispatched.timedOut === true || /超时|timed?\s*out|timeout/i.test(str(dispatched.error))))) {
           await record('runtime-deferred', { availability: options.scriptDispatch.status?.(sessionId) })
-          return { updated: false, deferred: true, deferredReason: dispatched.claimTimedOut === true ? 'claim-timeout' : 'delivery-interrupted', context: projectTavernHelperContext(current) }
+          return { updated: false, deferred: true, deferredReason: dispatched.claimTimedOut === true ? 'claim-timeout' : 'delivery-interrupted', context: projectContext(current) }
         }
         if (str(dispatched.error).trim() !== '' && !dispatched.timedOut && !dispatched.disposed
           && !/超时|timed?\s*out|timeout/i.test(str(dispatched.error))) {
           const validation = { changes: [], sideEffects: [], failures: [{ message: str(dispatched.error) }] }
           await record('validation-rejected', { failures: validation.failures, externalEffects: transaction.externalEffects === true })
           return { updated: false, rejected: true, retryable: transaction.externalEffects !== true, retryAfterMs: MVU_RETRY_AFTER_MS,
-            validation, diagnostics: dispatched.diagnostics || [], context: projectTavernHelperContext(current) }
+            validation, diagnostics: dispatched.diagnostics || [], context: projectContext(current) }
         }
         if (dispatched.timedOut === true) throw new Error('MVU 脚本执行回执超时，本轮结算未确认完成，请重试结算')
         if (dispatched.disposed === true) throw new Error('MVU 浏览器执行器已断开，本轮结算中断，请重试结算')
@@ -800,7 +811,7 @@ export function createTavernScriptHostAdapter(options = {}) {
       }
       const settled = transaction.draft.messages[messageId]
       if (!settled || Math.max(0, Number(settled.swipeId) || 0) !== swipeId) {
-        return { updated: false, stale: true, context: projectTavernHelperContext(current) }
+        return { updated: false, stale: true, context: projectContext(current) }
       }
       if (!Array.isArray(settled.swipes)) settled.swipes = [originalText]
       settled.swipes[swipeId] = originalText
@@ -824,7 +835,7 @@ export function createTavernScriptHostAdapter(options = {}) {
         await record('validation-rejected', { failures: validation.failures, externalEffects: transaction.externalEffects === true })
         return {
           updated: false, rejected: true, retryable: transaction.externalEffects !== true, retryAfterMs: MVU_RETRY_AFTER_MS,
-          validation, diagnostics: dispatched.diagnostics || [], context: projectTavernHelperContext(current)
+          validation, diagnostics: dispatched.diagnostics || [], context: projectContext(current)
         }
       }
       // The browser event can take time; recheck the target before committing its draft.
@@ -848,7 +859,7 @@ export function createTavernScriptHostAdapter(options = {}) {
         swipeId,
         effect,
         variables: structuredClone(afterVariables),
-        ...(input.compactResult === true ? {} : { context: projectTavernHelperContext(transaction.draft) })
+        ...(input.compactResult === true ? {} : { context: projectContext(transaction.draft) })
       }
     } catch (error) {
       await record('runtime-or-persistence-failed', { error: str(error && error.message || error) })
