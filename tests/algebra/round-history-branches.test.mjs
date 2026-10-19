@@ -1,20 +1,20 @@
 import { execFileSync } from 'node:child_process'
 import { writeFile } from 'node:fs/promises'
-import { clearFailedTurnSurface } from '../../tavern-plugin/lib/domain/rollback-surface.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createRoundHistory } from '../../tavern-plugin/lib/domain/round-history.js'
-import { createStoryTimeline } from '../../tavern-plugin/lib/domain/story-timeline.js'
-import { createChatPersistence } from '../../tavern-plugin/lib/domain/chat-persistence.js'
-import { createChatJournalStore } from '../../tavern-plugin/lib/domain/chat-journal-store.js'
-import { createMvuDiagnosticStore, createMvuDiagnosticExport } from '../../tavern-plugin/lib/domain/mvu-diagnostics.js'
+import { createRoundHistory } from '../../lib/domain/round-history.js'
+import { createStoryTimeline } from '../../lib/domain/story-timeline.js'
+import { createChatPersistence } from '../../lib/domain/chat-persistence.js'
+import { createChatJournalStore } from '../../lib/domain/chat-journal-store.js'
+import { createMvuDiagnosticStore, createMvuDiagnosticExport } from '../../lib/domain/mvu-diagnostics.js'
 import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import { createConversationHistory } from '../../tavern-plugin/lib/domain/conversation-algebra-history.js'
-import { computeFold } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
-import { appendSessionEvent, sessionEvents } from '../../tavern-plugin/lib/domain/session-events.js'
+import { createConversationHistory } from '../../lib/domain/conversation-algebra-history.js'
+import { computeFold } from '../../lib/domain/conversation-algebra/index.js'
+import { appendSessionEvent, sessionEvents } from '../../lib/domain/session-events.js'
+import { branchRegistryOf } from '../../lib/domain/floor-projection.js'
 
 function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
   const calls = [], revisions = new Map()
@@ -79,7 +79,7 @@ function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
     }
   }, present: async value => structuredClone(value) }
   options.sessions.flush=async()=>{}
-  options.algebraHistory={...createConversationHistory({chats,flush:options.sessions.flush}),enabled:()=>true}
+  options.algebraHistory={...createConversationHistory({chats,flush:options.sessions.flush}),assertReady: () => {}}
   return { create: () => createRoundHistory(options), options, calls, session, agent, timeline, get chat() { return chat },
     setGeneration(value) { generation = value }, setSettlement(value) { settlementOutcome = value }, beforeGenerate(fn) { beforeGenerate = fn }, revisions }
 }
@@ -88,37 +88,48 @@ function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
 
 
 test('product rollback saves a branch and clears only the last round via checkout',async()=>{
- const h=harness({checkpoint:true,journal:true});await h.create().rollback('session','chat',2)
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
+ const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ try{
+ const h=harness({checkpoint:true,journal:true});const before=h.session.snapshotEvents().length
+ await h.create().rollback('session','chat',2)
  assert.equal(h.chat.messages.length,1)
- assert.equal(h.chat.branchRegistry.branches.length,1)
+ assert.equal(branchRegistryOf(h.session).branches.length,1)
  assert.ok(h.chat.rollbackUndo.foreground.algebraBranchId)
  assert.equal(h.chat.conversationHistoryIntent,undefined)
  assert.equal(computeFold(h.session.snapshotEvents()).rows.length,0)
+ // The checkout is one selection event, never message rows (ADR-0009).
+ assert.ok(h.session.snapshotEvents().slice(before).every(e=>e.surfaceOp===undefined))
+ }finally{patch.dispose()}
 })
 
 test('product undo returns to the saved branch without appending duplicate player input',async()=>{
- const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
  try{
   const h=harness({checkpoint:true,journal:true}),history=h.create()
   await history.rollback('session','chat',2)
   await history.undoRollback('session','chat')
   assert.equal(h.chat.messages.length,3)
-  assert.equal(h.chat.branchRegistry.branches.length,2)
+  assert.equal(branchRegistryOf(h.session).branches.length,2)
   assert.deepEqual(computeFold(h.session.snapshotEvents()).rows.map(e=>(e.data.message??e.data).id),['input','reply'])
   assert.equal(h.session.snapshotEvents().filter(e=>e.type==='user/message'&&e.data.id==='input'&&e.surfaceOp==='append').length,1)
  }finally{patch.dispose()}
 })
 
 test('rollback native flush failure keeps durable intent and recovers rather than reverting Chat',async()=>{
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
+ const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ try{
  const h=harness({checkpoint:true,journal:true});let broken=true
  const flush=async()=>{if(broken)throw new Error('disk unavailable')}
- h.options.algebraHistory={...createConversationHistory({chats:h.options.chats,flush}),enabled:()=>true}
+ h.options.algebraHistory={...createConversationHistory({chats:h.options.chats,flush}),assertReady: () => {}}
  const history=h.create()
  await assert.rejects(history.rollback('session','chat',2),/恢复意图已保留/)
  assert.equal(h.chat.messages.length,1);assert.ok(h.chat.conversationHistoryIntent)
  broken=false;await h.options.algebraHistory.recover(h.session,'chat')
- assert.equal(h.chat.conversationHistoryIntent,undefined);assert.equal(h.chat.branchRegistry.branches.length,1)
+ assert.equal(h.chat.conversationHistoryIntent,undefined);assert.equal(branchRegistryOf(h.session).branches.length,1)
+ }finally{patch.dispose()}
 })
 
 test('rollback preflight rejection leaves Chat and Session untouched',async()=>{
@@ -129,12 +140,12 @@ test('rollback preflight rejection leaves Chat and Session untouched',async()=>{
 })
 
 test('foreground rollback recovered after flush failure still provides a usable undo branch',async()=>{
- const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
  try {
   const h=harness({checkpoint:true,journal:true});let broken=true
   const flush=async()=>{if(broken)throw new Error('disk unavailable')}
-  h.options.algebraHistory={...createConversationHistory({chats:h.options.chats,flush}),enabled:()=>true}
+  h.options.algebraHistory={...createConversationHistory({chats:h.options.chats,flush}),assertReady: () => {}}
   await assert.rejects(h.create().rollback('session','chat',2),/恢复意图已保留/)
   broken=false;await h.options.algebraHistory.recover(h.session,'chat')
   await h.create().undoRollback('session','chat')
@@ -143,7 +154,7 @@ test('foreground rollback recovered after flush failure still provides a usable 
 })
 
 test('product failed regenerate restores edited prose and archives the aborted attempt',async()=>{
- const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
  try{
   const h=harness({checkpoint:true,journal:true}),before=structuredClone(h.chat)
@@ -161,20 +172,20 @@ test('product failed regenerate restores edited prose and archives the aborted a
   assert.equal(h.chat.regenRecovery,undefined)
   // Slice A: a failed reroll archives BOTH the pre-checkout variant (the old
   // round) and the aborted attempt as named branches.
-  assert.equal(h.chat.branchRegistry.branches.length,2)
+  assert.equal(branchRegistryOf(h.session).branches.length,2)
   assert.deepEqual(computeFold(h.session.snapshotEvents()).rows.map(e=>(e.data.message??e.data).content[0].text),['推门','旧正文'])
  }finally{patch.dispose()}
 })
 
 test('product reroll succeeds after checkout left empty control rows behind the old body',async()=>{
- const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
- const {createConversationBranches}=await import('../../tavern-plugin/lib/domain/conversation-algebra-branches.js')
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
+ const {createConversationBranches}=await import('../../lib/domain/conversation-algebra-branches.js')
  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
  try{
   const h=harness({checkpoint:true,journal:true})
   appendSessionEvent(h.session,'user/message',{id:'discarded',role:'user',source:{kind:'user'},content:[{type:'text',text:'later'}]},{surfaceOp:'append'})
   appendSessionEvent(h.session,'assistant/message',{turn:3,step:1,message:{id:'discarded-body',role:'assistant',source:{kind:'model',provider:'fixture',model:'fixture'},content:[{type:'text',text:'later reply'}]}},{surfaceOp:'append'})
-  const branches=createConversationBranches(h.session,{flush:async()=>{},writeRegistry:async registry=>{await h.options.chats.update('chat',current=>({...current,branchRegistry:registry}),{source:'test.registry'})}})
+  const branches=createConversationBranches(h.session,{flush:async()=>{}})
   await branches.commit(await branches.plan(1))
   h.agent.phase.lastTurn=3
   h.agent.whenIdle=async()=>{

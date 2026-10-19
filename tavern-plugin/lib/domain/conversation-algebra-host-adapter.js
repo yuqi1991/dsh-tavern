@@ -1,94 +1,62 @@
 import { appendSessionEvent, sessionEvents } from './session-events.js'
 import { createSessionSurfaceMutator } from './session-surface-mutations.js'
-import { preflightSurfaceRestore, restoreSurface } from './surface-restoration.js'
-import { guardStepComplete } from './conversation-algebra/index.js'
+import { SURFACE_SELECT_TYPE } from './surface-selection.js'
+import { randomUUID } from 'node:crypto'
+import { runTransaction } from './conversation-algebra/index.js'
 
-const registryWriters = new WeakMap()
-export function setConversationRegistryWriter(session, write) {
-  registryWriters.set(session, write)
+/** An isolated native copy for admission checks; writes to it never reach disk. */
+export function detachedSession(session) {
+  if (typeof session?.constructor?.fromRestore !== 'function') throw new TypeError('宿主 Session 缺少 detached 预检能力')
+  return session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
+}
+
+/** Run a transaction on a detached copy: native admission, tool pairing and
+ * selection effect are checked before a caller publishes a durable intent. */
+export function preflightTransaction(session, { ops, expectedHead } = {}) {
+  const adapter = createConversationAlgebraHostAdapter(detachedSession(session), { flush: async () => {}, write: async () => {} })
+  return runTransaction(adapter, { ops, expectedHead, operationId: 'preflight:' + randomUUID() })
 }
 
 /**
  * Production-side adapter for the conversation-algebra seam. It deliberately
  * lives outside the independently importable algebra directory: all durable
  * writes continue through Tavern's existing Session append/replace helpers.
- * Stage 0 does not wire this adapter into any product path.
  */
 export function createConversationAlgebraHostAdapter(session, metadata = {}) {
   if (!session || typeof session.append !== 'function') throw new TypeError('conversation algebra 缺少宿主 Session')
-  const registryWrite = metadata.write || registryWriters.get(session)
   return Object.freeze({
     sessionKey: session,
     snapshotEvents() {
       return sessionEvents(session)
     },
     preflight(writes) {
-      if (typeof session.constructor?.fromRestore !== 'function') throw new TypeError('宿主 Session 缺少 detached 预检能力')
-      const preview = session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
+      const preview = detachedSession(session)
       const adapter = createConversationAlgebraHostAdapter(preview)
       const head = sessionEvents(session).at(-1)?.seq ?? -1
       const delta = (sessionEvents(preview).at(-1)?.seq ?? -1) - head
       const translate = seq => seq > head ? seq + delta : seq
       for (const write of writes) {
         const intent = structuredClone(write.intent)
-        if (intent.surfaceOp?.op === 'replace') {
+        if (intent?.surfaceOp?.op === 'replace') {
           intent.surfaceOp = { op: 'replace', startSeq: translate(intent.surfaceOp.startSeq ?? intent.surfaceOp.start), endSeq: translate(intent.surfaceOp.endSeq ?? intent.surfaceOp.end) }
           intent.sourceEventSeqs = intent.sourceEventSeqs.map(translate)
         }
         adapter.append(write.event.type, write.event.data, intent)
+        // An unpatched host would log the selection without applying it.
+        if (write.event.type === SURFACE_SELECT_TYPE && JSON.stringify([...preview.surface.nodes]) !== JSON.stringify(write.event.data.nodes)) {
+          throw new Error('宿主会话补丁未生效，不能写入上下文选择')
+        }
       }
       return [...preview.surface.nodes]
     },
     surfaceNodes() { return [...session.surface.nodes] },
-    planCheckout(targetNodes) {
-      const events = sessionEvents(session)
-      const nodes = [...session.surface.nodes]
-      const targets = targetNodes.map(seq => events.find(event => event.seq === seq))
-      if (targets.some(event => !event)) throw new Error('checkout 引用不存在')
-      // Only a closed assistant/tool interaction is a legal checkpoint.
-      let group = []
-      for (const event of targets) {
-        if (event.type === 'assistant/message') {
-          if (group.length) guardStepComplete({ rows: group })
-          group = [event]
-        } else if (event.type === 'tool/result') group.push(event)
-        else if (group.length) { guardStepComplete({ rows: group }); group = [] }
-      }
-      if (group.length) guardStepComplete({ rows: group })
-      let prefix = 0
-      while (prefix < nodes.length && prefix < targetNodes.length && nodes[prefix] === targetNodes[prefix]) prefix++
-      if (prefix === nodes.length && prefix === targetNodes.length) return []
-      while (prefix > 0 && targets[prefix]?.type === 'tool/result') prefix--
-      if (targets.length > prefix) {
-        // Reuse the existing restoration compiler: restored input must be a
-        // replacement, never a second append-origin human transcript entry.
-        const preview = session.constructor.fromRestore(session.id, structuredClone(events), structuredClone(session.header), session.inheritedEventCount, 'detached')
-        const head = sessionEvents(preview).at(-1)?.seq ?? -1
-        restoreSurface(preview, targetNodes)
-        const delta = head - (events.at(-1)?.seq ?? -1)
-        const translate = seq => seq > head ? seq - delta : seq
-        return sessionEvents(preview).filter(event => event.seq > head && event.surfaceOp !== undefined).map(event => ({
-          kind: 'surface-write', plannedSeq: translate(event.seq),
-          event: { type: event.type, data: structuredClone(event.data) },
-          intent: { surfaceOp: event.surfaceOp === 'append' ? 'append' : { op: 'replace', startSeq: translate(event.surfaceOp.startSeq), endSeq: translate(event.surfaceOp.endSeq) }, ...(event.sourceEventSeqs ? { sourceEventSeqs: event.sourceEventSeqs.map(translate) } : {}) }
-        }))
-      }
-      const writes = []
-      const suffix = nodes.slice(prefix)
-      if (suffix.length) {
-        if (prefix === 0 && events.find(event => event.seq === nodes[0])?.type === 'system/message') throw new Error('checkout 不得覆盖受保护的 system head')
-        writes.push({ kind: 'surface-write', event: { type: 'user/message', data: {
-          id: `conversation-checkout:${events.at(-1)?.seq}:clear`, role: 'user', content: [],
-          source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'checkout' }
-        } }, intent: { surfaceOp: {op:'replace',start:suffix[0],end:suffix.at(-1)}, sourceEventSeqs:suffix } })
-      }
-      return writes
-    },
     flush() {
       if (typeof metadata.flush !== 'function') throw new TypeError('宿主事务必须配置 flush')
       return metadata.flush(session)
     },
     append(type, data, intent) {
+      // ADR-0009: a selection is log-only; the patched host fold applies it.
+      if (type === SURFACE_SELECT_TYPE) return appendSessionEvent(session, type, data)
       if (intent?.surfaceOp?.op === 'replace') {
         const op = intent.surfaceOp
         return createSessionSurfaceMutator(session).replace(type, data, {
@@ -99,14 +67,6 @@ export function createConversationAlgebraHostAdapter(session, metadata = {}) {
       }
       return appendSessionEvent(session, type, data, { surfaceOp: 'append' })
     },
-    preflightCheckout(targetNodes) {
-      return preflightSurfaceRestore(session, targetNodes)
-    },
-    checkout(targetNodes) {
-      return restoreSurface(session, targetNodes)
-    },
-    ...(typeof metadata.read === 'function' ? { readMetadata: metadata.read } : {}),
-    ...(typeof registryWrite === 'function' ? { writeMetadata: registryWrite } : {}),
     ...(typeof metadata.bump === 'function' ? { bump: metadata.bump } : {})
   })
 }

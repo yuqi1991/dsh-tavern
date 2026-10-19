@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { appendStep, runTransaction, TransactionConflict } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
+import { appendStep, runTransaction, TransactionConflict } from '../../lib/domain/conversation-algebra/index.js'
 import { memoryAdapter, user } from './helpers.mjs'
 
 test('two writers at one expected head admit only one transaction', async () => {
@@ -24,11 +24,10 @@ test('adapter wrappers share the same session lock', async () => {
   assert.equal(adapter.writes, 1)
 })
 
-test('external change while awaiting metadata is rejected before transaction writes', async () => {
+test('external change while awaiting preflight is rejected before transaction writes', async () => {
   const adapter = memoryAdapter()
-  adapter.readMetadata = async () => {
+  adapter.preflight = async () => {
     await adapter.append('user/message', user('external', 'text').data, { surfaceOp: 'append' })
-    return { branches: [] }
   }
   await assert.rejects(runTransaction(adapter, {
     expectedHead: -1, operationId: 'racing', ops: appendStep({}, { rows: [user('planned', 'text')] })

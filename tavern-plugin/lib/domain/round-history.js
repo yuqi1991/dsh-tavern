@@ -1,17 +1,17 @@
 import { projectPlayerContent } from './player-input-content.js'
 import { assertRescueHistoryEditable } from './chat-history-rescue.js'
-import { replaceSessionSurface } from './session-surface-mutations.js'
-import { canUndoRollback, restoreSurface, preflightSurfaceRestore, unchangedSinceRollback } from './surface-restoration.js'
+import { canUndoRollback, selectSurface, preflightSelectSurface, unchangedSinceRollback } from './surface-restoration.js'
 import { rewindBackgroundSurface } from './background-surface.js'
 import { sessionEvents, appendSessionEvent } from './session-events.js'
 import { randomUUID } from 'node:crypto'
 import { createRegenerationRecovery } from './regeneration-recovery.js'
 import { isDeepStrictEqual } from 'node:util'
-import { rollbackAvailability, clearFailedTurnSurface, locateRegenerationSurface, planRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
+import { rollbackAvailability, rollbackNativeTurns, clearFailedTurnSurface, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
+import { restoreVariantState, saveVariantState, withoutVariantSettlement } from './variant-state.js'
 import { diagnosticIdentity, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
 import { computeFold } from './conversation-algebra/index.js'
-import { distinctFloorVariants } from './variant-bodies.js'
+import { branchRegistryOf, distinctFloorVariants, floorHostTurn, projectChatFloors } from './floor-projection.js'
 
 function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
@@ -67,19 +67,20 @@ export function selectRegenerationTarget(chat, session, observe) {
       : msgs0[oldAssistantIndex - 1] === null || typeof msgs0[oldAssistantIndex - 1] !== 'object' ? 'previous-message-invalid' : 'previous-message-not-user')
     throw new Error('没有可重新生成的玩家输入与正文组合')
   }
-  // Slice-A rerolls keep the regenerated body under its NATIVE turn (no
-  // fold-back); map the chat's visible turn through the recorded mapping so a
-  // second reroll finds the surface row.
-  const mapping = chat.regeneratedDshTurns && typeof chat.regeneratedDshTurns === 'object' && !Array.isArray(chat.regeneratedDshTurns)
-    ? chat.regeneratedDshTurns : {}
+  // Rerolls keep the regenerated body under its NATIVE turn; the floor
+  // projection names the turn hosting the floor so a second reroll finds it.
   const visibleTurn = Number(msgs0[oldAssistantIndex].turn) || msgs0[oldAssistantIndex].turn
-  const nativeTurn = Number(mapping[String(visibleTurn)]) || visibleTurn
-  // After rollback+undo the round's live surface row is the RESTORED original
-  // (native visible turn), not the regenerated native turn the mapping still
-  // names — that body stays on the rolled-back branch. Probe both.
-  let target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: nativeTurn })
-  if (target === null && nativeTurn !== visibleTurn) {
-    target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn: visibleTurn })
+  const projection = projectChatFloors(chat, sessionEvents(session), nodes)
+  const nativeTurn = floorHostTurn(projection, visibleTurn)
+  // The live body is the one on the surface: after switching to a middle
+  // variant that is neither the newest generation (host turn) nor the floor's
+  // own turn. Legacy reroll copies carry the floor's own turn on the live row.
+  const liveTurn = projection.floors.find(floor => floor.turn === Number(visibleTurn))?.bodyTurn
+  let target = null
+  for (const turn of new Set([liveTurn, nativeTurn, visibleTurn])) {
+    if (!turn) continue
+    target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn })
+    if (target !== null) break
   }
   if (target === null) { report('native-target-missing'); throw new Error('原生消息流中找不到与当前剧情轮次对应的正文消息') }
   report('selected', target)
@@ -103,7 +104,7 @@ function variantBodyFromSession(session, turns) {
     if ((message.source || {}).kind !== 'model') continue
     const text = (message.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
     if (text.trim() === '') continue
-    if (accepted === null || accepted.has(Number((row.data || {}).turn) || 0)) body = text
+    if (accepted === null || accepted.has(Number((row.data || {}).turn) || 0)) body = { text, nativeTurn: Number(row.data?.turn) || 0 }
   }
   // A checked-out variant whose native turn is outside the mapping (archival
   // edge) still owns the surface: the fold's last body is its body.
@@ -114,7 +115,7 @@ function variantBodyFromSession(session, turns) {
       const message = (row.data || {}).message || {}
       if ((message.source || {}).kind !== 'model') continue
       const text = (message.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
-      if (text.trim() !== '') return text
+      if (text.trim() !== '') return { text, nativeTurn: Number(row.data?.turn) || 0 }
     }
   }
   return body
@@ -205,15 +206,15 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         catch { /* Recording failure must not affect regeneration or replace its error. */ }
       }
     }
-    const { eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource } = selection
+    const { eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn } = selection
     const originalUserText = str(msgs0[oldAssistantIndex - 1].text).trim()
     const editedInput = normalizeEditedInput(inputOverride, originalUserText)
-    const algebraReroll = algebraHistory?.enabled(session.id) === true
-    // Slice A: under algebra, the old body becomes a sibling variant BEFORE the
-    // generation — branch + checkout(anchor = the original input node). The
-    // synthetic turn then appends onto a clean tail; no fold-back range exists.
-    let checkoutIntent = null
-    if (algebraReroll) {
+    algebraHistory.assertReady()
+    // The old body becomes a sibling variant BEFORE the generation — branch +
+    // checkout(anchor = the original input node). The synthetic turn then
+    // appends onto a clean tail; no fold-back range exists.
+    let checkoutIntent
+    {
       const nodes = session.surface?.nodes || []
       const bySeq = new Map(sessionEvents(session).map(event => [event.seq, event]))
       let userSeq = null
@@ -227,28 +228,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       // the helper surface can enumerate this floor's variants.
       checkoutIntent = await algebraHistory.prepare(session, chat, userSeq, { turn: Number(oldTurn) || undefined })
     }
-    // V3 hosts may reject assistant replacements. Check an isolated copy before
-    // rolling back the Chat, cancelling settlement or paying for a new reply.
-    if (!algebraReroll && session.header?.version >= 3) {
-      const preview = session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
-      try {
-        replaceSessionSurface(preview, 'assistant/message', {
-          turn: oldTurn, step: 1,
-          message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text: msgs0[oldAssistantIndex].text }], source: oldSource }
-        }, { start: oldSeq, end: oldSeq, sourceEventSeqs: [oldSeq] })
-        // Edited input also rewrites this round's player-input node; validate
-        // the same host accepts that replacement before spending a generation.
-        if (editedInput !== null) {
-          const userPreview = planUserInputSurface(session, oldSeq, editedInput)
-          if (userPreview === null) throw new Error('找不到本轮输入对应的原生消息')
-          replaceSessionSurface(preview, 'user/message', userPreview.data, userPreview.range)
-        }
-      } catch (error) {
-        if (sessionPatch?.status === 'failed') throw new Error(sessionPatch.reason, { cause: error })
-        if (sessionPatch?.serverReady) throw error
-        throw new Error('当前 DSH 不支持正文或输入替换，未启动重新生成。' + str(error?.message || error), { cause: error })
-      }
-    } else if (editedInput !== null && planUserInputSurface(session, oldSeq, editedInput) === null) {
+    if (editedInput !== null && planUserInputSurface(session, oldSeq, editedInput) === null) {
       throw new Error('找不到本轮输入对应的原生消息，无法修改输入')
     }
     let originalChat = structuredClone(chat)
@@ -292,19 +272,17 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       next.regenRecovery = { id: operationId, beforeRevision: Number(current._storageRevision || 0),
         ...(Number(current._storageRevision || 0) ? {} : { before: structuredClone(current) }),
         sessionId: chat.sessionId, eventStart }
-      if (checkoutIntent) {
-        // Slice A: the pre-planned branch+checkout owns the native surface from
-        // here on; a failed native commit keeps this durable intent for recovery.
-        next.conversationHistoryIntent = { sessionId: session.id, transaction: checkoutIntent }
-        next.regenRecovery.preCheckoutBranchId = checkoutIntent.branchId
-      }
+      // The pre-planned branch+checkout owns the native surface from here
+      // on; a failed native commit keeps this durable intent for recovery.
+      next.conversationHistoryIntent = { sessionId: session.id, transaction: checkoutIntent }
+      next.regenRecovery.preCheckoutBranchId = checkoutIntent.branchId
       next.tavernHelperLifecycleRevision = lifecycleRevision
       next.regenInProgress = true
       return next
     }, { source: 'rollback.regen' })
-    // Commit the checkout (and the branch registry projection) before any
-    // generation spends a model call: the model must not see the old body.
-    if (checkoutIntent) chat = await algebraHistory.recover(session, chat.id)
+    // Commit the checkout before any generation spends a model call:
+    // the model must not see the old body.
+    chat = await algebraHistory.recover(session, chat.id)
     const rolledMessageCount = (chat.messages || []).length
     const guide = str(guidance).trim()
     // Edited input replaces the original text; guidance still appends as a supplement.
@@ -342,25 +320,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       if (body === '') {
         throw new Error('重新生成失败：模型返回空文本')
       }
-      // Slice A: after a pre-checkout reroll the generated tail IS the surface —
-      // no fold-back range. Only an edited input rewrites the original node.
+      // After the pre-checkout the generated tail IS the surface; only an
+      // edited input rewrites the original node.
       let userProjection = null
-      if (!checkoutIntent) {
-        const replacement = planRegenerationSurface({ events: sessionEvents(session), nodes: session.surface.nodes,
-          oldAssistantSeq: oldSeq, eventStart })
-        userProjection = editedInput === null ? null : planUserInputSurface(session, oldSeq, editedInput)
-        if (editedInput !== null && userProjection === null) {
-          // Surface and stored story must never disagree on the input text.
-          throw new Error('重新生成期间本轮输入的原生消息已变化，未修改输入')
-        }
-        // Preserve the legacy projection shape so recovery of a legacy-mode
-        // attempt stays valid; the algebra path stores only the input edit.
-        var projection = {
-          data: { turn: oldTurn, step: 1, message: { id: 'tavern-regen:' + operationId,
-            role: 'assistant', content: [{ type: 'text', text: body }], source: oldSource } },
-          range: { start: replacement.start, end: replacement.end, sourceEventSeqs: [...replacement.shadowedSeqs] }
-        }
-      } else if (editedInput !== null) {
+      if (editedInput !== null) {
         // Post-checkout the old body is gone from the surface; the original
         // input node is the last kind-user row and keeps its identity/position.
         const nodes = session.surface?.nodes || []
@@ -388,6 +351,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
             str(currentAssistant.text).trim() !== body) throw new Error('重新生成流程的正文已被另一项操作修改')
         const merged = replaceLastRound({ originalChat, regeneratedChat: current, assistantIndex: oldAssistantIndex, inputText: editedInput })
         const next = merged.chat
+        // The pre-checkout branch keeps the old body; file its Chat state there.
+        const filed = saveVariantState(originalChat.messages[oldAssistantIndex], current.regenRecovery.preCheckoutBranchId)
+        if (filed?.variantStates) next.messages[next.messages.length - 1].variantStates = filed.variantStates
         if (next.nativeCommits !== null && typeof next.nativeCommits === 'object') delete next.nativeCommits[String(syntheticTurn)]
         next.nativeCommits = next.nativeCommits && typeof next.nativeCommits === 'object' ? structuredClone(next.nativeCommits) : {}
         if (originalChat.nativeCommits && originalChat.nativeCommits[String(oldTurn)]) {
@@ -416,16 +382,11 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
           return undefined
         })()
         next.regenRecovery = { ...current.regenRecovery, phase: 'committed',
-          ...(projection ? { projection } : {}),
           ...(Number.isSafeInteger(syntheticInputSeq) ? { syntheticInputSeq } : {}),
           ...(userProjection !== null ? { userProjection } : {}) }
         next.settleStatus = 'pending'
         next.settleError = null
         next.tavernHelperLifecycleRevision = lifecycleRevision + 1
-        next.suppressedDshTurns = Array.from(new Set((Array.isArray(next.suppressedDshTurns) ? next.suppressedDshTurns : []).concat([syntheticTurn]))).sort(function (left, right) { return left - right })
-        next.regeneratedDshTurns = next.regeneratedDshTurns && typeof next.regeneratedDshTurns === 'object' && !Array.isArray(next.regeneratedDshTurns)
-          ? structuredClone(next.regeneratedDshTurns) : {}
-        next.regeneratedDshTurns[String(oldTurn)] = syntheticTurn
         return next
       }, { source: 'foreground.regen-commit' })
     } catch (error) {
@@ -479,14 +440,13 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     try {
       // 1) 移除被中断的内容：清掉失败回合留在原生消息面上的节点。清理钩子
       // 正常已在失败时执行过，此处重复调用对已清理的回合是无操作。
-      const cleared = clearFailedTurnSurface({ session, turn: target.turn })
-      if (cleared > 0 && typeof sessions.flush === 'function') await sessions.flush(session)
+      await clearFailedTurnSurface({ session, turn: target.turn, flush: sessions.flush })
       // 2) 同步隐藏该回合残留的正文与错误提示，再原样重发本轮输入。
       await updateChat(chat.id, function (current) {
         if (current === null || typeof current !== 'object') return current
         return {
           ...current,
-          suppressedDshTurns: Array.from(new Set([...(Array.isArray(current.suppressedDshTurns) ? current.suppressedDshTurns : []), target.turn]))
+          acknowledgedFailedTurns: Array.from(new Set([...(Array.isArray(current.acknowledgedFailedTurns) ? current.acknowledgedFailedTurns : []), target.turn]))
             .sort(function (left, right) { return left - right }),
           updatedAt: Date.now()
         }
@@ -548,11 +508,11 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const availability = rollbackAvailability(chat, { events, nodes })
     const failedTurns = availability.failedTurns
     if (failedTurns.length) {
-      for (const turn of availability.unclearedTurns) clearFailedTurnSurface({ session, turn })
+      for (const turn of availability.unclearedTurns) await clearFailedTurnSurface({ session, turn, flush: sessions.flush })
       chat = await updateChat(chat.id, current => {
         assertRollbackSnapshot(rollbackBodyMessages(current), rollbackBodyMessages(originalChat))
         assertRollbackSnapshot(current.timeline, originalChat.timeline)
-        return { ...current, suppressedDshTurns: [...new Set([...(current.suppressedDshTurns || []), ...failedTurns])].sort((a, b) => a - b), updatedAt: Date.now() }
+        return { ...current, acknowledgedFailedTurns: [...new Set([...(current.acknowledgedFailedTurns || []), ...failedTurns])].sort((a, b) => a - b), updatedAt: Date.now() }
       }, { source: 'rollback.interrupted' })
       const result = await view(chat, card)
       result.clearedIncompleteTurns = failedTurns
@@ -561,25 +521,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const rollbackSurface = availability.target
     if (rollbackSurface === null) throw new Error(availability.reason)
     const hiddenTurn = rollbackSurface.turn
-    const shadowedSeqs = rollbackSurface.shadowedSeqs
-    let algebraIntent
-    if (algebraHistory?.enabled(session.id)) {
-      const start = nodes.indexOf(rollbackSurface.userSeq)
-      if (start < 0) throw new Error('回退输入锚点不在当前分支')
-      algebraIntent = await algebraHistory.prepare(session, chat, start > 0 ? nodes[start - 1] : -1)
-    }
-    const regeneratedDshTurns = originalChat.regeneratedDshTurns && typeof originalChat.regeneratedDshTurns === 'object' && !Array.isArray(originalChat.regeneratedDshTurns)
-      ? originalChat.regeneratedDshTurns : {}
-    // Slice-A rerolls key the mapping by the chat-visible turn and store the
-    // native turn as the value: hiddenTurn is the native one, so the visible
-    // turn to suppress is the entry's KEY, not mapping[native] (legacy only
-    // worked because the fold-back made key == native).
-    let regeneratedVisibleTurn = Number(regeneratedDshTurns[String(hiddenTurn)])
-    if (!Number.isSafeInteger(regeneratedVisibleTurn) || regeneratedVisibleTurn <= 0) {
-      const visibleKey = Object.keys(regeneratedDshTurns).find(key => Number(regeneratedDshTurns[key]) === hiddenTurn)
-      if (visibleKey !== undefined) regeneratedVisibleTurn = Number(visibleKey)
-    }
-
+    algebraHistory.assertReady()
+    const start = nodes.indexOf(rollbackSurface.userSeq)
+    if (start < 0) throw new Error('回退输入锚点不在当前分支')
+    const algebraIntent = await algebraHistory.prepare(session, chat, start > 0 ? nodes[start - 1] : -1)
     // 1) 定位要回退的最后一组 user + assistant
     const msgs = chat.messages || []
     let assistantIndex = -1
@@ -594,7 +539,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (msgs[assistantIndex - 1] === null || typeof msgs[assistantIndex - 1] !== 'object' || msgs[assistantIndex - 1].role !== 'user') throw new Error('最后一组消息不是用户输入 + 正文')
     const expectedTurn = Number(msgs[assistantIndex].turn)
     if (Number(requestedTurn) > 0 && Number(requestedTurn) !== expectedTurn) throw new Error('回退目标已经变化，请刷新后确认实际轮次')
-    if (expectedTurn > 0 && hiddenTurn !== expectedTurn && hiddenTurn !== Number(regeneratedDshTurns[String(expectedTurn)])) {
+    if (expectedTurn > 0 && !rollbackNativeTurns(originalChat, events, expectedTurn, nodes).has(Number(hiddenTurn))) {
       throw new Error('该轮已不在当前模型上下文中，不能直接回退；历史正文仍可通过 history_recall 检索')
     }
     const removedUserText = str(msgs[assistantIndex - 1].text).trim()
@@ -659,7 +604,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       ...(Number(originalChat._storageRevision || 0) ? {} : { before: structuredClone(originalChat) }),
       foreground: { sessionId: session.id || chat.sessionId, nodes: [...nodes] }, background: []
     }
-    if (algebraIntent) undo.foreground.algebraBranchId = algebraIntent.branchId
+    undo.foreground.algebraBranchId = algebraIntent.branchId
     if (undo.before) delete undo.before.rollbackUndo
     const rolled = storyTimeline.apply({ chat, intent: rollbackIntent })
     chat = rolled.chat
@@ -668,20 +613,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     delete chat.regenRecovery
     if (rollbackCommitKey !== '') delete chat.nativeCommits[rollbackCommitKey]
     chat.tavernHelperLifecycleRevision = Math.max(0, Number(chat.tavernHelperLifecycleRevision) || 0) + 1
-    chat.suppressedDshTurns = Array.from(new Set((Array.isArray(chat.suppressedDshTurns) ? chat.suppressedDshTurns : []).concat(
-      [hiddenTurn], Number.isSafeInteger(regeneratedVisibleTurn) && regeneratedVisibleTurn > 0 ? [regeneratedVisibleTurn] : []))).sort(function (left, right) { return left - right })
-    chat.regeneratedDshTurns = chat.regeneratedDshTurns && typeof chat.regeneratedDshTurns === 'object' && !Array.isArray(chat.regeneratedDshTurns)
-      ? structuredClone(chat.regeneratedDshTurns) : {}
-    // Slice-A rerolls keep the body under its native turn while the chat row
-    // stays keyed by the visible turn: the mapping entry is key=visible,
-    // value=native. A rollback hides the native turn, so drop the entry whose
-    // VALUE matches — deleting only the key leaves the value advertised as a
-    // visible regeneration and the client re-shows the rolled-back tail.
-    for (const key of Object.keys(chat.regeneratedDshTurns)) {
-      if (Number(key) === hiddenTurn || Number(chat.regeneratedDshTurns[key]) === hiddenTurn) delete chat.regeneratedDshTurns[key]
-    }
     chat.updatedAt = Date.now()
-    if (algebraIntent) chat.conversationHistoryIntent = { sessionId: session.id, transaction: algebraIntent }
+    chat.conversationHistoryIntent = { sessionId: session.id, transaction: algebraIntent }
     chat = await updateChat(chat.id, current => {
       if (!isDeepStrictEqual(rollbackBodyMessages(current), rollbackBodyMessages(originalChat)) || current.timeline?.branchId !== originalChat.timeline?.branchId) throw new Error('回退期间正文已被其他操作修改，请刷新后重试')
       return chat
@@ -689,29 +622,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
 
     // 3) 原生消息面：用空消息替换最近一轮的所有 surface 节点（模型不再看到），UI 由客户端隐藏对应 turn tail
     try {
-      if (algebraIntent) chat = await algebraHistory.recover(session, chat.id)
-      else replaceSessionSurface(session, 'assistant/message', {
-        turn: rollbackSurface.turn,
-        step: rollbackSurface.step,
-        message: {
-          id: randomUUID(),
-          role: 'assistant',
-          content: [],
-          source: rollbackSurface.source
-        }
-      }, { start: rollbackSurface.userSeq, end: rollbackSurface.endSeq, sourceEventSeqs: shadowedSeqs })
+      chat = await algebraHistory.recover(session, chat.id)
     } catch (error) {
-      if (algebraIntent) throw new Error('回退尚未完成，恢复意图已保留：' + str(error?.message || error), { cause: error })
-      // Keep append-only history intact. A rejected surface replacement must not consume the story checkpoint.
-      try {
-        await updateChat(chat.id, current => {
-          assertRollbackSnapshot(current, chat)
-          return storyTimeline.apply({ chat: current, intent: { kind: 'replacement.abort', restoreChat: originalChat } }).chat
-        }, { source: 'rollback.abort' })
-      } catch (restoreError) {
-        throw new Error('回退失败且剧情恢复未完成：' + str(error?.message || error) + '；' + str(restoreError?.message || restoreError), { cause: error })
-      }
-      throw error
+      throw new Error('回退尚未完成，恢复意图已保留：' + str(error?.message || error), { cause: error })
     }
     // Rewind immediately after the foreground commit; retain the timeline's retry
     // boundary so the next task can safely retry if this best-effort step fails.
@@ -740,8 +653,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         }
         if (typeof sessions.flush !== 'function') throw new Error('当前宿主未提供后台会话保存接口')
         const checkpoint = { sessionId: participant.sessionId, nodes: [...background.surface.nodes] }
-        await rewindBackgroundSurface(background, participant.rewindTo,
-          algebraHistory?.enabled(chat.sessionId) === true ? { enabled: true, flush: sessions.flush } : null)
+        await rewindBackgroundSurface(background, participant.rewindTo, { flush: sessions.flush })
         checkpoint.afterCount = sessionEvents(background).length
         undo.background.push(checkpoint)
         await sessions.flush(background)
@@ -795,9 +707,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       const saved = chat.rollbackUndo
       const before = saved.before || await readChatRevision(chat.id, saved.beforeRevision)
       if (!before || before.id !== chat.id) throw new Error('找不到回退前的恢复点')
-      const foregroundIntent = saved.foreground.algebraBranchId
-        ? await algebraHistory.prepare(session, chat, saved.foreground.algebraBranchId) : null
-      const targets = [{ session, saved: saved.foreground }]
+      if (!saved.foreground.algebraBranchId) throw new Error('撤销点缺少保存的分支，不能撤销回退')
+      const foregroundIntent = await algebraHistory.prepare(session, chat, saved.foreground.algebraBranchId)
+      // Background participants return to their saved surfaces by selection.
+      const targets = []
       for (const checkpoint of saved.background) {
         let worker = sessions.get(checkpoint.sessionId)
         let background = worker?.session || sessions.getSession?.(checkpoint.sessionId)
@@ -808,37 +721,18 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         if (!background || worker?.phase?.kind === 'running' || !unchangedSinceRollback(background, checkpoint.afterCount)) throw new Error('后台上下文已有变化，不能撤销回退')
         targets.push({ session: background, saved: checkpoint })
       }
-      for (const target of targets) if (!(foregroundIntent && target.session === session)) preflightSurfaceRestore(target.session, target.saved.nodes)
+      for (const target of targets) preflightSelectSurface(target.session, target.saved.nodes)
       for (const target of targets) {
-        if (foregroundIntent && target.session === session) continue
         changed.push({ session: target.session, nodes: [...target.session.surface.nodes] })
-        restoreSurface(target.session, target.saved.nodes)
+        selectSurface(target.session, target.saved.nodes)
         if (sessions.flush) await sessions.flush(target.session)
       }
       let restored = await updateChat(chat.id, current => {
         assertRollbackSnapshot(current, chat)
         const result = storyTimeline.apply({ chat: current, intent: { kind: 'replacement.abort', restoreChat: before } }).chat
         delete result.rollbackUndo
-        if (foregroundIntent) {
-          result.branchRegistry = current.branchRegistry
-          result.conversationHistoryIntent = { sessionId: session.id, transaction: foregroundIntent }
-        }
+        result.conversationHistoryIntent = { sessionId: session.id, transaction: foregroundIntent }
         result.tavernHelperLifecycleRevision = Number(current.tavernHelperLifecycleRevision || 0) + 1
-        // The rolled-back round is live again: its suppression entries must go,
-        // or the client keeps hiding a restored round's rows (native turn from
-        // the fold, visible turn under a slice-A reroll mapping).
-        const restoredTurns = new Set([Number(saved.turn) || 0])
-        const mapping = result.regeneratedDshTurns && typeof result.regeneratedDshTurns === 'object' && !Array.isArray(result.regeneratedDshTurns)
-          ? result.regeneratedDshTurns : {}
-        for (const key of Object.keys(mapping)) {
-          if (Number(key) === Number(saved.turn) || Number(mapping[key]) === Number(saved.turn)) {
-            restoredTurns.add(Number(key))
-            restoredTurns.add(Number(mapping[key]))
-          }
-        }
-        if (Array.isArray(result.suppressedDshTurns) && result.suppressedDshTurns.some(turn => restoredTurns.has(Number(turn)))) {
-          result.suppressedDshTurns = result.suppressedDshTurns.filter(turn => !restoredTurns.has(Number(turn)))
-        }
         for (const participant of Object.values(result.timeline.participants)) {
           const target = targets.find(item => item.saved.sessionId === participant.sessionId)
           if (target) Object.assign(participant, { status: 'current', syncedRevision: result.timeline.revision,
@@ -847,7 +741,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         return result
       }, { source: 'rollback.undo' })
       committed = true
-      if (foregroundIntent) restored = await algebraHistory.recover(session, chat.id)
+      restored = await algebraHistory.recover(session, chat.id)
       const result = await view(restored, await readChatCard(restored))
       result.undoneRollback = { turn: saved.turn }
       return result
@@ -855,7 +749,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       if (committed) throw new Error('已撤销回退，但界面刷新失败：' + str(error?.message || error), { cause: error })
       // A rejected Chat write must not leave the model on the restored branch.
       for (const target of changed.reverse()) {
-        restoreSurface(target.session, target.nodes)
+        selectSurface(target.session, target.nodes)
         if (sessions.flush) await sessions.flush(target.session)
       }
       throw error
@@ -874,47 +768,61 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
   async function switchVariant(sessionId, chatId, targetIndex) {
     const chat = str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
     if (!chat) throw new Error('聊天不存在: ' + chatId)
-    const agent = sessions.get(chat.sessionId)
+    let agent = sessions.get(chat.sessionId)
+    // Cold sessions fold read-only variants only; the checkout must reach the
+    // writable host Session, so resume it the same way rollback does.
+    let restoredHandle
+    if (!agent?.session && !sessions.getSession?.(chat.sessionId) && typeof sessions.resume === 'function') {
+      restoredHandle = await sessions.resume(chat.sessionId)
+      agent = restoredHandle?.agent
+    }
+    try {
     const session = agent?.session || sessions.getSession?.(chat.sessionId)
     if (!session) throw new Error('无法访问 DSH 会话: ' + chat.sessionId)
     if (agent?.phase?.kind === 'running') throw new Error('前台正在生成，请完成或停止后再切换变体')
-    if (!algebraHistory?.enabled(session.id)) throw new Error('当前会话未启用会话历史隔离，不能切换变体')
+    algebraHistory.assertReady()
     const index = Number(targetIndex)
     if (!Number.isSafeInteger(index) || index < 0) throw new Error('变体序号无效: ' + targetIndex)
     const lastAssistant = [...(chat.messages || [])].findLast(message => message && message.role === 'assistant' && message.greeting !== true)
     const turn = Number(lastAssistant?.turn) || 0
     if (turn <= 0) throw new Error('没有可切换的剧情楼层')
-    const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeBranchId: null, activeHeadSeq: null }
-    // Distinct variants, newest first: repeated archives of one body collapse
-    // to their newest branch, so ‹ n/m › counts what the floor can actually show.
-    const variants = distinctFloorVariants(session, registry, turn)
-    const liveHead = Number(registry.activeHeadSeq)
-    const selectedNow = variants.findIndex(variant => variant.headSeq === liveHead)
-    // Enumeration: the live line is index 0 while it is active; each archived
-    // sibling follows in headSeq order. Leaving index 0 archives the line as
-    // the first sibling, keeping every earlier variant's index stable.
+    const stored = branchRegistryOf(session)
+    const registry = Array.isArray(stored?.branches) ? stored : { branches: [], activeBranchId: null, activeHeadSeq: null }
+    // Distinct variants follow creation order. The unregistered live line is
+    // the final slot until it is archived by the first switch away from it.
+    const variants = distinctFloorVariants(session, turn, registry)
+    const liveHead = registry.activeHeadSeq === null || registry.activeHeadSeq === undefined ? null : Number(registry.activeHeadSeq)
+    const selectedNow = liveHead === null ? -1 : variants.findIndex(variant => variant.headSeq === liveHead)
     const count = selectedNow >= 0 ? variants.length : 1 + variants.length
     if (index >= count) throw new Error('变体序号超出范围: ' + index + '/' + count)
     let intent
-    if (index === 0 && selectedNow < 0) {
-      // Already on the live line.
+    let leftBranchId = selectedNow >= 0 ? variants[selectedNow].branchId : null
+    if (selectedNow < 0 && index === count - 1) {
+      // The active, unregistered line is already selected.
       const result = await view(chat, await readChatCard(chat))
-      result.switchedVariant = { turn, index: 0 }
+      result.switchedVariant = { turn, index }
       return result
     }
-    if (index > 0 && selectedNow < 0) {
-      // Archive the live line first so it stays addressable for the trip back —
-      // unless a variant already records this exact tip (repeated switches must
-      // not mint duplicate branches for one body).
+    // A click that resolves to the branch already active is a no-op: minting a
+    // checkout transaction anyway burns a revision and causes re-render churn.
+    if (selectedNow >= 0 && index === selectedNow) {
+      const result = await view(chat, await readChatCard(chat))
+      result.switchedVariant = { turn, index }
+      return result
+    }
+    const target = variants[index]
+    if (!target) throw new Error('变体序号超出范围: ' + index + '/' + count)
+    if (selectedNow < 0) {
+      // Archive the live line before checking out a saved sibling. The new
+      // branch has the greatest headSeq and therefore remains the final slot.
       const liveTip = sessionEvents(session).at(-1)?.seq ?? -1
       const recorded = variants.some(variant => variant.headSeq === liveTip)
-      if (recorded) {
-        intent = await algebraHistory.move(session, chat, variants.find(variant => variant.headSeq === liveTip).branchId)
-      } else {
-        intent = await algebraHistory.prepare(session, chat, variants[index - 1].branchId, { turn })
-      }
+      intent = recorded
+        ? await algebraHistory.move(session, chat, target.branchId)
+        : await algebraHistory.prepare(session, chat, target.branchId, { turn })
+      // The live line is kept by its recorded twin or by the archive just planned.
+      leftBranchId = recorded ? variants.find(variant => variant.headSeq === liveTip).branchId : intent.branchId
     } else {
-      const target = variants[selectedNow >= 0 ? index : index - 1]
       intent = await algebraHistory.move(session, chat, target.branchId)
     }
     const updated = await updateChat(chat.id, current => {
@@ -927,25 +835,39 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     // The checked-out fold now ends with the target variant's body; rewrite the
     // chat's last round so the bubble, helper floors and later reads follow the
     // pointer instead of keeping whatever the last reroll merged.
-    const mapping = switched.regeneratedDshTurns && typeof switched.regeneratedDshTurns === 'object' && !Array.isArray(switched.regeneratedDshTurns)
-      ? switched.regeneratedDshTurns : {}
-    const turns = new Set([turn, Number(mapping[String(turn)]) || 0].filter(value => value > 0))
+    const turns = new Set([turn, floorHostTurn(projectChatFloors(switched, sessionEvents(session), session.surface?.nodes || []), turn)].filter(value => value > 0))
     const body = variantBodyFromSession(session, turns)
     if (body !== null) {
       await updateChat(chat.id, current => {
         const messages = Array.isArray(current?.messages) ? [...current.messages] : []
-        const suppressed = new Set((Array.isArray(current?.suppressedDshTurns) ? current.suppressedDshTurns : []).map(Number))
-        // Rewrite the floor the user SEES: pre-fix reroll stacks can leave hidden
-        // assistant slots after the visible one; editing those never shows.
-        let assistantIndex = -1
-        for (let index = messages.length - 1; index >= 0; index--) {
-          const message = messages[index]
-          if (!message || typeof message !== 'object' || message.role !== 'assistant' || message.greeting === true) continue
-          if (suppressed.has(Number(message.turn))) continue
-          assistantIndex = index; break
-        }
+        // Which native row hosts the floor is the floor projection's answer;
+        // only the Chat content mirror (ticket 16) still needs the body text.
+        const assistantIndex = messages.findLastIndex(message => message && typeof message === 'object' && message.role === 'assistant' && message.greeting !== true)
         if (assistantIndex < 1 || messages[assistantIndex - 1]?.role !== 'user') return current
-        const assistant = { ...messages[assistantIndex], text: body, sourceText: body, turn }
+        // File the variant being left, then bring back the target's own state;
+        // a variant generated before filing existed falls back to the baseline.
+        const left = saveVariantState(messages[assistantIndex], leftBranchId)
+        const restored = restoreVariantState(left, target.branchId, body.text)
+        if (restored?.sourceText === body.text) {
+          // The visible native row stays the floor's first; the flag makes the
+          // presentation publish this variant's body over it.
+          messages[assistantIndex] = { ...restored, variantBodyProjection: true }
+          return { ...current, messages, updatedAt: Date.now() }
+        }
+        const assistant = {
+          ...(restored || withoutVariantSettlement(left)),
+          text: body.text,
+          sourceText: body.text,
+          projectionText: body.text,
+          sessionText: body.text,
+          displayText: body.text,
+          displayMode: 'markdown',
+          displayParts: [{ kind: 'markdown', text: body.text }],
+          projectionVersion: 2,
+          projectionWarnings: [],
+          variantBodyProjection: true,
+          turn
+        }
         delete assistant.bodyEdit
         delete assistant.displayRuntime
         messages[assistantIndex] = assistant
@@ -958,6 +880,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const result = await view(latest ?? switched, await readChatCard(latest ?? switched))
     result.switchedVariant = { turn, index }
     return result
+    } finally {
+      await restoredHandle?.dispose?.()
+    }
   }
 
   return Object.freeze({ regenerate, replayFailed: replayFailedTurn, recover: regenerationRecovery.recover, rollback: rollbackTurn, undoRollback, switchVariant })

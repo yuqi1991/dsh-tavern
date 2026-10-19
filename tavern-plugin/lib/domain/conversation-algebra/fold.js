@@ -1,18 +1,15 @@
-import { contentOf, messageOf, tagOfEvent } from './guards.js'
+import { committedOperationIds, contentOf, messageOf, tagOfEvent, transactionOf as transactionTagOf } from './guards.js'
+import { SURFACE_SELECT_TYPE } from '../surface-selection.js'
 
 const SURFACE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'tool/result'])
 
 function transactionOf(event) {
-  const transaction = messageOf(event)?.source?.conversationTransaction
+  const transaction = transactionTagOf(event)
   return transaction && typeof transaction.operationId === 'string' ? transaction : null
 }
 
 function committedEvents(events) {
-  const committed = new Set()
-  for (const event of events) {
-    const transaction = transactionOf(event)
-    if (transaction && ['commit', 'begin-commit'].includes(transaction.phase)) committed.add(transaction.operationId)
-  }
+  const committed = committedOperationIds(events)
   return events.filter(event => {
     const transaction = transactionOf(event)
     return transaction === null || committed.has(transaction.operationId)
@@ -74,6 +71,12 @@ export function computeFold(events, { fromCache } = {}) {
   const nodes = []
   const replacements = []
   for (const event of accepted) {
+    // ADR-0009: a selection names the whole surface by reference.
+    if (event?.type === SURFACE_SELECT_TYPE) {
+      const selected = Array.isArray(event.data?.nodes) ? event.data.nodes : []
+      nodes.splice(0, nodes.length, ...selected)
+      continue
+    }
     if (!SURFACE_TYPES.has(event?.type)) continue
     const replacement = replacementOf(event)
     if (replacement === null) {
@@ -95,7 +98,7 @@ export function computeFold(events, { fromCache } = {}) {
   const headSeq = source.reduce((head, event) => Number.isSafeInteger(event?.seq) ? Math.max(head, event.seq) : head, -1)
   const version = accepted.filter(event => {
     const transaction = transactionOf(event)
-    return transaction ? ['commit', 'begin-commit'].includes(transaction.phase) : Boolean(event.surfaceOp)
+    return transaction ? ['commit', 'begin-commit'].includes(transaction.phase) : Boolean(event.surfaceOp) || event.type === SURFACE_SELECT_TYPE
   }).length
   return {
     events: source, steps, rows, surface, surfaceNodes: nodes, replacements, headSeq, version,

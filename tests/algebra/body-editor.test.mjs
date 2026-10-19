@@ -1,13 +1,14 @@
+import { toolResult } from './helpers.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import { prepareExpandedPatch } from '../../tavern-plugin/lib/domain/host-session-patch.js'
+import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 const hostPatch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', {version:'0.1.5-rc.2'})
 test.after(() => hostPatch.dispose())
-import { createBodyEditor, synchronizeBodyEdits } from '../../tavern-plugin/lib/domain/body-editor.js'
-import { editableReplyParts, projectReplyLayers, projectReplyHistory } from '../../tavern-plugin/lib/domain/reply-presentation.js'
-import { createStoryTimeline } from '../../tavern-plugin/lib/domain/story-timeline.js'
-import { sessionEvents, appendSessionEvent } from '../../tavern-plugin/lib/domain/session-events.js'
+import { createBodyEditor, synchronizeBodyEdits } from '../../lib/domain/body-editor.js'
+import { editableReplyParts, projectReplyLayers, projectReplyHistory } from '../../lib/domain/reply-presentation.js'
+import { createStoryTimeline } from '../../lib/domain/story-timeline.js'
+import { sessionEvents, appendSessionEvent } from '../../lib/domain/session-events.js'
 
 function fixture(text = '原正文', seeded = false) {
   let session = Session.create('body-edit-test')
@@ -18,6 +19,7 @@ function fixture(text = '原正文', seeded = false) {
   const agent = { get session() { return session }, phase: { kind: 'idle', lastTurn: 2 } }
   let busy = false, failWrite = false, failFlush = false
   const options = {
+    assertAlgebraReady: () => {},
     chats: { forSession: async () => structuredClone(chat), update: async (_id, fn) => { if (failWrite) throw Error('write failed'); chat = fn(structuredClone(chat)); chat._storageRevision++; return structuredClone(chat) } },
     sessions: { get: () => agent, flush: async () => { if (failFlush) throw Error('flush failed') } },
     timeline: createStoryTimeline(), activity: () => ({ busy }), project: async text => projectReplyLayers(text), present: async chat => chat
@@ -154,15 +156,56 @@ test('issue #72: stale bodyEdit after migration clears instead of blocking turns
   assert.equal(h.session.deriveMessages().at(-1).content[0].text, '原正文')
 })
 
-test('issue #72: bodyEdit remaps by turn when seq was renumbered', async () => {
-  const h = fixture('原正文')
-  const assistant = sessionEvents(h.session).find(event => event.type === 'assistant/message')
-  h.change(chat => {
-    chat.messages.at(-1).text = '迁移后正文'
-    chat.messages.at(-1).bodyEdit = { id: 'tavern-body-edit:remap', seq: 99999, turn: assistant.data.turn }
-  })
+test('enabled editor preserves native identity, turn, step and model provenance across edits', async () => {
+  const h = fixture(), original = sessionEvents(h.session).findLast(e => e.type === 'assistant/message')
+  for (const text of ['第一次修改', '第二次修改']) {
+    const edit = await h.editor.read(h.session.id)
+    await h.editor.save(h.session.id, { token: edit.token, texts: [text] })
+    const row = sessionEvents(h.session).findLast(e => e.type === 'assistant/message')
+    assert.equal(row.data.message.id, original.data.message.id)
+    assert.equal(row.data.turn, original.data.turn); assert.equal(row.data.step, original.data.step)
+    assert.equal(row.data.message.source.provider, original.data.message.source.provider)
+    assert.equal(row.data.message.source.model, original.data.message.source.model)
+    assert.equal(row.data.message.source.conversationTransaction.phase, 'begin-commit')
+    assert.equal(row.data.message.source.conversationTransaction.operationId, h.chat.messages.at(-1).bodyEdit.id)
+  }
+  const count = sessionEvents(h.session).length
   await synchronizeBodyEdits(h.session, h.chat, h.options.sessions.flush)
-  assert.equal(h.session.deriveMessages().at(-1).content[0].text, '迁移后正文')
-  assert.equal(h.chat.messages.at(-1).bodyEdit.id, 'tavern-body-edit:remap')
-  assert.notEqual(h.chat.messages.at(-1).bodyEdit.seq, 99999)
+  assert.equal(sessionEvents(h.session).length, count)
+})
+
+test('G4 rejects a prose step with a tool call before any Chat or Session write', async () => {
+  const h = fixture()
+  const rows = structuredClone(sessionEvents(h.session))
+  const body = rows.findLast(e => e.type === 'assistant/message')
+  body.data.message.content.push({ type: 'tool-call', id: 'call', name: 'skill', arguments: '{}' })
+  rows.push({...toolResult('result','call',2),seq:rows.at(-1).seq+1,time:1,surfaceOp:'append'})
+  h.restore(rows)
+  const edit = await h.editor.read(h.session.id), before = structuredClone(h.chat), events = structuredClone(sessionEvents(h.session))
+  await assert.rejects(h.editor.save(h.session.id,{token:edit.token,texts:['禁止拆工具步骤']}), error => error.name === 'GuardError' && error.rule === 'G4')
+  assert.deepEqual(h.chat,before);assert.deepEqual(sessionEvents(h.session),events)
+})
+
+test('head movement during async projection rejects before durable intent', async () => {
+  const h=fixture(), editor=createBodyEditor({...h.options, project:async text=>{
+    appendSessionEvent(h.session,'user/message',{id:'concurrent',role:'user',content:[{type:'text',text:'新输入'}],source:{kind:'user'}},{surfaceOp:'append'})
+    return projectReplyLayers(text)
+  }})
+  const edit=await editor.read(h.session.id), before=structuredClone(h.chat)
+  await assert.rejects(editor.save(h.session.id,{token:edit.token,texts:['过时编辑']}),/会话头已变化/)
+  assert.deepEqual(h.chat,before)
+})
+
+test('durable edit intent recovers after a flush failure and retains identity', async () => {
+  const h=fixture(), before=structuredClone(sessionEvents(h.session)), edit=await h.editor.read(h.session.id)
+  h.failFlush(true)
+  await assert.rejects(h.editor.save(h.session.id,{token:edit.token,texts:['恢复正文']}),/flush failed/)
+  h.restore(before);h.failFlush(false)
+  const reopened=createBodyEditor(h.options)
+  await reopened.read(h.session.id)
+  const last=sessionEvents(h.session).findLast(e=>e.type==='assistant/message')
+  assert.equal(last.data.message.id,'reply');assert.equal(last.data.message.content[0].text,'恢复正文')
+  assert.equal(last.data.message.source.conversationTransaction.operationId,h.chat.messages.at(-1).bodyEdit.id)
+  const count=sessionEvents(h.session).length
+  await reopened.read(h.session.id);assert.equal(sessionEvents(h.session).length,count)
 })

@@ -171,6 +171,8 @@ window.__ModuleLoader__.load({
 			} catch (_) { }
 		}
 
+		// @include-domain indexed-array.js
+		// @include-domain ordered-numeric-index.js
 		// @include modules/session-view-sync.js
 		const beginSessionViewRead = createSessionViewReader();
 
@@ -500,8 +502,6 @@ window.__ModuleLoader__.load({
 			else if (busy) { label = "后台结算中…"; blockReason = "后台结算中，请稍候…"; }
 			return { phase: String(activity.phase || "idle"), busy: busy, role: role, label: label, blockReason: blockReason };
 		}
-
-		// @include modules/history-viewport.js
 
 		function useLiveTavernView(sessionId, revision) {
 			const subscribe = React.useCallback(function (notify) { return liveTavernView.subscribe(sessionId, notify); }, [sessionId]);
@@ -1696,6 +1696,8 @@ window.__ModuleLoader__.load({
 		// @include modules/frame-touch-scroll.js
 
 		// @include modules/frame-viewport-height.js
+		// @include-domain frame-sizing.js
+		// @include modules/frame-sizing.js
 
 		// @include modules/sidebar-start.js
 
@@ -5379,31 +5381,6 @@ window.__ModuleLoader__.load({
 
 		}
 
-		function tavernProjectionForTurn(view, turn) {
-			if (!view || !isPlayMode(view.mode) || !Array.isArray(view.replyProjections)) return null;
-			for (let index = view.replyProjections.length - 1; index >= 0; index -= 1) {
-				const projection = view.replyProjections[index];
-				if (Number(projection && projection.turn) === Number(turn)) return Number(projection.version) === 1 || Number(projection.version) === 2 ? projection : null;
-			}
-			return null;
-		}
-
-		function tavernStoryTurnForDshTurn(view, turn) {
-			const mappings = view && view.regeneratedDshTurns && typeof view.regeneratedDshTurns === "object" ? view.regeneratedDshTurns : {};
-			for (const storyTurn of Object.keys(mappings)) {
-				if (Number(mappings[storyTurn]) === Number(turn)) return Number(storyTurn);
-			}
-			return Number(turn);
-		}
-
-		function tavernMvuReceiptForTurn(view, turn) {
-			const receipts = view && Array.isArray(view.mvuReceipts) ? view.mvuReceipts : [];
-			for (let index = receipts.length - 1; index >= 0; index -= 1) {
-				if (Number(receipts[index] && receipts[index].turn) === Number(turn)) return receipts[index].receipt || null;
-			}
-			return null;
-		}
-
 		function TavernMvuReceipt(props) {
 			const h = React.createElement;
 			const [retrying, setRetrying] = React.useState(false);
@@ -5568,26 +5545,6 @@ window.__ModuleLoader__.load({
 			return rendered;
 		}
 
-		function userContentParts(content) {
-			const texts = [];
-			const images = [];
-			const rest = [];
-			for (const block of Array.isArray(content) ? content : []) {
-				if (block && block.type === "text" && typeof block.text === "string") texts.push(block.text);
-				else if (block && block.type === "image" && block.attachment !== undefined) images.push({ attachment: block.attachment });
-				else if (block) rest.push(block);
-			}
-			return { text: texts.join(""), images: images, rest: rest };
-		}
-
-		function tavernUserTextForTurn(view, turn, content) {
-			const fallback = userContentParts(content).text;
-			const sources = view && view.inputSources;
-			const key = String(Number(turn) || 0);
-			if (!sources || !Object.prototype.hasOwnProperty.call(sources, key)) return fallback;
-			return String(sources[key] === undefined || sources[key] === null ? "" : sources[key]);
-		}
-
 		function createTavernFrameSlashExecutor(ctx, hostWindow) {
 			hostWindow = hostWindow || window;
 			return function (line, sessionId, options) {
@@ -5699,35 +5656,6 @@ window.__ModuleLoader__.load({
 		})();
 
 		function createTavernAssistantRendererFeatureModule() {
-			function TavernUserNodeView(props) {
-				const data = props.node.data;
-				const location = props.node.location;
-				const turnRef = location && (location.kind === "turn" || location.kind === "step") ? location.turn : null;
-				const turn = turnRef ? Number(turnRef.turn) : 0;
-				const liveState = useLiveTavernView(props.sessionId, String(data.time || ""));
-				const parts = userContentParts(data.content);
-				const text = tavernUserTextForTurn(liveState.view, turn, data.content);
-				const [copied, setCopied] = React.useState(false);
-				const copyTimer = React.useRef(null);
-				React.useEffect(function () { return function () { if (copyTimer.current !== null) window.clearTimeout(copyTimer.current); }; }, []);
-				function copy() {
-					DshUi.writeClipboard(text).then(function (ok) {
-						if (!ok) return;
-						setCopied(true);
-						if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
-						copyTimer.current = window.setTimeout(function () { copyTimer.current = null; setCopied(false); }, 1000);
-					});
-				}
-				const renderedImages = parts.images.length > 0 ? props.renderMessageImages({ images: parts.images, align: "end" }) : null;
-				const extras = parts.rest.map(function (block, index) {
-					return React.createElement("div", { key: index, className: "dsh-tavern-user-extra" }, React.createElement(DshUi.JsonBlock, { label: typeof props.t === "function" ? props.t("message.extraBlock") : "附加内容", payload: block, truncatedLabel: function (total) { return "内容过长（共 " + String(total) + " 项）"; } }));
-				});
-				const time = Number.isFinite(Number(data.time)) ? new Date(Number(data.time)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
-				return React.createElement("div", { className: "dsh-tavern-user-row" },
-					React.createElement("div", { className: "dsh-tavern-user-stack" }, renderedImages, (text !== "" || extras.length > 0) ? React.createElement("div", { className: "dsh-tavern-user-bubble" }, liveState.view?.inputTemplateDisplays?.[turn] ? React.createElement(TavernMessageFrame, { content: liveState.view.inputTemplateDisplays[turn], sessionId: props.sessionId, turn: turn, partIndex: "user-template", frameOwner: props.frameOwner, eager: true }) : React.createElement("div", { style: { whiteSpace: "pre-wrap" } }, text), extras) : null),
-					React.createElement("div", { className: "dsh-tavern-user-actions" }, time ? React.createElement("span", null, time) : null, React.createElement(DshUi.Tooltip, { label: copied ? "已复制" : "复制", side: "bottom" }, React.createElement("button", { type: "button", className: "dsh-tavern-user-copy", "aria-label": copied ? "已复制" : "复制", onClick: copy }, React.createElement(copied ? DshUi.IconCheckOutline16 : DshUi.IconCopyOutline16, null))))
-				);
-			}
 			function openSceneImagePreview(url, opener) {
 				const dialog = document.createElement("dialog");
 				dialog.className = "dsh-tavern-image-preview";
@@ -5869,66 +5797,6 @@ window.__ModuleLoader__.load({
 					error || state && state.error ? React.createElement("span", { role: "alert", className: "dsh-tavern-settings-error" }, error || state.error) : null
 				);
 			}
-			function TavernAssistantNodeView(props) {
-				const data = props.node.data;
-				const turnRef = props.node.location.kind === "turn" || props.node.location.kind === "step" ? props.node.location.turn : null;
-				const turn = turnRef ? Number(turnRef.turn) : 0;
-				const settled = data.status !== "running";
-				const revision = String(data.status || "") + ":" + String(data.finalNode && data.finalNode.seq || "");
-				const liveState = useLiveTavernView(props.sessionId, revision);
-				const storyTurn = tavernStoryTurnForDshTurn(liveState.view, turn);
-				const sessionTransitioning = React.useSyncExternalStore(tavernSessionTransition.subscribe, tavernSessionTransition.getSnapshot, tavernSessionTransition.getSnapshot);
-				const projection = settled ? tavernProjectionForTurn(liveState.view, storyTurn) : null;
-				const mvuReceipt = settled ? tavernMvuReceiptForTurn(liveState.view, storyTurn) : null;
-				const latestProjectionTurn = liveState.view && Array.isArray(liveState.view.replyProjections) ? liveState.view.replyProjections.reduce(function (latest, item) { return Math.max(latest, Number(item && item.turn) || 0); }, 0) : 0;
-				const tail = props.useTurnData("turn-tail");
-				const owner = React.useMemo(function () {
-					if (!turnRef || turnRef.status !== "closed" || !data.finalNode || !tail || !tail.closing || tail.closing.finalNode.seq !== data.finalNode.seq) return undefined;
-					return { turn: turnRef, seq: data.finalNode.seq, openFile: props.openFile };
-				}, [turnRef, data.finalNode, tail, props.openFile]);
-				const mentions = React.useMemo(function () { return owner === undefined ? undefined : props.fileMentions(owner); }, [owner, props.fileMentions]);
-				const rendered = sessionTransitioning ? [React.createElement("div", { key: "switching", className: "dsh-tavern-session-switching", role: "status" }, "正在完成游戏初始化…")] : renderTavernAssistantBlocks({
-					blocks: data.blocks,
-					streaming: data.status === "running",
-					interrupted: data.status === "interrupted",
-					projection: projection,
-					helperContext: liveState.view && liveState.view.tavernHelper,
-					trustedCardMode: Boolean(liveState.view && liveState.view.tavernRuntimePolicy && liveState.view.tavernRuntimePolicy.trustedCardMode),
-					frameOwner: props.frameOwner,
-					eagerFrame: storyTurn > 0 && storyTurn === latestProjectionTurn,
-					executeSlash: props.executeSlash,
-					sessionId: props.sessionId,
-					turn: storyTurn,
-					renderMessageImages: props.renderMessageImages,
-					mentions: mentions,
-					t: props.t
-				});
-				if (!(data.status === "running" || data.status === "interrupted" || rendered.length > 0)) return null;
-				const mvuReceiptNode = mvuReceipt ? React.createElement(TavernMvuReceipt, { receipt: mvuReceipt, sessionId: props.sessionId, turn: storyTurn, latest: storyTurn === liveState.view?.settlementTurn, busy: Boolean(liveState.view?.activity?.busy) }) : null;
-				const sceneImagesEnabled = Boolean(liveState.view && liveState.view.releaseCapabilities && liveState.view.releaseCapabilities.sceneImages);
-				const illustration = sceneImagesEnabled && settled && storyTurn > 0 && isPlayMode(liveState.view && liveState.view.mode) && !sessionTransitioning ? React.createElement(SceneIllustration, { key: props.sessionId + ":" + storyTurn + ":" + JSON.stringify(projection), sessionId: props.sessionId, turn: storyTurn }) : null;
-				const inlineStatus = liveState.view?.statusBarPlacement === "body" && !sessionTransitioning && storyTurn > 0 && storyTurn === latestProjectionTurn && data.finalNode && tail?.closing?.finalNode?.seq === data.finalNode.seq
-					? React.createElement(TavernPersistentStatusRuntime, { sessionId: props.sessionId, view: liveState.view, executeSlash: props.executeSlash }) : null;
-				return React.createElement("div", { className: "dsh-tavern-assistant", "data-streaming": data.status === "running" || undefined }, rendered, illustration, mvuReceiptNode, inlineStatus);
-			}
-			function TavernForkAssistantAction(props) {
-				const liveState = useLiveTavernView(props.sessionId, String(props.messageId || ""));
-				const [forking, setForking] = React.useState(false);
-				const view = liveState.view;
-				const forkTurn = Number(view && view.forkTurnsByMessageId && view.forkTurnsByMessageId[String(props.messageId || "")]) || 0;
-				const canFork = view && isPlayMode(view.mode) && forkTurn > 0;
-				if (!canFork) return null;
-				async function fork() {
-					if (forking) return;
-					setForking(true);
-					try { await tavernConversationForkRequests.request({ sessionId: props.sessionId, turn: forkTurn }); }
-					catch (error) { tavernErrorHub.report("分叉对话", error); }
-					finally { setForking(false); }
-				}
-				return React.createElement(DshUi.Tooltip, { label: forking ? "正在分叉…" : "从这一轮分叉", side: "bottom" },
-					React.createElement("button", { type: "button", className: "dsh-tavern-message-fork", "aria-label": "从这一轮分叉", disabled: forking, onClick: fork },
-						React.createElement(DshUi.IconBranchOutline16, null)));
-			}
 			function register(input) {
 				const scriptOwner = createTavernScriptSessionOwner({ sessions: input.ctx.sessions, executeSlash: createTavernFrameSlashExecutor(input.ctx) });
 				const executeSlash = createTavernFrameSlashExecutor(input.ctx);
@@ -5943,38 +5811,8 @@ window.__ModuleLoader__.load({
 						}, function () { return React.createElement(TavernScriptRuntime, { owner: scriptOwner }); });
 					});
 				}, "dsh-tavern: conversation script lifecycle");
-				input.ctx.effect(function () {
-					return input.slots.inject("conversation.chat.node", function () {
-						return input.slots.register({
-							name: "conversation.chat.node",
-							key: "assistant-step",
-							priority: -1
-						}, function (props) {
-							// Hide only our model-facing seed; keep it in Session history and requests.
-							if (props.node.data.finalNode && /^tavern-seed-trajectory:v1:.+:2$/.test(String(props.node.data.finalNode.messageId || ""))) return null;
-							return React.createElement(TavernAssistantNodeView, Object.assign({}, props, { executeSlash: executeSlash }));
-						});
-					});
-				}, "dsh-tavern: inline assistant renderer");
-				input.ctx.effect(function () {
-					return input.slots.inject("conversation.chat.node", function () {
-						return input.slots.register({
-							name: "conversation.chat.node",
-							key: "user",
-							priority: -1
-						}, TavernUserNodeView);
-					});
-				}, "dsh-tavern: raw user message renderer");
-				input.ctx.effect(function () {
-					return input.slots.inject("conversation.chat.assistant-actions", function () {
-						return input.slots.register({
-							name: "conversation.chat.assistant-actions", id: "dsh-tavern-fork", order: 20,
-							inject: function (sessionId) { return { sessionId: sessionId }; }
-						}, TavernForkAssistantAction);
-					});
-				}, "dsh-tavern: conversation fork action");
 			}
-			return Object.freeze({ register: register });
+			return Object.freeze({ register: register, SceneIllustration: SceneIllustration });
 		}
 
 		async function deleteTavernCards(cards, remove) {
@@ -7078,6 +6916,9 @@ window.__ModuleLoader__.load({
 				const ctx = input.ctx;
 				const slots = input.slots;
 				const uiConversation = ctx.get("uiConversation") || ctx.get("conversation");
+				if (uiConversation && uiConversation.events && typeof uiConversation.events.register === "function") {
+					ctx.effect(function () { return uiConversation.events.register(tavernSurfaceSelectTrajectoryDefinition()); }, "dsh-tavern: trajectory surface selection");
+				}
 				ctx.effect(function () {
 					document.body.classList.add("dsh-tavern-shell-active");
 					const releaseLandingStyles = installTavernLandingStyles(document);
@@ -9228,305 +9069,8 @@ window.__ModuleLoader__.load({
 			return null;
 		}
 
-		// @include turn-error-controls.js
-
-		function createSupersededErrorProjection(root) {
-			const owned = new Map();
-			function restore(row, previous) {
-				row.hidden = previous.hidden;
-				if (row.style) row.style.display = previous.display;
-			}
-			function dispose() {
-				for (const [row, previous] of owned) restore(row, previous);
-				owned.clear();
-			}
-			function apply(turns) {
-				const hidden = new Set(turns.map(String));
-				const rows = root.querySelectorAll('[data-chat-flow-kind]');
-				const keep = new Set();
-				let pending = [];
-				let failedTurn = "";
-				function flush(turn) {
-					for (const row of pending) {
-						const owner = row.getAttribute("data-chat-turn") || turn;
-						if (!hidden.has(owner)) continue;
-						keep.add(row);
-						if (!owned.has(row)) owned.set(row, { hidden: row.hidden, display: row.style && row.style.display });
-						row.hidden = true;
-						// Native process rows update `hidden` themselves when folding.
-						// Keep suppression independent of that presentation state.
-						if (row.style) row.style.display = "none";
-					}
-					pending = [];
-				}
-				for (const row of rows) {
-					pending.push(row);
-					const kind = row.getAttribute("data-chat-flow-kind");
-					if (kind !== "turn-error" && kind !== "turn-tail") { failedTurn = ""; continue; }
-					// Legacy rows have message IDs, not turn IDs. The terminal error or
-					// tail anchors the whole turn, including its input and reasoning.
-					// A failed tail can be empty, so inherit its preceding error's turn.
-					const key = row.getAttribute("data-chat-flow-key") || "";
-					const prefix = kind.length + ":" + kind;
-					const keyTurn = key.startsWith(prefix) ? key.slice(prefix.length) : "";
-					const tail = kind === "turn-tail" && row.querySelector ? row.querySelector("[data-turn-tail]") : null;
-					const turn = row.getAttribute("data-chat-turn") || row.getAttribute("data-turn-tail") || (tail && tail.getAttribute("data-turn-tail")) || (/^\d+$/.test(keyTurn) ? keyTurn : "") || (kind === "turn-tail" ? failedTurn : "");
-					flush(turn);
-					failedTurn = kind === "turn-error" ? turn : "";
-				}
-				// alpha has explicit ownership even before its tail is mounted.
-				flush("");
-				for (const [row, previous] of owned) {
-					if (!keep.has(row)) { restore(row, previous); owned.delete(row); }
-				}
-			}
-			return { apply: apply, dispose: dispose };
-		}
-		// One owner for persisted suppression and legacy browser-only history records.
-		// Kept in the loader bundle so DSH needs no new browser module protocol.
-		function createTurnHistoryProjection(options) {
-			options = options || {};
-			const root = options.root || function () { return document; };
-			const storage = options.storage || function () { return window.localStorage; };
-			const hiddenRows = new Map();
-			function hideRow(row) {
-				if (!hiddenRows.has(row)) hiddenRows.set(row, row.style.display);
-				row.style.display = "none";
-			}
-			function restoreHiddenRows() {
-				for (const [row, previous] of hiddenRows) {
-					if (row.style.display === "none") row.style.display = previous;
-				}
-				hiddenRows.clear();
-			}
-			const HIDDEN_TURNS_KEY = "dsh-tavern-hidden-turns";
-			const ROLLED_BACK_TURNS_KEY = "dsh-tavern-rolled-back-turns";
-			const HIDDEN_REGEN_USER_TURNS_KEY = "dsh-tavern-hidden-regen-user-turns";
-			function forgetHiddenTurn(storageKey, sessionId, turn) {
-				try {
-					const all = JSON.parse(storage().getItem(storageKey) || "{}");
-					const list = Array.isArray(all[sessionId]) ? all[sessionId].filter(function (item) { return Number(item) !== Number(turn); }) : [];
-					if (list.length) all[sessionId] = list;
-					else delete all[sessionId];
-					storage().setItem(storageKey, JSON.stringify(all));
-				} catch (err) { }
-			}
-			function hideUserForTurnTail(tail) {
-				if (!tail) return;
-				const turn = tailTurnOf(tail);
-				let sib = tail.previousElementSibling;
-				while (sib) {
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					// An unlabeled row proves nothing about turn ownership: after
-					// rollbacks and undo restores a stale tail may sit far from
-					// its own input. Only a row carrying the same turn label may
-					// be hidden; an unlabeled row ends the walk instead of
-					// leaking it across round boundaries onto a neighbouring
-					// player input.
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					if (turn && !siblingTurn) break;
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "user") {
-						hideRow(sib);
-						break;
-					}
-					if (kind === "turn-tail") break;
-					sib = sib.previousElementSibling;
-				}
-			}
-			function applyHiddenRegenUserTurns(sessionId) {
-				try {
-					const all = JSON.parse(storage().getItem(HIDDEN_REGEN_USER_TURNS_KEY) || "{}");
-					const turns = all[sessionId];
-					if (!Array.isArray(turns) || turns.length === 0) return;
-					const set = new Set(turns.map(String));
-					const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-					for (let i = 0; i < tails.length; i++) {
-						const tail = tails[i];
-						if (!set.has(tailTurnOf(tail))) continue;
-						hideUserForTurnTail(tail);
-					}
-				} catch (err) { }
-			}
-			function hideTurnTail(el) {
-				if (!el) return;
-				hideRow(el);
-				const turn = tailTurnOf(el);
-				let sib = el.previousElementSibling;
-				while (sib) {
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "user" || kind === "turn-tail") break;
-					hideRow(sib);
-					sib = sib.previousElementSibling;
-				}
-			}
-			function showTurnTail(el) {
-				if (!el) return;
-				el.style.display = "";
-				const turn = tailTurnOf(el);
-				let sib = el.previousElementSibling;
-				while (sib) {
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "user" || kind === "turn-tail") break;
-					sib.style.display = "";
-					sib = sib.previousElementSibling;
-				}
-			}
-			function hideTurnTailWithUser(el) {
-				if (!el) return;
-				hideRow(el);
-				const turn = el.getAttribute("data-chat-turn");
-				let sib = el.previousElementSibling;
-				while (sib) {
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "turn-tail") break;
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					// System prompts precede the user row. Hide through the turn boundary,
-					// not just through its input; alpha also supplies explicit ownership.
-					hideRow(sib);
-					sib = sib.previousElementSibling;
-				}
-			}
-			function tailTurnOf(el) {
-				if (!el) return "";
-				if (el.getAttribute("data-chat-turn")) return el.getAttribute("data-chat-turn");
-				if (el.getAttribute("data-turn-tail")) return el.getAttribute("data-turn-tail");
-				const inner = el.querySelector("[data-turn-tail]");
-				return inner ? inner.getAttribute("data-turn-tail") : "";
-			}
-			function applyHiddenTurns(sessionId) {
-				try {
-					const all = JSON.parse(storage().getItem(HIDDEN_TURNS_KEY) || "{}");
-					const turns = all[sessionId];
-					if (!Array.isArray(turns) || turns.length === 0) return;
-					const set = new Set(turns.map(String));
-					const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-					for (let i = 0; i < tails.length; i++) {
-						const tail = tails[i];
-						if (!set.has(tailTurnOf(tail))) continue;
-						hideTurnTail(tail);
-					}
-				} catch (err) { }
-			}
-			function applyRolledBackTurns(sessionId) {
-				try {
-					const all = JSON.parse(storage().getItem(ROLLED_BACK_TURNS_KEY) || "{}");
-					const turns = all[sessionId];
-					if (!Array.isArray(turns) || turns.length === 0) return;
-					const set = new Set(turns.map(String));
-					const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-					for (let i = 0; i < tails.length; i++) {
-						const tail = tails[i];
-						if (!set.has(tailTurnOf(tail))) continue;
-						hideTurnTailWithUser(tail);
-					}
-				} catch (err) { }
-			}
-			function applySuppressedDshTurns(turns, regeneratedDshTurns) {
-				const set = new Set((Array.isArray(turns) ? turns : []).map(String));
-				if (set.size === 0) return;
-				const visibleRegenerations = new Set(Object.values(regeneratedDshTurns && typeof regeneratedDshTurns === "object" ? regeneratedDshTurns : {}).map(String));
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-				for (let i = 0; i < tails.length; i++) {
-					const tail = tails[i];
-					const turn = tailTurnOf(tail);
-					if (!set.has(turn)) continue;
-					if (visibleRegenerations.has(turn)) {
-						showTurnTail(tail);
-						hideUserForTurnTail(tail);
-					} else hideTurnTailWithUser(tail);
-				}
-			}
-			function applyRegeneratedDshTurns(regeneratedDshTurns) {
-				const mappings = regeneratedDshTurns && typeof regeneratedDshTurns === "object" ? regeneratedDshTurns : {};
-				const hiddenStoryTurns = new Set(Object.keys(mappings).map(String));
-				if (hiddenStoryTurns.size === 0) return;
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-				for (let i = 0; i < tails.length; i++) {
-					const tail = tails[i];
-					if (hiddenStoryTurns.has(tailTurnOf(tail))) hideTurnTail(tail);
-				}
-			}
-			function apply(sessionId, turns, regeneratedDshTurns) {
-				// Reconcile both directions: an older observer may have hidden a
-				// restored turn after the action's immediate DOM update.
-				// Phone-scale guard: the body observer fires on our own hides and
-				// on streaming layout churn alike. Same inputs plus an unchanged
-				// tracked-row population means the previous pass is still valid;
-				// skipping it keeps long histories interactive on mobile.
-				const rowKey = suppressedDshTurnsRevisionOf(turns, regeneratedDshTurns, sessionId);
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"], [data-chat-turn]');
-				let population = 0
-				for (let i = 0; i < tails.length; i++) if (tails[i].getAttribute("data-chat-turn")) population++
-				if (applyMemo && applyMemo.key === rowKey && applyMemo.population === population) return
-				applyMemo = { key: rowKey, population: population }
-				restoreHiddenRows();
-				applySuppressedDshTurns(turns, regeneratedDshTurns);
-				applyRegeneratedDshTurns(regeneratedDshTurns);
-				// Native rows can mount without their turn tail. Explicit ownership
-				// must remain authoritative during streaming and partial hydration.
-				const suppressed = new Set((Array.isArray(turns) ? turns : []).map(String));
-				const mappings = regeneratedDshTurns || {};
-				const replacements = new Set(Object.values(mappings).map(String));
-				for (const row of root().querySelectorAll('[data-chat-turn]')) {
-					const turn = row.getAttribute("data-chat-turn");
-					const kind = row.getAttribute("data-chat-flow-kind");
-					if (!kind) continue;
-					if (suppressed.has(turn) && (!replacements.has(turn) || kind === "user")) hideRow(row);
-					if (Object.prototype.hasOwnProperty.call(mappings, turn) && kind !== "user") hideRow(row);
-				}
-				applyHiddenTurns(sessionId);
-				applyRolledBackTurns(sessionId);
-				applyHiddenRegenUserTurns(sessionId);
-				for (const row of root().querySelectorAll('[data-chat-flow-kind="context"]')) {
-					const source = row.querySelector('[data-context-source]');
-					if (source && source.textContent.trim() === "dsh-tavern-surface-restore") hideRow(row);
-				}
-			}
-			let applyMemo = null
-			function suppressedDshTurnsRevisionOf(turns, regeneratedDshTurns, sessionId) {
-				return sessionId + "|" + (Array.isArray(turns) ? turns.join(",") : "") + "|" + JSON.stringify(regeneratedDshTurns || {})
-			}
-			function regenerated(sessionId, view, tail) {
-				const adopted = view && view.adopted;
-				if (adopted && Number(adopted.hiddenTurn) > 0) forgetHiddenTurn(HIDDEN_TURNS_KEY, sessionId, Number(adopted.hiddenTurn));
-				if (adopted && Number(adopted.syntheticTurn) > 0) forgetHiddenTurn(HIDDEN_REGEN_USER_TURNS_KEY, sessionId, Number(adopted.syntheticTurn));
-				apply(sessionId, view && view.suppressedDshTurns, view && view.regeneratedDshTurns);
-			}
-			function restored(sessionId, view) {
-				const turn = Number(view && view.undoneRollback && view.undoneRollback.turn);
-				const turns = [turn].concat(Object.values(view && view.regeneratedDshTurns || {})).map(String);
-				for (const restoredTurn of turns) {
-					forgetHiddenTurn(ROLLED_BACK_TURNS_KEY, sessionId, restoredTurn);
-					forgetHiddenTurn(HIDDEN_TURNS_KEY, sessionId, restoredTurn);
-				}
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-				for (const tail of tails) {
-					if (!turns.includes(tailTurnOf(tail))) continue;
-					tail.style.display = "";
-					const owner = tail.getAttribute("data-chat-turn");
-					let row = tail.previousElementSibling;
-					while (row && row.getAttribute("data-chat-flow-kind") !== "turn-tail") {
-						const rowTurn = row.getAttribute("data-chat-turn");
-						if (owner && rowTurn && owner !== rowTurn) break;
-						row.style.display = ""; row = row.previousElementSibling;
-					}
-				}
-				apply(sessionId, view && view.suppressedDshTurns, view && view.regeneratedDshTurns);
-			}
-			function rolledBack(sessionId, view) {
-				apply(sessionId, view && view.suppressedDshTurns, view && view.regeneratedDshTurns);
-			}
-			return Object.freeze({ apply: apply, regenerated: regenerated, rolledBack: rolledBack, restored: restored });
-		}
 		function applyBodyRegenerationResult(options) {
 			options.liveTavernView.setView(options.sessionId, options.view);
-			options.historyProjection.regenerated(options.sessionId, options.view, options.tail);
 		}
 
 		function resolveConversationChatBinding(uiConversation, binding) {
@@ -9547,7 +9091,6 @@ window.__ModuleLoader__.load({
 		}
 
 		function createPlayControlsFeatureModule() {
-			const historyProjection = createTurnHistoryProjection();
 			function TavernConversationExportAction(props) {
 				const [available, setAvailable] = React.useState(false);
 				const [busy, setBusy] = React.useState(false);
@@ -10077,7 +9620,7 @@ window.__ModuleLoader__.load({
 
 			async function submitBodyRegeneration(sessionId, panel, guidance, input) {
 			const res = await rpc("regenBody", { guidance: String(guidance || "").trim(), input: String(input || "") }, sessionId);
-			applyBodyRegenerationResult({ liveTavernView: liveTavernView, historyProjection: historyProjection, sessionId: sessionId, view: res.view, tail: panel.tail });
+			applyBodyRegenerationResult({ liveTavernView: liveTavernView, sessionId: sessionId, view: res.view });
 			setCandidatePanel(null);
 		}
 
@@ -10086,7 +9629,7 @@ window.__ModuleLoader__.load({
 			// lets the provider reuse the cached prompt prefix.
 			async function submitFailedTurnReplay(sessionId) {
 				const res = await rpc("replayTurn", {}, sessionId);
-				applyBodyRegenerationResult({ liveTavernView: liveTavernView, historyProjection: historyProjection, sessionId: sessionId, view: res.view, tail: null });
+				applyBodyRegenerationResult({ liveTavernView: liveTavernView, sessionId: sessionId, view: res.view });
 				setRegenPanel(null);
 				setCandidatePanel(null);
 				setCandidateGuidePanel(null);
@@ -10152,8 +9695,7 @@ window.__ModuleLoader__.load({
 					finally { setBusy(false); liveTavernView.invalidate(props.sessionId); tavernCoordination.invalidate(props.sessionId); }
 				}
 				function regenerationPanelFor(event, phase) {
-				const tail = event && event.currentTarget ? event.currentTarget.closest('[data-chat-flow-kind="turn-tail"]') : null;
-				return { sessionId: props.sessionId, phase: phase, guidance: "", text: "", error: "", tail: tail, openedAt: Date.now() };
+				return { sessionId: props.sessionId, phase: phase, guidance: "", text: "", error: "", openedAt: Date.now() };
 			}
 				function openRegeneration(event) {
 					if (!canRollback || frontRunning || (activity.busy && !settlementActive) || regenBusy) return;
@@ -10207,9 +9749,6 @@ window.__ModuleLoader__.load({
 					setBusy(true);
 					try {
 						const result = await rpc("switchVariant", { index: index }, props.sessionId);
-						// A switch changes no turn suppression — feeding historyProjection
-						// here re-hides rows against a stale DOM and blanks the page.
-						// Only the live view store carries the new floor.
 						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						liveTavernView.invalidate(props.sessionId);
 						notifyTavernDataChanged(["sessions"], "variant-switch");
@@ -10253,7 +9792,7 @@ window.__ModuleLoader__.load({
 					setRolling(true);
 					try {
 						const result = await rpc("rollbackTurn", { expectedTurn: clearIncomplete ? null : targetTurn }, props.sessionId);
-						historyProjection.rolledBack(props.sessionId, result && result.view);
+						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						setCandidatePanel(null);
 						setRegenPanel(null);
 						setCandidateGuidePanel(null);
@@ -10281,7 +9820,7 @@ window.__ModuleLoader__.load({
 					setBusy(true);
 					try {
 						const result = await rpc("undoRollbackTurn", {}, props.sessionId);
-						historyProjection.restored(props.sessionId, result && result.view);
+						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						setCandidatePanel(null); setRegenPanel(null); setCandidateGuidePanel(null);
 						notifyTavernDataChanged(["sessions"], "play-controls");
 					} catch (error) { tavernErrorHub.report("撤销回退", error); }
@@ -10572,104 +10111,6 @@ window.__ModuleLoader__.load({
 				);
 			}
 
-			function observeTurnErrorProjection(root, apply, host = window) {
-				let frame = null, disposed = false;
-				const selector = '[data-chat-flow-kind], [data-turn-tail]';
-				function containsRows(node) {
-					return node.nodeType === 1 && (node.matches(selector) || !!node.querySelector(selector));
-				}
-				const observer = new host.MutationObserver(function (records) {
-					if (disposed || !records.some(function (record) {
-						if (record.type === "attributes") return true;
-						// Native error contents may replace our controls; prose streaming cannot.
-						if (record.target.closest?.('[data-chat-flow-kind="turn-error"]')) return true;
-						return Array.from(record.addedNodes).some(containsRows) || Array.from(record.removedNodes).some(containsRows);
-					})) return;
-					if (frame === null) frame = host.requestAnimationFrame(function () {
-						frame = null;
-						if (!disposed) apply();
-					});
-				});
-				observer.observe(root, {
-					childList: true, subtree: true, attributes: true,
-					attributeFilter: ["data-chat-flow-kind", "data-chat-flow-key", "data-chat-turn", "data-turn-tail"]
-				});
-				return {
-					disconnect() {
-						disposed = true; observer.disconnect();
-						if (frame !== null) host.cancelAnimationFrame(frame);
-						frame = null;
-					}
-				};
-			}
-			function SupersededTurnErrors(props) {
-				const marker = React.useRef(null);
-				const running = props.useSession(function (snapshot) { return snapshot.running; });
-				const latestMessageId = props.useChat(latestTavernAssistantMessageId);
-				const state = useLiveTavernView(props.sessionId, "suppression:" + String(latestMessageId || "") + ":" + String(running));
-				const turns = state.view && state.view.suppressedDshErrorTurns || [];
-				const hiddenTurns = state.view && state.view.hiddenDshErrorTurns;
-				const replayTurn = state.view && state.view.canReplayFailedTurn ? Number(state.view.replayFailedTurn) || null : null;
-				const revision = turns.join(",") + ":" + (Array.isArray(hiddenTurns) ? "saved:" + hiddenTurns.join(",") : "local") + ":" + String(replayTurn || "");
-				React.useEffect(function () {
-					const root = marker.current && marker.current.closest("[data-conversation-scroll]");
-					if (!root) return;
-					const projection = createSupersededErrorProjection(root);
-					const controls = createTurnErrorControls(root, {
-						sessionId: props.sessionId, storage: window.localStorage, hiddenTurns: hiddenTurns, replayTurn: replayTurn,
-						onToggle: !Array.isArray(hiddenTurns) ? undefined : async function (turn, hidden) {
-							const result = await rpc("setFailedErrorVisibility", { sessionId: props.sessionId, turn: turn, hidden: hidden });
-							liveTavernView.setView(props.sessionId, result.view);
-						},
-						onReplay: replayTurn === null ? undefined : async function () {
-							try { await submitFailedTurnReplay(props.sessionId); }
-							catch (error) { tavernErrorHub.report("重新生成本轮", error); }
-							finally { liveTavernView.invalidate(props.sessionId); }
-						},
-						onError: function (error) { tavernErrorHub.report("保存错误提示状态失败", error); }
-					});
-					const apply = function () { projection.apply(turns); controls.apply(); };
-					apply();
-					const observer = observeTurnErrorProjection(root, apply);
-					return function () { observer.disconnect(); controls.dispose(); projection.dispose(); };
-				}, [props.sessionId, revision]);
-				return React.createElement("span", { ref: marker, hidden: true, "data-tavern-error-projection": props.sessionId });
-			}
-			// @include background-suppression.js
-			const pollBackgroundSuppression = createBackgroundSuppressionPoller(rpc);
-			function TurnHistoryProjection(props) {
-				const running = props.useSession(function (snapshot) { return snapshot.running; });
-				const latestMessageId = props.useChat(latestTavernAssistantMessageId);
-				const suppressionState = useLiveTavernView(props.sessionId, "suppression:" + String(latestMessageId || "") + ":" + String(running));
-				const [backgroundTurns, setBackgroundTurns] = React.useState([]);
-				React.useEffect(function () { setBackgroundTurns([]); }, [props.sessionId]);
-				React.useEffect(function () {
-					if (!String(props.sessionId || "").startsWith("background-")) return;
-					return pollBackgroundSuppression(props.sessionId, running,
-						result => setBackgroundTurns(result.turns || []),
-						error => console.warn("后台回退显示刷新失败", error));
-				}, [props.sessionId, latestMessageId, running]);
-				const foregroundTurns = suppressionState.view && Array.isArray(suppressionState.view.suppressedDshTurns) ? suppressionState.view.suppressedDshTurns : [];
-				const suppressedDshTurns = foregroundTurns.concat(backgroundTurns);
-				const suppressedDshTurnsRevision = suppressedDshTurns.join(",");
-				const regeneratedDshTurns = suppressionState.view && suppressionState.view.regeneratedDshTurns || {};
-				const regeneratedDshTurnsRevision = JSON.stringify(regeneratedDshTurns);
-				React.useEffect(function () {
-					let frame = null;
-					function applyProjectionState() {
-						frame = null;
-						historyProjection.apply(props.sessionId, suppressedDshTurns, regeneratedDshTurns);
-					}
-					function scheduleProjection() {
-						if (frame === null) frame = window.requestAnimationFrame(applyProjectionState);
-					}
-					scheduleProjection();
-					const observer = new window.MutationObserver(scheduleProjection);
-					observer.observe(document.body, { childList: true, subtree: true });
-					return function () { observer.disconnect(); if (frame !== null) window.cancelAnimationFrame(frame); };
-				}, [props.sessionId, latestMessageId, running, suppressedDshTurnsRevision, regeneratedDshTurnsRevision]);
-				return null;
-			}
 			function CandidateQuestion(props) {
 				const dismissMode = useCandidatePreferences();
 				const panel = useCandidatePanel();
@@ -10864,11 +10305,29 @@ window.__ModuleLoader__.load({
 				body
 			);
 		}
+			// @include modules/story-view.js
 			function register(input) {
 				const ctx = input.ctx;
 				const slots = input.slots;
 				const uiConversation = ctx.get("uiConversation") || ctx.get("conversation");
 				const executeSlash = createTavernFrameSlashExecutor(ctx);
+				ctx.effect(() => slots.inject("conversation.view", () => slots.register({
+					name: "conversation.view", id: STORY_VIEW_ID, order: -10, label: "剧情",
+					inject: function () { return { executeSlash: executeSlash, uiConversation: uiConversation, storySessions: ctx.sessions }; }
+				}, TavernStoryView)), "dsh-tavern: story view");
+				ctx.effect(function () {
+					const list = ctx.sessions.list;
+					function prefer() {
+						const byId = list.getSnapshot().byId || {};
+						for (const id of Object.keys(byId)) {
+							const summary = byId[id];
+							if (!summary || summary.parentId || summary.origin === "subagent" || id.startsWith("background-")) continue;
+							preferStoryView(id);
+						}
+					}
+					prefer();
+					return list.subscribe(prefer);
+				}, "dsh-tavern: story view default");
 				ctx.effect(() => ctx.betterSidebar.registerTab({
 					id: "dsh-tavern:conversation-settings", title: "本局设置", order: 8, single: true,
 					component: props => React.createElement(TavernConversationSettingsTab, { sessionId: props.scope.sessionId, sessions: ctx.sessions })
@@ -10922,8 +10381,6 @@ window.__ModuleLoader__.load({
 					{ name: "conversation.input.dock", id: "dsh-tavern-question", order: -120, label: "下一步行动" },
 					function (props) {
 						return React.createElement(React.Fragment, null,
-							React.createElement(SupersededTurnErrors, Object.assign({}, props, { key: props.sessionId })),
-							React.createElement(TurnHistoryProjection, Object.assign({}, props, { key: "history:" + props.sessionId })),
 							React.createElement(CandidateQuestion, Object.assign({}, props, { sessions: ctx.sessions }))
 						);
 					}
@@ -11047,11 +10504,16 @@ window.__ModuleLoader__.load({
 			const [refresh, setRefresh] = React.useState(0);
 			const loaded = React.useRef(null);
 			const [loading, setLoading] = React.useState(true);
+			const [contextChanged, setContextChanged] = React.useState(false);
 			React.useEffect(() => {
 				let active = true; setError(""); setLoading(true);
 				if (loaded.current?.sessionId !== props.contextSessionId) { loaded.current = null; setRecord(null); }
 				rpc("getLatestRequestContext", { sessionId: props.contextSessionId, knownId: loaded.current?.id || "" }, props.contextSessionId)
-					.then(value => { if (active && !value.record?.unchanged) { setRecord(value.record); loaded.current = value.record ? { sessionId: props.contextSessionId, id: value.record.id } : null; } })
+					.then(value => {
+						if (!active) return;
+						setContextChanged(value.contextChanged === true);
+						if (!value.record?.unchanged) { setRecord(value.record); loaded.current = value.record ? { sessionId: props.contextSessionId, id: value.record.id } : null; }
+					})
 					.catch(e => { if (active) setError(String(e.message || e)); })
 					.finally(() => { if (active) setLoading(false); });
 				return () => { active = false; };
@@ -11073,6 +10535,7 @@ window.__ModuleLoader__.load({
 					h("span", { className: "dsh-context-badge" }, "第 " + record.turn + " 轮 · 步骤 " + record.step),
 					h("span", null, request.model || ""),
 					h("time", null, new Date(record.createdAt).toLocaleString())) : null,
+				record && contextChanged ? h("p", { className: "dsh-context-stale", role: "status" }, "上下文已变更（切换变体、回退或编辑），下次生成后更新") : null,
 				h("div", { className: "dsh-context-toolbar" },
 					h("input", { type: "search", "aria-label": "搜索完整上下文", placeholder: "搜索提示词、消息或工具…", value: query, onChange: e => setQuery(e.target.value) }),
 					request ? h("button", { onClick: async () => { try { await navigator.clipboard.writeText(text); } catch (e) { setError("复制失败：" + String(e.message || e)); } } }, "复制 JSON") : null,
@@ -11101,7 +10564,19 @@ window.__ModuleLoader__.load({
 
 		const inject = ["slots", "sessions", "workspaces", "layout", "connection", "conversation", "betterSidebar", "remote", "remote.commands", "tavernSessionSignals"];
 
+		// The host chat page's row-hiding layer is gone; drop what it left behind.
+		function forgetRetiredHidingKeys(storage) {
+			try {
+				for (const key of ["dsh-tavern-hidden-turns", "dsh-tavern-rolled-back-turns", "dsh-tavern-hidden-regen-user-turns"]) storage.removeItem(key);
+				for (let index = storage.length - 1; index >= 0; index -= 1) {
+					const key = storage.key(index);
+					if (key && key.startsWith("dsh-tavern-hidden-errors:")) storage.removeItem(key);
+				}
+			} catch (_) { }
+		}
+
 		function apply(ctx) {
+			forgetRetiredHidingKeys(window.localStorage);
 			ctx.effect(() => tavernInteractionDiagnostics.start(), "dsh-tavern: interaction diagnostics");
 			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;
@@ -11231,7 +10706,6 @@ window.__ModuleLoader__.load({
 			registerTavernStartPage(ctx, slots);
 			playControlsFeature.register({ ctx: ctx, slots: slots });
 			assistantRendererFeature.register({ ctx: ctx, slots: slots });
-			// Native history paging owns loading; TavernWindowedNode bounds live bodies without shadowing its slots.
 			ctx.effect(function () {
 				return slots.inject("conversation.input.right", function () {
 					return slots.register({
@@ -11289,9 +10763,6 @@ window.__ModuleLoader__.load({
 		exports.installTavernTextColors = installTavernTextColors;
 		exports.TavernColoredMarkdown = TavernColoredMarkdown;
 		exports.apply = apply;
-		exports.createTurnHistoryProjection = createTurnHistoryProjection;
-		exports.createTurnErrorControls = createTurnErrorControls;
-		exports.createSupersededErrorProjection = createSupersededErrorProjection;
 		exports.inject = inject;
 		exports.buildOpeningPreviewDocument = buildOpeningPreviewDocument;
 		exports.buildTavernFrameDocument = buildTavernFrameDocument;
@@ -11317,9 +10788,6 @@ window.__ModuleLoader__.load({
 		exports.applyTavernHelperContextUpdate = applyTavernHelperContextUpdate;
 		exports.projectionPartsOf = projectionPartsOf;
 		exports.createTavernPreviewWindow = createTavernPreviewWindow;
-		exports.tavernStoryTurnForDshTurn = tavernStoryTurnForDshTurn;
-		exports.tavernMvuReceiptForTurn = tavernMvuReceiptForTurn;
-		exports.tavernUserTextForTurn = tavernUserTextForTurn;
 		exports.createTavernFrameSlashExecutor = createTavernFrameSlashExecutor;
 		exports.createWorldBookLibraryRefreshModule = createWorldBookLibraryRefreshModule;
 		exports.groupWorldBookEditorEntries = groupWorldBookEditorEntries;
@@ -11353,7 +10821,6 @@ window.__ModuleLoader__.load({
 		// @include modules/assistant-visibility.js
 		installTavernAssistantVisibilityPatch(require);
 		// @include modules/trajectory-surface-view.js
-		// @include modules/user-surface-view.js
 		// @include modules/host-session-patch.js
 		installTavernSessionHistoryPatch(require, rpc);
 		return module.exports;

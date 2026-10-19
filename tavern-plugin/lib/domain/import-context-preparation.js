@@ -1,5 +1,5 @@
-import { replaceSessionSurface } from './session-surface-mutations.js'
-import { sessionEvents, appendSessionEvent } from './session-events.js'
+import { writeSurfaceEvent } from './surface-transaction.js'
+import { sessionEvents } from './session-events.js'
 
 const PLUGIN = 'dsh-tavern-context-window'
 const eventMessage = event => event.type === 'user/message' ? event.data : event.type === 'assistant/message' ? event.data.message : null
@@ -82,12 +82,13 @@ export function createImportContextPreparation({ readChat, updateChat, getSessio
       const { removedIds, removedSeqs, ...receipt } = result
       const message = { id: markerId, role: 'user', content: [],
         source: { kind: 'plugin', plugin: PLUGIN, preparation: receipt } }
-      if (result.status === 'trimmed') replaceSessionSurface(session, 'user/message', message, {
-        start: removedSeqs[0], end: removedSeqs.at(-1), sourceEventSeqs: removedSeqs
-      })
-      else appendSessionEvent(session, 'user/message', message, { surfaceOp: 'append' })
+      await writeSurfaceEvent(session, { operation: 'import-context', flush, plan: () => ({
+        type: 'user/message', data: message,
+        intent: result.status === 'trimmed'
+          ? { surfaceOp: { op: 'replace', start: removedSeqs[0], end: removedSeqs.at(-1) }, sourceEventSeqs: removedSeqs }
+          : { surfaceOp: 'append' }
+      }) })
     }
-    await flush(session)
     const { removedIds, removedSeqs, ...receipt } = result
     await updateChat(chat.id, current => {
       current.importHistory.contextPreparation = { ...receipt, provider: request.provider, model: request.model }

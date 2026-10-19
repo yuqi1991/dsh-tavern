@@ -23,11 +23,9 @@ export function createSessionViewSync({ maxReaders = 32 } = {}) {
     }
     for (const [key, value] of Object.entries(view || {})) {
       if(keyedReceipts && key==='mvuReceipts')continue
-      if (['replyProjections','mvuReceipts'].includes(key) && Array.isArray(value)) {
+      if (key === 'mvuReceipts' && Array.isArray(value)) {
         add([key, 'length'], value.length)
         // Row hashes are retained separately, like Helper messages.
-      } else if (['inputSources', 'inputTemplateDisplays', 'regeneratedDshTurns'].includes(key) && value && typeof value === 'object') {
-        add([key], {})
       } else if (key === 'tavernHelper' && value && typeof value === 'object') {
         add([key], {})
         for (const [field, item] of Object.entries(value)) {

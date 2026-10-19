@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import { prepareExpandedPatch } from '../../tavern-plugin/lib/domain/host-session-patch.js'
-import { rewindBackgroundSurface, backgroundSuppressedTurns } from '../../tavern-plugin/lib/domain/background-surface.js'
-import { computeFold } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
+import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
+import { rewindBackgroundSurface } from '../../lib/domain/background-surface.js'
+import { computeFold } from '../../lib/domain/conversation-algebra/index.js'
 
 const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
 test.after(() => patch.dispose())
@@ -24,23 +24,14 @@ function appendTurn(session, id, turn, text) {
     id, role: 'assistant', content: [{ type: 'text', text }], source: MODEL } }, { surfaceOp: 'append' })
 }
 
-test('algebra rewind writes one guarded transaction and matches the legacy surface', async () => {
+test('background rewind writes one guarded transaction', async () => {
   const algebra = backgroundSession(true)
   appendTurn(algebra, 'a1', 1, 'keep')
   appendTurn(algebra, 'a2', 2, 'group1')
   appendTurn(algebra, 'a3', 3, 'group2')
-  const legacy = Session.create('bg-legacy-rewind')
-  legacy.append('user/message', {
-    id: 'tavern-session-prefix:bg', role: 'user', content: [{ type: 'text', text: 'prefix' }],
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot' }
-  }, { surfaceOp: 'append' })
-  appendTurn(legacy, 'a1', 1, 'keep')
-  appendTurn(legacy, 'a2', 2, 'group1')
-  appendTurn(legacy, 'a3', 3, 'group2')
 
   let flushes = 0
-  const removed = await rewindBackgroundSurface(algebra, 1, { enabled: true, flush: async () => { flushes++ } })
-  rewindBackgroundSurface(legacy, 1)
+  const removed = await rewindBackgroundSurface(algebra, 1, { flush: async () => { flushes++ } })
   assert.equal(removed, 2)
   assert.ok(flushes >= 1)
   // One transaction: begin marker on the first tombstone, commit on the last.
@@ -48,30 +39,16 @@ test('algebra rewind writes one guarded transaction and matches the legacy surfa
   assert.equal(tags.length, 1)
   assert.equal(tags[0].phase, 'begin-commit')
   assert.ok(tags[0].operationId.startsWith('background-rewind:'))
-  assert.deepEqual(legacy.surface.nodes, algebra.surface.nodes)
   const fold = computeFold(algebra.snapshotEvents())
   assert.deepEqual(fold.surfaceNodes, algebra.surface.nodes)
   assert.deepEqual(fold.rows.map(row => row.data?.message?.id ?? row.data?.id), ['tavern-session-prefix:bg', 'a1'])
-  // Durable suppression projection still reports the shadowed turns.
-  assert.deepEqual(backgroundSuppressedTurns(algebra.snapshotEvents()), [2, 3])
-})
-
-test('switch off preserves the legacy per-group replacement format', async () => {
-  const session = backgroundSession(true)
-  appendTurn(session, 'a1', 1, 'keep')
-  appendTurn(session, 'a2', 2, 'one')
-  const removed = await rewindBackgroundSurface(session, 1)
-  assert.equal(removed, 1)
-  const tags = session.snapshotEvents().map(event => event.data?.message?.source?.conversationTransaction).filter(Boolean)
-  assert.equal(tags.length, 0)
-  assert.deepEqual(computeFold(session.snapshotEvents()).rows.map(row => row.data?.message?.id ?? row.data?.id), ['tavern-session-prefix:bg', 'a1'])
 })
 
 test('algebra rewind of a clean tail performs no writes', async () => {
   const session = backgroundSession(true)
   appendTurn(session, 'a1', 1, 'only')
   const before = session.snapshotEvents().length
-  assert.equal(await rewindBackgroundSurface(session, 1, { enabled: true, flush: async () => {} }), 0)
+  assert.equal(await rewindBackgroundSurface(session, 1, { flush: async () => {} }), 0)
   assert.equal(session.snapshotEvents().length, before)
 })
 
@@ -91,7 +68,7 @@ test('transaction conflict leaves the surface untouched and surfaces the failure
     }
     return originalAppend(type, data, intent)
   }
-  await assert.rejects(rewindBackgroundSurface(session, 1, { enabled: true, flush: async () => {} }))
+  await assert.rejects(rewindBackgroundSurface(session, 1, { flush: async () => {} }))
   session.append = originalAppend
   // The conflicting transaction may have partially appended its durable plan;
   // fold must either match the host surface or expose a pending transaction
@@ -102,4 +79,23 @@ test('transaction conflict leaves the surface untouched and surfaces the failure
   const pending = tags.some(tag => tag.phase === 'begin' && !committed.has(tag.operationId))
   if (!pending) assert.deepEqual(fold.surfaceNodes, session.surface.nodes)
   else assert.notDeepEqual(session.surface.nodes, before)
+})
+
+test('undo selects the saved background surface', async () => {
+  const { selectSurface } = await import('../../lib/domain/surface-restoration.js')
+  const session = backgroundSession(true)
+  appendTurn(session, 'a1', 1, 'keep')
+  appendTurn(session, 'a2', 2, 'restored')
+  const saved = [...session.surface.nodes]
+  await rewindBackgroundSurface(session, 1, { flush: async () => {} })
+  assert.notDeepEqual([...session.surface.nodes], saved)
+  const before = session.snapshotEvents().length
+  selectSurface(session, saved)
+  // One log-only selection event (ADR-0009), no copied message rows.
+  assert.deepEqual(session.snapshotEvents().slice(before).map(event => [event.type, event.surfaceOp]), [['dsh-tavern/surface-select', undefined]])
+  assert.deepEqual([...session.surface.nodes], saved)
+  assert.deepEqual(computeFold(session.snapshotEvents()).surfaceNodes, saved)
+  // Selecting the current surface again writes nothing.
+  selectSurface(session, saved)
+  assert.equal(session.snapshotEvents().length, before + 1)
 })

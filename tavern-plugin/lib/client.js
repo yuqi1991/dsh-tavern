@@ -141,7 +141,7 @@ window.__ModuleLoader__.load({
 		    // Retire old link loaders only after the bundled styles are installed.
 		    for (const node of doc.querySelectorAll(selector)) if (node !== style) node.remove();
 		}
-		if (typeof document !== "undefined") installTavernStylesheet(document, "/* Tavern components share the active DSH theme, including accent overrides. */\n:root, body {\n  --dsh-tavern-accent: var(--dsw-alias-brand-primary);\n  --dsh-tavern-accent-active: var(--dsw-alias-brand-primary);\n  --dsh-tavern-accent-soft: color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent);\n  --dsh-tavern-accent-border: color-mix(in srgb, var(--dsw-alias-brand-primary) 42%, transparent);\n  --dsh-tavern-accent-ink: var(--dsw-alias-label-primary);\n  --dsh-tavern-accent-muted: var(--dsw-alias-label-secondary);\n  --dsh-tavern-accent-hairline: var(--dsw-alias-border-l2);\n  --dsh-tavern-accent-cream: var(--dsw-alias-bg-base);\n  --dsh-tavern-accent-surface: var(--dsw-alias-bg-layer-1);\n  --dsh-tavern-accent-error: var(--dsw-static-red-500, #c64545);\n  --dsh-tavern-radius-sm: 6px;\n  --dsh-tavern-radius-md: 8px;\n  --dsh-tavern-radius-lg: 12px;\n  --dsh-tavern-font-display: \"Iowan Old Style\", \"Palatino Linotype\", Palatino, \"Book Antiqua\", Georgia, \"Times New Roman\", serif;\n  --dsh-tavern-font-sans: Inter, \"Segoe UI\", system-ui, -apple-system, sans-serif;\n}\nbody.dsh-tavern-shell-active,\n.dsh-tavern-library,\n.dsh-tavern-status,\n.dsh-tavern-resources,\n.dsh-tavern-card-picker,\n.dsh-tavern-mobile-import-panel,\n.dsh-tavern-error-center,\n.dsh-tavern-group-manager,\n.dsh-tavern-skills {\n  font-family: var(--dsh-tavern-font-sans);\n  -webkit-font-smoothing: antialiased;\n}\nbody.dsh-tavern-shell-active .dsh-tavern-landing::before {\n  font-family: var(--dsh-tavern-font-display) !important;\n  font-weight: 400 !important;\n  letter-spacing: -0.5px;\n}\n.dsh-tavern-status-title,\n.dsh-tavern-side-brand,\n.dsh-tavern-mobile-import-title,\n.dsh-tavern-group-manager-head h3 {\n  font-family: var(--dsh-tavern-font-display);\n  font-weight: 400;\n  letter-spacing: -0.2px;\n}\n\n.dsh-tavern-spacer { flex: 1 1 auto; }\n.dsh-tavern-btn {\n  background: var(--dsh-tavern-accent-soft);\n  color: var(--dsh-tavern-accent-active);\n  border: 1px solid transparent;\n  border-radius: var(--dsh-tavern-radius-md);\n  padding: 6px 12px;\n  cursor: pointer;\n  font-size: 13px;\n  font-weight: 500;\n  letter-spacing: 0;\n  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms cubic-bezier(0.23, 1, 0.32, 1);\n}\n.dsh-tavern-btn:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 24%, transparent); }\n.dsh-tavern-btn:active:not(:disabled) { transform: scale(0.97); }\n.dsh-tavern-btn:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-btn.danger { border-color: transparent; color: var(--dsh-tavern-accent-error); background: color-mix(in srgb, var(--dsh-tavern-accent-error) 12%, transparent); }\n.dsh-tavern-btn.danger:hover { background: color-mix(in srgb, var(--dsh-tavern-accent-error) 20%, transparent); }\n.dsh-tavern-mobile-import { position: fixed; inset: 0; z-index: 2300; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.52); }\n.dsh-tavern-mobile-import-shell { display: contents; }\n.dsh-tavern-mobile-import-panel { box-sizing: border-box; width: min(520px, 100%); max-height: min(78vh, 680px); display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 14px; background: var(--dsw-specific-sidebar-fill); color: var(--dsw-alias-label-primary); box-shadow: 0 18px 54px rgba(0,0,0,.35); }\n.dsh-tavern-mobile-import-title { font-size: 15px; font-weight: 750; }\n.dsh-tavern-mobile-import-list { display: flex; flex-direction: column; gap: 7px; overflow: auto; }\n.dsh-tavern-mobile-import-file { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-mobile-import-file span { color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-empty { margin: auto; text-align: center; color: var(--dsw-alias-label-secondary); padding: 24px; line-height: 1.8; white-space: pre-wrap; }\n.dsh-tavern-dock-error { color: #ef8f8f; padding: 0 10px 7px; font-size: 12px; }\n.dsh-tavern-picker-error { position: sticky; top: 0; z-index: 2; margin: 0 0 10px; padding: 10px 12px; border: 1px solid rgba(196,95,95,.45); border-radius: 10px; background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 88%, #c45f5f 12%); color: #c45f5f; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-error-center { position: fixed; z-index: 2200; top: 16px; right: 16px; width: min(480px, calc(100vw - 32px)); max-height: min(70vh, 640px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(196,95,95,.5); border-radius: 14px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 18px 54px rgba(0,0,0,.32); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-error-center-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(196,95,95,.25); font-size: 13px; font-weight: 700; }\n.dsh-tavern-error-center-head span { flex: 1; }\n.dsh-tavern-error-list { overflow: auto; padding: 8px; }\n.dsh-tavern-error-item { padding: 10px; border: 1px solid rgba(196,95,95,.25); border-radius: 10px; background: rgba(196,95,95,.08); }\n.dsh-tavern-error-item + .dsh-tavern-error-item { margin-top: 8px; }\n.dsh-tavern-error-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #c45f5f; font-size: 12px; font-weight: 700; }\n.dsh-tavern-error-meta time { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: 400; }\n.dsh-tavern-error-message { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.55; }\n.dsh-tavern-assistant { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 28px; }\n.dsh-tavern-illustration { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }\n.dsh-tavern-illustration > a { display: block; max-width: 100%; }\n.dsh-tavern-illustration img { display: block; width: auto; height: auto; max-width: min(100%, 320px); max-height: min(240px, 35svh); object-fit: contain; border-radius: 12px; }\n.dsh-tavern-image-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }\n.dsh-tavern-image-adjust { box-sizing: border-box; width: min(100%, 560px); padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }\n.dsh-tavern-image-adjust textarea { box-sizing: border-box; display: block; width: 100%; min-height: 80px; margin: 8px 0; }\n.dsh-tavern-image-reference { overflow-wrap: anywhere; }\n.dsh-tavern-image-reference select { box-sizing: border-box; display: block; width: 100%; margin: 8px 0; }\n.dsh-tavern-image-settings { display: flex; flex-direction: column; gap: 12px; padding: 20px; }\n.dsh-tavern-image-settings label { display: flex; flex-direction: column; gap: 5px; }\n.dsh-tavern-image-settings input, .dsh-tavern-image-settings select, .dsh-tavern-image-settings textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; color: inherit; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-assistant-reasoning { color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 22px; }\n.dsh-tavern-assistant-reasoning summary { cursor: pointer; user-select: none; }\n.dsh-tavern-assistant-reasoning pre { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }\n.dsh-tavern-assistant-stopped { align-self: flex-start; border-radius: 6px; padding: 0 6px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 18px; }\n.dsh-tavern-message-fork { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-message-fork:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-message-fork:disabled { cursor: wait; opacity: .5; }\n.dsh-tavern-swipe-controls { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 24px; }\n.dsh-tavern-swipe-controls button { min-width: 28px; height: 26px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); cursor: pointer; }\n.dsh-tavern-swipe-controls button:disabled { opacity: .35; cursor: default; }\n.dsh-tavern-mvu-receipt { align-self: flex-start; width: min(100%, 760px); border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 20px; }\n.dsh-tavern-mvu-receipt[data-status=\"pending\"] { border-color: rgba(68,126,230,.42); }\n.dsh-tavern-mvu-receipt[data-status=\"updated\"] { border-color: rgba(70,160,105,.42); }\n.dsh-tavern-mvu-receipt[data-status=\"stale\"] { border-color: rgba(196,132,42,.46); }\n.dsh-tavern-mvu-receipt[data-status=\"partial\"], .dsh-tavern-mvu-receipt[data-status=\"error\"], .dsh-tavern-mvu-receipt[data-status=\"interrupted\"] { border-color: rgba(220,94,94,.48); }\n.dsh-tavern-mvu-receipt-summary { display: flex; align-items: center; gap: 7px; padding: 7px 10px; cursor: pointer; user-select: none; font-weight: 750; }\n.dsh-tavern-mvu-receipt-summary::-webkit-details-marker { display: none; }\n.dsh-tavern-mvu-receipt-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-mvu-receipt[data-status=\"pending\"] .dsh-tavern-mvu-receipt-dot { background: #447ee6; }\n.dsh-tavern-mvu-receipt[data-status=\"updated\"] .dsh-tavern-mvu-receipt-dot { background: #4da66d; }\n.dsh-tavern-mvu-receipt[data-status=\"stale\"] .dsh-tavern-mvu-receipt-dot { background: #c4842a; }\n.dsh-tavern-mvu-receipt[data-status=\"partial\"] .dsh-tavern-mvu-receipt-dot, .dsh-tavern-mvu-receipt[data-status=\"error\"] .dsh-tavern-mvu-receipt-dot, .dsh-tavern-mvu-receipt[data-status=\"interrupted\"] .dsh-tavern-mvu-receipt-dot { background: #dc5e5e; }\n.dsh-tavern-mvu-receipt-body { display: grid; gap: 8px; padding: 0 10px 9px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-mvu-receipt-reason { margin-top: 8px; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-mvu-change { display: grid; gap: 2px; padding: 6px 8px; border-radius: 7px; background: var(--dsw-alias-bg-base); }\n.dsh-tavern-mvu-change-path { color: var(--dsh-tavern-accent); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap: anywhere; }\n.dsh-tavern-mvu-change-values { overflow-wrap: anywhere; }\n.dsh-tavern-mvu-side-effect-title { color: var(--dsw-alias-label-tertiary); font-weight: 700; }\n.dsh-tavern-mvu-change[data-origin=\"card-script\"] .dsh-tavern-mvu-change-path { color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-mvu-failure { color: #d96767; overflow-wrap: anywhere; }\n.dsh-tavern-mvu-retry { justify-self: start; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 4px 9px; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; }\n.dsh-tavern-mvu-retry:disabled { cursor: wait; opacity: .58; }\n.dsh-tavern-message-frame-slot { display: block; width: 100%; min-height: 48px; overflow: hidden; }\n/* Legacy card resizers may write an inline height larger than the host slot. */\n.dsh-tavern-message-frame-slot > iframe:not([aria-hidden=\"true\"]) { max-height: 100% !important; }\n.dsh-tavern-message-frame { display: block; width: 100%; min-height: 48px; border: 0; background: transparent; overflow: hidden; }\n.dsh-tavern-status-runtime { width: 100%; min-width: 0; margin: 0 0 10px; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-alias-bg-base); }\n.dsh-tavern-user-row { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }\n.dsh-tavern-user-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; max-width: min(525px, 82%); }\n.dsh-tavern-user-bubble { max-width: 100%; padding: 10px 16px; border-radius: 22px; background: var(--dsw-specific-bubble); color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 24px; overflow-wrap: anywhere; }\n.dsh-tavern-user-extra { margin-top: 8px; }\n.dsh-tavern-user-actions { display: flex; align-items: center; gap: 7px; min-height: 20px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; }\n.dsh-tavern-user-copy { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-user-copy:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-sidebar { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; padding: 12px; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-sidebar.collapsed { padding: 12px 10px; align-items: center; }\nbody.dsh-tavern-shell-active button[aria-label=\"新建会话\"], body.dsh-tavern-shell-active button[aria-label=\"New session\"] { display: none !important; }\nbody.dsh-tavern-shell-active [data-turn-tail] > [data-slot=\"conversation.chat.turnTail\"] + div > button { display: none !important; }\nbody.dsh-tavern-shell-active [data-turn-tail] [data-slot=\"conversation.chat.assistant-actions\"] > :not(.dsh-tavern-message-fork) { display: none !important; }\nbody.dsh-tavern-shell-active .dsh-tavern-hero-preset-row { display: none !important; }\n/* A blank session is also a hero. Only the session-less landing page loses its composer. */\nbody.dsh-tavern-shell-active .dsh-tavern-landing { display: grid !important; place-items: center; }\nbody.dsh-tavern-shell-active .dsh-tavern-landing > * { display: none !important; }\nbody.dsh-tavern-shell-active .dsh-tavern-landing::before { content: \"🍺 DSH Tavern\"; color: var(--dsh-tavern-accent-active); font-size: clamp(24px, 4vw, 40px); font-weight: 800; padding: 24px; text-align: center; }\nbody.dsh-tavern-shell-active [data-ref-chip=\"file\"] { max-width: calc(100% - 4px); min-width: 0; overflow: hidden; text-overflow: ellipsis; }\n.dsh-tavern-side-head { height: 48px; display: flex; align-items: center; gap: 8px; flex: none; }\n.dsh-tavern-side-brand { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; color: var(--dsh-tavern-accent-active); white-space: nowrap; overflow: hidden; }\n.dsh-tavern-side-icon { width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; font-size: 17px; }\n.dsh-tavern-side-icon:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-side-new { height: 40px; flex: none; border: 1px solid var(--dsw-alias-border-l2); border-radius: 11px; background: var(--dsw-alias-button-elevated-fill); color: inherit; cursor: pointer; font-weight: 650; }\n.dsh-tavern-side-new:hover { background: var(--dsw-alias-button-floating-hover); }\n.dsh-tavern-mode-switch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; margin-bottom: 8px; padding: 3px; border-radius: 10px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-mode-switch.compatibility-enabled { grid-template-columns: repeat(3, 1fr); }\n.dsh-tavern-mode-switch button { height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 12px; }\n.dsh-tavern-mode-switch button.active { background: var(--dsw-specific-input-major); color: var(--dsh-tavern-accent-active); box-shadow: var(--dsw-shadow-lv1); font-weight: 700; }\n.dsh-tavern-picker-tabs { display: flex; gap: 6px; margin: 2px 0 8px; }\n.dsh-tavern-picker-tabs button { flex: 1; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; cursor: pointer; font-size: 12px; }\n.dsh-tavern-picker-tabs button.active { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); font-weight: 700; }\n.dsh-tavern-side-title { margin: 16px 4px 7px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n.dsh-tavern-compatibility-notice { margin: 10px 2px 0; padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; }\n.dsh-tavern-compatibility-notice strong { color: var(--dsw-alias-label-primary); }\n.dsh-tavern-side-list { min-height: 0; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }\n.dsh-tavern-side-row { position: relative; display: flex; align-items: center; border: 0; border-radius: 8px; background: transparent; color: inherit; }\n.dsh-tavern-side-row:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-side-row.active { background: var(--dsw-alias-interactive-bg-selected, rgba(120,90,60,.14)); }\n.dsh-tavern-side-row-main { min-width: 0; flex: 1; border: 0; padding: 8px 5px 8px 9px; text-align: left; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-side-row-more { width: 28px; height: 28px; flex: none; margin-right: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; opacity: 0; }\n.dsh-tavern-side-row:hover .dsh-tavern-side-row-more, .dsh-tavern-side-row-more[aria-expanded=\"true\"] { opacity: 1; }\n.dsh-tavern-side-row-more:hover { background: var(--dsw-alias-interactive-bg-hover); color: inherit; }\n.dsh-tavern-side-row-menu { position: absolute; z-index: 30; top: 32px; right: 4px; min-width: 96px; padding: 4px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 8px 24px rgba(0,0,0,.14); transform-origin: top right; animation: dsh-tavern-menu-in 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-side-row-menu button { display: block; width: 100%; border: 0; border-radius: 6px; padding: 7px 10px; text-align: left; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-side-row-menu button:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-side-row-menu button.danger { color: #c34f4f; }\n.dsh-tavern-side-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }\n.dsh-tavern-side-row-meta { margin-top: 3px; display: flex; gap: 6px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-side-empty { padding: 18px 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; text-align: center; }\n.dsh-tavern-update { flex: none; margin-top: 8px; padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-update-identity { color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.45; }\n.dsh-tavern-update-actions { display: flex; gap: 6px; margin-top: 7px; }\n.dsh-tavern-update-button { width: 100%; height: 32px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 11px; }\n.dsh-tavern-update-button:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-update-button.primary { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-update-button:disabled { opacity: .55; cursor: default; }\n.dsh-tavern-update-status { margin-top: 5px; color: var(--dsw-alias-label-tertiary); font-size: 10px; line-height: 1.45; white-space: pre-wrap; }\n.dsh-tavern-update-status.error { color: #c45f5f; }\n.dsh-tavern-settings-section { display: flex; flex-direction: column; gap: 18px; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-settings-intro { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 1.6; }\n.dsh-tavern-settings-group { overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 14px; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-settings-subheading { margin-top: 12px; padding: 22px 20px 12px; border-top: 1px solid var(--dsw-alias-border-l2); display: flex; flex-direction: column; gap: 12px; }\n.dsh-tavern-settings-subheading h3 { margin: 0; }\n.dsh-tavern-settings-row { display: flex; align-items: center; gap: 24px; padding: 18px 20px; cursor: pointer; }\n.dsh-tavern-settings-copy { min-width: 0; flex: 1; }\n.dsh-tavern-settings-title { display: block; font-size: 15px; font-weight: 650; }\n.dsh-tavern-settings-desc { display: block; margin-top: 5px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.55; }\n.dsh-tavern-settings-switch { position: relative; width: 42px; height: 24px; flex: none; }\n.dsh-tavern-settings-switch input { position: absolute; opacity: 0; pointer-events: none; }\n.dsh-tavern-settings-track { position: absolute; inset: 0; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover); box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2); transition: background .18s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-settings-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--dsw-alias-label-secondary); transition: transform .18s cubic-bezier(0.23, 1, 0.32, 1), background .18s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-settings-switch input:checked + .dsh-tavern-settings-track { background: var(--dsh-tavern-accent-active); }\n.dsh-tavern-settings-switch input:checked + .dsh-tavern-settings-track::after { transform: translateX(18px); background: #fff; }\n.dsh-tavern-settings-switch input:focus-visible + .dsh-tavern-settings-track { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-tavern-settings-model-row { flex-wrap: wrap; }\n.dsh-tavern-settings-select { flex: 1 1 220px; max-width: 320px; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; color: inherit; background: var(--dsw-specific-input-major); }\n\n.dsh-tavern-compaction-settings { display: flex; flex-direction: column; align-items: stretch; gap: 16px; padding: 20px; }\n.dsh-tavern-compaction-settings > h3, .dsh-tavern-compaction-settings > p { margin: 0; }\n.dsh-tavern-compaction-field { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; font-size: 14px; line-height: 1.6; }\n.dsh-tavern-compaction-field .dsh-tavern-settings-select { box-sizing: border-box; min-width: 0; width: 100%; font: inherit; }\n.dsh-tavern-compaction-settings > .dsh-tavern-btn { align-self: flex-start; margin-top: 4px; }\n.dsh-tavern-settings-error { color: #c45f5f; font-size: 13px; }\n.dsh-tavern-background-model { min-width: 0; max-width: min(360px,45cqw); height: 28px; display: flex; align-items: center; padding: 0 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; font-weight: 500; line-height: 20px; }\n.dsh-tavern-background-model span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-system-prompt-editor { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }\n.dsh-tavern-system-prompt-warning { margin-bottom: 14px; border: 1px solid rgba(196,95,95,.55); border-radius: 9px; padding: 11px 13px; background: rgba(196,95,95,.1); color: #d98080; font-size: 13px; line-height: 1.55; }\n.dsh-tavern-status-head.dsh-tavern-system-prompt-head { padding: 18px 20px 16px; }\n.dsh-tavern-system-prompt-top-actions { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 10px; }\n.dsh-tavern-preset-detail.dsh-tavern-system-prompt-body { padding: 20px 24px 28px; }\n.dsh-tavern-system-prompt-editor textarea { box-sizing: border-box; width: 100%; min-height: 320px; resize: vertical; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; padding: 14px; background: var(--dsw-specific-input-minor); color: var(--dsw-alias-label-primary); font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n.dsh-tavern-system-prompt-editor textarea:focus { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 1px; }\n.dsh-tavern-system-prompt-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }\n.dsh-tavern-system-prompt-status { color: var(--dsw-alias-label-secondary); font-size: 13px; }\n.dsh-tavern-system-prompt-buttons { display: flex; gap: 10px; }\n.dsh-tavern-system-prompt-button { border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; padding: 8px 14px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); cursor: pointer; }\n.dsh-tavern-system-prompt-button-primary { border-color: var(--dsh-tavern-accent-active); color: var(--dsh-tavern-accent-active); }\n.dsh-tavern-system-prompt-button:disabled { cursor: default; opacity: .5; }\n.dsh-tavern-player-action { border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 4px 8px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 11px; }\n.dsh-tavern-player-action:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-preset-status { max-width: min(260px, 28vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 4px 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-export-action { min-height: 36px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; padding: 7px 14px; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; font-size: 13px; white-space: nowrap; }\n.dsh-tavern-export-action:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-export-action:disabled { opacity: .55; cursor: default; }\n.dsh-tavern-picker-overlay { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 24px; background: rgba(20,18,24,.42); backdrop-filter: blur(2px); }\n.dsh-tavern-card-picker { width: min(860px, calc(100vw - 48px)); max-height: min(80vh, 760px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 16px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 22px 64px rgba(0,0,0,.30); }\n.dsh-tavern-card-picker-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 700; }\n.dsh-tavern-card-picker-help { margin: 4px 0 12px; color: var(--dsw-alias-text-l2); font-size: 13px; }\n.dsh-tavern-card-pick { width: 100%; padding: 9px; margin-top: 5px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-card-pick:hover { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-card-pick.selected { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 14%, transparent); }\n.dsh-tavern-card-pick b { display: block; color: var(--dsh-tavern-accent); }\n.dsh-tavern-card-pick span { display: block; margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.4; }\n.dsh-tavern-card-pick.with-image,.dsh-tavern-library-card.with-image { display: flex; align-items: center; gap: 12px; }\n.dsh-tavern-card-thumb { display: block; flex: none; width: 56px; height: 56px; margin: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 50%; object-fit: cover; object-position: center top; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-card-list-copy { display: block; min-width: 0; flex: 1; margin: 0; }\n.dsh-tavern-card-pick .dsh-tavern-card-list-copy,.dsh-tavern-library-card .dsh-tavern-card-list-copy { color: inherit; font-size: inherit; }\n.dsh-tavern-card-pick-wrap { display: flex; align-items: center; gap: 7px; width: 100%; box-sizing: border-box; }\n.dsh-tavern-card-pick-wrap .dsh-tavern-card-pick { flex: 1 1 auto; min-width: 0; margin-top: 0; }\n.dsh-tavern-card-pick-wrap .dsh-tavern-script-file { flex: 0 0 auto; }\n.dsh-tavern-greeting-preview { display: block; width: 100%; height: min(52vh, 560px); overflow: auto; overflow-anchor: none; box-sizing: border-box; margin: 8px 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-greeting-nav { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }\n.dsh-tavern-greeting-count { color: var(--dsw-alias-label-secondary); text-align: center; font-size: 12px; }\n.dsh-tavern-player-name { display: grid; grid-template-columns: auto minmax(180px, 320px); gap: 10px; align-items: center; margin: 10px 0 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n.dsh-tavern-player-name input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-primary); font: inherit; outline: none; }\n.dsh-tavern-player-name input:focus { border-color: var(--dsh-tavern-accent); }\n.dsh-tavern-player-name-help { margin: -3px 0 8px; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.5; }\n@media (max-width: 640px) {\n  .dsh-tavern-mobile-import { place-items: start center; padding-top: 12px; }\n  .dsh-tavern-picker-overlay { align-items: stretch; padding: 12px; }\n  .dsh-tavern-card-picker { width: 100%; max-height: none; padding: 14px; border-radius: 14px; }\n  .dsh-tavern-greeting-preview { max-height: 60vh; }\n  .dsh-tavern-player-name { grid-template-columns: 1fr; gap: 5px; }\n  .dsh-tavern-preset-status { display: none; }\n}\n.dsh-tavern-picker-group { margin-top: 10px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; }\n.dsh-tavern-picker-foot { position: sticky; bottom: -10px; display: flex; justify-content: flex-end; margin: 10px -10px -10px; padding: 10px; border-top: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-script-file { align-self: center; white-space: nowrap; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; cursor: pointer; font-size: 11px; }\n.dsh-tavern-script-file:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); }\n.dsh-tavern-choice-trigger { border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; padding: 3px 9px; border-radius: 7px; font-size: 12px; font-weight: 650; }\n.dsh-tavern-choice-trigger:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 20%, transparent); color: var(--dsw-alias-brand-primary); }\n.dsh-tavern-dock-actions { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 8px 12px 0; flex-wrap: wrap; }\n.dsh-tavern-more-actions { position: relative; }\n.dsh-tavern-more-menu { position: absolute; z-index: 40; right: 0; bottom: calc(100% + 6px); display: grid; min-width: 150px; padding: 5px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 8px 24px rgba(0,0,0,.2); transform-origin: bottom right; }\n.dsh-tavern-more-menu:not([hidden]) { animation: dsh-tavern-menu-in 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-more-menu[hidden] { display: none; }\n.dsh-tavern-more-menu button { width: 100%; border: 0; border-radius: 6px; padding: 8px 10px; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; text-align: left; white-space: nowrap; }\n.dsh-tavern-more-menu button:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-more-menu button.danger { color: #c34f4f; }\n.dsh-tavern-more-menu button:disabled { cursor: default; opacity: .55; }\n.dsh-tavern-candidate-error-banner { width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 8px 12px; border: 1px solid rgba(196,95,95,.45); border-radius: 10px; background: rgba(196,95,95,.10); color: #c45f5f; font-size: 12px; line-height: 1.5; }\n.dsh-tavern-timeout-banner { display: flex; align-items: center; gap: 8px; width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 8px 12px; border: 1px solid rgba(196,145,72,.45); border-radius: 10px; background: rgba(196,145,72,.10); color: var(--dsw-alias-label-primary); font-size: 12px; line-height: 1.5; }\n.dsh-tavern-timeout-banner span { flex: 1; }\n.dsh-tavern-timeout-banner button { flex: none; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 7px; padding: 4px 8px; background: transparent; color: var(--dsh-tavern-accent); cursor: pointer; }\n.dsh-tavern-choice-error { padding: 5px; color: #c45f5f; font-size: 12px; }\n.dsh-tavern-question { width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 14px; background: var(--dsw-specific-tip, var(--dsw-specific-sidebar-fill)); box-shadow: var(--dsw-shadow-lv1); }\n.dsh-tavern-question.dsh-tavern-candidate-question { width: calc(100% - 32px); max-width: min(680px, var(--dsh-composer-card-max-width, 780px)); }\n.dsh-tavern-question.collapsed { padding: 9px 12px; box-shadow: none; }\n.dsh-tavern-question-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-weight: 750; cursor: pointer; }\n.dsh-tavern-question.collapsed .dsh-tavern-question-head { margin-bottom: 0; }\n.dsh-tavern-question-close { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 16px; line-height: 1; }\n.dsh-tavern-question-sub { color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }\n.dsh-tavern-question-body { max-height: min(360px, 45vh); overflow-y: auto; margin: 6px -4px 0; padding: 0 4px; }\n.dsh-tavern-question-option { width: 100%; box-sizing: border-box; display: flex; align-items: flex-start; gap: 9px; margin-top: 6px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); text-align: left; line-height: 1.5; cursor: pointer; }\n.dsh-tavern-question-option:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-question-option.selected { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-question-radio { flex: none; width: 14px; height: 14px; margin-top: 3px; border: 1.5px solid var(--dsw-alias-label-tertiary); border-radius: 50%; }\n.dsh-tavern-question-option.selected .dsh-tavern-question-radio { border: 4px solid var(--dsh-tavern-accent); }\n.dsh-tavern-question-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }\n.dsh-tavern-question-tag { align-self: flex-start; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); }\n.dsh-tavern-question-tag-scene { color: #6b7fa3; background: rgba(107,127,163,.16); }\n.dsh-tavern-question-free { width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 9px; background: transparent; color: var(--dsw-alias-label-secondary); text-align: left; cursor: pointer; }\n.dsh-tavern-question-free:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-question-foot { display: flex; justify-content: flex-end; gap: 7px; margin-top: 10px; }\n.dsh-tavern-question-primary { border: 0; border-radius: 8px; padding: 6px 12px; background: var(--dsw-alias-button-info-fill); color: #fff; cursor: pointer; }\n.dsh-tavern-question-primary:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-regen-input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; resize: vertical; }\n.dsh-tavern-status { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-resources { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-library { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-library-search { box-sizing: border-box; width: calc(100% - 24px); margin: 10px 12px 2px; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-library-card { width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-library-card:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-library-card b,.dsh-tavern-library-card span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-library-card span { margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-library-card-row { display: flex; align-items: center; gap: 6px; }\n.dsh-tavern-library-card-row .dsh-tavern-library-card { flex: 1; min-width: 0; }\n.dsh-tavern-library-head-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }\n.dsh-tavern-resource-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 20px; }\n.dsh-tavern-script-preview { margin: 0; padding: 14px 16px 24px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-resource-group { margin-bottom: 16px; }\n.dsh-tavern-resource-group-title { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 10px; color: var(--dsw-alias-label-secondary); font-size: 13px; font-weight: 500; letter-spacing: 0; }\n.dsh-tavern-resource-actions { display: flex; align-items: center; gap: 5px; }\n.dsh-tavern-resource-actions select { min-width: 0; max-width: 120px; height: 25px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-specific-input-major); color: inherit; font-size: 10px; }\n.dsh-tavern-resource-import { height: 32px; padding: 0 12px; border: 0; border-radius: var(--dsh-tavern-radius-md); background: var(--dsh-tavern-accent-soft); color: var(--dsh-tavern-accent-active); cursor: pointer; font-size: 13px; font-weight: 500; }\n.dsh-tavern-resource-import:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 24%, transparent); }\n.dsh-tavern-resource-row {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin: 0 0 6px;\n  padding: 12px 14px;\n  border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent-hairline) 55%, var(--dsw-alias-border-l2));\n  border-radius: var(--dsh-tavern-radius-lg);\n  background: color-mix(in srgb, var(--dsh-tavern-accent-surface) 22%, var(--dsw-specific-input-major));\n}\n.dsh-tavern-resource-row:hover { background: color-mix(in srgb, var(--dsh-tavern-accent-surface) 34%, var(--dsw-specific-input-major)); }\n.dsh-tavern-resource-row.is-binding { border-color: var(--dsh-tavern-accent-border); }\n.dsh-tavern-resource-row-main {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  min-width: 0;\n}\n.dsh-tavern-resource-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-resource-open { padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-resource-open:hover { color: var(--dsh-tavern-accent-active); text-decoration: none; }\n.dsh-tavern-resource-meta { flex: none; max-width: 42%; overflow: hidden; text-overflow: ellipsis; color: var(--dsw-alias-label-secondary); font-size: 13px; white-space: nowrap; }\n.dsh-tavern-resource-at { flex: none; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 7px; padding: 3px 7px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-resource-at:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 18%, transparent); }\n.dsh-tavern-resource-at.mounted { border-color: var(--dsw-alias-border-l2); background: transparent; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-resource-mention,\n.dsh-tavern-resource-menu > summary {\n  flex: none;\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 9999px;\n  background: transparent;\n  color: var(--dsw-alias-label-secondary);\n  font: inherit;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  cursor: pointer;\n  list-style: none;\n  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), color 140ms cubic-bezier(0.23, 1, 0.32, 1);\n}\n.dsh-tavern-resource-menu > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-resource-mention:hover,\n.dsh-tavern-resource-menu > summary:hover,\n.dsh-tavern-resource-menu[open] > summary {\n  background: var(--dsh-tavern-accent-soft);\n  color: var(--dsh-tavern-accent-active);\n}\n.dsh-tavern-resource-mention.mounted { color: var(--dsh-tavern-accent-active); }\n.dsh-tavern-resource-mention:focus-visible,\n.dsh-tavern-resource-menu > summary:focus-visible {\n  outline: 2px solid var(--dsh-tavern-accent);\n  outline-offset: 2px;\n}\n.dsh-tavern-resource-menu { position: relative; flex: none; }\n.dsh-tavern-resource-menu-popup {\n  position: absolute;\n  top: calc(100% + 6px);\n  right: 0;\n  z-index: 40;\n  min-width: 148px;\n  padding: 4px;\n  border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent-hairline) 60%, var(--dsw-alias-border-l2));\n  border-radius: var(--dsh-tavern-radius-lg);\n  background: var(--dsw-specific-sidebar-fill);\n  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);\n}\n.dsh-tavern-resource-menu-popup button {\n  display: block;\n  width: 100%;\n  min-height: 34px;\n  padding: 7px 11px;\n  border: 0;\n  border-radius: var(--dsh-tavern-radius-md);\n  background: transparent;\n  color: inherit;\n  text-align: left;\n  font: inherit;\n  font-size: 13px;\n  cursor: pointer;\n}\n.dsh-tavern-resource-menu-popup button:hover { background: var(--dsh-tavern-accent-soft); color: var(--dsh-tavern-accent-active); }\n.dsh-tavern-resource-menu-popup button.danger { color: var(--dsh-tavern-accent-error); }\n.dsh-tavern-resource-menu-popup button.danger:hover { background: color-mix(in srgb, var(--dsh-tavern-accent-error) 12%, transparent); }\n.dsh-tavern-resource-binding {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding-top: 2px;\n}\n.dsh-tavern-resource-binding select {\n  flex: 1;\n  min-width: 0;\n  height: 36px;\n  padding: 0 12px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-tavern-radius-md);\n  background: var(--dsw-specific-sidebar-fill);\n  color: inherit;\n  font: inherit;\n  font-size: 14px;\n}\n.dsh-tavern-presets { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-preset-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 20px; }\n.dsh-tavern-preset-row { margin-bottom: 8px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-preset-row-head { display: block; }\n.dsh-tavern-preset-row-main { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-preset-row-main b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }\n.dsh-tavern-preset-row-main span { display: block; margin-top: 3px; overflow: hidden; color: var(--dsw-alias-label-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-preset-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-top: 8px; }\n.dsh-tavern-preset-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 14px; }\n.dsh-tavern-preset-detail { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 24px; }\n.dsh-tavern-preset-summary { margin-bottom: 10px; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 35%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.5; }\n.dsh-tavern-external-preset-notice { padding: 14px 16px; font-size: 14px; line-height: 1.7; }\n.dsh-tavern-external-preset-notice p { margin: 4px 0 0; }\n.dsh-tavern-external-preset-notice strong { color: var(--dsh-tavern-accent); font-weight: 750; }\n.dsh-tavern-external-preset-notice .dsh-tavern-preset-warning { color: #b4473a; }\n.dsh-tavern-bypass-plan-notice { padding: 14px 16px; font-size: 14px; line-height: 1.7; }\n.dsh-tavern-bypass-plan-notice p { margin: 4px 0 0; }\n.dsh-tavern-bypass-plan-notice strong { color: var(--dsh-tavern-accent); font-weight: 750; }\n.dsh-tavern-bypass-plan-notice .dsh-tavern-preset-warning { color: #b4473a; }\n.dsh-tavern-preset-selector { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 8px; margin-bottom: 10px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); font-size: 11px; }\n.dsh-tavern-preset-selector select { min-width: 0; width: 100%; height: 28px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; padding: 0 7px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-preset-section-title { margin: 14px 2px 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 800; letter-spacing: .04em; }\n.dsh-tavern-plan-phase { margin-top: 12px; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-plan-phase-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }\n.dsh-tavern-plan-phase-title { font-size: 13px; font-weight: 800; }\n.dsh-tavern-plan-phase-description { margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }\n.dsh-tavern-plan-phase-count { flex: none; color: var(--dsw-alias-label-secondary); font-size: 10px; white-space: nowrap; }\n.dsh-tavern-plan-phase-empty { padding: 8px 2px 2px; color: var(--dsw-alias-label-tertiary); font-size: 10px; }\n.dsh-tavern-preset-phase { margin-top: 8px; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-top: 3px solid #5b9cff; border-radius: 10px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-preset-phase.phase-middle { border-top-color: #35c76f; }\n.dsh-tavern-preset-phase.phase-back { border-top-color: #b47cff; }\n.dsh-tavern-preset-phase-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 5px; }\n.dsh-tavern-preset-phase-title { font-size: 14px; font-weight: 800; }\n.dsh-tavern-preset-phase-description { max-width: 620px; margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }\n.dsh-tavern-preset-phase-count { flex: none; padding: 2px 7px; border-radius: 999px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 10px; white-space: nowrap; }\n.dsh-tavern-preset-phase-empty { padding: 10px 2px 4px; color: var(--dsw-alias-label-tertiary); font-size: 10px; }\n.dsh-tavern-preset-unassigned { margin-top: 12px; padding: 10px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 10px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-preset-unassigned > summary { cursor: pointer; color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 750; }\n.dsh-tavern-preset-unassigned > p { margin: 7px 0 10px; font-size: 10px; line-height: 1.5; }\n.dsh-tavern-prompt-row { margin-bottom: 7px; border: 1px solid var(--dsw-alias-border-l2); border-left: 4px solid #5b9cff; border-radius: 9px; background: var(--dsw-specific-input-major); overflow: hidden; }\n.dsh-tavern-prompt-row.role-user { border-left-color: #35c76f; }\n.dsh-tavern-prompt-row.role-assistant { border-left-color: #b47cff; }\n.dsh-tavern-prompt-row.role-regex { border-left-color: #ed9714; }\n.dsh-tavern-prompt-row.role-script { border-left-color: #8b69d4; }\n.dsh-tavern-prompt-row.role-extension { border-left-color: #718096; }\n.dsh-tavern-prompt-head { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 10px; cursor: pointer; list-style: none; }\n.dsh-tavern-preset-entry-head { grid-template-columns: minmax(0,1fr) auto; padding: 5px 8px; }\n.dsh-tavern-preset-phase > .dsh-tavern-prompt-row { margin-bottom: 2px; }\n.dsh-tavern-preset-entry-head .dsh-tavern-prompt-title span { margin-top: 1px; }\n.dsh-tavern-prompt-head::-webkit-details-marker { display: none; }\n.dsh-tavern-prompt-title { min-width: 0; }\n.dsh-tavern-prompt-title b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }\n.dsh-tavern-prompt-title span { display: block; overflow: hidden; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-prompt-state { display: flex; align-items: center; gap: 5px; color: var(--dsw-alias-label-secondary); font-size: 9px; white-space: nowrap; }\n.dsh-tavern-prompt-state::before { width: 8px; height: 8px; border: 2px solid #23bd63; border-radius: 999px; content: \"\"; }\n.dsh-tavern-prompt-state.off::before { border-color: #91a0b5; }\n.dsh-tavern-system-prompt-row > .dsh-tavern-prompt-head { grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 14px 16px; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-title b { overflow: visible; white-space: normal; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-title span { overflow: visible; white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-state { justify-self: end; font-size: 11px; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-state:not(.is-toggle)::before { display: none; }\n\n.dsh-tavern-prompt-state.is-toggle { position: relative; flex-shrink: 0; min-height: 32px; gap: 7px; border: 0; border-radius: 6px; padding: 4px 5px; background: transparent; font: inherit; font-weight: 600; cursor: pointer; }\n.dsh-tavern-prompt-state.is-toggle.on { color: #16766b; }\n.dsh-tavern-prompt-state.is-toggle.off { color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-prompt-state.is-toggle::before { flex-shrink: 0; width: 36px; height: 20px; border: 0; background: #64748b; transition: background .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-prompt-state.is-toggle.on::before { background: #16766b; }\n.dsh-tavern-prompt-state.is-toggle::after { position: absolute; top: 50%; left: 7px; width: 16px; height: 16px; border-radius: 50%; background: #fff; content: \"\"; transform: translateY(-50%); transition: transform .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-prompt-state.is-toggle.on::after { transform: translate(16px, -50%); }\n.dsh-tavern-prompt-state.is-toggle:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-prompt-state.is-toggle:focus-visible { outline: 2px solid #16766b; outline-offset: 2px; }\n.dsh-tavern-prompt-state.is-toggle:disabled { opacity: .6; cursor: wait; }\n.dsh-tavern-extract-state { gap: 8px; color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 650; }\n.dsh-tavern-extract-state::before { width: 11px; height: 11px; }\n.dsh-tavern-extract-state input[type=\"checkbox\"] { width: 18px; height: 18px; margin: 0; accent-color: #23bd63; }\n.dsh-tavern-plan-name-field { display: grid; gap: 5px; margin-top: 8px; color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 650; }\n.dsh-tavern-plan-name-field input { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; font: inherit; font-weight: 400; }\n.dsh-tavern-plan-model-editor { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; }\n.dsh-tavern-plan-model-editor input { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; font: inherit; font-weight: 400; }\n/* Card extensions have a type badge in addition to the title and state. */\n.dsh-tavern-card-extensions .dsh-tavern-prompt-head { grid-template-columns: auto minmax(0, 1fr) auto; }\n.dsh-tavern-card-extensions .dsh-tavern-prompt-role { font-size: 9px; line-height: 1.4; color: var(--dsw-alias-label-secondary); white-space: nowrap; }\n.dsh-tavern-card-extensions .dsh-tavern-prompt-title .dsh-tavern-prompt-tags { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }\n.dsh-tavern-card-extensions .dsh-tavern-prompt-tags .dsh-tavern-prompt-tag { display: inline-block; margin-top: 0; color: #c77800; font-size: 9px; }\n@media (max-width: 560px) {\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-head { grid-template-columns: minmax(0, 1fr) auto; }\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-role { grid-column: 1; grid-row: 1; }\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-state, .dsh-tavern-card-extensions .dsh-tavern-prompt-head > .dsh-tavern-mvu-state { grid-column: 2; grid-row: 1; }\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-title { grid-column: 1 / -1; grid-row: 2; }\n}\n.dsh-tavern-prompt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }\n.dsh-tavern-prompt-tag { padding: 1px 5px; border-radius: 4px; background: rgba(237,151,20,.14); color: #c77800; font-size: 9px; }\n.dsh-tavern-prompt-content { margin: 0; padding: 10px 12px; border-top: 1px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-secondary); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-prompt-view-actions { display: flex; justify-content: flex-end; padding: 8px 10px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-prompt-editor { display: grid; grid-template-columns: minmax(0,1fr) 150px; gap: 10px; padding: 12px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-prompt-editor-field { display: grid; gap: 5px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-prompt-editor-field.full { grid-column: 1 / -1; }\n.dsh-tavern-prompt-editor-field input[type=\"text\"], .dsh-tavern-prompt-editor-field select, .dsh-tavern-prompt-editor-field textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-minor); color: var(--dsw-alias-label-primary); padding: 8px 9px; font: inherit; }\n.dsh-tavern-prompt-editor-field textarea { min-height: 220px; resize: vertical; font: 10px/1.55 ui-monospace, monospace; }\n.dsh-tavern-prompt-editor-toggle { display: flex; align-items: center; gap: 7px; min-height: 34px; }\n.dsh-tavern-prompt-editor-note { grid-column: 1 / -1; color: var(--dsw-alias-label-secondary); font-size: 9px; }\n.dsh-tavern-prompt-editor-actions { position: sticky; bottom: 0; grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; padding: 9px 0 0; background: var(--dsw-specific-input-major); z-index: 1; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor { box-sizing: border-box; width: 100%; max-width: 640px; margin-inline: auto; grid-template-columns: minmax(0, 1fr) minmax(90px, 120px); gap: 6px 8px; padding: 8px; font-size: 11px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-field { gap: 3px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-field :is(input, select, textarea) { padding: 5px 7px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor textarea { min-height: 140px; height: 140px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-toggle { min-height: 28px; font-size: 11px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-actions { align-items: center; flex-wrap: wrap; gap: 6px; padding: 2px 0; font-size: 11px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-actions :is(button, select) { padding: 3px 7px; font: inherit; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-actions > label { display: flex; align-items: center; gap: 5px; }\n.dsh-tavern-regex-body { border-top: 1px solid var(--dsw-alias-border-l2); padding: 10px 12px; }\n.dsh-tavern-regex-label { margin: 8px 0 4px; color: var(--dsw-alias-label-secondary); font-size: 10px; font-weight: 750; }\n.dsh-tavern-regex-label:first-child { margin-top: 0; }\n.dsh-tavern-regex-code { max-height: 220px; overflow: auto; margin: 0; padding: 8px 9px; border-radius: 7px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-regex-meta { margin-top: 9px; color: var(--dsw-alias-label-tertiary); font: 9px/1.6 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-extension-note { margin: 9px 0; padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 30%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--dsh-tavern-accent) 7%, transparent); color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.55; }\n.dsh-tavern-mvu-list { display: grid; gap: 6px; }\n.dsh-tavern-mvu-row { display: grid; grid-template-columns: 74px minmax(0,1fr) auto; gap: 7px; align-items: center; padding: 7px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); font-size: 10px; }\n.dsh-tavern-mvu-kind { color: var(--dsh-tavern-accent); font-weight: 750; }\n.dsh-tavern-mvu-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-mvu-state { color: var(--dsw-alias-label-tertiary); white-space: nowrap; }\n.dsh-tavern-dsh-preset { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 24px; }\n.dsh-tavern-dsh-preset-controls { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 8px; margin-bottom: 10px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); font-size: 11px; }\n.dsh-tavern-dsh-preset-controls select { min-width: 0; width: 100%; height: 28px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; padding: 0 7px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-dsh-preset-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }\n.dsh-tavern-dsh-preset-badge { border-radius: 999px; padding: 3px 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-dsh-preset-badge.front { background: rgba(58,132,255,.13); color: #4f92ff; }\n.dsh-tavern-dsh-preset-badge.middle { background: rgba(237,151,20,.15); color: #d27b00; }\n.dsh-tavern-dsh-preset-badge.back { background: rgba(180,124,255,.14); color: #9c62ed; }\n.dsh-tavern-dsh-preset-phase { margin-bottom: 15px; }\n.dsh-tavern-dsh-preset-phase-title { margin: 2px 2px 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 800; }\n.dsh-tavern-dsh-preset-row { margin-bottom: 6px; border: 1px solid var(--dsw-alias-border-l2); border-left: 4px solid #5b9cff; border-radius: 8px; background: var(--dsw-specific-input-major); overflow: hidden; }\n.dsh-tavern-dsh-preset-row.front { border-left-color: #4f92ff; }\n.dsh-tavern-dsh-preset-row.middle { border-left-color: #ed9714; }\n.dsh-tavern-dsh-preset-row.back { border-left-color: #b47cff; }\n.dsh-tavern-dsh-preset-row.off { opacity: .62; }\n.dsh-tavern-dsh-preset-row.unconverted { border-left-color: #e06c75; }\n.dsh-tavern-dsh-preset-row summary { display: grid; grid-template-columns: 36px minmax(0,1fr) auto; align-items: center; gap: 7px; padding: 8px 9px; cursor: pointer; list-style: none; }\n.dsh-tavern-dsh-preset-row summary::-webkit-details-marker { display: none; }\n.dsh-tavern-dsh-preset-index { color: var(--dsw-alias-label-tertiary); font: 9px/1 ui-monospace, monospace; }\n.dsh-tavern-dsh-preset-name { min-width: 0; }\n.dsh-tavern-dsh-preset-name b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }\n.dsh-tavern-dsh-preset-name span { display: block; overflow: hidden; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-dsh-preset-meta { color: var(--dsw-alias-label-secondary); font-size: 9px; white-space: nowrap; }\n.dsh-tavern-dsh-preset-content { margin: 0; padding: 9px 10px; border-top: 1px solid var(--dsw-alias-border-l3); color: var(--dsw-alias-label-secondary); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-dsh-preset-diagnostics { margin-top: 12px; padding: 8px 10px; border: 1px solid rgba(237,151,20,.35); border-radius: 8px; background: rgba(237,151,20,.07); color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.55; }\n.dsh-tavern-dsh-preset-diagnostics summary { cursor: pointer; font-weight: 800; }\n.dsh-tavern-dsh-preset-diagnostics ul { margin: 7px 0 0; padding-left: 18px; }\n.dsh-tavern-dsh-preset-unconverted-group { margin-top: 9px; }\n.dsh-tavern-dsh-preset-unconverted-title { margin: 8px 0 6px; font-weight: 800; }\n.dsh-tavern-dsh-preset-raw { margin-top: 6px; border: 1px solid var(--dsw-alias-border-l3); border-radius: 7px; overflow: hidden; }\n.dsh-tavern-dsh-preset-raw summary { padding: 7px 8px; cursor: pointer; font-weight: 700; }\n.dsh-tavern-status-head { flex: none; padding: 16px 16px 12px; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-status-title { font-size: 18px; font-weight: 400; letter-spacing: -0.2px; }\n.dsh-tavern-plan-head { display: flex; flex-direction: column; gap: 10px; }\n.dsh-tavern-plan-head-main { display: flex; align-items: center; gap: 8px; min-width: 0; }\n.dsh-tavern-plan-head-main .dsh-tavern-status-title { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }\n.dsh-tavern-plan-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }\n.dsh-tavern-status-role { margin-top: 5px; color: var(--dsh-tavern-accent); font-size: 13px; font-weight: 700; }\n.dsh-tavern-status-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }\n.dsh-tavern-status-tag { padding: 2px 6px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-status-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 20px; }\n.dsh-tavern-status-section { margin-bottom: 16px; }\n.dsh-tavern-card-reload { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }\n.dsh-tavern-card-reload-notice { min-width: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }\n.dsh-tavern-card-app-section[hidden] { display: none; }\n.dsh-tavern-card-app-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }\n.dsh-tavern-card-app-head .dsh-tavern-status-label { margin-bottom: 0; }\n.dsh-tavern-card-app-recovering { margin-bottom: 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-card-app-slot { width: 100%; min-height: 120px; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: rgba(0,0,0,.14); }\n.dsh-tavern-script-buttons { display: flex; flex-wrap: wrap; gap: 7px; }\n.dsh-tavern-status-label { margin-bottom: 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; letter-spacing: .06em; }\n.dsh-tavern-status-now { padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 30%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); font-size: 12px; line-height: 1.55; }\n.dsh-tavern-character-designs { display: flex; flex-direction: column; gap: 7px; }\n.dsh-tavern-character-design { border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); overflow: hidden; }\n.dsh-tavern-character-design summary { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 10px; cursor: pointer; list-style: none; }\n.dsh-tavern-character-design summary::-webkit-details-marker { display: none; }\n.dsh-tavern-character-design-name { display: block; font-size: 12px; font-weight: 800; }\n.dsh-tavern-character-design-summary { display: block; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 10px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-character-design-meta { color: var(--dsh-tavern-accent); font-size: 9px; white-space: nowrap; }\n.dsh-tavern-character-design-body { padding: 2px 10px 10px; border-top: 1px solid var(--dsw-alias-border-l3); }\n.dsh-tavern-character-design-row { padding-top: 8px; }\n.dsh-tavern-character-design-row b { display: block; color: var(--dsw-alias-label-tertiary); font-size: 9px; }\n.dsh-tavern-character-design-row p { margin: 3px 0 0; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-guide-list { display: flex; flex-direction: column; gap: 6px; }\n.dsh-tavern-guide-item { display: flex; align-items: flex-start; gap: 6px; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-guide-text { flex: 1; min-width: 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }\n.dsh-tavern-guide-add { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }\n.dsh-tavern-guide-add textarea { box-sizing: border-box; width: 100%; resize: vertical; min-height: 54px; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 12px; line-height: 1.5; }\n.dsh-tavern-script-preview { display: flex; flex-direction: column; gap: 7px; }\n.dsh-tavern-script-chunk { border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); padding: 7px 9px; font-size: 11px; line-height: 1.55; }\n.dsh-tavern-script-chunk-label { display: block; margin-bottom: 3px; color: var(--dsh-tavern-accent); font-size: 10px; font-weight: 700; }\n.dsh-tavern-script-chunk-text { color: var(--dsw-alias-label-secondary); white-space: pre-wrap; max-height: 160px; overflow-y: auto; }\n.dsh-tavern-status-item { padding: 7px 0; border-bottom: 1px solid var(--dsw-alias-border-l3); font-size: 12px; line-height: 1.5; }\n.dsh-tavern-status-item:last-child { border-bottom: 0; }\n.dsh-tavern-status-empty { color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 1.6; }\n.dsh-tavern-user-profile { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-user-profile-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px; }\n.dsh-tavern-user-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }\n.dsh-tavern-user-profile-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); }\n.dsh-tavern-user-profile-switch b { display: block; font-size: 12px; }\n.dsh-tavern-user-profile-switch small { display: block; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 9px; line-height: 1.45; }\n.dsh-tavern-user-profile-text { margin: 0; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-user-profile-dimension { margin-top: 7px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-user-profile-dimension b { font-size: 11px; }\n.dsh-tavern-user-profile-dimension p { margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; }\n.dsh-tavern-user-profile-meta { margin-top: 5px; color: var(--dsw-alias-label-tertiary); font-size: 9px; line-height: 1.5; }\n.dsh-tavern-user-profile details { margin-top: 10px; }\n.dsh-tavern-user-profile details summary { cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; }\n.dsh-tavern-user-profile-editor textarea { box-sizing: border-box; width: 100%; min-height: 130px; margin-top: 5px; padding: 8px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; resize: vertical; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 11px; line-height: 1.6; }\n.dsh-tavern-debug-panel { display: flex; flex-direction: column; gap: 7px; }\n.dsh-tavern-debug-panel select { width: 100%; box-sizing: border-box; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 12px; }\n.dsh-tavern-debug-preview { padding: 7px 8px; border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }\n.dsh-tavern-debug-open { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; font-size: 12px; font-weight: 650; }\n.dsh-tavern-debug-open:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 16%, transparent); }\n.dsh-tavern-debug-open:disabled { cursor: wait; opacity: .6; }\n.dsh-tavern-status-settle { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #6ea676; }\n.dsh-tavern-status-dot.running { background: #c68a3a; animation: dsh-tavern-pulse 1s infinite alternate; }\n.dsh-tavern-status-dot.error { background: #c45f5f; }\n.dsh-tavern-status-view-switch { margin-top: 10px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 999px; padding: 5px 10px; background: color-mix(in srgb, var(--dsh-tavern-accent) 9%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-phone-host { align-items: center; overflow: auto; padding: 12px; background: radial-gradient(circle at 50% 0, rgba(63,145,255,.08), transparent 38%), var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-phone-toolbar { width: min(100%, 360px); display: flex; justify-content: flex-end; margin-bottom: 8px; }\n.dsh-tavern-phone-exit { border: 0; border-radius: 999px; padding: 6px 11px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 11px; }\n.dsh-tavern-phone-device { position: relative; width: min(100%, 360px); height: min(720px, calc(100vh - 110px)); min-height: 520px; overflow: hidden; box-sizing: border-box; border: 9px solid #121318; border-radius: 44px; background: #edf3fb; box-shadow: 0 20px 55px rgba(0,0,0,.32), inset 0 0 0 1px rgba(255,255,255,.18); color: #162033; }\n.dsh-tavern-phone-screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: linear-gradient(150deg,#dff8ff 0%,#b7dcff 25%,#314eae 56%,#071536 100%); }\n.dsh-tavern-phone-island { position: absolute; z-index: 4; top: 10px; left: 50%; width: 104px; height: 29px; transform: translateX(-50%); border-radius: 999px; background: #090b10; }\n.dsh-tavern-phone-statusbar { position: relative; z-index: 3; height: 49px; flex: none; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 7px 19px 0; color: #fff; font-size: 12px; font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,.35); }\n.dsh-tavern-phone-status-icons { letter-spacing: 1px; }\n.dsh-tavern-phone-home { flex: 1; min-height: 0; padding: 32px 24px; }\n.dsh-tavern-phone-app { width: 68px; border: 0; padding: 0; background: transparent; color: #fff; cursor: pointer; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,.55); }\n.dsh-tavern-phone-app-icon { position: relative; width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 7px; border-radius: 16px; background: linear-gradient(145deg,#4ed76f,#12a947); box-shadow: 0 8px 20px rgba(0,0,0,.22); color: #fff; text-shadow: none; }\n.dsh-tavern-phone-app-icon::before { content: \"\"; width: 31px; height: 25px; border-radius: 50%; background: #fff; }\n.dsh-tavern-phone-app-icon::after { content: \"\"; position: absolute; left: 16px; bottom: 14px; width: 10px; height: 10px; background: #fff; clip-path: polygon(0 0,100% 0,0 100%); transform: rotate(-10deg); }\n.dsh-tavern-phone-app-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 650; }\n.dsh-tavern-phone-page { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #f5f7fb; color: #172033; }\n.dsh-tavern-phone-nav { min-height: 48px; flex: none; display: grid; grid-template-columns: 56px minmax(0,1fr) 56px; align-items: center; padding: 0 8px; border-bottom: 1px solid #dce2eb; background: rgba(255,255,255,.94); }\n.dsh-tavern-phone-nav strong { overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }\n.dsh-tavern-phone-nav button { border: 0; background: transparent; color: #3478e5; cursor: pointer; font-size: 12px; }\n.dsh-tavern-phone-contact-list { min-height: 0; overflow-y: auto; background: #fff; }\n.dsh-tavern-phone-contact { width: 100%; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 10px; box-sizing: border-box; border: 0; border-bottom: 1px solid #edf0f4; padding: 11px 14px; background: #fff; color: inherit; cursor: pointer; text-align: left; }\n.dsh-tavern-phone-avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: linear-gradient(145deg,#7b8cff,#5265d6); color: #fff; font-size: 17px; font-weight: 800; }\n.dsh-tavern-phone-contact-copy { min-width: 0; }\n.dsh-tavern-phone-contact-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }\n.dsh-tavern-phone-contact-preview { display: block; margin-top: 4px; overflow: hidden; color: #89919f; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }\n.dsh-tavern-phone-contact-time { color: #a0a7b2; font-size: 9px; }\n.dsh-tavern-phone-empty { margin: auto; padding: 28px; color: #7d8694; text-align: center; font-size: 12px; line-height: 1.6; }\n.dsh-tavern-phone-messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px 12px; background: #eef1f6; }\n.dsh-tavern-phone-bubble { max-width: 82%; padding: 8px 10px; border-radius: 13px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-phone-bubble.user { align-self: flex-end; border-bottom-right-radius: 4px; background: #95e766; }\n.dsh-tavern-phone-bubble.assistant { align-self: flex-start; border-bottom-left-radius: 4px; }\n.dsh-tavern-phone-bubble.pending { opacity: .58; }\n.dsh-tavern-phone-bubble.failed { outline: 1px solid #e16a6a; }\n.dsh-tavern-phone-message-error { display: block; margin-top: 3px; color: #c54d4d; font-size: 9px; }\n.dsh-tavern-phone-compose { flex: none; display: flex; align-items: flex-end; gap: 7px; padding: 8px; border-top: 1px solid #dce2eb; background: #fff; }\n.dsh-tavern-phone-compose textarea { min-width: 0; flex: 1; resize: none; box-sizing: border-box; max-height: 96px; border: 1px solid #d4dae4; border-radius: 16px; padding: 7px 10px; background: #f7f8fa; color: #172033; font: inherit; font-size: 12px; line-height: 1.4; }\n.dsh-tavern-phone-compose button { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #2e79e8; color: #fff; cursor: pointer; font-size: 15px; }\n.dsh-tavern-phone-compose button:disabled { opacity: .4; cursor: default; }\n.dsh-tavern-phone-indicator { width: 96px; height: 4px; flex: none; margin: 7px auto 8px; border-radius: 999px; background: currentColor; opacity: .75; }\n.dsh-tavern-card-fields { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }\n.dsh-tavern-card-field { margin-bottom: 10px; }\n.dsh-tavern-card-field label { display: block; margin-bottom: 4px; color: var(--dsw-alias-label-secondary); font-size: 10px; font-weight: 700; }\n.dsh-tavern-card-field input,.dsh-tavern-card-field textarea { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 11px; line-height: 1.45; resize: vertical; }\n.dsh-tavern-card-field textarea { min-height: 76px; }\n.dsh-tavern-card-field textarea.large { min-height: 130px; }\n.dsh-tavern-card-advanced { margin: 10px 0; }\n.dsh-tavern-card-advanced summary { cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; }\n.dsh-tavern-card-worldbook { margin: 0 0 14px; padding: 12px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 11px; background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-card-worldbook > summary { color: var(--dsh-tavern-accent-active); font-size: 13px; font-weight: 800; cursor: pointer; }\n.dsh-tavern-card-worldbook > summary:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 4px; border-radius: 4px; }\n.dsh-tavern-card-worldbook > .dsh-tavern-worldbook { margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); border-radius: 0; }\n\n\n.dsh-tavern-worldbook { margin-bottom: 14px; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; }\n.dsh-tavern-worldbook-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }\n.dsh-tavern-worldbook-title { color: var(--dsw-alias-label-secondary); font-size: 10px; font-weight: 700; }\n.dsh-tavern-worldbook-add { border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); color: var(--dsh-tavern-accent); padding: 4px 8px; cursor: pointer; font-size: 11px; font-weight: 650; }\n.dsh-tavern-worldbook-add:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 20%, transparent); }\n.dsh-tavern-worldbook-empty { padding: 10px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n.dsh-tavern-worldbook-group + .dsh-tavern-worldbook-group { margin-top: 12px; }\n.dsh-tavern-worldbook-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-group-head b { color: var(--dsh-tavern-accent); font-size: 11px; }\n.dsh-tavern-worldbook-entry { margin-bottom: 10px; padding: 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-worldbook-entry-head { color: var(--dsh-tavern-accent); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-worldbook-entry-body { padding-top: 9px; }\n.dsh-tavern-worldbook-entry-actions { display: flex; align-items: center; gap: 4px; }\n.dsh-tavern-worldbook-danger-zone { display: flex; justify-content: flex-end; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-worldbook-kind { border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; padding: 2px 7px; font-size: 10px; }\n.dsh-tavern-worldbook-trigger { display: block; max-width: 100%; margin: 0 0 6px; padding: 1px 0; overflow: hidden; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 10px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-worldbook-trigger:hover { color: var(--dsh-tavern-accent); }\n.dsh-tavern-worldbook-note { margin: -2px 0 8px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }\n.dsh-tavern-worldbook-sort { display: flex; align-items: center; gap: 7px; width: fit-content; margin: 2px 0 12px; padding: 4px 5px 4px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.04); }\n.dsh-tavern-worldbook-sort:focus-within { border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); }\n.dsh-tavern-worldbook-sort-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); color: var(--dsh-tavern-accent); font-size: 12px; font-weight: 800; }\n.dsh-tavern-worldbook-sort-label { font-size: 10px; font-weight: 700; white-space: nowrap; }\n.dsh-tavern-worldbook-sort-control { position: relative; display: inline-flex; align-items: center; }\n.dsh-tavern-worldbook-sort select { min-width: 76px; appearance: none; border: 0; border-radius: 6px; outline: 0; padding: 5px 24px 5px 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }\n.dsh-tavern-worldbook-sort-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-58%); color: var(--dsw-alias-label-tertiary); pointer-events: none; font-size: 12px; }\n.dsh-tavern-worldbook-del { border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; padding: 2px 6px; font-size: 11px; }\n.dsh-tavern-worldbook-del:hover { color: #c45f5f; background: rgba(196,95,95,.12); }\n.dsh-tavern-worldbook-entry .dsh-tavern-card-field { margin-bottom: 6px; }\n.dsh-tavern-worldbook-entry .dsh-tavern-card-field:last-child { margin-bottom: 0; }\n.dsh-tavern-worldbook-editor { padding: 10px 12px 24px; overflow-y: auto; }\n.dsh-tavern-worldbook-summary { margin: 0 0 10px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n.dsh-tavern-worldbook-editor-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 6px; padding: 10px 0; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-worldbook-entry details { margin-top: 7px; }\n.dsh-tavern-worldbook-entry summary { cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 7px; }\n.dsh-tavern-worldbook-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-grid input,.dsh-tavern-worldbook-grid select { min-width: 0; padding: 6px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-worldbook-checks { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 7px 0; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-checks label { display: inline-flex; align-items: center; gap: 4px; }\n.dsh-tavern-card-save { position: sticky; bottom: 0; display: flex; justify-content: flex-end; padding: 10px 0 2px; background: linear-gradient(transparent, var(--dsw-specific-sidebar-fill) 28%); }\n.dsh-tavern-script-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--dsw-alias-border-l3); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-script-info { flex: 1; min-width: 150px; line-height: 1.5; }\n.dsh-tavern-script-info b { color: var(--dsh-tavern-accent); }\n.dsh-tavern-script-hero { flex: none; margin: 10px 12px 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 11px; background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-script-hero-title { color: var(--dsh-tavern-accent-active); font-size: 13px; font-weight: 800; cursor: pointer; }\n.dsh-tavern-script-hero-help { margin-top: 6px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n.dsh-tavern-script-hero .dsh-tavern-script-row { border-top-color: color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); }\n.dsh-tavern-script-primary { border: 0; border-radius: 8px; padding: 6px 10px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-brand-text, #fff); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-script-primary:disabled { opacity: .5; cursor: default; }\n@keyframes dsh-tavern-pulse { from { opacity: .35; } to { opacity: 1; } }\n.dsh-card-primary { border: 0; border-radius: var(--dsh-tavern-radius-md); padding: 10px 18px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-brand-text, #fff); cursor: pointer; font-size: 14px; font-weight: 500; }\n.dsh-card-error { color: #c45f5f; font-size: 12px; }\n@media (max-width: 820px) {\n  .dsh-tavern-question { width: calc(100% - 24px); }\n}\n\n/* Compact writing-style navigation at the bottom of the status panel. */\n.dsh-tavern-style-guide > button {\n  display: flex; align-items: baseline; gap: 10px; width: 100%;\n  padding: 8px 0; border: 0; border-bottom: 1px solid var(--border, rgba(128,128,128,.16));\n  background: transparent; color: inherit; text-align: left; cursor: pointer;\n}\n.dsh-tavern-style-guide > button:last-child { border-bottom: 0; }\n.dsh-tavern-style-guide > button > span { flex-shrink: 0; font-size: 13px; }\n.dsh-tavern-style-guide > button > small { font-size: 11px; opacity: .65; }\n.dsh-tavern-style-guide > button:hover > span { text-decoration: underline; }\n.dsh-tavern-style-guide > button:disabled { opacity: .45; cursor: default; }\n\n.dsh-tavern-style-title { font-size: 17px; font-weight: 700; line-height: 1.5; margin-bottom: 8px; }\n\n/* The sidebar's translated, collapsed bottom panel extends beyond the viewport.\n   hidden still permits focus/scrollIntoView to scroll the whole fixed host,\n   stranding its tab bar above the viewport. Only pane content should scroll. */\nbody.dsh-tavern-shell-active [data-dsh-panel-host] { overflow: clip; }\n\n/* Pocket's legacy :last-child header rule hides the native right-sidebar\n   corner added by the host. Restore that explicit seat, not the old utilities\n   row. Keep the native controller and its horizontal drawer transition. */\n@media (max-width: 767px) {\n  body.dsh-tavern-shell-active [data-phase] header:has([data-conversation-header-corner]) { position: relative; }\n  body.dsh-tavern-shell-active [data-phase] header [data-conversation-header-corner] {\n    display: flex !important;\n    position: absolute;\n    right: 8px;\n    top: 12px;\n    margin: 0;\n    z-index: 3;\n  }\n  body.dsh-tavern-shell-active [data-dsh-bottom-toggle] { display: none !important; }\n}\n\n.dsh-tavern-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }\n.dsh-tavern-history-action { appearance: none; border: 0; background: transparent; color: inherit; font: inherit; padding: 4px 6px; border-radius: 4px; cursor: pointer; }\n.dsh-tavern-history-action:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: rgba(128, 128, 128, .12); }\n.dsh-tavern-history-action:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-history-selection { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 7px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n\n/* Player notebook: fixed UI typography, independent of story font settings. */\n.dsh-ledger { font-size: 13px; line-height: 1.55; }\n.dsh-ledger button { cursor: pointer; color: inherit; }\n.dsh-ledger-toggle { display: flex; justify-content: space-between; width: 100%; padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 600; }\n.dsh-ledger-toggle span { font-size: 12px; font-weight: 400; opacity: .65; }\n.dsh-ledger-tabs { display: flex; gap: 3px; margin: 12px 0; padding: 3px; border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); }\n.dsh-ledger-tabs button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; border: 0; background: transparent; border-radius: 6px; padding: 6px 8px; font: inherit; color: var(--dsw-alias-label-secondary, inherit); }\n.dsh-ledger-tabs [aria-selected=\"true\"] { color: var(--dsw-alias-label-primary, inherit); background: var(--dsw-specific-sidebar-fill, Canvas); box-shadow: 0 1px 3px rgba(0,0,0,.12); font-weight: 600; }\n.dsh-ledger-count { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }\n.dsh-ledger .dsh-ledger-add, .dsh-ledger-actions button { border: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,.3)); background: transparent; color: var(--dsw-alias-label-primary, inherit); border-radius: 6px; padding: 5px 9px; font: inherit; }\n.dsh-ledger .dsh-ledger-add { font-size: 12px; }\n.dsh-ledger button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); }\n.dsh-ledger button:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-ledger-card { margin: 8px 0; padding: 10px; border: 1px solid var(--dsw-alias-border-subtle, #555); border-radius: 7px; overflow-wrap: anywhere; }\n.dsh-ledger-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }\n.dsh-ledger-actions { display: flex; flex-shrink: 0; gap: 5px; font-size: 12px; }\n.dsh-ledger p { margin: 5px 0; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-ledger small, .dsh-ledger-field-label { opacity: .65; }\n.dsh-ledger h4 { margin: 14px 0 6px; }\n.dsh-ledger-scene { margin: 8px 0 8px 8px; padding-left: 10px; border-left: 1px solid var(--dsh-tavern-accent); }\n.dsh-ledger-scene summary { cursor: pointer; overflow-wrap: anywhere; }\n.dsh-ledger-scene-content { padding: 5px 0; }\n.dsh-ledger-form { margin: 10px 0; padding: 10px; border: 1px solid var(--dsh-tavern-accent); border-radius: 6px; }\n.dsh-ledger-form label { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }\n.dsh-ledger-form input:not([type=\"checkbox\"]) { box-sizing: border-box; width: 100%; min-width: 0; padding: 6px; border: 1px solid #555; border-radius: 4px; color: inherit; background: transparent; font: inherit; }\n.dsh-ledger button:disabled { opacity: .45; cursor: default; }\n\n.dsh-tavern-panel-toolbar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-panel-tabs { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; gap: 6px; }\n.dsh-tavern-panel-tab, .dsh-tavern-panel-refresh { border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; padding: 6px 9px; cursor: pointer; }\n.dsh-tavern-panel-tab { text-align: left; overflow-wrap: anywhere; }\n.dsh-tavern-panel-tabs [aria-selected=\"true\"] { background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); color: var(--dsw-alias-label-primary); font-weight: 650; }\n.dsh-tavern-panel-refresh { flex-shrink: 0; }\n.dsh-tavern-panel-tab:hover, .dsh-tavern-panel-refresh:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-panel-tab:focus-visible, .dsh-tavern-panel-refresh:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-tavern-status-runtime > [role=\"tabpanel\"] { min-width: 0; width: 100%; }\n.dsh-tavern-status-runtime > [role=\"tabpanel\"][hidden] { display: none; }\n\n.dsh-tavern-choice-trigger:disabled { opacity: .5; cursor: not-allowed; }\n\n.dsh-tavern-image-preview { position: fixed; inset: 0; box-sizing: border-box; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 64px 20px 20px; border: 0; background: rgba(0,0,0,.92); overflow: hidden; }\n.dsh-tavern-image-preview::backdrop { background: rgba(0,0,0,.8); }\n.dsh-tavern-image-preview img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }\n.dsh-tavern-image-preview button { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); min-height: 40px; padding: 8px 16px; border: 1px solid #aaa; border-radius: 8px; background: #fff; color: #111; cursor: pointer; font-size: 16px; }\n\n.dsh-tavern-error-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 12px; font-size: 12px; }\n.dsh-tavern-error-controls[hidden] { display: none; }\n.dsh-tavern-error-controls button { color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 5px; padding: 3px 8px; cursor: pointer; }\n.dsh-tavern-error-controls button.dsh-tavern-error-replay { border-color: rgba(166,107,53,.55); color: #a66b35; font-weight: 650; }\n.dsh-tavern-error-controls button.dsh-tavern-error-replay:hover { background: rgba(166,107,53,.18); }\n.dsh-tavern-error-controls button.dsh-tavern-error-replay:disabled { opacity: .55; cursor: default; }\n\n/* Conversation groups are a sidebar projection, not folders in stored chat data. */\n.dsh-tavern-history-group { flex-shrink: 0; min-width: 0; }\n.dsh-tavern-history-group-toggle { display: flex; align-items: center; gap: 7px; width: 100%; padding: 9px 12px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-history-group-toggle:hover { background: rgba(128,128,128,.12); }\n.dsh-tavern-history-group-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }\n.dsh-tavern-history-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.dsh-tavern-history-group-count { flex-shrink: 0; opacity: .6; font-size: 12px; }\n.dsh-tavern-history-group-items { padding-left: 10px; display: flex; flex-direction: column; gap: 4px; }\n\n.dsh-tavern-history-group-items .dsh-tavern-side-row-meta > span:last-child { white-space: nowrap; flex-shrink: 0; }\n\n.dsh-tavern-card-batch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; }\n.dsh-tavern-card-batch .danger { color: #c34848; }\n.dsh-tavern-card-batch-count { color: var(--dsw-alias-label-secondary); font-size: 12px; padding: 0 4px; font-weight: 500; }\n.dsh-tavern-card-batch-notice { flex-basis: 100%; overflow-wrap: anywhere; font-size: 12px; margin-top: 4px; padding: 6px 10px; border-radius: 6px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-card-batch-checkbox { flex: 0 0 18px; width: 18px; height: 18px; margin: 0 6px 0 2px; cursor: pointer; accent-color: var(--dsh-tavern-accent); border-radius: 4px; vertical-align: middle; }\n.dsh-tavern-library-card.selected { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 14%, transparent); }\n\n.dsh-tavern-card-import-hint { padding: 6px 12px 0; }\n.dsh-tavern-library > .dsh-tavern-card-batch { flex-shrink: 0; margin: 0 12px; padding: 10px 0 6px; gap: 10px; }\n.dsh-tavern-library > .dsh-tavern-card-batch + .dsh-tavern-library-search { margin-top: 12px; }\n\n/* Size every opening by content; scroll the dialog instead of squeezing long forms. */\n.dsh-tavern-card-picker:has(.dsh-tavern-greeting-preview) { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }\n/* In block pickers this is inert; avoid a descendant :has() before universal children. */\n.dsh-tavern-card-picker > * { flex-shrink: 0; }\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview { height: auto; min-height: 0; max-height: min(1200px, 85dvh); flex: 0 0 auto; }\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview:has(iframe) { height: min(1200px, 85dvh); }\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview .dsh-tavern-message-frame-slot,\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview .dsh-tavern-message-frame { min-height: min(1200px, 85dvh); }\n@media (max-width: 640px) {\n  .dsh-tavern-card-picker:has(.dsh-tavern-greeting-preview) { max-height: calc(100dvh - 24px); }\n}\n\n.dsh-tavern-worldbook-bound { padding: 8px 12px; font-size: 12px; text-align: left; overflow-wrap: anywhere; }\n.dsh-tavern-worldbook-new { margin: 12px 0 8px; padding: 8px 12px; }\n.dsh-tavern-worldbook > .dsh-tavern-script-row:first-child { border-top: 0; margin-top: 0; padding-top: 0; }\n\n/* Worldbook bindings: existing relationships lead; additions stay folded. */\n.dsh-tavern-worldbook-bindings { margin: 0 0 16px; padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-worldbook-bindings-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; font-weight: 600; }\n.dsh-tavern-worldbook-bindings-count { color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 400; }\n.dsh-tavern-worldbook-bound-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }\n.dsh-tavern-worldbook-bound-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 9px 10px; border-radius: 7px; background: var(--dsw-specific-input-major); }\n.dsh-tavern-worldbook-bound-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 500; }\n.dsh-tavern-worldbook-binding-link { flex-shrink: 0; padding: 3px 0 3px 6px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11px; cursor: pointer; }\n.dsh-tavern-worldbook-binding-link:hover:not(:disabled) { color: var(--dsw-alias-label-primary); text-decoration: underline; }\n.dsh-tavern-worldbook-binding-add { margin-top: 10px; }\n.dsh-tavern-worldbook-binding-add summary { width: fit-content; padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; cursor: pointer; }\n.dsh-tavern-worldbook-binding-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }\n.dsh-tavern-worldbook-binding-form select { flex: 1 1 170px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 12px; }\n.dsh-tavern-worldbook-binding-confirm { min-height: 32px; padding: 4px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }\n.dsh-tavern-worldbook-bindings button:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-worldbook-bindings :is(button, summary, select):focus-visible { outline: 2px solid var(--dsw-alias-label-secondary); outline-offset: 3px; }\n.dsh-tavern-worldbook-binding-empty, .dsh-tavern-worldbook-binding-hint { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n\n.dsh-tavern-preset-drag { cursor: grab; flex: none; padding: 4px 8px; border: 0; background: transparent; color: inherit; font-size: 20px; }\n.dsh-tavern-preset-drag:active { cursor: grabbing; }\n.dsh-tavern-preset-drop { height: 4px; overflow: hidden; line-height: 18px; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; text-align: center; font-size: 12px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-presets.is-dragging .dsh-tavern-preset-drop { border: 1px dashed var(--dsh-tavern-accent); }\n.dsh-tavern-presets.is-dragging .is-drop-target { outline: 2px solid var(--dsh-tavern-accent); outline-offset: -2px; }\n.dsh-tavern-presets.is-dragging .dsh-tavern-prompt-row.is-drop-target { outline: none; box-shadow: 0 -3px var(--dsh-tavern-accent); }\n\n.dsh-tavern-preset-entry-head.has-drag { grid-template-columns: auto minmax(0, 1fr) auto; }\n\n/* Profile scope: current game, future games, and library browsing are separate. */\n.dsh-tavern-profile-controls { display: grid; gap: 18px; padding: 16px 18px 0; }\n.dsh-tavern-profile-game { padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-specific-input-major); }\n.dsh-tavern-profile-section-title { font-size: 12px; font-weight: 600; margin-bottom: 9px; }\n.dsh-tavern-profile-current, .dsh-tavern-profile-library-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }\n.dsh-tavern-profile-current { justify-content: space-between; }\n.dsh-tavern-profile-current strong { font-size: 16px; overflow-wrap: anywhere; }\n.dsh-tavern-profile-current .dsh-tavern-user-profile-actions { margin: 0; }\n.dsh-tavern-profile-controls select { min-width: 0; max-width: 100%; padding: 7px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; }\n.dsh-tavern-profile-library-bar select { flex: 1; }\n.dsh-tavern-profile-default { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }\n.dsh-tavern-profile-controls small { display: block; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.5; margin-top: 6px; }\n.dsh-tavern-profile-default small { grid-column: 1 / -1; margin: 0; }\n.dsh-tavern-profile-library { border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 16px; }\n.dsh-tavern-profile-update { margin-top: 12px; display: grid; justify-items: start; gap: 8px; font-size: 12px; line-height: 1.5; }\n.dsh-tavern-profile-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }\n.dsh-tavern-profile-choices p { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-history-window { min-height: 0; display: flex; flex-direction: column; flex: 1; }\n.dsh-tavern-history-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; position: sticky; top: 0; z-index: 2; background: var(--dsw-specific-input-major); }\n.dsh-tavern-history-controls small { color: var(--dsw-alias-label-tertiary); }\n\n/* Shared in-app text prompt. Replaces window.prompt, which Electron never implements;\n   every previous caller failed silently on desktop. */\n.dsh-tavern-prompt {\n  box-sizing: border-box; position: fixed; inset: 0; margin: auto;\n  width: min(400px, calc(100vw - 32px)); height: fit-content; max-height: calc(100vh - 32px);\n  padding: 16px; border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: 14px; background: var(--dsw-specific-sidebar-fill);\n  color: var(--dsw-alias-label-primary); box-shadow: 0 18px 54px rgba(0, 0, 0, .35);\n}\n.dsh-tavern-prompt::backdrop { background: rgba(0, 0, 0, .52); }\n.dsh-tavern-prompt-panel { display: flex; flex-direction: column; gap: 10px; }\n.dsh-tavern-prompt-title { font-size: 15px; font-weight: 700; }\n.dsh-tavern-prompt-input {\n  box-sizing: border-box; width: 100%; padding: 8px 10px;\n  border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px;\n  background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 13px;\n}\n.dsh-tavern-prompt-input:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 1px; }\n.dsh-tavern-prompt-error { color: #c45f5f; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }\n.dsh-tavern-prompt-actions { display: flex; justify-content: flex-end; gap: 8px; }\n\n.dsh-tavern-settings-text {\n  box-sizing: border-box; width: min(220px, 100%); padding: 7px 9px;\n  border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px;\n  background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 13px;\n}\n.dsh-tavern-settings-text:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 1px; }\n\n.dsh-tavern-export-menu .dsh-tavern-more-menu { top: calc(100% + 6px); bottom: auto; }\n\n.dsh-tavern-skill-assignments {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 12px 20px;\n  padding: 12px 0;\n}\n.dsh-tavern-skill-assignments label {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  cursor: pointer;\n}\n\n.dsh-tavern-skills > .dsh-tavern-question-sub {\n  padding: 0 16px;\n}\n\n.dsh-tavern-skills > .dsh-tavern-status-head { display: flex; align-items: center; justify-content: space-between; }\n.dsh-tavern-skills > .dsh-tavern-resource-body { padding: 12px 16px; }\n.dsh-tavern-skill-group { border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }\n.dsh-tavern-skill-group > summary { cursor: pointer; padding: 12px 14px; font-size: 14px; font-weight: 600; background: var(--dsw-specific-input-major); }\n.dsh-tavern-skill-count { margin-left: 8px; font-size: 12px; font-weight: 400; opacity: .6; }\n.dsh-tavern-skill-row { padding: 14px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-skill-row .dsh-tavern-resource-group-title { margin: 0; gap: 10px; }\n.dsh-tavern-skill-row .dsh-tavern-resource-name { font-size: 15px; font-weight: 700; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; text-align: left; }\n.dsh-tavern-skill-row .dsh-tavern-resource-open:hover { color: var(--dsh-tavern-accent); text-decoration: underline; }\n.dsh-tavern-skill-row .dsh-tavern-resource-open:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 4px; border-radius: 3px; }\n.dsh-tavern-skill-row > p { font-size: 12px; line-height: 1.6; margin: 7px 0 10px; opacity: .8; }\n.dsh-tavern-skill-options > summary { cursor: pointer; font-size: 12px; opacity: .65; }\n.dsh-tavern-skill-options .dsh-tavern-skill-assignments { padding: 10px 0 0; gap: 10px 16px; font-size: 12px; }\n.dsh-tavern-skill-empty { padding: 16px; font-size: 12px; opacity: .55; }\n.dsh-tavern-skill-row[draggable=\"true\"] { cursor: grab; }\n.dsh-tavern-skill-row.is-dragging { opacity: .4; }\n.dsh-tavern-skill-group.is-drop-target { border-color: var(--dsh-tavern-accent); box-shadow: inset 0 0 0 1px var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-skill-grip { opacity: .4; font-size: 18px; user-select: none; }\n.dsh-tavern-skill-content { overflow: auto; min-height: 0; }\n.dsh-tavern-skill-content h3 { margin: 0 0 12px; font-size: 13px; }\n.dsh-tavern-skill-content pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }\n\n.dsh-tavern-background-config { border: 1px solid var(--border, #ddd); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }\n.dsh-tavern-background-config > summary { padding: 14px 16px; cursor: pointer; }\n.dsh-tavern-background-config > summary > span { display: block; margin-top: 6px; overflow-wrap: anywhere; }\n.dsh-tavern-background-config-body { display: grid; gap: 16px; padding: 0 16px 16px; }\n.dsh-tavern-background-config-body > p { margin: 0; }\n.dsh-tavern-background-config-body > label { display: grid; gap: 8px; min-width: 0; }\n.dsh-tavern-background-config-body select { width: 100%; min-width: 0; }\n.dsh-tavern-background-config-body > .dsh-tavern-background-task { display: flex; align-items: center; justify-content: space-between; gap: 16px; }\n.dsh-tavern-background-task .dsh-tavern-settings-desc { display: block; margin-top: 5px; }\n.dsh-tavern-background-task input[role=\"switch\"] { appearance: none; -webkit-appearance: none; position: relative; flex: 0 0 36px; width: 36px; height: 20px; margin: 0; padding: 0; border: 0; border-radius: 10px; background: #64748b; cursor: pointer; transition: background .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-background-task input[role=\"switch\"]::after { content: \"\"; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-background-task input[role=\"switch\"]:checked { background: #16766b; }\n.dsh-tavern-background-task input[role=\"switch\"]:checked::after { transform: translateX(16px); }\n.dsh-tavern-background-task input[role=\"switch\"]:focus-visible { outline: 2px solid #16766b; outline-offset: 3px; }\n.dsh-tavern-background-task input[role=\"switch\"]:disabled { opacity: .6; cursor: not-allowed; }\n.dsh-tavern-conversation-basics { display: grid; gap: 16px; margin-bottom: 24px; }\n.dsh-tavern-conversation-basics h3 { margin: 0; }\n.dsh-tavern-conversation-basics label { display: grid; gap: 8px; }\n.dsh-tavern-conversation-basics select { width: 100%; min-width: 0; }\n\n.dsh-tavern-skill-description { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; font-family: inherit; }\n.dsh-tavern-skill-description:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 4px; border-radius: 3px; }\n.dsh-tavern-skill-description:disabled { cursor: wait; }\n\n/* Conversation settings share one spacing and control system. */\n.dsh-local-settings { container-type: inline-size; }\n.dsh-local-settings .dsh-tavern-status-body { padding: 16px; }\n.dsh-local-intro { margin: 0 0 18px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; }\n.dsh-local-section { display: grid; gap: 16px; padding: 18px; margin-bottom: 16px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-specific-input-major); }\n.dsh-local-section h3 { margin: 0; font-size: 15px; font-weight: 700; }\n.dsh-local-field, .dsh-local-section > label { display: grid; gap: 6px; min-width: 0; }\n.dsh-local-field label { display: grid; gap: 8px; }\n.dsh-local-settings select, .dsh-local-settings input:not([type=\"checkbox\"]) { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; padding: 6px 10px; font: inherit; font-size: 13px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-local-settings label, .dsh-local-label { font-size: 13px; color: var(--dsw-alias-label-primary); }\n.dsh-local-settings p, .dsh-local-settings .dsh-tavern-settings-desc { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }\n.dsh-local-settings .dsh-local-warning { color: #ad6726; font-size: 11px; }\n.dsh-local-settings .dsh-local-intro { margin-bottom: 18px; }\n.dsh-local-settings .dsh-tavern-background-task { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-local-profile .dsh-tavern-profile-game { padding: 0; margin: 0; border: 0; background: transparent; }\n.dsh-local-profile details { margin-top: 8px; font-size: 12px; }\n.dsh-local-profile summary { cursor: pointer; color: var(--dsw-alias-label-secondary); }\n.dsh-local-profile .dsh-tavern-user-profile-text { max-height: 240px; overflow: auto; padding: 10px; margin-top: 8px; background: var(--dsw-specific-sidebar-fill); border-radius: 8px; }\n.dsh-local-feedback { display: block; font-size: 11px; color: var(--dsw-alias-label-secondary); }\n@container (min-width: 560px) {\n  .dsh-local-section > label:not(.dsh-tavern-background-task), .dsh-local-field label { grid-template-columns: minmax(100px, 1fr) minmax(220px, 1.6fr); align-items: center; }\n  .dsh-local-profile { grid-template-columns: minmax(100px, 1fr) minmax(220px, 1.6fr); align-items: start; }\n}\n\n/* Skill document reader and editor */\n.dsh-skill-toolbar { flex-wrap: wrap; gap: 10px; }\n.dsh-skill-toolbar .dsh-tavern-status-title { min-width: 0; overflow-wrap: anywhere; }\n.dsh-tavern-skill-content { padding: clamp(16px, 3vw, 32px); }\n.dsh-skill-document { max-width: 880px; margin: 0 auto; line-height: 1.8; overflow-wrap: anywhere; }\n.dsh-skill-document table { display: block; max-width: 100%; overflow-x: auto; }\n.dsh-skill-document pre { max-width: 100%; overflow-x: auto; }\n.dsh-skill-reference { max-width: 880px; margin: 24px auto 0; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 12px; }\n.dsh-skill-reference > summary { padding: 14px 18px; cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }\n.dsh-skill-reference > .dsh-skill-document { padding: 8px 20px 20px; }\n.dsh-skill-editor { box-sizing: border-box; width: 100%; min-height: 55vh; padding: 20px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 12px; background: var(--background, Canvas); color: inherit; font: 14px/1.7 ui-monospace, monospace; resize: vertical; tab-size: 2; }\n.dsh-skill-editor:focus-visible { outline: 2px solid #a76c36; outline-offset: 2px; }\n\n.dsh-tavern-card-organization { display: flex; gap: 10px; align-items: center; margin: 12px 0; }\n.dsh-tavern-library > .dsh-tavern-card-organization { margin: 6px 12px 8px; }\n.dsh-tavern-library > .dsh-tavern-card-organization > .dsh-tavern-library-search,\n.dsh-tavern-library > .dsh-tavern-card-organization > .dsh-tavern-group-picker > summary { box-sizing: border-box; height: 32px; min-height: 32px; padding: 0 10px; font-size: 13px; line-height: 1.4; }\n.dsh-tavern-card-organization > .dsh-tavern-library-search { flex: 1; width: 0; min-width: 80px; margin: 0; }\n.dsh-tavern-group-picker { position: relative; flex: 0 1 160px; min-width: 105px; }\n.dsh-tavern-group-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 0 12px; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 9px; background: var(--dsw-specific-input-major, #ffffff08); cursor: pointer; list-style: none; transition: border-color .15s, background .15s; }\n.dsh-tavern-group-picker > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-group-picker > summary > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-group-picker[open] > summary { border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-group-picker > summary > span:last-child { opacity: .6; transition: transform .15s; }\n.dsh-tavern-group-picker[open] > summary > span:last-child { transform: rotate(180deg); }\n.dsh-tavern-group-picker > summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); outline-offset: 2px; }\n.dsh-tavern-group-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(220px, 75vw); z-index: 50; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); border-radius: 12px; padding: 5px; background: var(--dsw-specific-sidebar-fill, #202124); box-shadow: 0 8px 24px #0003; transform-origin: top left; }\n.dsh-tavern-group-menu:popover-open { animation: dsh-tavern-menu-in 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n@keyframes dsh-tavern-menu-in { from { opacity: 0; transform: scale(0.97); } }\n.dsh-tavern-group-options { max-height: 280px; overflow-y: auto; }\n.dsh-tavern-group-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 7px 11px; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 13px; line-height: 1.4; cursor: pointer; border-radius: 7px; overflow-wrap: anywhere; transition: background .12s, color .12s; }\n.dsh-tavern-group-menu button:hover, .dsh-tavern-group-menu button:focus-visible { background: var(--dsw-specific-input-major, #ffffff12); }\n.dsh-tavern-group-menu button[aria-pressed=\"true\"] { font-weight: 500; color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 13%, transparent); }\n.dsh-tavern-group-options button > span { width: 16px; flex-shrink: 0; order: 1; margin-left: auto; text-align: center; }\n.dsh-tavern-group-menu-footer { border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent); margin: 5px 5px 0; padding-top: 5px; }\n.dsh-tavern-group-menu-footer button { font-size: 12px; color: var(--dsw-alias-label-secondary); min-height: 32px; padding-left: 6px; }\n@media (prefers-reduced-motion: reduce) {\n  .dsh-tavern-btn { transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1); }\n  .dsh-tavern-side-row-menu,\n  .dsh-tavern-more-menu:not([hidden]),\n  .dsh-tavern-group-menu:popover-open { animation: none; }\n  .dsh-tavern-group-picker > summary > span:last-child,\n  .dsh-tavern-prompt-state.is-toggle::after,\n  .dsh-tavern-background-task input[role=\"switch\"]::after { transition: none; }\n  .dsh-tavern-settings-track,\n  .dsh-tavern-prompt-state.is-toggle::before,\n  .dsh-tavern-background-task input[role=\"switch\"] { transition: background 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n  .dsh-tavern-settings-track::after { transition: background 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n}\n.dsh-tavern-group-manager { width: min(440px, calc(100vw - 32px)); max-height: 80vh; border: 1px solid var(--dsw-alias-border-l2, #454750); border-radius: 12px; background: var(--dsw-specific-sidebar-fill, #202124); color: var(--dsw-alias-label-primary, #eee); padding: 0; }\n.dsh-tavern-group-manager::backdrop { background: #0008; }\n.dsh-tavern-group-manager-content { padding: 20px; }\n.dsh-tavern-group-manager-head, .dsh-tavern-group-manager-row, .dsh-tavern-group-manager-footer { display: flex; align-items: center; gap: 8px; }\n.dsh-tavern-group-manager-head { justify-content: space-between; margin-bottom: 12px; }\n.dsh-tavern-group-manager-head h3 { margin: 0; font-size: 16px; }\n.dsh-tavern-group-manager-row { padding: 10px 0; border-bottom: 1px solid var(--dsw-alias-border-l2, #454750); }\n.dsh-tavern-group-manager-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n.dsh-tavern-group-manager-footer { margin-top: 18px; flex-wrap: wrap; }\n.dsh-tavern-card-detail-organization { flex: none; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 16px; }\n.dsh-tavern-card-detail-organization label { flex: 1; min-width: 110px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; font-size: 11px; line-height: 1.4; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-card-detail-organization select { width: 100%; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-major, #ffffff08); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }\n.dsh-tavern-card-detail-organization > button { height: 34px; padding: 0 12px; white-space: nowrap; border-radius: 7px; }\n.dsh-tavern-card-detail > .dsh-tavern-status-head { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px; }\n.dsh-tavern-card-detail > .dsh-tavern-status-head > button { margin-bottom: 6px; }\n.dsh-tavern-card-detail .dsh-tavern-library-head-actions { margin-top: 6px; gap: 8px; }\n.dsh-tavern-card-detail > .dsh-tavern-script-hero { margin: 0 16px; }\n.dsh-tavern-card-detail > .dsh-tavern-card-fields { padding: 16px; }\n.dsh-tavern-card-detail-organization button[aria-pressed=\"true\"] { color: var(--dsh-tavern-accent); }\n.dsh-tavern-card-batch-panel { padding: 10px 0; }\n@media (max-width: 600px) {\n  .dsh-tavern-group-picker { flex-basis: 140px; }\n}\n\n.dsh-tavern-card-row-menu { flex: none; }\n.dsh-tavern-card-row-menu > summary { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 5px; list-style: none; cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 18px; }\n.dsh-tavern-card-row-menu > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-card-row-menu > summary:hover, .dsh-tavern-card-row-menu[open] > summary { background: var(--dsw-specific-input-major, #ffffff12); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-card-row-popup { position: fixed; inset: auto; margin: 0; z-index: 1000; width: 168px; max-width: calc(100vw - 24px); box-sizing: border-box; overflow-y: auto; padding: 4px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); border-radius: 7px; background: var(--dsw-specific-sidebar-fill, #202124); box-shadow: 0 4px 14px #0003; }\n.dsh-tavern-card-row-menu-title { padding: 5px 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-card-row-popup button { display: flex; gap: 8px; align-items: center; width: 100%; min-height: 30px; border: 0; border-radius: 4px; padding: 5px 8px; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 12px; line-height: 20px; overflow-wrap: anywhere; cursor: pointer; }\n.dsh-tavern-card-row-popup button > span { width: 12px; flex-shrink: 0; order: 1; margin-left: auto; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-card-row-popup button:hover, .dsh-tavern-card-row-popup button:focus-visible { background: var(--dsw-specific-input-major, #ffffff12); }\n\n.dsh-tavern-group-add { display: block; margin: 12px auto; padding: 7px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }\n.dsh-tavern-group-add:hover { background: var(--dsw-specific-input-major, #ffffff12); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-group-add-list { max-height: min(48vh, 360px); overflow-y: auto; margin-top: 12px; }\n.dsh-tavern-group-add-list label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; }\n.dsh-tavern-group-add-list label:hover { background: var(--dsw-specific-input-major, #ffffff12); }\n.dsh-tavern-group-add-list span { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }\n.dsh-tavern-group-add-list small { display: block; margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n\n.dsh-tavern-character-design-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }\n.dsh-tavern-character-design-head .dsh-tavern-status-label { margin: 0; }\n\n.dsh-tavern-group-menu[popover] { position: fixed; inset: auto; margin: 0; overflow-y: auto; color: var(--dsw-alias-label-primary); }\n\n/* Script navigation stays compact inside the resizable status sidebar. */\n.dsh-script-nav { min-width: 0; font-size: 13px; line-height: 1.5; }\n.dsh-script-nav .dsh-tavern-status-label { font-size: 12px; letter-spacing: .03em; }\n.dsh-script-nav p { margin: 8px 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }\n.dsh-script-nav .dsh-script-nav-hint { margin: 0 0 12px; }\n.dsh-script-nav-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }\n.dsh-script-nav input { box-sizing: border-box; flex: 1 1 72px; width: 80px; min-width: 64px; max-width: 160px; height: 32px; padding: 5px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-fill, transparent); color: var(--dsw-alias-label-primary); font: inherit; font-variant-numeric: tabular-nums; }\n.dsh-script-nav button { box-sizing: border-box; appearance: none; min-height: 32px; padding: 5px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: background .15s, border-color .15s; }\n.dsh-script-nav button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); border-color: var(--dsh-tavern-accent); }\n.dsh-script-nav button:disabled { opacity: .4; cursor: default; }\n.dsh-script-nav button:focus-visible, .dsh-script-nav input:focus-visible, .dsh-script-nav summary:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-script-nav-toolbar button[type=\"submit\"] { color: var(--dsh-tavern-accent); border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-script-nav .dsh-script-nav-range { margin: 12px 0 8px; font-size: 11px; font-variant-numeric: tabular-nums; }\n.dsh-script-nav .dsh-script-nav-item { margin: 0 0 8px; padding: 10px 12px; border-radius: 10px; background: transparent; }\n.dsh-script-nav .dsh-script-nav-item[aria-current=\"step\"] { border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 7%, transparent); box-shadow: inset 3px 0 var(--dsh-tavern-accent); }\n.dsh-script-nav summary { cursor: pointer; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; color: var(--dsw-alias-label-primary); }\n.dsh-script-nav summary::marker { color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-script-nav .dsh-tavern-script-chunk-text { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-l2); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }\n.dsh-script-nav .dsh-script-nav-choose { display: block; margin: 8px 0 0 auto; min-height: 26px; padding: 3px 8px; color: var(--dsh-tavern-accent); border-color: transparent; }\n.dsh-script-nav-pages { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-script-nav [role=\"alert\"] { color: #c45f5f; }\n\n.dsh-script-nav .dsh-script-nav-notice { padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); color: inherit; font-weight: 600; }\n.dsh-script-nav .dsh-script-nav-item[aria-current=\"step\"] .dsh-script-nav-choose { opacity: 1; font-weight: 600; border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); }\n\n.dsh-script-nav-position { display: flex; align-items: center; gap: 8px; font-size: 12px; white-space: nowrap; }\n\n.dsh-tavern-preset-regex-head { grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; padding: 5px 8px; }\n.dsh-tavern-preset-regex-head > .dsh-tavern-prompt-role { font-size: 9px; line-height: 1.4; color: var(--dsh-tavern-accent); }\n.dsh-tavern-preset-regex-head .dsh-tavern-prompt-title span { margin-top: 1px; }\n.dsh-tavern-prompt-row:has(> .dsh-tavern-preset-regex-head) { margin-bottom: 4px; }\n\n/* Full-width request inspection has no chat-column resize target. */\n[data-phase=\"active\"]:has(.dsh-tavern-full-context) [data-width-handle] {\n  display: none;\n}\n\n.dsh-tavern-full-context { box-sizing: border-box; width: 100%; min-width: 0; padding: 24px clamp(16px, 3vw, 40px) 32px; color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }\n.dsh-context-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }\n.dsh-context-header h3 { margin: 0; font-size: 18px; line-height: 1.5; font-weight: 600; }\n.dsh-context-header p { margin: 4px 0 0; font-size: 12px; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-full-context button { flex: none; padding: 6px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; transition: background .15s; }\n.dsh-tavern-full-context button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-full-context button:disabled { opacity: .5; cursor: default; }\n.dsh-context-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 18px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n.dsh-context-meta time { color: var(--dsw-alias-label-tertiary); }\n.dsh-context-badge { padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-context-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }\n.dsh-context-toolbar input { flex: 1 1 220px; min-width: 0; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }\n.dsh-context-toolbar input::placeholder { color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-full-context :is(button,input,summary):focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }\n.dsh-context-list { border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }\n.dsh-context-list details + details { border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-context-list summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 8px; }\n.dsh-context-list summary::-webkit-details-marker { display: none; }\n.dsh-context-list summary:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-context-chevron { flex: none; width: 12px; color: var(--dsw-alias-label-tertiary); font-size: 20px; line-height: 20px; transition: transform .15s; }\n.dsh-context-list details[open] > summary .dsh-context-chevron { transform: rotate(90deg); }\n.dsh-context-section-title { min-width: 0; flex: 1; font-weight: 500; }\n.dsh-context-count { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-tertiary); }\n.dsh-context-list pre { margin: 0; padding: 16px 20px; border-top: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font: 12px/1.8 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-context-footnote { margin: 14px 2px 0; font-size: 11px; color: var(--dsw-alias-label-tertiary); }\n.dsh-context-empty { margin: 0; padding: 28px 16px; text-align: center; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-full-context [role=alert] { color: var(--dsw-alias-state-error-primary); }\n@media (max-width: 600px) { .dsh-context-toolbar input { flex-basis: 100%; } .dsh-context-list summary { padding: 10px; gap: 6px; } .dsh-context-list pre { padding: 12px; } }\n\n.dsh-context-list .dsh-context-source { margin: 8px 14px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }\n.dsh-context-list .dsh-context-source > summary { font-size: 12px; color: var(--dsw-alias-label-tertiary); padding: 8px 10px; }\n\n.dsh-context-part-label { padding: 8px 20px; font-size: 12px; color: var(--dsw-alias-label-tertiary); }\n\n/* Shared by global defaults and conversation writing-skill controls. */\n.dsh-tavern-writing-skill,\n.dsh-local-settings .dsh-tavern-writing-skill { display: block; padding: 12px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-writing-skill > .dsh-tavern-writing-skill-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; cursor: pointer; }\n.dsh-tavern-writing-skill-heading > span { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }\n.dsh-tavern-writing-skill > .dsh-tavern-settings-desc { margin: 6px 0 0; }\n.dsh-ejs-editor { box-sizing:border-box; width:min(1100px,calc(100vw - 32px)); height:min(800px,90vh); padding:0; border:1px solid var(--dsw-alias-border-l2); border-radius:14px; background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); box-shadow:0 18px 54px #0005; }\n.dsh-ejs-editor[open] { display:flex; flex-direction:column; }\n.dsh-ejs-editor::backdrop { background:#0007; }\n.dsh-ejs-editor-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; }\n.dsh-ejs-editor-head { border-bottom:1px solid var(--dsw-alias-border-l2); }\n.dsh-ejs-editor h2 { margin:0; font-size:17px; }\n.dsh-ejs-editor p { margin:5px 0 0; color:var(--dsw-alias-label-secondary); font-size:12px; }\n\n.dsh-template-panel-body { flex:1; min-height:0; overflow:auto; padding:20px; }\n.dsh-template-section + .dsh-template-section { margin-top:24px; padding-top:20px; border-top:1px solid var(--dsw-alias-border-l2); }\n.dsh-template-section h3 { margin:0 0 8px; font-size:15px; }\n.dsh-template-panel .dsh-template-help { margin:0 0 16px; line-height:1.6; }\n.dsh-template-settings-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px 24px; margin-bottom:16px; }\n.dsh-template-setting { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:13px; min-height:32px; }\n.dsh-template-setting input[type=checkbox] { accent-color:var(--dsh-tavern-accent-active); }\n.dsh-template-panel input[type=number] { width:80px; }\n.dsh-template-panel textarea,.dsh-template-panel select,.dsh-template-panel input[type=number] { box-sizing:border-box; padding:8px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-specific-input-major); color:inherit; font:inherit; }\n.dsh-template-panel textarea { display:block; width:100%; min-height:120px; margin:12px 0; resize:vertical; }\n.dsh-template-panel summary { cursor:pointer; margin:12px 0; font-size:13px; }\n.dsh-template-actions { display:flex; gap:8px; }\n.dsh-template-panel .dsh-template-feedback { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:10px; }\n\n/* Keep the existing browsing context when presenting a card at screen size. */\n.dsh-tavern-message-frame-slot > iframe.dsh-tavern-message-frame:fullscreen { width: 100vw !important; height: 100vh !important; max-height: none !important; background: var(--dsw-alias-bg-base, Canvas); }\n\n.dsh-tavern-immersive-header { display: none !important; }\n.dsh-tavern-restore-header { align-self: center; flex: none; border: 1px solid var(--dsw-alias-border-l2); border-top: 0; border-radius: 0 0 9px 9px; padding: 2px 14px; background: var(--dsw-specific-sidebar-fill); color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11px; cursor: pointer; }\n.dsh-tavern-restore-header[hidden] { display: none !important; }\n.dsh-tavern-restore-header:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }\n\n/* Worldbook entries put the editable text ahead of occasional configuration. */\n.dsh-tavern-worldbook-entry > .dsh-tavern-worldbook-entry-head { font-size: 14px; font-weight: 700; line-height: 1.6; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }\n.dsh-tavern-worldbook-entry-actions { gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }\n.dsh-tavern-worldbook-entry-actions > label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-worldbook-entry-actions input { margin: 0; }\n.dsh-tavern-worldbook-content > label { font-size: 12px; color: var(--dsw-alias-label-primary); margin-bottom: 7px; }\n.dsh-tavern-worldbook-content textarea.large { min-height: 280px; max-height: 70vh; padding: 12px; font-size: 13px; line-height: 1.75; background: var(--dsw-specific-input-major); }\n.dsh-tavern-worldbook-entry-settings { border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 10px; }\n.dsh-tavern-worldbook-entry-settings > summary { font-size: 11px; padding: 2px 0; }\n.dsh-tavern-worldbook-entry-settings[open] > summary { margin-bottom: 10px; }\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-card-field input,\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-worldbook-grid input,\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-worldbook-grid select { font-size: 11px; padding: 5px 7px; }\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-worldbook-checks { font-size: 11px; }\n\n/* DSH 0.1.5-rc.2: hide Open in App and native log-download menu in Tavern's header. */\nheader .CAgGvG_split,\nheader .nL4_yW_moreButton { display: none !important; }\n\n/* —— 人物卡库 / 详情：Claude 暖陶土·编辑风（scoped 样例，不污染其它侧栏） —— */\n.dsh-tavern-card-library,\n.dsh-tavern-card-detail {\n  --dsh-card-action: var(--dsh-tavern-accent);\n  --dsh-card-action-active: var(--dsh-tavern-accent-active);\n  --dsh-card-action-soft: var(--dsh-tavern-accent-soft);\n  --dsh-card-action-border: var(--dsh-tavern-accent-border);\n  /* Follow theme tokens (light ink / dark on-dark), not a fixed light-mode mix. */\n  --dsh-card-ink: var(--dsh-tavern-accent-ink);\n  --dsh-card-muted: var(--dsh-tavern-accent-muted);\n  --dsh-card-hairline: color-mix(in srgb, var(--dsh-tavern-accent-hairline) 55%, var(--dsw-alias-border-l2));\n  --dsh-card-cream: color-mix(in srgb, var(--dsh-tavern-accent-cream) 22%, var(--dsw-specific-sidebar-fill));\n  --dsh-card-surface: color-mix(in srgb, var(--dsh-tavern-accent-surface) 28%, var(--dsw-specific-input-major));\n  --dsh-card-radius-sm: var(--dsh-tavern-radius-sm);\n  --dsh-card-radius-md: var(--dsh-tavern-radius-md);\n  --dsh-card-radius-lg: var(--dsh-tavern-radius-lg);\n  --dsh-card-radius-full: 9999px;\n  --dsh-card-display: var(--dsh-tavern-font-display);\n  --dsh-card-sans: var(--dsh-tavern-font-sans);\n  color: var(--dsw-alias-label-primary);\n  background: var(--dsh-card-cream);\n  font-family: var(--dsh-card-sans);\n  -webkit-font-smoothing: antialiased;\n}\n[data-ds-dark-theme] .dsh-tavern-card-library .dsh-tavern-btn.danger,\n[data-ds-dark-theme] .dsh-tavern-card-detail .dsh-tavern-btn.danger {\n  background: color-mix(in srgb, var(--dsh-tavern-accent-error) 18%, transparent);\n  color: var(--dsh-tavern-accent-error);\n}\n[data-ds-dark-theme] .dsh-tavern-card-library .dsh-tavern-btn.danger:hover,\n[data-ds-dark-theme] .dsh-tavern-card-detail .dsh-tavern-btn.danger:hover {\n  background: color-mix(in srgb, var(--dsh-tavern-accent-error) 28%, transparent);\n}\n\n.dsh-tavern-card-library > .dsh-tavern-status-head,\n.dsh-tavern-card-detail > .dsh-tavern-status-head {\n  display: flex;\n  flex-direction: column;\n  align-items: stretch;\n  gap: 8px;\n  padding: 20px 16px 14px;\n  border-bottom: 1px solid var(--dsh-card-hairline);\n}\n.dsh-tavern-card-library > .dsh-tavern-status-head .dsh-tavern-status-title,\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-status-title {\n  font-family: var(--dsh-card-display);\n  font-size: 22px;\n  font-weight: 400;\n  letter-spacing: -0.3px;\n  line-height: 1.2;\n  color: var(--dsh-card-ink);\n}\n.dsh-tavern-card-library > .dsh-tavern-status-head .dsh-tavern-question-sub,\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-question-sub,\n.dsh-tavern-card-library > .dsh-tavern-card-import-hint {\n  margin: 0;\n  padding: 0;\n  font-size: 13px;\n  font-weight: 400;\n  line-height: 1.38;\n  letter-spacing: -0.08px;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-library > .dsh-tavern-card-import-hint {\n  padding: 0 16px 4px;\n}\n.dsh-tavern-card-library .dsh-tavern-library-head-actions,\n.dsh-tavern-card-detail .dsh-tavern-library-head-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n  margin-top: 4px;\n}\n.dsh-tavern-card-library .dsh-tavern-btn,\n.dsh-tavern-card-detail .dsh-tavern-btn {\n  min-height: 32px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsh-card-action-soft);\n  color: var(--dsh-card-action-active);\n  font-size: 14px;\n  font-weight: 500;\n  letter-spacing: 0;\n  line-height: 1;\n}\n.dsh-tavern-card-library .dsh-tavern-btn:hover,\n.dsh-tavern-card-detail .dsh-tavern-btn:hover {\n  background: color-mix(in srgb, var(--dsh-card-action) 22%, transparent);\n}\n.dsh-tavern-card-library .dsh-tavern-btn.danger,\n.dsh-tavern-card-detail .dsh-tavern-btn.danger {\n  background: color-mix(in srgb, #c64545 14%, transparent);\n  color: #c64545;\n  border-color: transparent;\n}\n.dsh-tavern-card-library .dsh-tavern-btn.danger:hover,\n.dsh-tavern-card-detail .dsh-tavern-btn.danger:hover {\n  background: color-mix(in srgb, #c64545 22%, transparent);\n}\n\n.dsh-tavern-card-library > .dsh-tavern-card-organization {\n  margin: 10px 16px 6px;\n  gap: 10px;\n}\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-library-search,\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-group-picker > summary {\n  height: 36px;\n  min-height: 36px;\n  padding: 0 12px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsw-specific-input-major);\n  font-size: 15px;\n  letter-spacing: -0.24px;\n  line-height: 1.2;\n}\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-library-search:focus,\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-library-search:focus-visible {\n  outline: none;\n  border-color: var(--dsh-card-action);\n  box-shadow: 0 0 0 3px var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-group-picker[open] > summary {\n  border-color: var(--dsh-card-action-border);\n  background: var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-group-picker > summary:focus-visible {\n  outline: 2px solid var(--dsh-card-action);\n  outline-offset: 2px;\n}\n.dsh-tavern-card-library .dsh-tavern-group-menu button[aria-pressed=\"true\"] {\n  color: var(--dsh-card-action);\n  background: var(--dsh-card-action-soft);\n  font-weight: 600;\n}\n\n.dsh-tavern-card-library > .dsh-tavern-card-batch {\n  margin: 0 16px;\n  padding: 8px 0 4px;\n}\n.dsh-tavern-card-library .dsh-tavern-card-batch-count {\n  font-size: 13px;\n  font-weight: 500;\n}\n.dsh-tavern-card-library .dsh-tavern-card-batch-notice {\n  border-radius: var(--dsh-card-radius-sm);\n  background: var(--dsh-card-action-soft);\n  color: var(--dsw-alias-label-primary);\n  font-size: 13px;\n}\n.dsh-tavern-card-library .dsh-tavern-card-batch-checkbox {\n  width: 20px;\n  height: 20px;\n  margin: 0 8px 0 4px;\n  accent-color: var(--dsh-card-action);\n}\n\n.dsh-tavern-card-library > .dsh-tavern-resource-body {\n  padding: 8px 10px 24px;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card-row {\n  gap: 8px;\n  margin: 2px 0;\n  padding: 2px 4px;\n  border-radius: var(--dsh-card-radius-md);\n}\n.dsh-tavern-card-library .dsh-tavern-library-card {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  min-height: 64px;\n  padding: 10px 12px;\n  border: 1px solid transparent;\n  border-radius: var(--dsh-card-radius-md);\n  background: transparent;\n  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), transform 100ms ease-out;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card:hover {\n  background: var(--dsw-alias-interactive-bg-hover);\n}\n.dsh-tavern-card-library .dsh-tavern-library-card:active:not(:disabled) {\n  transform: scale(0.985);\n}\n.dsh-tavern-card-library .dsh-tavern-library-card.selected {\n  border-color: var(--dsh-card-action-border);\n  background: var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-card-thumb {\n  width: 44px;\n  height: 44px;\n  border-radius: var(--dsh-card-radius-md);\n  border: 1px solid var(--dsw-alias-border-l2);\n  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);\n}\n.dsh-tavern-card-library .dsh-tavern-card-list-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card b {\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n  line-height: 1.27;\n  color: var(--dsw-alias-label-primary);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card span {\n  margin-top: 0;\n  font-size: 13px;\n  font-weight: 400;\n  letter-spacing: -0.08px;\n  line-height: 1.35;\n  color: var(--dsw-alias-label-secondary);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.dsh-tavern-card-library .dsh-tavern-resource-at {\n  min-height: 28px;\n  padding: 0 10px;\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: transparent;\n  color: var(--dsh-card-action);\n  font-size: 13px;\n  font-weight: 500;\n}\n.dsh-tavern-card-library .dsh-tavern-resource-at:hover {\n  background: var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention {\n  flex: none;\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: var(--dsh-card-radius-full, 9999px);\n  background: transparent;\n  color: var(--dsw-alias-label-secondary);\n  font: inherit;\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n  line-height: 1;\n  cursor: pointer;\n  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), color 140ms cubic-bezier(0.23, 1, 0.32, 1), transform 100ms ease-out;\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention:hover {\n  background: var(--dsh-card-action-soft);\n  color: var(--dsh-card-action);\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention:active {\n  transform: scale(0.94);\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention:focus-visible {\n  outline: 2px solid var(--dsh-card-action);\n  outline-offset: 2px;\n}\n.dsh-tavern-card-library .dsh-tavern-card-row-menu > summary {\n  width: 32px;\n  height: 32px;\n  border-radius: var(--dsh-card-radius-md);\n  font-size: 18px;\n}\n.dsh-tavern-card-library .dsh-tavern-empty {\n  padding: 40px 24px;\n  color: var(--dsw-alias-label-secondary);\n  font-size: 15px;\n  line-height: 1.47;\n  letter-spacing: -0.24px;\n}\n\n/* 详情：整页滚动，顶部标题/操作随滚动收起（不再钉死在上） */\n.dsh-tavern-card-detail {\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n}\n.dsh-tavern-card-detail > .dsh-tavern-status-head,\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization,\n.dsh-tavern-card-detail > .dsh-tavern-script-hero {\n  flex: 0 0 auto;\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-fields {\n  flex: 0 0 auto;\n  min-height: auto;\n  overflow: visible;\n}\n\n.dsh-tavern-card-detail > .dsh-tavern-status-head > .dsh-tavern-btn {\n  align-self: flex-start;\n  margin: 0 0 4px;\n}\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-status-title,\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-status-role {\n  margin: 0;\n  color: var(--dsw-alias-label-primary);\n  font-family: var(--dsh-card-display);\n  font-size: 28px;\n  font-weight: 400;\n  letter-spacing: -0.3px;\n  line-height: 1.2;\n  color: var(--dsh-card-ink);\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization {\n  padding: 12px 16px;\n  border-bottom: 1px solid var(--dsw-alias-border-l2);\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization label {\n  font-size: 13px;\n  font-weight: 400;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization select {\n  height: 36px;\n  border-radius: var(--dsh-card-radius-md);\n  font-size: 15px;\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization > button {\n  height: 36px;\n  border-radius: var(--dsh-card-radius-md);\n}\n.dsh-tavern-card-detail-organization button[aria-pressed=\"true\"] {\n  color: var(--dsh-card-action);\n}\n.dsh-tavern-card-detail > .dsh-tavern-script-hero {\n  margin: 12px 16px 0;\n  padding: 14px 16px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-card-radius-lg);\n  background: var(--dsw-specific-input-major);\n}\n.dsh-tavern-card-detail .dsh-tavern-script-hero-title {\n  color: var(--dsw-alias-label-primary);\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n}\n.dsh-tavern-card-detail .dsh-tavern-script-hero-help {\n  font-size: 13px;\n  line-height: 1.43;\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-fields {\n  padding: 16px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced {\n  margin: 0 0 14px;\n  padding: 0;\n  border: 1px solid var(--dsh-card-hairline);\n  border-radius: var(--dsh-card-radius-lg);\n  background: var(--dsh-card-surface);\n  overflow: hidden;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced > summary {\n  padding: 14px 16px;\n  color: var(--dsw-alias-label-primary);\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n  list-style: none;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-card-detail .dsh-tavern-card-advanced[open] > summary {\n  border-bottom: 1px solid var(--dsw-alias-border-l2);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced > :not(summary) {\n  padding: 12px 16px 16px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook {\n  border: 1px solid var(--dsw-alias-border-l2);\n  background: var(--dsw-specific-input-major);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook > summary {\n  color: var(--dsw-alias-label-primary);\n  font-size: 15px;\n  font-weight: 600;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook > summary:focus-visible {\n  outline: 2px solid var(--dsh-card-action);\n  outline-offset: 2px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook > .dsh-tavern-worldbook {\n  margin: 0;\n  padding: 12px 16px 16px;\n  border: 0;\n  border-top: 1px solid var(--dsw-alias-border-l2);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field {\n  margin-bottom: 14px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field label {\n  margin-bottom: 6px;\n  color: var(--dsw-alias-label-secondary);\n  font-size: 13px;\n  font-weight: 400;\n  letter-spacing: -0.08px;\n  line-height: 1.35;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field input,\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea {\n  min-height: 40px;\n  padding: 12px 14px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsw-specific-sidebar-fill);\n  font-size: 16px;\n  letter-spacing: -0.24px;\n  line-height: 1.55;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field input:focus,\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea:focus {\n  outline: none;\n  border-color: var(--dsh-card-action);\n  box-shadow: 0 0 0 3px var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea {\n  field-sizing: content;\n  min-height: 120px;\n  max-height: min(68vh, 520px);\n  overflow-y: auto;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea.large {\n  min-height: 240px;\n  max-height: min(72vh, 640px);\n  line-height: 1.6;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea.is-empty,\n.dsh-tavern-card-detail .dsh-tavern-card-field.is-empty textarea {\n  min-height: 64px;\n  max-height: 96px;\n  font-size: 15px;\n  line-height: 1.45;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea.large.is-empty,\n.dsh-tavern-card-detail .dsh-tavern-card-field.is-empty textarea.large {\n  min-height: 88px;\n  max-height: 120px;\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add.dsh-tavern-worldbook-bound,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add.dsh-tavern-worldbook-new {\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsh-card-action-soft);\n  color: var(--dsh-card-action);\n  font-size: 13px;\n  font-weight: 500;\n  padding: 6px 12px;\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add:hover {\n  background: color-mix(in srgb, var(--dsh-card-action) 22%, transparent);\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-note,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-title,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-group-head {\n  font-size: 13px;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-group-head b {\n  color: var(--dsh-card-action);\n  font-size: 13px;\n}\n.dsh-tavern-card-detail .dsh-card-primary {\n  min-height: 36px;\n  padding: 0 18px;\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsh-card-action);\n  color: #fff;\n  font-size: 14px;\n  font-weight: 500;\n  letter-spacing: 0;\n}\n.dsh-tavern-card-detail .dsh-card-primary:hover {\n  filter: brightness(1.06);\n}\n.dsh-tavern-card-detail .dsh-card-primary:active:not(:disabled) {\n  transform: scale(0.97);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-save {\n  padding: 14px 0 4px;\n}\n\n/* Card-only Mnemon management, shared across desktop and narrow WebViews. */\n.dsh-tavern-card-memory { padding: 16px; overflow: auto; min-width: 0; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-card-memory p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }\n.dsh-tavern-memory-entry { border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; padding: 12px; margin: 10px 0; }\n.dsh-tavern-memory-entry summary { cursor: pointer; overflow-wrap: anywhere; }\n.dsh-tavern-memory-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }\n.dsh-tavern-memory-actions input { flex: 1; min-width: 120px; }\n.dsh-tavern-memory-field { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }\n.dsh-tavern-card-memory input, .dsh-tavern-card-memory textarea, .dsh-tavern-card-memory select { box-sizing: border-box; max-width: 100%; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; color: inherit; background: var(--dsw-alias-bg-base); font: inherit; }\n.dsh-tavern-memory-field textarea { width: 100%; resize: vertical; }\n\n/* Read-only, collapsible source viewer in character card details. */\n.dsh-tavern-script-code { min-width: 0; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-base); }\n.dsh-tavern-script-code > summary { padding: 9px 12px; cursor: pointer; color: var(--dsw-alias-label-primary); font-size: 12px; }\n.dsh-tavern-script-code-count { margin-left: 12px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-script-code-scroll { display: flex; max-height: 480px; max-height: min(480px, 60vh); overflow: auto; border-top: 1px solid var(--dsw-alias-border-l2); font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }\n.dsh-tavern-script-code-lines { flex: 0 0 auto; padding: 12px 10px; text-align: right; color: var(--dsw-alias-label-secondary); border-right: 1px solid var(--dsw-alias-border-l2); user-select: none; }\n.dsh-tavern-script-code-scroll pre { flex: 1 0 auto; margin: 0; padding: 12px; color: var(--dsw-alias-label-primary); font: inherit; white-space: pre; overflow-wrap: normal; word-break: normal; }\n.dsh-tavern-script-code-scroll code { font: inherit; }\n.dsh-tavern-script-code > summary:focus-visible, .dsh-tavern-script-code-scroll:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: -2px; }\n.dsh-tavern-variant-switcher { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 6px 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); margin-bottom: 4px; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-label { font-size: 12px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows { display: inline-flex; align-items: center; gap: 8px; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button { width: 30px; padding: 4px 0; text-align: center; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-interactive-bg-normal, transparent); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-variant-index { font-size: 12px; font-weight: 650; color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; user-select: none; min-width: 28px; text-align: center; }\n");
+		if (typeof document !== "undefined") installTavernStylesheet(document, "/* Tavern components share the active DSH theme, including accent overrides. */\n:root, body {\n  --dsh-tavern-accent: var(--dsw-alias-brand-primary);\n  --dsh-tavern-accent-active: var(--dsw-alias-brand-primary);\n  --dsh-tavern-accent-soft: color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent);\n  --dsh-tavern-accent-border: color-mix(in srgb, var(--dsw-alias-brand-primary) 42%, transparent);\n  --dsh-tavern-accent-ink: var(--dsw-alias-label-primary);\n  --dsh-tavern-accent-muted: var(--dsw-alias-label-secondary);\n  --dsh-tavern-accent-hairline: var(--dsw-alias-border-l2);\n  --dsh-tavern-accent-cream: var(--dsw-alias-bg-base);\n  --dsh-tavern-accent-surface: var(--dsw-alias-bg-layer-1);\n  --dsh-tavern-accent-error: var(--dsw-static-red-500, #c64545);\n  --dsh-tavern-radius-sm: 6px;\n  --dsh-tavern-radius-md: 8px;\n  --dsh-tavern-radius-lg: 12px;\n  --dsh-tavern-font-display: \"Iowan Old Style\", \"Palatino Linotype\", Palatino, \"Book Antiqua\", Georgia, \"Times New Roman\", serif;\n  --dsh-tavern-font-sans: Inter, \"Segoe UI\", system-ui, -apple-system, sans-serif;\n}\nbody.dsh-tavern-shell-active,\n.dsh-tavern-library,\n.dsh-tavern-status,\n.dsh-tavern-resources,\n.dsh-tavern-card-picker,\n.dsh-tavern-mobile-import-panel,\n.dsh-tavern-error-center,\n.dsh-tavern-group-manager,\n.dsh-tavern-skills {\n  font-family: var(--dsh-tavern-font-sans);\n  -webkit-font-smoothing: antialiased;\n}\nbody.dsh-tavern-shell-active .dsh-tavern-landing::before {\n  font-family: var(--dsh-tavern-font-display) !important;\n  font-weight: 400 !important;\n  letter-spacing: -0.5px;\n}\n.dsh-tavern-status-title,\n.dsh-tavern-side-brand,\n.dsh-tavern-mobile-import-title,\n.dsh-tavern-group-manager-head h3 {\n  font-family: var(--dsh-tavern-font-display);\n  font-weight: 400;\n  letter-spacing: -0.2px;\n}\n\n.dsh-tavern-spacer { flex: 1 1 auto; }\n.dsh-tavern-btn {\n  background: var(--dsh-tavern-accent-soft);\n  color: var(--dsh-tavern-accent-active);\n  border: 1px solid transparent;\n  border-radius: var(--dsh-tavern-radius-md);\n  padding: 6px 12px;\n  cursor: pointer;\n  font-size: 13px;\n  font-weight: 500;\n  letter-spacing: 0;\n  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms cubic-bezier(0.23, 1, 0.32, 1);\n}\n.dsh-tavern-btn:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 24%, transparent); }\n.dsh-tavern-btn:active:not(:disabled) { transform: scale(0.97); }\n.dsh-tavern-btn:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-btn.danger { border-color: transparent; color: var(--dsh-tavern-accent-error); background: color-mix(in srgb, var(--dsh-tavern-accent-error) 12%, transparent); }\n.dsh-tavern-btn.danger:hover { background: color-mix(in srgb, var(--dsh-tavern-accent-error) 20%, transparent); }\n.dsh-tavern-mobile-import { position: fixed; inset: 0; z-index: 2300; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.52); }\n.dsh-tavern-mobile-import-shell { display: contents; }\n.dsh-tavern-mobile-import-panel { box-sizing: border-box; width: min(520px, 100%); max-height: min(78vh, 680px); display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 14px; background: var(--dsw-specific-sidebar-fill); color: var(--dsw-alias-label-primary); box-shadow: 0 18px 54px rgba(0,0,0,.35); }\n.dsh-tavern-mobile-import-title { font-size: 15px; font-weight: 750; }\n.dsh-tavern-mobile-import-list { display: flex; flex-direction: column; gap: 7px; overflow: auto; }\n.dsh-tavern-mobile-import-file { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-mobile-import-file span { color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-empty { margin: auto; text-align: center; color: var(--dsw-alias-label-secondary); padding: 24px; line-height: 1.8; white-space: pre-wrap; }\n.dsh-tavern-dock-error { color: #ef8f8f; padding: 0 10px 7px; font-size: 12px; }\n.dsh-tavern-picker-error { position: sticky; top: 0; z-index: 2; margin: 0 0 10px; padding: 10px 12px; border: 1px solid rgba(196,95,95,.45); border-radius: 10px; background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 88%, #c45f5f 12%); color: #c45f5f; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-error-center { position: fixed; z-index: 2200; top: 16px; right: 16px; width: min(480px, calc(100vw - 32px)); max-height: min(70vh, 640px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(196,95,95,.5); border-radius: 14px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 18px 54px rgba(0,0,0,.32); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-error-center-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(196,95,95,.25); font-size: 13px; font-weight: 700; }\n.dsh-tavern-error-center-head span { flex: 1; }\n.dsh-tavern-error-list { overflow: auto; padding: 8px; }\n.dsh-tavern-error-item { padding: 10px; border: 1px solid rgba(196,95,95,.25); border-radius: 10px; background: rgba(196,95,95,.08); }\n.dsh-tavern-error-item + .dsh-tavern-error-item { margin-top: 8px; }\n.dsh-tavern-error-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #c45f5f; font-size: 12px; font-weight: 700; }\n.dsh-tavern-error-meta time { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: 400; }\n.dsh-tavern-error-message { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.55; }\n.dsh-tavern-assistant { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 28px; }\n.dsh-tavern-illustration { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }\n.dsh-tavern-illustration > a { display: block; max-width: 100%; }\n.dsh-tavern-illustration img { display: block; width: auto; height: auto; max-width: min(100%, 320px); max-height: min(240px, 35svh); object-fit: contain; border-radius: 12px; }\n.dsh-tavern-image-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }\n.dsh-tavern-image-adjust { box-sizing: border-box; width: min(100%, 560px); padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }\n.dsh-tavern-image-adjust textarea { box-sizing: border-box; display: block; width: 100%; min-height: 80px; margin: 8px 0; }\n.dsh-tavern-image-reference { overflow-wrap: anywhere; }\n.dsh-tavern-image-reference select { box-sizing: border-box; display: block; width: 100%; margin: 8px 0; }\n.dsh-tavern-image-settings { display: flex; flex-direction: column; gap: 12px; padding: 20px; }\n.dsh-tavern-image-settings label { display: flex; flex-direction: column; gap: 5px; }\n.dsh-tavern-image-settings input, .dsh-tavern-image-settings select, .dsh-tavern-image-settings textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; color: inherit; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-assistant-reasoning { color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 22px; }\n.dsh-tavern-assistant-reasoning summary { cursor: pointer; user-select: none; }\n.dsh-tavern-assistant-reasoning pre { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }\n.dsh-tavern-assistant-stopped { align-self: flex-start; border-radius: 6px; padding: 0 6px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 18px; }\n.dsh-tavern-message-fork { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 999px; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-message-fork:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-message-fork:disabled { cursor: wait; opacity: .5; }\n.dsh-tavern-swipe-controls { align-self: center; display: flex; align-items: center; gap: 8px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 24px; }\n.dsh-tavern-swipe-controls button { min-width: 28px; height: 26px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); cursor: pointer; }\n.dsh-tavern-swipe-controls button:disabled { opacity: .35; cursor: default; }\n.dsh-tavern-mvu-receipt { align-self: flex-start; width: min(100%, 760px); border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 20px; }\n.dsh-tavern-mvu-receipt[data-status=\"pending\"] { border-color: rgba(68,126,230,.42); }\n.dsh-tavern-mvu-receipt[data-status=\"updated\"] { border-color: rgba(70,160,105,.42); }\n.dsh-tavern-mvu-receipt[data-status=\"stale\"] { border-color: rgba(196,132,42,.46); }\n.dsh-tavern-mvu-receipt[data-status=\"partial\"], .dsh-tavern-mvu-receipt[data-status=\"error\"], .dsh-tavern-mvu-receipt[data-status=\"interrupted\"] { border-color: rgba(220,94,94,.48); }\n.dsh-tavern-mvu-receipt-summary { display: flex; align-items: center; gap: 7px; padding: 7px 10px; cursor: pointer; user-select: none; font-weight: 750; }\n.dsh-tavern-mvu-receipt-summary::-webkit-details-marker { display: none; }\n.dsh-tavern-mvu-receipt-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-mvu-receipt[data-status=\"pending\"] .dsh-tavern-mvu-receipt-dot { background: #447ee6; }\n.dsh-tavern-mvu-receipt[data-status=\"updated\"] .dsh-tavern-mvu-receipt-dot { background: #4da66d; }\n.dsh-tavern-mvu-receipt[data-status=\"stale\"] .dsh-tavern-mvu-receipt-dot { background: #c4842a; }\n.dsh-tavern-mvu-receipt[data-status=\"partial\"] .dsh-tavern-mvu-receipt-dot, .dsh-tavern-mvu-receipt[data-status=\"error\"] .dsh-tavern-mvu-receipt-dot, .dsh-tavern-mvu-receipt[data-status=\"interrupted\"] .dsh-tavern-mvu-receipt-dot { background: #dc5e5e; }\n.dsh-tavern-mvu-receipt-body { display: grid; gap: 8px; padding: 0 10px 9px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-mvu-receipt-reason { margin-top: 8px; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-mvu-change { display: grid; gap: 2px; padding: 6px 8px; border-radius: 7px; background: var(--dsw-alias-bg-base); }\n.dsh-tavern-mvu-change-path { color: var(--dsh-tavern-accent); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap: anywhere; }\n.dsh-tavern-mvu-change-values { overflow-wrap: anywhere; }\n.dsh-tavern-mvu-side-effect-title { color: var(--dsw-alias-label-tertiary); font-weight: 700; }\n.dsh-tavern-mvu-change[data-origin=\"card-script\"] .dsh-tavern-mvu-change-path { color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-mvu-failure { color: #d96767; overflow-wrap: anywhere; }\n.dsh-tavern-mvu-retry { justify-self: start; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 4px 9px; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; }\n.dsh-tavern-mvu-retry:disabled { cursor: wait; opacity: .58; }\n.dsh-tavern-message-frame-slot { display: block; width: 100%; min-height: 48px; overflow: hidden; }\n/* Legacy card resizers may write an inline height larger than the host slot. */\n.dsh-tavern-message-frame-slot > iframe:not([aria-hidden=\"true\"]) { max-height: 100% !important; }\n.dsh-tavern-message-frame { display: block; width: 100%; min-height: 48px; border: 0; background: transparent; overflow: hidden; }\n.dsh-tavern-status-runtime { width: 100%; min-width: 0; margin: 0 0 10px; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-alias-bg-base); }\n.dsh-tavern-user-row { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }\n.dsh-tavern-user-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; max-width: min(525px, 82%); }\n.dsh-tavern-user-bubble { max-width: 100%; padding: 10px 16px; border-radius: 22px; background: var(--dsw-specific-bubble); color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 24px; overflow-wrap: anywhere; }\n.dsh-tavern-user-extra { margin-top: 8px; }\n.dsh-tavern-user-actions { display: flex; align-items: center; gap: 7px; min-height: 20px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; }\n.dsh-tavern-user-copy { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-user-copy:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-sidebar { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; padding: 12px; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-sidebar.collapsed { padding: 12px 10px; align-items: center; }\nbody.dsh-tavern-shell-active button[aria-label=\"新建会话\"], body.dsh-tavern-shell-active button[aria-label=\"New session\"] { display: none !important; }\nbody.dsh-tavern-shell-active [data-turn-tail] > [data-slot=\"conversation.chat.turnTail\"] + div > button { display: none !important; }\nbody.dsh-tavern-shell-active [data-turn-tail] [data-slot=\"conversation.chat.assistant-actions\"] > :not(.dsh-tavern-message-fork) { display: none !important; }\nbody.dsh-tavern-shell-active .dsh-tavern-hero-preset-row { display: none !important; }\n/* A blank session is also a hero. Only the session-less landing page loses its composer. */\nbody.dsh-tavern-shell-active .dsh-tavern-landing { display: grid !important; place-items: center; }\nbody.dsh-tavern-shell-active .dsh-tavern-landing > * { display: none !important; }\nbody.dsh-tavern-shell-active .dsh-tavern-landing::before { content: \"🍺 DSH Tavern\"; color: var(--dsh-tavern-accent-active); font-size: clamp(24px, 4vw, 40px); font-weight: 800; padding: 24px; text-align: center; }\nbody.dsh-tavern-shell-active [data-ref-chip=\"file\"] { max-width: calc(100% - 4px); min-width: 0; overflow: hidden; text-overflow: ellipsis; }\n.dsh-tavern-side-head { height: 48px; display: flex; align-items: center; gap: 8px; flex: none; }\n.dsh-tavern-side-brand { flex: 1; min-width: 0; font-size: 16px; font-weight: 800; color: var(--dsh-tavern-accent-active); white-space: nowrap; overflow: hidden; }\n.dsh-tavern-side-icon { width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: inherit; cursor: pointer; font-size: 17px; }\n.dsh-tavern-side-icon:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-side-new { height: 40px; flex: none; border: 1px solid var(--dsw-alias-border-l2); border-radius: 11px; background: var(--dsw-alias-button-elevated-fill); color: inherit; cursor: pointer; font-weight: 650; }\n.dsh-tavern-side-new:hover { background: var(--dsw-alias-button-floating-hover); }\n.dsh-tavern-mode-switch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; margin-bottom: 8px; padding: 3px; border-radius: 10px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-mode-switch.compatibility-enabled { grid-template-columns: repeat(3, 1fr); }\n.dsh-tavern-mode-switch button { height: 30px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 12px; }\n.dsh-tavern-mode-switch button.active { background: var(--dsw-specific-input-major); color: var(--dsh-tavern-accent-active); box-shadow: var(--dsw-shadow-lv1); font-weight: 700; }\n.dsh-tavern-picker-tabs { display: flex; gap: 6px; margin: 2px 0 8px; }\n.dsh-tavern-picker-tabs button { flex: 1; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; cursor: pointer; font-size: 12px; }\n.dsh-tavern-picker-tabs button.active { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); font-weight: 700; }\n.dsh-tavern-side-title { margin: 16px 4px 7px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n.dsh-tavern-compatibility-notice { margin: 10px 2px 0; padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; }\n.dsh-tavern-compatibility-notice strong { color: var(--dsw-alias-label-primary); }\n.dsh-tavern-side-list { min-height: 0; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }\n.dsh-tavern-side-row { position: relative; display: flex; align-items: center; border: 0; border-radius: 8px; background: transparent; color: inherit; }\n.dsh-tavern-side-row:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-side-row.active { background: var(--dsw-alias-interactive-bg-selected, rgba(120,90,60,.14)); }\n.dsh-tavern-side-row-main { min-width: 0; flex: 1; border: 0; padding: 8px 5px 8px 9px; text-align: left; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-side-row-more { width: 28px; height: 28px; flex: none; margin-right: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; opacity: 0; }\n.dsh-tavern-side-row:hover .dsh-tavern-side-row-more, .dsh-tavern-side-row-more[aria-expanded=\"true\"] { opacity: 1; }\n.dsh-tavern-side-row-more:hover { background: var(--dsw-alias-interactive-bg-hover); color: inherit; }\n.dsh-tavern-side-row-menu { position: absolute; z-index: 30; top: 32px; right: 4px; min-width: 96px; padding: 4px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 8px 24px rgba(0,0,0,.14); transform-origin: top right; animation: dsh-tavern-menu-in 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-side-row-menu button { display: block; width: 100%; border: 0; border-radius: 6px; padding: 7px 10px; text-align: left; background: transparent; color: inherit; cursor: pointer; }\n.dsh-tavern-side-row-menu button:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-side-row-menu button.danger { color: #c34f4f; }\n.dsh-tavern-side-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }\n.dsh-tavern-side-row-meta { margin-top: 3px; display: flex; gap: 6px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-side-empty { padding: 18px 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; text-align: center; }\n.dsh-tavern-update { flex: none; margin-top: 8px; padding-top: 9px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-update-identity { color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.45; }\n.dsh-tavern-update-actions { display: flex; gap: 6px; margin-top: 7px; }\n.dsh-tavern-update-button { width: 100%; height: 32px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 11px; }\n.dsh-tavern-update-button:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-update-button.primary { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-update-button:disabled { opacity: .55; cursor: default; }\n.dsh-tavern-update-status { margin-top: 5px; color: var(--dsw-alias-label-tertiary); font-size: 10px; line-height: 1.45; white-space: pre-wrap; }\n.dsh-tavern-update-status.error { color: #c45f5f; }\n.dsh-tavern-settings-section { display: flex; flex-direction: column; gap: 18px; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-settings-intro { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 14px; line-height: 1.6; }\n.dsh-tavern-settings-group { overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 14px; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-settings-subheading { margin-top: 12px; padding: 22px 20px 12px; border-top: 1px solid var(--dsw-alias-border-l2); display: flex; flex-direction: column; gap: 12px; }\n.dsh-tavern-settings-subheading h3 { margin: 0; }\n.dsh-tavern-settings-row { display: flex; align-items: center; gap: 24px; padding: 18px 20px; cursor: pointer; }\n.dsh-tavern-settings-copy { min-width: 0; flex: 1; }\n.dsh-tavern-settings-title { display: block; font-size: 15px; font-weight: 650; }\n.dsh-tavern-settings-desc { display: block; margin-top: 5px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.55; }\n.dsh-tavern-settings-switch { position: relative; width: 42px; height: 24px; flex: none; }\n.dsh-tavern-settings-switch input { position: absolute; opacity: 0; pointer-events: none; }\n.dsh-tavern-settings-track { position: absolute; inset: 0; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover); box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2); transition: background .18s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-settings-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--dsw-alias-label-secondary); transition: transform .18s cubic-bezier(0.23, 1, 0.32, 1), background .18s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-settings-switch input:checked + .dsh-tavern-settings-track { background: var(--dsh-tavern-accent-active); }\n.dsh-tavern-settings-switch input:checked + .dsh-tavern-settings-track::after { transform: translateX(18px); background: #fff; }\n.dsh-tavern-settings-switch input:focus-visible + .dsh-tavern-settings-track { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-tavern-settings-model-row { flex-wrap: wrap; }\n.dsh-tavern-settings-select { flex: 1 1 220px; max-width: 320px; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; color: inherit; background: var(--dsw-specific-input-major); }\n\n.dsh-tavern-compaction-settings { display: flex; flex-direction: column; align-items: stretch; gap: 16px; padding: 20px; }\n.dsh-tavern-compaction-settings > h3, .dsh-tavern-compaction-settings > p { margin: 0; }\n.dsh-tavern-compaction-field { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; font-size: 14px; line-height: 1.6; }\n.dsh-tavern-compaction-field .dsh-tavern-settings-select { box-sizing: border-box; min-width: 0; width: 100%; font: inherit; }\n.dsh-tavern-compaction-settings > .dsh-tavern-btn { align-self: flex-start; margin-top: 4px; }\n.dsh-tavern-settings-error { color: #c45f5f; font-size: 13px; }\n.dsh-tavern-background-model { min-width: 0; max-width: min(360px,45cqw); height: 28px; display: flex; align-items: center; padding: 0 8px; color: var(--dsw-alias-label-secondary); font-size: 13px; font-weight: 500; line-height: 20px; }\n.dsh-tavern-background-model span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-system-prompt-editor { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }\n.dsh-tavern-system-prompt-warning { margin-bottom: 14px; border: 1px solid rgba(196,95,95,.55); border-radius: 9px; padding: 11px 13px; background: rgba(196,95,95,.1); color: #d98080; font-size: 13px; line-height: 1.55; }\n.dsh-tavern-status-head.dsh-tavern-system-prompt-head { padding: 18px 20px 16px; }\n.dsh-tavern-system-prompt-top-actions { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 10px; }\n.dsh-tavern-preset-detail.dsh-tavern-system-prompt-body { padding: 20px 24px 28px; }\n.dsh-tavern-system-prompt-editor textarea { box-sizing: border-box; width: 100%; min-height: 320px; resize: vertical; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; padding: 14px; background: var(--dsw-specific-input-minor); color: var(--dsw-alias-label-primary); font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n.dsh-tavern-system-prompt-editor textarea:focus { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 1px; }\n.dsh-tavern-system-prompt-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }\n.dsh-tavern-system-prompt-status { color: var(--dsw-alias-label-secondary); font-size: 13px; }\n.dsh-tavern-system-prompt-buttons { display: flex; gap: 10px; }\n.dsh-tavern-system-prompt-button { border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; padding: 8px 14px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); cursor: pointer; }\n.dsh-tavern-system-prompt-button-primary { border-color: var(--dsh-tavern-accent-active); color: var(--dsh-tavern-accent-active); }\n.dsh-tavern-system-prompt-button:disabled { cursor: default; opacity: .5; }\n.dsh-tavern-player-action { border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 4px 8px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 11px; }\n.dsh-tavern-player-action:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-preset-status { max-width: min(260px, 28vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; padding: 4px 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-export-action { min-height: 36px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 999px; padding: 7px 14px; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; font-size: 13px; white-space: nowrap; }\n.dsh-tavern-export-action:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-export-action:disabled { opacity: .55; cursor: default; }\n.dsh-tavern-picker-overlay { position: fixed; z-index: 1000; inset: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 24px; background: rgba(20,18,24,.42); backdrop-filter: blur(2px); }\n.dsh-tavern-card-picker { width: min(860px, calc(100vw - 48px)); max-height: min(80vh, 760px); overflow: auto; box-sizing: border-box; padding: 20px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 16px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 22px 64px rgba(0,0,0,.30); }\n.dsh-tavern-card-picker-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 700; }\n.dsh-tavern-card-picker-help { margin: 4px 0 12px; color: var(--dsw-alias-text-l2); font-size: 13px; }\n.dsh-tavern-card-pick { width: 100%; padding: 9px; margin-top: 5px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-card-pick:hover { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-card-pick.selected { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 14%, transparent); }\n.dsh-tavern-card-pick b { display: block; color: var(--dsh-tavern-accent); }\n.dsh-tavern-card-pick span { display: block; margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.4; }\n.dsh-tavern-card-pick.with-image,.dsh-tavern-library-card.with-image { display: flex; align-items: center; gap: 12px; }\n.dsh-tavern-card-thumb { display: block; flex: none; width: 56px; height: 56px; margin: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 50%; object-fit: cover; object-position: center top; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-card-list-copy { display: block; min-width: 0; flex: 1; margin: 0; }\n.dsh-tavern-card-pick .dsh-tavern-card-list-copy,.dsh-tavern-library-card .dsh-tavern-card-list-copy { color: inherit; font-size: inherit; }\n.dsh-tavern-card-pick-wrap { display: flex; align-items: center; gap: 7px; width: 100%; box-sizing: border-box; }\n.dsh-tavern-card-pick-wrap .dsh-tavern-card-pick { flex: 1 1 auto; min-width: 0; margin-top: 0; }\n.dsh-tavern-card-pick-wrap .dsh-tavern-script-file { flex: 0 0 auto; }\n.dsh-tavern-greeting-preview { display: block; width: 100%; height: min(52vh, 560px); overflow: auto; overflow-anchor: none; box-sizing: border-box; margin: 8px 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-greeting-nav { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }\n.dsh-tavern-greeting-count { color: var(--dsw-alias-label-secondary); text-align: center; font-size: 12px; }\n.dsh-tavern-player-name { display: grid; grid-template-columns: auto minmax(180px, 320px); gap: 10px; align-items: center; margin: 10px 0 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n.dsh-tavern-player-name input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-primary); font: inherit; outline: none; }\n.dsh-tavern-player-name input:focus { border-color: var(--dsh-tavern-accent); }\n.dsh-tavern-player-name-help { margin: -3px 0 8px; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.5; }\n@media (max-width: 640px) {\n  .dsh-tavern-mobile-import { place-items: start center; padding-top: 12px; }\n  .dsh-tavern-picker-overlay { align-items: stretch; padding: 12px; }\n  .dsh-tavern-card-picker { width: 100%; max-height: none; padding: 14px; border-radius: 14px; }\n  .dsh-tavern-greeting-preview { max-height: 60vh; }\n  .dsh-tavern-player-name { grid-template-columns: 1fr; gap: 5px; }\n  .dsh-tavern-preset-status { display: none; }\n}\n.dsh-tavern-picker-group { margin-top: 10px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; }\n.dsh-tavern-picker-foot { position: sticky; bottom: -10px; display: flex; justify-content: flex-end; margin: 10px -10px -10px; padding: 10px; border-top: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-script-file { align-self: center; white-space: nowrap; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: transparent; color: var(--dsw-alias-label-secondary); padding: 6px 8px; cursor: pointer; font-size: 11px; }\n.dsh-tavern-script-file:hover { border-color: var(--dsh-tavern-accent); color: var(--dsh-tavern-accent); }\n.dsh-tavern-choice-trigger { border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; padding: 3px 9px; border-radius: 7px; font-size: 12px; font-weight: 650; }\n.dsh-tavern-choice-trigger:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 20%, transparent); color: var(--dsw-alias-brand-primary); }\n.dsh-tavern-dock-actions { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 8px 12px 0; flex-wrap: wrap; }\n.dsh-tavern-more-actions { position: relative; }\n.dsh-tavern-more-menu { position: absolute; z-index: 40; right: 0; bottom: calc(100% + 6px); display: grid; min-width: 150px; padding: 5px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-sidebar-fill); box-shadow: 0 8px 24px rgba(0,0,0,.2); transform-origin: bottom right; }\n.dsh-tavern-more-menu:not([hidden]) { animation: dsh-tavern-menu-in 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-more-menu[hidden] { display: none; }\n.dsh-tavern-more-menu button { width: 100%; border: 0; border-radius: 6px; padding: 8px 10px; background: transparent; color: var(--dsw-alias-label-primary); cursor: pointer; text-align: left; white-space: nowrap; }\n.dsh-tavern-more-menu button:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-more-menu button.danger { color: #c34f4f; }\n.dsh-tavern-more-menu button:disabled { cursor: default; opacity: .55; }\n.dsh-tavern-candidate-error-banner { width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 8px 12px; border: 1px solid rgba(196,95,95,.45); border-radius: 10px; background: rgba(196,95,95,.10); color: #c45f5f; font-size: 12px; line-height: 1.5; }\n.dsh-tavern-timeout-banner { display: flex; align-items: center; gap: 8px; width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 8px 12px; border: 1px solid rgba(196,145,72,.45); border-radius: 10px; background: rgba(196,145,72,.10); color: var(--dsw-alias-label-primary); font-size: 12px; line-height: 1.5; }\n.dsh-tavern-timeout-banner span { flex: 1; }\n.dsh-tavern-timeout-banner button { flex: none; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 7px; padding: 4px 8px; background: transparent; color: var(--dsh-tavern-accent); cursor: pointer; }\n.dsh-tavern-choice-error { padding: 5px; color: #c45f5f; font-size: 12px; }\n.dsh-tavern-question { width: 100%; max-width: var(--dsh-composer-card-max-width, 780px); box-sizing: border-box; margin: 0 auto; padding: 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 14px; background: var(--dsw-specific-tip, var(--dsw-specific-sidebar-fill)); box-shadow: var(--dsw-shadow-lv1); }\n.dsh-tavern-question.dsh-tavern-candidate-question { width: calc(100% - 32px); max-width: min(680px, var(--dsh-composer-card-max-width, 780px)); }\n.dsh-tavern-question.collapsed { padding: 9px 12px; box-shadow: none; }\n.dsh-tavern-question-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-weight: 750; cursor: pointer; }\n.dsh-tavern-question.collapsed .dsh-tavern-question-head { margin-bottom: 0; }\n.dsh-tavern-question-close { margin-left: auto; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 16px; line-height: 1; }\n.dsh-tavern-question-sub { color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }\n.dsh-tavern-question-body { max-height: min(360px, 45vh); overflow-y: auto; margin: 6px -4px 0; padding: 0 4px; }\n.dsh-tavern-question-option { width: 100%; box-sizing: border-box; display: flex; align-items: flex-start; gap: 9px; margin-top: 6px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); text-align: left; line-height: 1.5; cursor: pointer; }\n.dsh-tavern-question-option:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-question-option.selected { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-question-radio { flex: none; width: 14px; height: 14px; margin-top: 3px; border: 1.5px solid var(--dsw-alias-label-tertiary); border-radius: 50%; }\n.dsh-tavern-question-option.selected .dsh-tavern-question-radio { border: 4px solid var(--dsh-tavern-accent); }\n.dsh-tavern-question-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }\n.dsh-tavern-question-tag { align-self: flex-start; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); }\n.dsh-tavern-question-tag-scene { color: #6b7fa3; background: rgba(107,127,163,.16); }\n.dsh-tavern-question-free { width: 100%; margin-top: 6px; padding: 8px 10px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 9px; background: transparent; color: var(--dsw-alias-label-secondary); text-align: left; cursor: pointer; }\n.dsh-tavern-question-free:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-question-foot { display: flex; justify-content: flex-end; gap: 7px; margin-top: 10px; }\n.dsh-tavern-question-primary { border: 0; border-radius: 8px; padding: 6px 12px; background: var(--dsw-alias-button-info-fill); color: #fff; cursor: pointer; }\n.dsh-tavern-question-primary:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-regen-input { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; resize: vertical; }\n.dsh-tavern-status { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-resources { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-library { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-library-search { box-sizing: border-box; width: calc(100% - 24px); margin: 10px 12px 2px; padding: 8px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-library-card { width: 100%; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-library-card:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-library-card b,.dsh-tavern-library-card span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-library-card span { margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-library-card-row { display: flex; align-items: center; gap: 6px; }\n.dsh-tavern-library-card-row .dsh-tavern-library-card { flex: 1; min-width: 0; }\n.dsh-tavern-library-head-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }\n.dsh-tavern-resource-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 20px; }\n.dsh-tavern-script-preview { margin: 0; padding: 14px 16px 24px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-resource-group { margin-bottom: 16px; }\n.dsh-tavern-resource-group-title { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 10px; color: var(--dsw-alias-label-secondary); font-size: 13px; font-weight: 500; letter-spacing: 0; }\n.dsh-tavern-resource-actions { display: flex; align-items: center; gap: 5px; }\n.dsh-tavern-resource-actions select { min-width: 0; max-width: 120px; height: 25px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-specific-input-major); color: inherit; font-size: 10px; }\n.dsh-tavern-resource-import { height: 32px; padding: 0 12px; border: 0; border-radius: var(--dsh-tavern-radius-md); background: var(--dsh-tavern-accent-soft); color: var(--dsh-tavern-accent-active); cursor: pointer; font-size: 13px; font-weight: 500; }\n.dsh-tavern-resource-import:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 24%, transparent); }\n.dsh-tavern-resource-row {\n  display: flex;\n  flex-direction: column;\n  gap: 10px;\n  margin: 0 0 6px;\n  padding: 12px 14px;\n  border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent-hairline) 55%, var(--dsw-alias-border-l2));\n  border-radius: var(--dsh-tavern-radius-lg);\n  background: color-mix(in srgb, var(--dsh-tavern-accent-surface) 22%, var(--dsw-specific-input-major));\n}\n.dsh-tavern-resource-row:hover { background: color-mix(in srgb, var(--dsh-tavern-accent-surface) 34%, var(--dsw-specific-input-major)); }\n.dsh-tavern-resource-row.is-binding { border-color: var(--dsh-tavern-accent-border); }\n.dsh-tavern-resource-row-main {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  min-width: 0;\n}\n.dsh-tavern-resource-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-resource-open { padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-resource-open:hover { color: var(--dsh-tavern-accent-active); text-decoration: none; }\n.dsh-tavern-resource-meta { flex: none; max-width: 42%; overflow: hidden; text-overflow: ellipsis; color: var(--dsw-alias-label-secondary); font-size: 13px; white-space: nowrap; }\n.dsh-tavern-resource-at { flex: none; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 7px; padding: 3px 7px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-resource-at:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 18%, transparent); }\n.dsh-tavern-resource-at.mounted { border-color: var(--dsw-alias-border-l2); background: transparent; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-resource-mention,\n.dsh-tavern-resource-menu > summary {\n  flex: none;\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: 9999px;\n  background: transparent;\n  color: var(--dsw-alias-label-secondary);\n  font: inherit;\n  font-size: 15px;\n  font-weight: 600;\n  line-height: 1;\n  cursor: pointer;\n  list-style: none;\n  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), color 140ms cubic-bezier(0.23, 1, 0.32, 1);\n}\n.dsh-tavern-resource-menu > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-resource-mention:hover,\n.dsh-tavern-resource-menu > summary:hover,\n.dsh-tavern-resource-menu[open] > summary {\n  background: var(--dsh-tavern-accent-soft);\n  color: var(--dsh-tavern-accent-active);\n}\n.dsh-tavern-resource-mention.mounted { color: var(--dsh-tavern-accent-active); }\n.dsh-tavern-resource-mention:focus-visible,\n.dsh-tavern-resource-menu > summary:focus-visible {\n  outline: 2px solid var(--dsh-tavern-accent);\n  outline-offset: 2px;\n}\n.dsh-tavern-resource-menu { position: relative; flex: none; }\n.dsh-tavern-resource-menu-popup {\n  position: absolute;\n  top: calc(100% + 6px);\n  right: 0;\n  z-index: 40;\n  min-width: 148px;\n  padding: 4px;\n  border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent-hairline) 60%, var(--dsw-alias-border-l2));\n  border-radius: var(--dsh-tavern-radius-lg);\n  background: var(--dsw-specific-sidebar-fill);\n  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);\n}\n.dsh-tavern-resource-menu-popup button {\n  display: block;\n  width: 100%;\n  min-height: 34px;\n  padding: 7px 11px;\n  border: 0;\n  border-radius: var(--dsh-tavern-radius-md);\n  background: transparent;\n  color: inherit;\n  text-align: left;\n  font: inherit;\n  font-size: 13px;\n  cursor: pointer;\n}\n.dsh-tavern-resource-menu-popup button:hover { background: var(--dsh-tavern-accent-soft); color: var(--dsh-tavern-accent-active); }\n.dsh-tavern-resource-menu-popup button.danger { color: var(--dsh-tavern-accent-error); }\n.dsh-tavern-resource-menu-popup button.danger:hover { background: color-mix(in srgb, var(--dsh-tavern-accent-error) 12%, transparent); }\n.dsh-tavern-resource-binding {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  padding-top: 2px;\n}\n.dsh-tavern-resource-binding select {\n  flex: 1;\n  min-width: 0;\n  height: 36px;\n  padding: 0 12px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-tavern-radius-md);\n  background: var(--dsw-specific-sidebar-fill);\n  color: inherit;\n  font: inherit;\n  font-size: 14px;\n}\n.dsh-tavern-presets { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-preset-list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 20px; }\n.dsh-tavern-preset-row { margin-bottom: 8px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-preset-row-head { display: block; }\n.dsh-tavern-preset-row-main { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-preset-row-main b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }\n.dsh-tavern-preset-row-main span { display: block; margin-top: 3px; overflow: hidden; color: var(--dsw-alias-label-secondary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-preset-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; margin-top: 8px; }\n.dsh-tavern-preset-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 14px; }\n.dsh-tavern-preset-detail { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 24px; }\n.dsh-tavern-preset-summary { margin-bottom: 10px; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 35%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.5; }\n.dsh-tavern-external-preset-notice { padding: 14px 16px; font-size: 14px; line-height: 1.7; }\n.dsh-tavern-external-preset-notice p { margin: 4px 0 0; }\n.dsh-tavern-external-preset-notice strong { color: var(--dsh-tavern-accent); font-weight: 750; }\n.dsh-tavern-external-preset-notice .dsh-tavern-preset-warning { color: #b4473a; }\n.dsh-tavern-bypass-plan-notice { padding: 14px 16px; font-size: 14px; line-height: 1.7; }\n.dsh-tavern-bypass-plan-notice p { margin: 4px 0 0; }\n.dsh-tavern-bypass-plan-notice strong { color: var(--dsh-tavern-accent); font-weight: 750; }\n.dsh-tavern-bypass-plan-notice .dsh-tavern-preset-warning { color: #b4473a; }\n.dsh-tavern-preset-selector { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 8px; margin-bottom: 10px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); font-size: 11px; }\n.dsh-tavern-preset-selector select { min-width: 0; width: 100%; height: 28px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; padding: 0 7px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-preset-section-title { margin: 14px 2px 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 800; letter-spacing: .04em; }\n.dsh-tavern-plan-phase { margin-top: 12px; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-plan-phase-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }\n.dsh-tavern-plan-phase-title { font-size: 13px; font-weight: 800; }\n.dsh-tavern-plan-phase-description { margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }\n.dsh-tavern-plan-phase-count { flex: none; color: var(--dsw-alias-label-secondary); font-size: 10px; white-space: nowrap; }\n.dsh-tavern-plan-phase-empty { padding: 8px 2px 2px; color: var(--dsw-alias-label-tertiary); font-size: 10px; }\n.dsh-tavern-preset-phase { margin-top: 8px; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-top: 3px solid #5b9cff; border-radius: 10px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-preset-phase.phase-middle { border-top-color: #35c76f; }\n.dsh-tavern-preset-phase.phase-back { border-top-color: #b47cff; }\n.dsh-tavern-preset-phase-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 5px; }\n.dsh-tavern-preset-phase-title { font-size: 14px; font-weight: 800; }\n.dsh-tavern-preset-phase-description { max-width: 620px; margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }\n.dsh-tavern-preset-phase-count { flex: none; padding: 2px 7px; border-radius: 999px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 10px; white-space: nowrap; }\n.dsh-tavern-preset-phase-empty { padding: 10px 2px 4px; color: var(--dsw-alias-label-tertiary); font-size: 10px; }\n.dsh-tavern-preset-unassigned { margin-top: 12px; padding: 10px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 10px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-preset-unassigned > summary { cursor: pointer; color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 750; }\n.dsh-tavern-preset-unassigned > p { margin: 7px 0 10px; font-size: 10px; line-height: 1.5; }\n.dsh-tavern-prompt-row { margin-bottom: 7px; border: 1px solid var(--dsw-alias-border-l2); border-left: 4px solid #5b9cff; border-radius: 9px; background: var(--dsw-specific-input-major); overflow: hidden; }\n.dsh-tavern-prompt-row.role-user { border-left-color: #35c76f; }\n.dsh-tavern-prompt-row.role-assistant { border-left-color: #b47cff; }\n.dsh-tavern-prompt-row.role-regex { border-left-color: #ed9714; }\n.dsh-tavern-prompt-row.role-script { border-left-color: #8b69d4; }\n.dsh-tavern-prompt-row.role-extension { border-left-color: #718096; }\n.dsh-tavern-prompt-head { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 10px; cursor: pointer; list-style: none; }\n.dsh-tavern-preset-entry-head { grid-template-columns: minmax(0,1fr) auto; padding: 5px 8px; }\n.dsh-tavern-preset-phase > .dsh-tavern-prompt-row { margin-bottom: 2px; }\n.dsh-tavern-preset-entry-head .dsh-tavern-prompt-title span { margin-top: 1px; }\n.dsh-tavern-prompt-head::-webkit-details-marker { display: none; }\n.dsh-tavern-prompt-title { min-width: 0; }\n.dsh-tavern-prompt-title b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }\n.dsh-tavern-prompt-title span { display: block; overflow: hidden; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-prompt-state { display: flex; align-items: center; gap: 5px; color: var(--dsw-alias-label-secondary); font-size: 9px; white-space: nowrap; }\n.dsh-tavern-prompt-state::before { width: 8px; height: 8px; border: 2px solid #23bd63; border-radius: 999px; content: \"\"; }\n.dsh-tavern-prompt-state.off::before { border-color: #91a0b5; }\n.dsh-tavern-system-prompt-row > .dsh-tavern-prompt-head { grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 14px 16px; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-title b { overflow: visible; white-space: normal; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-title span { overflow: visible; white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-state { justify-self: end; font-size: 11px; }\n.dsh-tavern-system-prompt-row .dsh-tavern-prompt-state:not(.is-toggle)::before { display: none; }\n\n.dsh-tavern-prompt-state.is-toggle { position: relative; flex-shrink: 0; min-height: 32px; gap: 7px; border: 0; border-radius: 6px; padding: 4px 5px; background: transparent; font: inherit; font-weight: 600; cursor: pointer; }\n.dsh-tavern-prompt-state.is-toggle.on { color: #16766b; }\n.dsh-tavern-prompt-state.is-toggle.off { color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-prompt-state.is-toggle::before { flex-shrink: 0; width: 36px; height: 20px; border: 0; background: #64748b; transition: background .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-prompt-state.is-toggle.on::before { background: #16766b; }\n.dsh-tavern-prompt-state.is-toggle::after { position: absolute; top: 50%; left: 7px; width: 16px; height: 16px; border-radius: 50%; background: #fff; content: \"\"; transform: translateY(-50%); transition: transform .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-prompt-state.is-toggle.on::after { transform: translate(16px, -50%); }\n.dsh-tavern-prompt-state.is-toggle:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-prompt-state.is-toggle:focus-visible { outline: 2px solid #16766b; outline-offset: 2px; }\n.dsh-tavern-prompt-state.is-toggle:disabled { opacity: .6; cursor: wait; }\n.dsh-tavern-extract-state { gap: 8px; color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 650; }\n.dsh-tavern-extract-state::before { width: 11px; height: 11px; }\n.dsh-tavern-extract-state input[type=\"checkbox\"] { width: 18px; height: 18px; margin: 0; accent-color: #23bd63; }\n.dsh-tavern-plan-name-field { display: grid; gap: 5px; margin-top: 8px; color: var(--dsw-alias-label-primary); font-size: 12px; font-weight: 650; }\n.dsh-tavern-plan-name-field input { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; font: inherit; font-weight: 400; }\n.dsh-tavern-plan-model-editor { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; }\n.dsh-tavern-plan-model-editor input { box-sizing: border-box; width: 100%; min-width: 0; padding: 7px 9px; font: inherit; font-weight: 400; }\n/* Card extensions have a type badge in addition to the title and state. */\n.dsh-tavern-card-extensions .dsh-tavern-prompt-head { grid-template-columns: auto minmax(0, 1fr) auto; }\n.dsh-tavern-card-extensions .dsh-tavern-prompt-role { font-size: 9px; line-height: 1.4; color: var(--dsw-alias-label-secondary); white-space: nowrap; }\n.dsh-tavern-card-extensions .dsh-tavern-prompt-title .dsh-tavern-prompt-tags { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }\n.dsh-tavern-card-extensions .dsh-tavern-prompt-tags .dsh-tavern-prompt-tag { display: inline-block; margin-top: 0; color: #c77800; font-size: 9px; }\n@media (max-width: 560px) {\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-head { grid-template-columns: minmax(0, 1fr) auto; }\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-role { grid-column: 1; grid-row: 1; }\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-state, .dsh-tavern-card-extensions .dsh-tavern-prompt-head > .dsh-tavern-mvu-state { grid-column: 2; grid-row: 1; }\n  .dsh-tavern-card-extensions .dsh-tavern-prompt-title { grid-column: 1 / -1; grid-row: 2; }\n}\n.dsh-tavern-prompt-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }\n.dsh-tavern-prompt-tag { padding: 1px 5px; border-radius: 4px; background: rgba(237,151,20,.14); color: #c77800; font-size: 9px; }\n.dsh-tavern-prompt-content { margin: 0; padding: 10px 12px; border-top: 1px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-secondary); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-prompt-view-actions { display: flex; justify-content: flex-end; padding: 8px 10px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-prompt-editor { display: grid; grid-template-columns: minmax(0,1fr) 150px; gap: 10px; padding: 12px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-prompt-editor-field { display: grid; gap: 5px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-prompt-editor-field.full { grid-column: 1 / -1; }\n.dsh-tavern-prompt-editor-field input[type=\"text\"], .dsh-tavern-prompt-editor-field select, .dsh-tavern-prompt-editor-field textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-minor); color: var(--dsw-alias-label-primary); padding: 8px 9px; font: inherit; }\n.dsh-tavern-prompt-editor-field textarea { min-height: 220px; resize: vertical; font: 10px/1.55 ui-monospace, monospace; }\n.dsh-tavern-prompt-editor-toggle { display: flex; align-items: center; gap: 7px; min-height: 34px; }\n.dsh-tavern-prompt-editor-note { grid-column: 1 / -1; color: var(--dsw-alias-label-secondary); font-size: 9px; }\n.dsh-tavern-prompt-editor-actions { position: sticky; bottom: 0; grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; padding: 9px 0 0; background: var(--dsw-specific-input-major); z-index: 1; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor { box-sizing: border-box; width: 100%; max-width: 640px; margin-inline: auto; grid-template-columns: minmax(0, 1fr) minmax(90px, 120px); gap: 6px 8px; padding: 8px; font-size: 11px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-field { gap: 3px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-field :is(input, select, textarea) { padding: 5px 7px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor textarea { min-height: 140px; height: 140px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-toggle { min-height: 28px; font-size: 11px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-actions { align-items: center; flex-wrap: wrap; gap: 6px; padding: 2px 0; font-size: 11px; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-actions :is(button, select) { padding: 3px 7px; font: inherit; }\n:is(.dsh-tavern-preset-entry-head, .dsh-tavern-preset-regex-head) + .dsh-tavern-prompt-editor .dsh-tavern-prompt-editor-actions > label { display: flex; align-items: center; gap: 5px; }\n.dsh-tavern-regex-body { border-top: 1px solid var(--dsw-alias-border-l2); padding: 10px 12px; }\n.dsh-tavern-regex-label { margin: 8px 0 4px; color: var(--dsw-alias-label-secondary); font-size: 10px; font-weight: 750; }\n.dsh-tavern-regex-label:first-child { margin-top: 0; }\n.dsh-tavern-regex-code { max-height: 220px; overflow: auto; margin: 0; padding: 8px 9px; border-radius: 7px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-regex-meta { margin-top: 9px; color: var(--dsw-alias-label-tertiary); font: 9px/1.6 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-extension-note { margin: 9px 0; padding: 8px 9px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 30%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--dsh-tavern-accent) 7%, transparent); color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.55; }\n.dsh-tavern-mvu-list { display: grid; gap: 6px; }\n.dsh-tavern-mvu-row { display: grid; grid-template-columns: 74px minmax(0,1fr) auto; gap: 7px; align-items: center; padding: 7px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); font-size: 10px; }\n.dsh-tavern-mvu-kind { color: var(--dsh-tavern-accent); font-weight: 750; }\n.dsh-tavern-mvu-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-mvu-state { color: var(--dsw-alias-label-tertiary); white-space: nowrap; }\n.dsh-tavern-dsh-preset { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 24px; }\n.dsh-tavern-dsh-preset-controls { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 8px; margin-bottom: 10px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); font-size: 11px; }\n.dsh-tavern-dsh-preset-controls select { min-width: 0; width: 100%; height: 28px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; padding: 0 7px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-dsh-preset-summary { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }\n.dsh-tavern-dsh-preset-badge { border-radius: 999px; padding: 3px 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-dsh-preset-badge.front { background: rgba(58,132,255,.13); color: #4f92ff; }\n.dsh-tavern-dsh-preset-badge.middle { background: rgba(237,151,20,.15); color: #d27b00; }\n.dsh-tavern-dsh-preset-badge.back { background: rgba(180,124,255,.14); color: #9c62ed; }\n.dsh-tavern-dsh-preset-phase { margin-bottom: 15px; }\n.dsh-tavern-dsh-preset-phase-title { margin: 2px 2px 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 800; }\n.dsh-tavern-dsh-preset-row { margin-bottom: 6px; border: 1px solid var(--dsw-alias-border-l2); border-left: 4px solid #5b9cff; border-radius: 8px; background: var(--dsw-specific-input-major); overflow: hidden; }\n.dsh-tavern-dsh-preset-row.front { border-left-color: #4f92ff; }\n.dsh-tavern-dsh-preset-row.middle { border-left-color: #ed9714; }\n.dsh-tavern-dsh-preset-row.back { border-left-color: #b47cff; }\n.dsh-tavern-dsh-preset-row.off { opacity: .62; }\n.dsh-tavern-dsh-preset-row.unconverted { border-left-color: #e06c75; }\n.dsh-tavern-dsh-preset-row summary { display: grid; grid-template-columns: 36px minmax(0,1fr) auto; align-items: center; gap: 7px; padding: 8px 9px; cursor: pointer; list-style: none; }\n.dsh-tavern-dsh-preset-row summary::-webkit-details-marker { display: none; }\n.dsh-tavern-dsh-preset-index { color: var(--dsw-alias-label-tertiary); font: 9px/1 ui-monospace, monospace; }\n.dsh-tavern-dsh-preset-name { min-width: 0; }\n.dsh-tavern-dsh-preset-name b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }\n.dsh-tavern-dsh-preset-name span { display: block; overflow: hidden; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-dsh-preset-meta { color: var(--dsw-alias-label-secondary); font-size: 9px; white-space: nowrap; }\n.dsh-tavern-dsh-preset-content { margin: 0; padding: 9px 10px; border-top: 1px solid var(--dsw-alias-border-l3); color: var(--dsw-alias-label-secondary); font: 10px/1.55 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }\n.dsh-tavern-dsh-preset-diagnostics { margin-top: 12px; padding: 8px 10px; border: 1px solid rgba(237,151,20,.35); border-radius: 8px; background: rgba(237,151,20,.07); color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.55; }\n.dsh-tavern-dsh-preset-diagnostics summary { cursor: pointer; font-weight: 800; }\n.dsh-tavern-dsh-preset-diagnostics ul { margin: 7px 0 0; padding-left: 18px; }\n.dsh-tavern-dsh-preset-unconverted-group { margin-top: 9px; }\n.dsh-tavern-dsh-preset-unconverted-title { margin: 8px 0 6px; font-weight: 800; }\n.dsh-tavern-dsh-preset-raw { margin-top: 6px; border: 1px solid var(--dsw-alias-border-l3); border-radius: 7px; overflow: hidden; }\n.dsh-tavern-dsh-preset-raw summary { padding: 7px 8px; cursor: pointer; font-weight: 700; }\n.dsh-tavern-status-head { flex: none; padding: 16px 16px 12px; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-status-title { font-size: 18px; font-weight: 400; letter-spacing: -0.2px; }\n.dsh-tavern-plan-head { display: flex; flex-direction: column; gap: 10px; }\n.dsh-tavern-plan-head-main { display: flex; align-items: center; gap: 8px; min-width: 0; }\n.dsh-tavern-plan-head-main .dsh-tavern-status-title { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }\n.dsh-tavern-plan-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }\n.dsh-tavern-status-role { margin-top: 5px; color: var(--dsh-tavern-accent); font-size: 13px; font-weight: 700; }\n.dsh-tavern-status-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }\n.dsh-tavern-status-tag { padding: 2px 6px; border-radius: 999px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-status-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 20px; }\n.dsh-tavern-status-section { margin-bottom: 16px; }\n.dsh-tavern-card-reload { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }\n.dsh-tavern-card-reload-notice { min-width: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }\n.dsh-tavern-card-app-section[hidden] { display: none; }\n.dsh-tavern-card-app-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }\n.dsh-tavern-card-app-head .dsh-tavern-status-label { margin-bottom: 0; }\n.dsh-tavern-card-app-recovering { margin-bottom: 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-card-app-slot { width: 100%; min-height: 120px; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: rgba(0,0,0,.14); }\n.dsh-tavern-script-buttons { display: flex; flex-wrap: wrap; gap: 7px; }\n.dsh-tavern-status-label { margin-bottom: 7px; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; letter-spacing: .06em; }\n.dsh-tavern-status-now { padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 30%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); font-size: 12px; line-height: 1.55; }\n.dsh-tavern-character-designs { display: flex; flex-direction: column; gap: 7px; }\n.dsh-tavern-character-design { border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); overflow: hidden; }\n.dsh-tavern-character-design summary { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px 10px; cursor: pointer; list-style: none; }\n.dsh-tavern-character-design summary::-webkit-details-marker { display: none; }\n.dsh-tavern-character-design-name { display: block; font-size: 12px; font-weight: 800; }\n.dsh-tavern-character-design-summary { display: block; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 10px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-character-design-meta { color: var(--dsh-tavern-accent); font-size: 9px; white-space: nowrap; }\n.dsh-tavern-character-design-body { padding: 2px 10px 10px; border-top: 1px solid var(--dsw-alias-border-l3); }\n.dsh-tavern-character-design-row { padding-top: 8px; }\n.dsh-tavern-character-design-row b { display: block; color: var(--dsw-alias-label-tertiary); font-size: 9px; }\n.dsh-tavern-character-design-row p { margin: 3px 0 0; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-guide-list { display: flex; flex-direction: column; gap: 6px; }\n.dsh-tavern-guide-item { display: flex; align-items: flex-start; gap: 6px; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-guide-text { flex: 1; min-width: 0; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }\n.dsh-tavern-guide-add { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }\n.dsh-tavern-guide-add textarea { box-sizing: border-box; width: 100%; resize: vertical; min-height: 54px; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 12px; line-height: 1.5; }\n.dsh-tavern-script-preview { display: flex; flex-direction: column; gap: 7px; }\n.dsh-tavern-script-chunk { border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); padding: 7px 9px; font-size: 11px; line-height: 1.55; }\n.dsh-tavern-script-chunk-label { display: block; margin-bottom: 3px; color: var(--dsh-tavern-accent); font-size: 10px; font-weight: 700; }\n.dsh-tavern-script-chunk-text { color: var(--dsw-alias-label-secondary); white-space: pre-wrap; max-height: 160px; overflow-y: auto; }\n.dsh-tavern-status-item { padding: 7px 0; border-bottom: 1px solid var(--dsw-alias-border-l3); font-size: 12px; line-height: 1.5; }\n.dsh-tavern-status-item:last-child { border-bottom: 0; }\n.dsh-tavern-status-empty { color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 1.6; }\n.dsh-tavern-user-profile { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-user-profile-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 24px; }\n.dsh-tavern-user-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }\n.dsh-tavern-user-profile-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); }\n.dsh-tavern-user-profile-switch b { display: block; font-size: 12px; }\n.dsh-tavern-user-profile-switch small { display: block; margin-top: 3px; color: var(--dsw-alias-label-tertiary); font-size: 9px; line-height: 1.45; }\n.dsh-tavern-user-profile-text { margin: 0; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-user-profile-dimension { margin-top: 7px; padding: 9px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-user-profile-dimension b { font-size: 11px; }\n.dsh-tavern-user-profile-dimension p { margin: 5px 0 0; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.55; }\n.dsh-tavern-user-profile-meta { margin-top: 5px; color: var(--dsw-alias-label-tertiary); font-size: 9px; line-height: 1.5; }\n.dsh-tavern-user-profile details { margin-top: 10px; }\n.dsh-tavern-user-profile details summary { cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; }\n.dsh-tavern-user-profile-editor textarea { box-sizing: border-box; width: 100%; min-height: 130px; margin-top: 5px; padding: 8px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; resize: vertical; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 11px; line-height: 1.6; }\n.dsh-tavern-debug-panel { display: flex; flex-direction: column; gap: 7px; }\n.dsh-tavern-debug-panel select { width: 100%; box-sizing: border-box; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 12px; }\n.dsh-tavern-debug-preview { padding: 7px 8px; border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }\n.dsh-tavern-debug-open { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; font-size: 12px; font-weight: 650; }\n.dsh-tavern-debug-open:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 16%, transparent); }\n.dsh-tavern-debug-open:disabled { cursor: wait; opacity: .6; }\n.dsh-tavern-status-settle { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #6ea676; }\n.dsh-tavern-status-dot.running { background: #c68a3a; animation: dsh-tavern-pulse 1s infinite alternate; }\n.dsh-tavern-status-dot.error { background: #c45f5f; }\n.dsh-tavern-status-view-switch { margin-top: 10px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 999px; padding: 5px 10px; background: color-mix(in srgb, var(--dsh-tavern-accent) 9%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-phone-host { align-items: center; overflow: auto; padding: 12px; background: radial-gradient(circle at 50% 0, rgba(63,145,255,.08), transparent 38%), var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-phone-toolbar { width: min(100%, 360px); display: flex; justify-content: flex-end; margin-bottom: 8px; }\n.dsh-tavern-phone-exit { border: 0; border-radius: 999px; padding: 6px 11px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 11px; }\n.dsh-tavern-phone-device { position: relative; width: min(100%, 360px); height: min(720px, calc(100vh - 110px)); min-height: 520px; overflow: hidden; box-sizing: border-box; border: 9px solid #121318; border-radius: 44px; background: #edf3fb; box-shadow: 0 20px 55px rgba(0,0,0,.32), inset 0 0 0 1px rgba(255,255,255,.18); color: #162033; }\n.dsh-tavern-phone-screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: linear-gradient(150deg,#dff8ff 0%,#b7dcff 25%,#314eae 56%,#071536 100%); }\n.dsh-tavern-phone-island { position: absolute; z-index: 4; top: 10px; left: 50%; width: 104px; height: 29px; transform: translateX(-50%); border-radius: 999px; background: #090b10; }\n.dsh-tavern-phone-statusbar { position: relative; z-index: 3; height: 49px; flex: none; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 7px 19px 0; color: #fff; font-size: 12px; font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,.35); }\n.dsh-tavern-phone-status-icons { letter-spacing: 1px; }\n.dsh-tavern-phone-home { flex: 1; min-height: 0; padding: 32px 24px; }\n.dsh-tavern-phone-app { width: 68px; border: 0; padding: 0; background: transparent; color: #fff; cursor: pointer; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,.55); }\n.dsh-tavern-phone-app-icon { position: relative; width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 7px; border-radius: 16px; background: linear-gradient(145deg,#4ed76f,#12a947); box-shadow: 0 8px 20px rgba(0,0,0,.22); color: #fff; text-shadow: none; }\n.dsh-tavern-phone-app-icon::before { content: \"\"; width: 31px; height: 25px; border-radius: 50%; background: #fff; }\n.dsh-tavern-phone-app-icon::after { content: \"\"; position: absolute; left: 16px; bottom: 14px; width: 10px; height: 10px; background: #fff; clip-path: polygon(0 0,100% 0,0 100%); transform: rotate(-10deg); }\n.dsh-tavern-phone-app-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 650; }\n.dsh-tavern-phone-page { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #f5f7fb; color: #172033; }\n.dsh-tavern-phone-nav { min-height: 48px; flex: none; display: grid; grid-template-columns: 56px minmax(0,1fr) 56px; align-items: center; padding: 0 8px; border-bottom: 1px solid #dce2eb; background: rgba(255,255,255,.94); }\n.dsh-tavern-phone-nav strong { overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }\n.dsh-tavern-phone-nav button { border: 0; background: transparent; color: #3478e5; cursor: pointer; font-size: 12px; }\n.dsh-tavern-phone-contact-list { min-height: 0; overflow-y: auto; background: #fff; }\n.dsh-tavern-phone-contact { width: 100%; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 10px; box-sizing: border-box; border: 0; border-bottom: 1px solid #edf0f4; padding: 11px 14px; background: #fff; color: inherit; cursor: pointer; text-align: left; }\n.dsh-tavern-phone-avatar { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: linear-gradient(145deg,#7b8cff,#5265d6); color: #fff; font-size: 17px; font-weight: 800; }\n.dsh-tavern-phone-contact-copy { min-width: 0; }\n.dsh-tavern-phone-contact-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }\n.dsh-tavern-phone-contact-preview { display: block; margin-top: 4px; overflow: hidden; color: #89919f; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }\n.dsh-tavern-phone-contact-time { color: #a0a7b2; font-size: 9px; }\n.dsh-tavern-phone-empty { margin: auto; padding: 28px; color: #7d8694; text-align: center; font-size: 12px; line-height: 1.6; }\n.dsh-tavern-phone-messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px 12px; background: #eef1f6; }\n.dsh-tavern-phone-bubble { max-width: 82%; padding: 8px 10px; border-radius: 13px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-phone-bubble.user { align-self: flex-end; border-bottom-right-radius: 4px; background: #95e766; }\n.dsh-tavern-phone-bubble.assistant { align-self: flex-start; border-bottom-left-radius: 4px; }\n.dsh-tavern-phone-bubble.pending { opacity: .58; }\n.dsh-tavern-phone-bubble.failed { outline: 1px solid #e16a6a; }\n.dsh-tavern-phone-message-error { display: block; margin-top: 3px; color: #c54d4d; font-size: 9px; }\n.dsh-tavern-phone-compose { flex: none; display: flex; align-items: flex-end; gap: 7px; padding: 8px; border-top: 1px solid #dce2eb; background: #fff; }\n.dsh-tavern-phone-compose textarea { min-width: 0; flex: 1; resize: none; box-sizing: border-box; max-height: 96px; border: 1px solid #d4dae4; border-radius: 16px; padding: 7px 10px; background: #f7f8fa; color: #172033; font: inherit; font-size: 12px; line-height: 1.4; }\n.dsh-tavern-phone-compose button { width: 34px; height: 34px; flex: none; border: 0; border-radius: 50%; background: #2e79e8; color: #fff; cursor: pointer; font-size: 15px; }\n.dsh-tavern-phone-compose button:disabled { opacity: .4; cursor: default; }\n.dsh-tavern-phone-indicator { width: 96px; height: 4px; flex: none; margin: 7px auto 8px; border-radius: 999px; background: currentColor; opacity: .75; }\n.dsh-tavern-card-fields { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }\n.dsh-tavern-card-field { margin-bottom: 10px; }\n.dsh-tavern-card-field label { display: block; margin-bottom: 4px; color: var(--dsw-alias-label-secondary); font-size: 10px; font-weight: 700; }\n.dsh-tavern-card-field input,.dsh-tavern-card-field textarea { box-sizing: border-box; width: 100%; padding: 7px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 11px; line-height: 1.45; resize: vertical; }\n.dsh-tavern-card-field textarea { min-height: 76px; }\n.dsh-tavern-card-field textarea.large { min-height: 130px; }\n.dsh-tavern-card-advanced { margin: 10px 0; }\n.dsh-tavern-card-advanced summary { cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 700; }\n.dsh-tavern-card-worldbook { margin: 0 0 14px; padding: 12px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 11px; background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-card-worldbook > summary { color: var(--dsh-tavern-accent-active); font-size: 13px; font-weight: 800; cursor: pointer; }\n.dsh-tavern-card-worldbook > summary:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 4px; border-radius: 4px; }\n.dsh-tavern-card-worldbook > .dsh-tavern-worldbook { margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); border-radius: 0; }\n\n\n.dsh-tavern-worldbook { margin-bottom: 14px; padding: 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; }\n.dsh-tavern-worldbook-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }\n.dsh-tavern-worldbook-title { color: var(--dsw-alias-label-secondary); font-size: 10px; font-weight: 700; }\n.dsh-tavern-worldbook-add { border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 7px; background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); color: var(--dsh-tavern-accent); padding: 4px 8px; cursor: pointer; font-size: 11px; font-weight: 650; }\n.dsh-tavern-worldbook-add:hover { background: color-mix(in srgb, var(--dsh-tavern-accent) 20%, transparent); }\n.dsh-tavern-worldbook-empty { padding: 10px; border: 1px dashed var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n.dsh-tavern-worldbook-group + .dsh-tavern-worldbook-group { margin-top: 12px; }\n.dsh-tavern-worldbook-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-group-head b { color: var(--dsh-tavern-accent); font-size: 11px; }\n.dsh-tavern-worldbook-entry { margin-bottom: 10px; padding: 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-worldbook-entry-head { color: var(--dsh-tavern-accent); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-worldbook-entry-body { padding-top: 9px; }\n.dsh-tavern-worldbook-entry-actions { display: flex; align-items: center; gap: 4px; }\n.dsh-tavern-worldbook-danger-zone { display: flex; justify-content: flex-end; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-worldbook-kind { border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsh-tavern-accent); cursor: pointer; padding: 2px 7px; font-size: 10px; }\n.dsh-tavern-worldbook-trigger { display: block; max-width: 100%; margin: 0 0 6px; padding: 1px 0; overflow: hidden; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 10px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-worldbook-trigger:hover { color: var(--dsh-tavern-accent); }\n.dsh-tavern-worldbook-note { margin: -2px 0 8px; color: var(--dsw-alias-label-secondary); font-size: 10px; line-height: 1.5; }\n.dsh-tavern-worldbook-sort { display: flex; align-items: center; gap: 7px; width: fit-content; margin: 2px 0 12px; padding: 4px 5px 4px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 9px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.04); }\n.dsh-tavern-worldbook-sort:focus-within { border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); }\n.dsh-tavern-worldbook-sort-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); color: var(--dsh-tavern-accent); font-size: 12px; font-weight: 800; }\n.dsh-tavern-worldbook-sort-label { font-size: 10px; font-weight: 700; white-space: nowrap; }\n.dsh-tavern-worldbook-sort-control { position: relative; display: inline-flex; align-items: center; }\n.dsh-tavern-worldbook-sort select { min-width: 76px; appearance: none; border: 0; border-radius: 6px; outline: 0; padding: 5px 24px 5px 8px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }\n.dsh-tavern-worldbook-sort-chevron { position: absolute; right: 8px; top: 50%; transform: translateY(-58%); color: var(--dsw-alias-label-tertiary); pointer-events: none; font-size: 12px; }\n.dsh-tavern-worldbook-del { border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; padding: 2px 6px; font-size: 11px; }\n.dsh-tavern-worldbook-del:hover { color: #c45f5f; background: rgba(196,95,95,.12); }\n.dsh-tavern-worldbook-entry .dsh-tavern-card-field { margin-bottom: 6px; }\n.dsh-tavern-worldbook-entry .dsh-tavern-card-field:last-child { margin-bottom: 0; }\n.dsh-tavern-worldbook-editor { padding: 10px 12px 24px; overflow-y: auto; }\n.dsh-tavern-worldbook-summary { margin: 0 0 10px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n.dsh-tavern-worldbook-editor-actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 6px; padding: 10px 0; background: var(--dsw-specific-sidebar-fill); }\n.dsh-tavern-worldbook-entry details { margin-top: 7px; }\n.dsh-tavern-worldbook-entry summary { cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 7px; }\n.dsh-tavern-worldbook-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-grid input,.dsh-tavern-worldbook-grid select { min-width: 0; padding: 6px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-specific-input-major); color: inherit; }\n.dsh-tavern-worldbook-checks { display: flex; flex-wrap: wrap; gap: 8px 12px; margin: 7px 0; color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-tavern-worldbook-checks label { display: inline-flex; align-items: center; gap: 4px; }\n.dsh-tavern-card-save { position: sticky; bottom: 0; display: flex; justify-content: flex-end; padding: 10px 0 2px; background: linear-gradient(transparent, var(--dsw-specific-sidebar-fill) 28%); }\n.dsh-tavern-script-row { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--dsw-alias-border-l3); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-script-info { flex: 1; min-width: 150px; line-height: 1.5; }\n.dsh-tavern-script-info b { color: var(--dsh-tavern-accent); }\n.dsh-tavern-script-hero { flex: none; margin: 10px 12px 0; padding: 12px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 11px; background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); }\n.dsh-tavern-script-hero-title { color: var(--dsh-tavern-accent-active); font-size: 13px; font-weight: 800; cursor: pointer; }\n.dsh-tavern-script-hero-help { margin-top: 6px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n.dsh-tavern-script-hero .dsh-tavern-script-row { border-top-color: color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); }\n.dsh-tavern-script-primary { border: 0; border-radius: 8px; padding: 6px 10px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-brand-text, #fff); cursor: pointer; font-size: 11px; font-weight: 700; }\n.dsh-tavern-script-primary:disabled { opacity: .5; cursor: default; }\n@keyframes dsh-tavern-pulse { from { opacity: .35; } to { opacity: 1; } }\n.dsh-card-primary { border: 0; border-radius: var(--dsh-tavern-radius-md); padding: 10px 18px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-brand-text, #fff); cursor: pointer; font-size: 14px; font-weight: 500; }\n.dsh-card-error { color: #c45f5f; font-size: 12px; }\n@media (max-width: 820px) {\n  .dsh-tavern-question { width: calc(100% - 24px); }\n}\n\n/* Compact writing-style navigation at the bottom of the status panel. */\n.dsh-tavern-style-guide > button {\n  display: flex; align-items: baseline; gap: 10px; width: 100%;\n  padding: 8px 0; border: 0; border-bottom: 1px solid var(--border, rgba(128,128,128,.16));\n  background: transparent; color: inherit; text-align: left; cursor: pointer;\n}\n.dsh-tavern-style-guide > button:last-child { border-bottom: 0; }\n.dsh-tavern-style-guide > button > span { flex-shrink: 0; font-size: 13px; }\n.dsh-tavern-style-guide > button > small { font-size: 11px; opacity: .65; }\n.dsh-tavern-style-guide > button:hover > span { text-decoration: underline; }\n.dsh-tavern-style-guide > button:disabled { opacity: .45; cursor: default; }\n\n.dsh-tavern-style-title { font-size: 17px; font-weight: 700; line-height: 1.5; margin-bottom: 8px; }\n\n/* The sidebar's translated, collapsed bottom panel extends beyond the viewport.\n   hidden still permits focus/scrollIntoView to scroll the whole fixed host,\n   stranding its tab bar above the viewport. Only pane content should scroll. */\nbody.dsh-tavern-shell-active [data-dsh-panel-host] { overflow: clip; }\n\n/* Pocket's legacy :last-child header rule hides the native right-sidebar\n   corner added by the host. Restore that explicit seat, not the old utilities\n   row. Keep the native controller and its horizontal drawer transition. */\n@media (max-width: 767px) {\n  body.dsh-tavern-shell-active [data-phase] header:has([data-conversation-header-corner]) { position: relative; }\n  body.dsh-tavern-shell-active [data-phase] header [data-conversation-header-corner] {\n    display: flex !important;\n    position: absolute;\n    right: 8px;\n    top: 12px;\n    margin: 0;\n    z-index: 3;\n  }\n  body.dsh-tavern-shell-active [data-dsh-bottom-toggle] { display: none !important; }\n}\n\n.dsh-tavern-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }\n.dsh-tavern-history-action { appearance: none; border: 0; background: transparent; color: inherit; font: inherit; padding: 4px 6px; border-radius: 4px; cursor: pointer; }\n.dsh-tavern-history-action:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: rgba(128, 128, 128, .12); }\n.dsh-tavern-history-action:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-history-selection { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 7px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n\n/* Player notebook: fixed UI typography, independent of story font settings. */\n.dsh-ledger { font-size: 13px; line-height: 1.55; }\n.dsh-ledger button { cursor: pointer; color: inherit; }\n.dsh-ledger-toggle { display: flex; justify-content: space-between; width: 100%; padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 600; }\n.dsh-ledger-toggle span { font-size: 12px; font-weight: 400; opacity: .65; }\n.dsh-ledger-tabs { display: flex; gap: 3px; margin: 12px 0; padding: 3px; border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); }\n.dsh-ledger-tabs button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; border: 0; background: transparent; border-radius: 6px; padding: 6px 8px; font: inherit; color: var(--dsw-alias-label-secondary, inherit); }\n.dsh-ledger-tabs [aria-selected=\"true\"] { color: var(--dsw-alias-label-primary, inherit); background: var(--dsw-specific-sidebar-fill, Canvas); box-shadow: 0 1px 3px rgba(0,0,0,.12); font-weight: 600; }\n.dsh-ledger-count { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }\n.dsh-ledger .dsh-ledger-add, .dsh-ledger-actions button { border: 1px solid var(--dsw-alias-border-l2, rgba(128,128,128,.3)); background: transparent; color: var(--dsw-alias-label-primary, inherit); border-radius: 6px; padding: 5px 9px; font: inherit; }\n.dsh-ledger .dsh-ledger-add { font-size: 12px; }\n.dsh-ledger button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); }\n.dsh-ledger button:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-ledger-card { margin: 8px 0; padding: 10px; border: 1px solid var(--dsw-alias-border-subtle, #555); border-radius: 7px; overflow-wrap: anywhere; }\n.dsh-ledger-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }\n.dsh-ledger-actions { display: flex; flex-shrink: 0; gap: 5px; font-size: 12px; }\n.dsh-ledger p { margin: 5px 0; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-ledger small, .dsh-ledger-field-label { opacity: .65; }\n.dsh-ledger h4 { margin: 14px 0 6px; }\n.dsh-ledger-scene { margin: 8px 0 8px 8px; padding-left: 10px; border-left: 1px solid var(--dsh-tavern-accent); }\n.dsh-ledger-scene summary { cursor: pointer; overflow-wrap: anywhere; }\n.dsh-ledger-scene-content { padding: 5px 0; }\n.dsh-ledger-form { margin: 10px 0; padding: 10px; border: 1px solid var(--dsh-tavern-accent); border-radius: 6px; }\n.dsh-ledger-form label { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }\n.dsh-ledger-form input:not([type=\"checkbox\"]) { box-sizing: border-box; width: 100%; min-width: 0; padding: 6px; border: 1px solid #555; border-radius: 4px; color: inherit; background: transparent; font: inherit; }\n.dsh-ledger button:disabled { opacity: .45; cursor: default; }\n\n.dsh-tavern-panel-toolbar { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin-bottom: 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-panel-tabs { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; gap: 6px; }\n.dsh-tavern-panel-tab, .dsh-tavern-panel-refresh { border: 0; border-radius: 7px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; padding: 6px 9px; cursor: pointer; }\n.dsh-tavern-panel-tab { text-align: left; overflow-wrap: anywhere; }\n.dsh-tavern-panel-tabs [aria-selected=\"true\"] { background: color-mix(in srgb, var(--dsh-tavern-accent) 10%, transparent); color: var(--dsw-alias-label-primary); font-weight: 650; }\n.dsh-tavern-panel-refresh { flex-shrink: 0; }\n.dsh-tavern-panel-tab:hover, .dsh-tavern-panel-refresh:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-panel-tab:focus-visible, .dsh-tavern-panel-refresh:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-tavern-status-runtime > [role=\"tabpanel\"] { min-width: 0; width: 100%; }\n.dsh-tavern-status-runtime > [role=\"tabpanel\"][hidden] { display: none; }\n\n.dsh-tavern-choice-trigger:disabled { opacity: .5; cursor: not-allowed; }\n\n.dsh-tavern-image-preview { position: fixed; inset: 0; box-sizing: border-box; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 64px 20px 20px; border: 0; background: rgba(0,0,0,.92); overflow: hidden; }\n.dsh-tavern-image-preview::backdrop { background: rgba(0,0,0,.8); }\n.dsh-tavern-image-preview img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }\n.dsh-tavern-image-preview button { position: absolute; top: max(12px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); min-height: 40px; padding: 8px 16px; border: 1px solid #aaa; border-radius: 8px; background: #fff; color: #111; cursor: pointer; font-size: 16px; }\n\n.dsh-tavern-error-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 12px; font-size: 12px; }\n.dsh-tavern-error-controls[hidden] { display: none; }\n.dsh-tavern-error-controls button { color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 5px; padding: 3px 8px; cursor: pointer; }\n.dsh-tavern-error-controls button.dsh-tavern-error-replay { border-color: rgba(166,107,53,.55); color: #a66b35; font-weight: 650; }\n.dsh-tavern-error-controls button.dsh-tavern-error-replay:hover { background: rgba(166,107,53,.18); }\n.dsh-tavern-error-controls button.dsh-tavern-error-replay:disabled { opacity: .55; cursor: default; }\n\n/* Conversation groups are a sidebar projection, not folders in stored chat data. */\n.dsh-tavern-history-group { flex-shrink: 0; min-width: 0; }\n.dsh-tavern-history-group-toggle { display: flex; align-items: center; gap: 7px; width: 100%; padding: 9px 12px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; cursor: pointer; }\n.dsh-tavern-history-group-toggle:hover { background: rgba(128,128,128,.12); }\n.dsh-tavern-history-group-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }\n.dsh-tavern-history-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.dsh-tavern-history-group-count { flex-shrink: 0; opacity: .6; font-size: 12px; }\n.dsh-tavern-history-group-items { padding-left: 10px; display: flex; flex-direction: column; gap: 4px; }\n\n.dsh-tavern-history-group-items .dsh-tavern-side-row-meta > span:last-child { white-space: nowrap; flex-shrink: 0; }\n\n.dsh-tavern-card-batch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; }\n.dsh-tavern-card-batch .danger { color: #c34848; }\n.dsh-tavern-card-batch-count { color: var(--dsw-alias-label-secondary); font-size: 12px; padding: 0 4px; font-weight: 500; }\n.dsh-tavern-card-batch-notice { flex-basis: 100%; overflow-wrap: anywhere; font-size: 12px; margin-top: 4px; padding: 6px 10px; border-radius: 6px; background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-card-batch-checkbox { flex: 0 0 18px; width: 18px; height: 18px; margin: 0 6px 0 2px; cursor: pointer; accent-color: var(--dsh-tavern-accent); border-radius: 4px; vertical-align: middle; }\n.dsh-tavern-library-card.selected { border-color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 14%, transparent); }\n\n.dsh-tavern-card-import-hint { padding: 6px 12px 0; }\n.dsh-tavern-library > .dsh-tavern-card-batch { flex-shrink: 0; margin: 0 12px; padding: 10px 0 6px; gap: 10px; }\n.dsh-tavern-library > .dsh-tavern-card-batch + .dsh-tavern-library-search { margin-top: 12px; }\n\n/* Size every opening by content; scroll the dialog instead of squeezing long forms. */\n.dsh-tavern-card-picker:has(.dsh-tavern-greeting-preview) { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }\n/* In block pickers this is inert; avoid a descendant :has() before universal children. */\n.dsh-tavern-card-picker > * { flex-shrink: 0; }\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview { height: auto; min-height: 0; max-height: min(1200px, 85dvh); flex: 0 0 auto; }\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview:has(iframe) { height: min(1200px, 85dvh); }\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview .dsh-tavern-message-frame-slot,\n.dsh-tavern-card-picker > .dsh-tavern-greeting-preview .dsh-tavern-message-frame { min-height: min(1200px, 85dvh); }\n@media (max-width: 640px) {\n  .dsh-tavern-card-picker:has(.dsh-tavern-greeting-preview) { max-height: calc(100dvh - 24px); }\n}\n\n.dsh-tavern-worldbook-bound { padding: 8px 12px; font-size: 12px; text-align: left; overflow-wrap: anywhere; }\n.dsh-tavern-worldbook-new { margin: 12px 0 8px; padding: 8px 12px; }\n.dsh-tavern-worldbook > .dsh-tavern-script-row:first-child { border-top: 0; margin-top: 0; padding-top: 0; }\n\n/* Worldbook bindings: existing relationships lead; additions stay folded. */\n.dsh-tavern-worldbook-bindings { margin: 0 0 16px; padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-worldbook-bindings-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; font-weight: 600; }\n.dsh-tavern-worldbook-bindings-count { color: var(--dsw-alias-label-secondary); font-size: 11px; font-weight: 400; }\n.dsh-tavern-worldbook-bound-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }\n.dsh-tavern-worldbook-bound-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 9px 10px; border-radius: 7px; background: var(--dsw-specific-input-major); }\n.dsh-tavern-worldbook-bound-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; font-weight: 500; }\n.dsh-tavern-worldbook-binding-link { flex-shrink: 0; padding: 3px 0 3px 6px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11px; cursor: pointer; }\n.dsh-tavern-worldbook-binding-link:hover:not(:disabled) { color: var(--dsw-alias-label-primary); text-decoration: underline; }\n.dsh-tavern-worldbook-binding-add { margin-top: 10px; }\n.dsh-tavern-worldbook-binding-add summary { width: fit-content; padding: 3px 0; color: var(--dsw-alias-label-secondary); font-size: 11px; cursor: pointer; }\n.dsh-tavern-worldbook-binding-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }\n.dsh-tavern-worldbook-binding-form select { flex: 1 1 170px; min-width: 0; max-width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 12px; }\n.dsh-tavern-worldbook-binding-confirm { min-height: 32px; padding: 4px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 12px; cursor: pointer; }\n.dsh-tavern-worldbook-bindings button:disabled { opacity: .45; cursor: default; }\n.dsh-tavern-worldbook-bindings :is(button, summary, select):focus-visible { outline: 2px solid var(--dsw-alias-label-secondary); outline-offset: 3px; }\n.dsh-tavern-worldbook-binding-empty, .dsh-tavern-worldbook-binding-hint { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }\n\n.dsh-tavern-preset-drag { cursor: grab; flex: none; padding: 4px 8px; border: 0; background: transparent; color: inherit; font-size: 20px; }\n.dsh-tavern-preset-drag:active { cursor: grabbing; }\n.dsh-tavern-preset-drop { height: 4px; overflow: hidden; line-height: 18px; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; text-align: center; font-size: 12px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-presets.is-dragging .dsh-tavern-preset-drop { border: 1px dashed var(--dsh-tavern-accent); }\n.dsh-tavern-presets.is-dragging .is-drop-target { outline: 2px solid var(--dsh-tavern-accent); outline-offset: -2px; }\n.dsh-tavern-presets.is-dragging .dsh-tavern-prompt-row.is-drop-target { outline: none; box-shadow: 0 -3px var(--dsh-tavern-accent); }\n\n.dsh-tavern-preset-entry-head.has-drag { grid-template-columns: auto minmax(0, 1fr) auto; }\n\n/* Profile scope: current game, future games, and library browsing are separate. */\n.dsh-tavern-profile-controls { display: grid; gap: 18px; padding: 16px 18px 0; }\n.dsh-tavern-profile-game { padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-specific-input-major); }\n.dsh-tavern-profile-section-title { font-size: 12px; font-weight: 600; margin-bottom: 9px; }\n.dsh-tavern-profile-current, .dsh-tavern-profile-library-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }\n.dsh-tavern-profile-current { justify-content: space-between; }\n.dsh-tavern-profile-current strong { font-size: 16px; overflow-wrap: anywhere; }\n.dsh-tavern-profile-current .dsh-tavern-user-profile-actions { margin: 0; }\n.dsh-tavern-profile-controls select { min-width: 0; max-width: 100%; padding: 7px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; }\n.dsh-tavern-profile-library-bar select { flex: 1; }\n.dsh-tavern-profile-default { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }\n.dsh-tavern-profile-controls small { display: block; color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 1.5; margin-top: 6px; }\n.dsh-tavern-profile-default small { grid-column: 1 / -1; margin: 0; }\n.dsh-tavern-profile-library { border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 16px; }\n.dsh-tavern-profile-update { margin-top: 12px; display: grid; justify-items: start; gap: 8px; font-size: 12px; line-height: 1.5; }\n.dsh-tavern-profile-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }\n.dsh-tavern-profile-choices p { flex-basis: 100%; margin: 0; font-size: 11px; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-history-window { min-height: 0; display: flex; flex-direction: column; flex: 1; }\n.dsh-tavern-history-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; position: sticky; top: 0; z-index: 2; background: var(--dsw-specific-input-major); }\n.dsh-tavern-history-controls small { color: var(--dsw-alias-label-tertiary); }\n\n/* Shared in-app text prompt. Replaces window.prompt, which Electron never implements;\n   every previous caller failed silently on desktop. */\n.dsh-tavern-prompt {\n  box-sizing: border-box; position: fixed; inset: 0; margin: auto;\n  width: min(400px, calc(100vw - 32px)); height: fit-content; max-height: calc(100vh - 32px);\n  padding: 16px; border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: 14px; background: var(--dsw-specific-sidebar-fill);\n  color: var(--dsw-alias-label-primary); box-shadow: 0 18px 54px rgba(0, 0, 0, .35);\n}\n.dsh-tavern-prompt::backdrop { background: rgba(0, 0, 0, .52); }\n.dsh-tavern-prompt-panel { display: flex; flex-direction: column; gap: 10px; }\n.dsh-tavern-prompt-title { font-size: 15px; font-weight: 700; }\n.dsh-tavern-prompt-input {\n  box-sizing: border-box; width: 100%; padding: 8px 10px;\n  border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px;\n  background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 13px;\n}\n.dsh-tavern-prompt-input:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 1px; }\n.dsh-tavern-prompt-error { color: #c45f5f; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }\n.dsh-tavern-prompt-actions { display: flex; justify-content: flex-end; gap: 8px; }\n\n.dsh-tavern-settings-text {\n  box-sizing: border-box; width: min(220px, 100%); padding: 7px 9px;\n  border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px;\n  background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 13px;\n}\n.dsh-tavern-settings-text:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 1px; }\n\n.dsh-tavern-export-menu .dsh-tavern-more-menu { top: calc(100% + 6px); bottom: auto; }\n\n.dsh-tavern-skill-assignments {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 12px 20px;\n  padding: 12px 0;\n}\n.dsh-tavern-skill-assignments label {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  cursor: pointer;\n}\n\n.dsh-tavern-skills > .dsh-tavern-question-sub {\n  padding: 0 16px;\n}\n\n.dsh-tavern-skills > .dsh-tavern-status-head { display: flex; align-items: center; justify-content: space-between; }\n.dsh-tavern-skills > .dsh-tavern-resource-body { padding: 12px 16px; }\n.dsh-tavern-skill-group { border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }\n.dsh-tavern-skill-group > summary { cursor: pointer; padding: 12px 14px; font-size: 14px; font-weight: 600; background: var(--dsw-specific-input-major); }\n.dsh-tavern-skill-count { margin-left: 8px; font-size: 12px; font-weight: 400; opacity: .6; }\n.dsh-tavern-skill-row { padding: 14px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-skill-row .dsh-tavern-resource-group-title { margin: 0; gap: 10px; }\n.dsh-tavern-skill-row .dsh-tavern-resource-name { font-size: 15px; font-weight: 700; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; text-align: left; }\n.dsh-tavern-skill-row .dsh-tavern-resource-open:hover { color: var(--dsh-tavern-accent); text-decoration: underline; }\n.dsh-tavern-skill-row .dsh-tavern-resource-open:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 4px; border-radius: 3px; }\n.dsh-tavern-skill-row > p { font-size: 12px; line-height: 1.6; margin: 7px 0 10px; opacity: .8; }\n.dsh-tavern-skill-options > summary { cursor: pointer; font-size: 12px; opacity: .65; }\n.dsh-tavern-skill-options .dsh-tavern-skill-assignments { padding: 10px 0 0; gap: 10px 16px; font-size: 12px; }\n.dsh-tavern-skill-empty { padding: 16px; font-size: 12px; opacity: .55; }\n.dsh-tavern-skill-row[draggable=\"true\"] { cursor: grab; }\n.dsh-tavern-skill-row.is-dragging { opacity: .4; }\n.dsh-tavern-skill-group.is-drop-target { border-color: var(--dsh-tavern-accent); box-shadow: inset 0 0 0 1px var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-skill-grip { opacity: .4; font-size: 18px; user-select: none; }\n.dsh-tavern-skill-content { overflow: auto; min-height: 0; }\n.dsh-tavern-skill-content h3 { margin: 0 0 12px; font-size: 13px; }\n.dsh-tavern-skill-content pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }\n\n.dsh-tavern-background-config { border: 1px solid var(--border, #ddd); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }\n.dsh-tavern-background-config > summary { padding: 14px 16px; cursor: pointer; }\n.dsh-tavern-background-config > summary > span { display: block; margin-top: 6px; overflow-wrap: anywhere; }\n.dsh-tavern-background-config-body { display: grid; gap: 16px; padding: 0 16px 16px; }\n.dsh-tavern-background-config-body > p { margin: 0; }\n.dsh-tavern-background-config-body > label { display: grid; gap: 8px; min-width: 0; }\n.dsh-tavern-background-config-body select { width: 100%; min-width: 0; }\n.dsh-tavern-background-config-body > .dsh-tavern-background-task { display: flex; align-items: center; justify-content: space-between; gap: 16px; }\n.dsh-tavern-background-task .dsh-tavern-settings-desc { display: block; margin-top: 5px; }\n.dsh-tavern-background-task input[role=\"switch\"] { appearance: none; -webkit-appearance: none; position: relative; flex: 0 0 36px; width: 36px; height: 20px; margin: 0; padding: 0; border: 0; border-radius: 10px; background: #64748b; cursor: pointer; transition: background .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-background-task input[role=\"switch\"]::after { content: \"\"; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s cubic-bezier(0.23, 1, 0.32, 1); }\n.dsh-tavern-background-task input[role=\"switch\"]:checked { background: #16766b; }\n.dsh-tavern-background-task input[role=\"switch\"]:checked::after { transform: translateX(16px); }\n.dsh-tavern-background-task input[role=\"switch\"]:focus-visible { outline: 2px solid #16766b; outline-offset: 3px; }\n.dsh-tavern-background-task input[role=\"switch\"]:disabled { opacity: .6; cursor: not-allowed; }\n.dsh-tavern-conversation-basics { display: grid; gap: 16px; margin-bottom: 24px; }\n.dsh-tavern-conversation-basics h3 { margin: 0; }\n.dsh-tavern-conversation-basics label { display: grid; gap: 8px; }\n.dsh-tavern-conversation-basics select { width: 100%; min-width: 0; }\n\n.dsh-tavern-skill-description { display: block; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; font-family: inherit; }\n.dsh-tavern-skill-description:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 4px; border-radius: 3px; }\n.dsh-tavern-skill-description:disabled { cursor: wait; }\n\n/* Conversation settings share one spacing and control system. */\n.dsh-local-settings { container-type: inline-size; }\n.dsh-local-settings .dsh-tavern-status-body { padding: 16px; }\n.dsh-local-intro { margin: 0 0 18px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; }\n.dsh-local-section { display: grid; gap: 16px; padding: 18px; margin-bottom: 16px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-specific-input-major); }\n.dsh-local-section h3 { margin: 0; font-size: 15px; font-weight: 700; }\n.dsh-local-field, .dsh-local-section > label { display: grid; gap: 6px; min-width: 0; }\n.dsh-local-field label { display: grid; gap: 8px; }\n.dsh-local-settings select, .dsh-local-settings input:not([type=\"checkbox\"]) { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; padding: 6px 10px; font: inherit; font-size: 13px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-primary); background: var(--dsw-specific-sidebar-fill); }\n.dsh-local-settings label, .dsh-local-label { font-size: 13px; color: var(--dsw-alias-label-primary); }\n.dsh-local-settings p, .dsh-local-settings .dsh-tavern-settings-desc { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }\n.dsh-local-settings .dsh-local-warning { color: #ad6726; font-size: 11px; }\n.dsh-local-settings .dsh-local-intro { margin-bottom: 18px; }\n.dsh-local-settings .dsh-tavern-background-task { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-local-profile .dsh-tavern-profile-game { padding: 0; margin: 0; border: 0; background: transparent; }\n.dsh-local-profile details { margin-top: 8px; font-size: 12px; }\n.dsh-local-profile summary { cursor: pointer; color: var(--dsw-alias-label-secondary); }\n.dsh-local-profile .dsh-tavern-user-profile-text { max-height: 240px; overflow: auto; padding: 10px; margin-top: 8px; background: var(--dsw-specific-sidebar-fill); border-radius: 8px; }\n.dsh-local-feedback { display: block; font-size: 11px; color: var(--dsw-alias-label-secondary); }\n@container (min-width: 560px) {\n  .dsh-local-section > label:not(.dsh-tavern-background-task), .dsh-local-field label { grid-template-columns: minmax(100px, 1fr) minmax(220px, 1.6fr); align-items: center; }\n  .dsh-local-profile { grid-template-columns: minmax(100px, 1fr) minmax(220px, 1.6fr); align-items: start; }\n}\n\n/* Skill document reader and editor */\n.dsh-skill-toolbar { flex-wrap: wrap; gap: 10px; }\n.dsh-skill-toolbar .dsh-tavern-status-title { min-width: 0; overflow-wrap: anywhere; }\n.dsh-tavern-skill-content { padding: clamp(16px, 3vw, 32px); }\n.dsh-skill-document { max-width: 880px; margin: 0 auto; line-height: 1.8; overflow-wrap: anywhere; }\n.dsh-skill-document table { display: block; max-width: 100%; overflow-x: auto; }\n.dsh-skill-document pre { max-width: 100%; overflow-x: auto; }\n.dsh-skill-reference { max-width: 880px; margin: 24px auto 0; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 12px; }\n.dsh-skill-reference > summary { padding: 14px 18px; cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }\n.dsh-skill-reference > .dsh-skill-document { padding: 8px 20px 20px; }\n.dsh-skill-editor { box-sizing: border-box; width: 100%; min-height: 55vh; padding: 20px; border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 12px; background: var(--background, Canvas); color: inherit; font: 14px/1.7 ui-monospace, monospace; resize: vertical; tab-size: 2; }\n.dsh-skill-editor:focus-visible { outline: 2px solid #a76c36; outline-offset: 2px; }\n\n.dsh-tavern-card-organization { display: flex; gap: 10px; align-items: center; margin: 12px 0; }\n.dsh-tavern-library > .dsh-tavern-card-organization { margin: 6px 12px 8px; }\n.dsh-tavern-library > .dsh-tavern-card-organization > .dsh-tavern-library-search,\n.dsh-tavern-library > .dsh-tavern-card-organization > .dsh-tavern-group-picker > summary { box-sizing: border-box; height: 32px; min-height: 32px; padding: 0 10px; font-size: 13px; line-height: 1.4; }\n.dsh-tavern-card-organization > .dsh-tavern-library-search { flex: 1; width: 0; min-width: 80px; margin: 0; }\n.dsh-tavern-group-picker { position: relative; flex: 0 1 160px; min-width: 105px; }\n.dsh-tavern-group-picker > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 0 12px; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 9px; background: var(--dsw-specific-input-major, #ffffff08); cursor: pointer; list-style: none; transition: border-color .15s, background .15s; }\n.dsh-tavern-group-picker > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-group-picker > summary > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.dsh-tavern-group-picker[open] > summary { border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-tavern-group-picker > summary > span:last-child { opacity: .6; transition: transform .15s; }\n.dsh-tavern-group-picker[open] > summary > span:last-child { transform: rotate(180deg); }\n.dsh-tavern-group-picker > summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); outline-offset: 2px; }\n.dsh-tavern-group-menu { position: absolute; top: calc(100% + 6px); left: 0; width: min(220px, 75vw); z-index: 50; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); border-radius: 12px; padding: 5px; background: var(--dsw-specific-sidebar-fill, #202124); box-shadow: 0 8px 24px #0003; transform-origin: top left; }\n.dsh-tavern-group-menu:popover-open { animation: dsh-tavern-menu-in 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n@keyframes dsh-tavern-menu-in { from { opacity: 0; transform: scale(0.97); } }\n.dsh-tavern-group-options { max-height: 280px; overflow-y: auto; }\n.dsh-tavern-group-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 7px 11px; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 13px; line-height: 1.4; cursor: pointer; border-radius: 7px; overflow-wrap: anywhere; transition: background .12s, color .12s; }\n.dsh-tavern-group-menu button:hover, .dsh-tavern-group-menu button:focus-visible { background: var(--dsw-specific-input-major, #ffffff12); }\n.dsh-tavern-group-menu button[aria-pressed=\"true\"] { font-weight: 500; color: var(--dsh-tavern-accent); background: color-mix(in srgb, var(--dsh-tavern-accent) 13%, transparent); }\n.dsh-tavern-group-options button > span { width: 16px; flex-shrink: 0; order: 1; margin-left: auto; text-align: center; }\n.dsh-tavern-group-menu-footer { border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent); margin: 5px 5px 0; padding-top: 5px; }\n.dsh-tavern-group-menu-footer button { font-size: 12px; color: var(--dsw-alias-label-secondary); min-height: 32px; padding-left: 6px; }\n@media (prefers-reduced-motion: reduce) {\n  .dsh-tavern-btn { transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1); }\n  .dsh-tavern-side-row-menu,\n  .dsh-tavern-more-menu:not([hidden]),\n  .dsh-tavern-group-menu:popover-open { animation: none; }\n  .dsh-tavern-group-picker > summary > span:last-child,\n  .dsh-tavern-prompt-state.is-toggle::after,\n  .dsh-tavern-background-task input[role=\"switch\"]::after { transition: none; }\n  .dsh-tavern-settings-track,\n  .dsh-tavern-prompt-state.is-toggle::before,\n  .dsh-tavern-background-task input[role=\"switch\"] { transition: background 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n  .dsh-tavern-settings-track::after { transition: background 150ms cubic-bezier(0.23, 1, 0.32, 1); }\n}\n.dsh-tavern-group-manager { width: min(440px, calc(100vw - 32px)); max-height: 80vh; border: 1px solid var(--dsw-alias-border-l2, #454750); border-radius: 12px; background: var(--dsw-specific-sidebar-fill, #202124); color: var(--dsw-alias-label-primary, #eee); padding: 0; }\n.dsh-tavern-group-manager::backdrop { background: #0008; }\n.dsh-tavern-group-manager-content { padding: 20px; }\n.dsh-tavern-group-manager-head, .dsh-tavern-group-manager-row, .dsh-tavern-group-manager-footer { display: flex; align-items: center; gap: 8px; }\n.dsh-tavern-group-manager-head { justify-content: space-between; margin-bottom: 12px; }\n.dsh-tavern-group-manager-head h3 { margin: 0; font-size: 16px; }\n.dsh-tavern-group-manager-row { padding: 10px 0; border-bottom: 1px solid var(--dsw-alias-border-l2, #454750); }\n.dsh-tavern-group-manager-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }\n.dsh-tavern-group-manager-footer { margin-top: 18px; flex-wrap: wrap; }\n.dsh-tavern-card-detail-organization { flex: none; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 16px; }\n.dsh-tavern-card-detail-organization label { flex: 1; min-width: 110px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; font-size: 11px; line-height: 1.4; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-card-detail-organization select { width: 100%; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-major, #ffffff08); color: var(--dsw-alias-label-primary); font: inherit; font-size: 13px; }\n.dsh-tavern-card-detail-organization > button { height: 34px; padding: 0 12px; white-space: nowrap; border-radius: 7px; }\n.dsh-tavern-card-detail > .dsh-tavern-status-head { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 16px; }\n.dsh-tavern-card-detail > .dsh-tavern-status-head > button { margin-bottom: 6px; }\n.dsh-tavern-card-detail .dsh-tavern-library-head-actions { margin-top: 6px; gap: 8px; }\n.dsh-tavern-card-detail > .dsh-tavern-script-hero { margin: 0 16px; }\n.dsh-tavern-card-detail > .dsh-tavern-card-fields { padding: 16px; }\n.dsh-tavern-card-detail-organization button[aria-pressed=\"true\"] { color: var(--dsh-tavern-accent); }\n.dsh-tavern-card-batch-panel { padding: 10px 0; }\n@media (max-width: 600px) {\n  .dsh-tavern-group-picker { flex-basis: 140px; }\n}\n\n.dsh-tavern-card-row-menu { flex: none; }\n.dsh-tavern-card-row-menu > summary { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 5px; list-style: none; cursor: pointer; color: var(--dsw-alias-label-secondary); font-size: 18px; }\n.dsh-tavern-card-row-menu > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-card-row-menu > summary:hover, .dsh-tavern-card-row-menu[open] > summary { background: var(--dsw-specific-input-major, #ffffff12); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-card-row-popup { position: fixed; inset: auto; margin: 0; z-index: 1000; width: 168px; max-width: calc(100vw - 24px); box-sizing: border-box; overflow-y: auto; padding: 4px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); border-radius: 7px; background: var(--dsw-specific-sidebar-fill, #202124); box-shadow: 0 4px 14px #0003; }\n.dsh-tavern-card-row-menu-title { padding: 5px 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-card-row-popup button { display: flex; gap: 8px; align-items: center; width: 100%; min-height: 30px; border: 0; border-radius: 4px; padding: 5px 8px; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 12px; line-height: 20px; overflow-wrap: anywhere; cursor: pointer; }\n.dsh-tavern-card-row-popup button > span { width: 12px; flex-shrink: 0; order: 1; margin-left: auto; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-card-row-popup button:hover, .dsh-tavern-card-row-popup button:focus-visible { background: var(--dsw-specific-input-major, #ffffff12); }\n\n.dsh-tavern-group-add { display: block; margin: 12px auto; padding: 7px 14px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; }\n.dsh-tavern-group-add:hover { background: var(--dsw-specific-input-major, #ffffff12); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-group-add-list { max-height: min(48vh, 360px); overflow-y: auto; margin-top: 12px; }\n.dsh-tavern-group-add-list label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; cursor: pointer; }\n.dsh-tavern-group-add-list label:hover { background: var(--dsw-specific-input-major, #ffffff12); }\n.dsh-tavern-group-add-list span { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }\n.dsh-tavern-group-add-list small { display: block; margin-top: 3px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n\n.dsh-tavern-character-design-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }\n.dsh-tavern-character-design-head .dsh-tavern-status-label { margin: 0; }\n\n.dsh-tavern-group-menu[popover] { position: fixed; inset: auto; margin: 0; overflow-y: auto; color: var(--dsw-alias-label-primary); }\n\n/* Script navigation stays compact inside the resizable status sidebar. */\n.dsh-script-nav { min-width: 0; font-size: 13px; line-height: 1.5; }\n.dsh-script-nav .dsh-tavern-status-label { font-size: 12px; letter-spacing: .03em; }\n.dsh-script-nav p { margin: 8px 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); }\n.dsh-script-nav .dsh-script-nav-hint { margin: 0 0 12px; }\n.dsh-script-nav-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }\n.dsh-script-nav input { box-sizing: border-box; flex: 1 1 72px; width: 80px; min-width: 64px; max-width: 160px; height: 32px; padding: 5px 9px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-specific-input-fill, transparent); color: var(--dsw-alias-label-primary); font: inherit; font-variant-numeric: tabular-nums; }\n.dsh-script-nav button { box-sizing: border-box; appearance: none; min-height: 32px; padding: 5px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 12px; line-height: 1.4; white-space: nowrap; cursor: pointer; transition: background .15s, border-color .15s; }\n.dsh-script-nav button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); border-color: var(--dsh-tavern-accent); }\n.dsh-script-nav button:disabled { opacity: .4; cursor: default; }\n.dsh-script-nav button:focus-visible, .dsh-script-nav input:focus-visible, .dsh-script-nav summary:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: 2px; }\n.dsh-script-nav-toolbar button[type=\"submit\"] { color: var(--dsh-tavern-accent); border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 8%, transparent); }\n.dsh-script-nav .dsh-script-nav-range { margin: 12px 0 8px; font-size: 11px; font-variant-numeric: tabular-nums; }\n.dsh-script-nav .dsh-script-nav-item { margin: 0 0 8px; padding: 10px 12px; border-radius: 10px; background: transparent; }\n.dsh-script-nav .dsh-script-nav-item[aria-current=\"step\"] { border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 7%, transparent); box-shadow: inset 3px 0 var(--dsh-tavern-accent); }\n.dsh-script-nav summary { cursor: pointer; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; color: var(--dsw-alias-label-primary); }\n.dsh-script-nav summary::marker { color: var(--dsw-alias-label-secondary); font-size: 10px; }\n.dsh-script-nav .dsh-tavern-script-chunk-text { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-l2); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }\n.dsh-script-nav .dsh-script-nav-choose { display: block; margin: 8px 0 0 auto; min-height: 26px; padding: 3px 8px; color: var(--dsh-tavern-accent); border-color: transparent; }\n.dsh-script-nav-pages { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-script-nav [role=\"alert\"] { color: #c45f5f; }\n\n.dsh-script-nav .dsh-script-nav-notice { padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); color: inherit; font-weight: 600; }\n.dsh-script-nav .dsh-script-nav-item[aria-current=\"step\"] .dsh-script-nav-choose { opacity: 1; font-weight: 600; border-color: color-mix(in srgb, var(--dsh-tavern-accent) 40%, transparent); background: color-mix(in srgb, var(--dsh-tavern-accent) 12%, transparent); }\n\n.dsh-script-nav-position { display: flex; align-items: center; gap: 8px; font-size: 12px; white-space: nowrap; }\n\n.dsh-tavern-preset-regex-head { grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; padding: 5px 8px; }\n.dsh-tavern-preset-regex-head > .dsh-tavern-prompt-role { font-size: 9px; line-height: 1.4; color: var(--dsh-tavern-accent); }\n.dsh-tavern-preset-regex-head .dsh-tavern-prompt-title span { margin-top: 1px; }\n.dsh-tavern-prompt-row:has(> .dsh-tavern-preset-regex-head) { margin-bottom: 4px; }\n\n/* Full-width request inspection has no chat-column resize target. */\n[data-phase=\"active\"]:has(.dsh-tavern-full-context) [data-width-handle] {\n  display: none;\n}\n\n.dsh-tavern-full-context { box-sizing: border-box; width: 100%; min-width: 0; padding: 24px clamp(16px, 3vw, 40px) 32px; color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }\n.dsh-context-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }\n.dsh-context-header h3 { margin: 0; font-size: 18px; line-height: 1.5; font-weight: 600; }\n.dsh-context-header p { margin: 4px 0 0; font-size: 12px; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-full-context button { flex: none; padding: 6px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer; transition: background .15s; }\n.dsh-tavern-full-context button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-full-context button:disabled { opacity: .5; cursor: default; }\n.dsh-context-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 18px; color: var(--dsw-alias-label-secondary); font-size: 12px; }\n.dsh-context-meta time { color: var(--dsw-alias-label-tertiary); }\n.dsh-context-badge { padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-context-stale { margin: -8px 0 16px; padding: 8px 12px; border-radius: 8px; background: rgba(173,103,38,.1); color: #ad6726; font-size: 12px; }\n.dsh-context-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }\n.dsh-context-toolbar input { flex: 1 1 220px; min-width: 0; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }\n.dsh-context-toolbar input::placeholder { color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-full-context :is(button,input,summary):focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }\n.dsh-context-list { border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }\n.dsh-context-list details + details { border-top: 1px solid var(--dsw-alias-border-l2); }\n.dsh-context-list summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 8px; }\n.dsh-context-list summary::-webkit-details-marker { display: none; }\n.dsh-context-list summary:hover { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-context-chevron { flex: none; width: 12px; color: var(--dsw-alias-label-tertiary); font-size: 20px; line-height: 20px; transition: transform .15s; }\n.dsh-context-list details[open] > summary .dsh-context-chevron { transform: rotate(90deg); }\n.dsh-context-section-title { min-width: 0; flex: 1; font-weight: 500; }\n.dsh-context-count { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-tertiary); }\n.dsh-context-list pre { margin: 0; padding: 16px 20px; border-top: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font: 12px/1.8 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-context-footnote { margin: 14px 2px 0; font-size: 11px; color: var(--dsw-alias-label-tertiary); }\n.dsh-context-empty { margin: 0; padding: 28px 16px; text-align: center; color: var(--dsw-alias-label-tertiary); }\n.dsh-tavern-full-context [role=alert] { color: var(--dsw-alias-state-error-primary); }\n@media (max-width: 600px) { .dsh-context-toolbar input { flex-basis: 100%; } .dsh-context-list summary { padding: 10px; gap: 6px; } .dsh-context-list pre { padding: 12px; } }\n\n.dsh-context-list .dsh-context-source { margin: 8px 14px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }\n.dsh-context-list .dsh-context-source > summary { font-size: 12px; color: var(--dsw-alias-label-tertiary); padding: 8px 10px; }\n\n.dsh-context-part-label { padding: 8px 20px; font-size: 12px; color: var(--dsw-alias-label-tertiary); }\n\n/* Shared by global defaults and conversation writing-skill controls. */\n.dsh-tavern-writing-skill,\n.dsh-local-settings .dsh-tavern-writing-skill { display: block; padding: 12px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }\n.dsh-tavern-writing-skill > .dsh-tavern-writing-skill-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; cursor: pointer; }\n.dsh-tavern-writing-skill-heading > span { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }\n.dsh-tavern-writing-skill > .dsh-tavern-settings-desc { margin: 6px 0 0; }\n.dsh-ejs-editor { box-sizing:border-box; width:min(1100px,calc(100vw - 32px)); height:min(800px,90vh); padding:0; border:1px solid var(--dsw-alias-border-l2); border-radius:14px; background:var(--dsw-alias-bg-base); color:var(--dsw-alias-label-primary); box-shadow:0 18px 54px #0005; }\n.dsh-ejs-editor[open] { display:flex; flex-direction:column; }\n.dsh-ejs-editor::backdrop { background:#0007; }\n.dsh-ejs-editor-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 20px; }\n.dsh-ejs-editor-head { border-bottom:1px solid var(--dsw-alias-border-l2); }\n.dsh-ejs-editor h2 { margin:0; font-size:17px; }\n.dsh-ejs-editor p { margin:5px 0 0; color:var(--dsw-alias-label-secondary); font-size:12px; }\n\n.dsh-template-panel-body { flex:1; min-height:0; overflow:auto; padding:20px; }\n.dsh-template-section + .dsh-template-section { margin-top:24px; padding-top:20px; border-top:1px solid var(--dsw-alias-border-l2); }\n.dsh-template-section h3 { margin:0 0 8px; font-size:15px; }\n.dsh-template-panel .dsh-template-help { margin:0 0 16px; line-height:1.6; }\n.dsh-template-settings-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:8px 24px; margin-bottom:16px; }\n.dsh-template-setting { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:13px; min-height:32px; }\n.dsh-template-setting input[type=checkbox] { accent-color:var(--dsh-tavern-accent-active); }\n.dsh-template-panel input[type=number] { width:80px; }\n.dsh-template-panel textarea,.dsh-template-panel select,.dsh-template-panel input[type=number] { box-sizing:border-box; padding:8px; border:1px solid var(--dsw-alias-border-l2); border-radius:8px; background:var(--dsw-specific-input-major); color:inherit; font:inherit; }\n.dsh-template-panel textarea { display:block; width:100%; min-height:120px; margin:12px 0; resize:vertical; }\n.dsh-template-panel summary { cursor:pointer; margin:12px 0; font-size:13px; }\n.dsh-template-actions { display:flex; gap:8px; }\n.dsh-template-panel .dsh-template-feedback { white-space:pre-wrap; overflow-wrap:anywhere; margin-top:10px; }\n\n/* Keep the existing browsing context when presenting a card at screen size. */\n.dsh-tavern-message-frame-slot > iframe.dsh-tavern-message-frame:fullscreen { width: 100vw !important; height: 100vh !important; max-height: none !important; background: var(--dsw-alias-bg-base, Canvas); }\n\n.dsh-tavern-immersive-header { display: none !important; }\n.dsh-tavern-restore-header { align-self: center; flex: none; border: 1px solid var(--dsw-alias-border-l2); border-top: 0; border-radius: 0 0 9px 9px; padding: 2px 14px; background: var(--dsw-specific-sidebar-fill); color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11px; cursor: pointer; }\n.dsh-tavern-restore-header[hidden] { display: none !important; }\n.dsh-tavern-restore-header:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }\n\n/* Worldbook entries put the editable text ahead of occasional configuration. */\n.dsh-tavern-worldbook-entry > .dsh-tavern-worldbook-entry-head { font-size: 14px; font-weight: 700; line-height: 1.6; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }\n.dsh-tavern-worldbook-entry-actions { gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }\n.dsh-tavern-worldbook-entry-actions > label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dsw-alias-label-secondary); }\n.dsh-tavern-worldbook-entry-actions input { margin: 0; }\n.dsh-tavern-worldbook-content > label { font-size: 12px; color: var(--dsw-alias-label-primary); margin-bottom: 7px; }\n.dsh-tavern-worldbook-content textarea.large { min-height: 280px; max-height: 70vh; padding: 12px; font-size: 13px; line-height: 1.75; background: var(--dsw-specific-input-major); }\n.dsh-tavern-worldbook-entry-settings { border-top: 1px solid var(--dsw-alias-border-l2); padding-top: 10px; }\n.dsh-tavern-worldbook-entry-settings > summary { font-size: 11px; padding: 2px 0; }\n.dsh-tavern-worldbook-entry-settings[open] > summary { margin-bottom: 10px; }\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-card-field input,\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-worldbook-grid input,\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-worldbook-grid select { font-size: 11px; padding: 5px 7px; }\n.dsh-tavern-worldbook-entry-settings .dsh-tavern-worldbook-checks { font-size: 11px; }\n\n/* DSH 0.1.5-rc.2: hide Open in App and native log-download menu in Tavern's header. */\nheader .CAgGvG_split,\nheader .nL4_yW_moreButton { display: none !important; }\n\n/* —— 人物卡库 / 详情：Claude 暖陶土·编辑风（scoped 样例，不污染其它侧栏） —— */\n.dsh-tavern-card-library,\n.dsh-tavern-card-detail {\n  --dsh-card-action: var(--dsh-tavern-accent);\n  --dsh-card-action-active: var(--dsh-tavern-accent-active);\n  --dsh-card-action-soft: var(--dsh-tavern-accent-soft);\n  --dsh-card-action-border: var(--dsh-tavern-accent-border);\n  /* Follow theme tokens (light ink / dark on-dark), not a fixed light-mode mix. */\n  --dsh-card-ink: var(--dsh-tavern-accent-ink);\n  --dsh-card-muted: var(--dsh-tavern-accent-muted);\n  --dsh-card-hairline: color-mix(in srgb, var(--dsh-tavern-accent-hairline) 55%, var(--dsw-alias-border-l2));\n  --dsh-card-cream: color-mix(in srgb, var(--dsh-tavern-accent-cream) 22%, var(--dsw-specific-sidebar-fill));\n  --dsh-card-surface: color-mix(in srgb, var(--dsh-tavern-accent-surface) 28%, var(--dsw-specific-input-major));\n  --dsh-card-radius-sm: var(--dsh-tavern-radius-sm);\n  --dsh-card-radius-md: var(--dsh-tavern-radius-md);\n  --dsh-card-radius-lg: var(--dsh-tavern-radius-lg);\n  --dsh-card-radius-full: 9999px;\n  --dsh-card-display: var(--dsh-tavern-font-display);\n  --dsh-card-sans: var(--dsh-tavern-font-sans);\n  color: var(--dsw-alias-label-primary);\n  background: var(--dsh-card-cream);\n  font-family: var(--dsh-card-sans);\n  -webkit-font-smoothing: antialiased;\n}\n[data-ds-dark-theme] .dsh-tavern-card-library .dsh-tavern-btn.danger,\n[data-ds-dark-theme] .dsh-tavern-card-detail .dsh-tavern-btn.danger {\n  background: color-mix(in srgb, var(--dsh-tavern-accent-error) 18%, transparent);\n  color: var(--dsh-tavern-accent-error);\n}\n[data-ds-dark-theme] .dsh-tavern-card-library .dsh-tavern-btn.danger:hover,\n[data-ds-dark-theme] .dsh-tavern-card-detail .dsh-tavern-btn.danger:hover {\n  background: color-mix(in srgb, var(--dsh-tavern-accent-error) 28%, transparent);\n}\n\n.dsh-tavern-card-library > .dsh-tavern-status-head,\n.dsh-tavern-card-detail > .dsh-tavern-status-head {\n  display: flex;\n  flex-direction: column;\n  align-items: stretch;\n  gap: 8px;\n  padding: 20px 16px 14px;\n  border-bottom: 1px solid var(--dsh-card-hairline);\n}\n.dsh-tavern-card-library > .dsh-tavern-status-head .dsh-tavern-status-title,\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-status-title {\n  font-family: var(--dsh-card-display);\n  font-size: 22px;\n  font-weight: 400;\n  letter-spacing: -0.3px;\n  line-height: 1.2;\n  color: var(--dsh-card-ink);\n}\n.dsh-tavern-card-library > .dsh-tavern-status-head .dsh-tavern-question-sub,\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-question-sub,\n.dsh-tavern-card-library > .dsh-tavern-card-import-hint {\n  margin: 0;\n  padding: 0;\n  font-size: 13px;\n  font-weight: 400;\n  line-height: 1.38;\n  letter-spacing: -0.08px;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-library > .dsh-tavern-card-import-hint {\n  padding: 0 16px 4px;\n}\n.dsh-tavern-card-library .dsh-tavern-library-head-actions,\n.dsh-tavern-card-detail .dsh-tavern-library-head-actions {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n  margin-top: 4px;\n}\n.dsh-tavern-card-library .dsh-tavern-btn,\n.dsh-tavern-card-detail .dsh-tavern-btn {\n  min-height: 32px;\n  padding: 0 14px;\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsh-card-action-soft);\n  color: var(--dsh-card-action-active);\n  font-size: 14px;\n  font-weight: 500;\n  letter-spacing: 0;\n  line-height: 1;\n}\n.dsh-tavern-card-library .dsh-tavern-btn:hover,\n.dsh-tavern-card-detail .dsh-tavern-btn:hover {\n  background: color-mix(in srgb, var(--dsh-card-action) 22%, transparent);\n}\n.dsh-tavern-card-library .dsh-tavern-btn.danger,\n.dsh-tavern-card-detail .dsh-tavern-btn.danger {\n  background: color-mix(in srgb, #c64545 14%, transparent);\n  color: #c64545;\n  border-color: transparent;\n}\n.dsh-tavern-card-library .dsh-tavern-btn.danger:hover,\n.dsh-tavern-card-detail .dsh-tavern-btn.danger:hover {\n  background: color-mix(in srgb, #c64545 22%, transparent);\n}\n\n.dsh-tavern-card-library > .dsh-tavern-card-organization {\n  margin: 10px 16px 6px;\n  gap: 10px;\n}\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-library-search,\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-group-picker > summary {\n  height: 36px;\n  min-height: 36px;\n  padding: 0 12px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsw-specific-input-major);\n  font-size: 15px;\n  letter-spacing: -0.24px;\n  line-height: 1.2;\n}\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-library-search:focus,\n.dsh-tavern-card-library > .dsh-tavern-card-organization > .dsh-tavern-library-search:focus-visible {\n  outline: none;\n  border-color: var(--dsh-card-action);\n  box-shadow: 0 0 0 3px var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-group-picker[open] > summary {\n  border-color: var(--dsh-card-action-border);\n  background: var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-group-picker > summary:focus-visible {\n  outline: 2px solid var(--dsh-card-action);\n  outline-offset: 2px;\n}\n.dsh-tavern-card-library .dsh-tavern-group-menu button[aria-pressed=\"true\"] {\n  color: var(--dsh-card-action);\n  background: var(--dsh-card-action-soft);\n  font-weight: 600;\n}\n\n.dsh-tavern-card-library > .dsh-tavern-card-batch {\n  margin: 0 16px;\n  padding: 8px 0 4px;\n}\n.dsh-tavern-card-library .dsh-tavern-card-batch-count {\n  font-size: 13px;\n  font-weight: 500;\n}\n.dsh-tavern-card-library .dsh-tavern-card-batch-notice {\n  border-radius: var(--dsh-card-radius-sm);\n  background: var(--dsh-card-action-soft);\n  color: var(--dsw-alias-label-primary);\n  font-size: 13px;\n}\n.dsh-tavern-card-library .dsh-tavern-card-batch-checkbox {\n  width: 20px;\n  height: 20px;\n  margin: 0 8px 0 4px;\n  accent-color: var(--dsh-card-action);\n}\n\n.dsh-tavern-card-library > .dsh-tavern-resource-body {\n  padding: 8px 10px 24px;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card-row {\n  gap: 8px;\n  margin: 2px 0;\n  padding: 2px 4px;\n  border-radius: var(--dsh-card-radius-md);\n}\n.dsh-tavern-card-library .dsh-tavern-library-card {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  min-height: 64px;\n  padding: 10px 12px;\n  border: 1px solid transparent;\n  border-radius: var(--dsh-card-radius-md);\n  background: transparent;\n  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), transform 100ms ease-out;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card:hover {\n  background: var(--dsw-alias-interactive-bg-hover);\n}\n.dsh-tavern-card-library .dsh-tavern-library-card:active:not(:disabled) {\n  transform: scale(0.985);\n}\n.dsh-tavern-card-library .dsh-tavern-library-card.selected {\n  border-color: var(--dsh-card-action-border);\n  background: var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-card-thumb {\n  width: 44px;\n  height: 44px;\n  border-radius: var(--dsh-card-radius-md);\n  border: 1px solid var(--dsw-alias-border-l2);\n  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);\n}\n.dsh-tavern-card-library .dsh-tavern-card-list-copy {\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  min-width: 0;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card b {\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n  line-height: 1.27;\n  color: var(--dsw-alias-label-primary);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.dsh-tavern-card-library .dsh-tavern-library-card span {\n  margin-top: 0;\n  font-size: 13px;\n  font-weight: 400;\n  letter-spacing: -0.08px;\n  line-height: 1.35;\n  color: var(--dsw-alias-label-secondary);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.dsh-tavern-card-library .dsh-tavern-resource-at {\n  min-height: 28px;\n  padding: 0 10px;\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: transparent;\n  color: var(--dsh-card-action);\n  font-size: 13px;\n  font-weight: 500;\n}\n.dsh-tavern-card-library .dsh-tavern-resource-at:hover {\n  background: var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention {\n  flex: none;\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  margin: 0;\n  padding: 0;\n  border: 0;\n  border-radius: var(--dsh-card-radius-full, 9999px);\n  background: transparent;\n  color: var(--dsw-alias-label-secondary);\n  font: inherit;\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n  line-height: 1;\n  cursor: pointer;\n  transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1), color 140ms cubic-bezier(0.23, 1, 0.32, 1), transform 100ms ease-out;\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention:hover {\n  background: var(--dsh-card-action-soft);\n  color: var(--dsh-card-action);\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention:active {\n  transform: scale(0.94);\n}\n.dsh-tavern-card-library .dsh-tavern-card-mention:focus-visible {\n  outline: 2px solid var(--dsh-card-action);\n  outline-offset: 2px;\n}\n.dsh-tavern-card-library .dsh-tavern-card-row-menu > summary {\n  width: 32px;\n  height: 32px;\n  border-radius: var(--dsh-card-radius-md);\n  font-size: 18px;\n}\n.dsh-tavern-card-library .dsh-tavern-empty {\n  padding: 40px 24px;\n  color: var(--dsw-alias-label-secondary);\n  font-size: 15px;\n  line-height: 1.47;\n  letter-spacing: -0.24px;\n}\n\n/* 详情：整页滚动，顶部标题/操作随滚动收起（不再钉死在上） */\n.dsh-tavern-card-detail {\n  overflow-x: hidden;\n  overflow-y: auto;\n  overscroll-behavior: contain;\n}\n.dsh-tavern-card-detail > .dsh-tavern-status-head,\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization,\n.dsh-tavern-card-detail > .dsh-tavern-script-hero {\n  flex: 0 0 auto;\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-fields {\n  flex: 0 0 auto;\n  min-height: auto;\n  overflow: visible;\n}\n\n.dsh-tavern-card-detail > .dsh-tavern-status-head > .dsh-tavern-btn {\n  align-self: flex-start;\n  margin: 0 0 4px;\n}\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-status-title,\n.dsh-tavern-card-detail > .dsh-tavern-status-head .dsh-tavern-status-role {\n  margin: 0;\n  color: var(--dsw-alias-label-primary);\n  font-family: var(--dsh-card-display);\n  font-size: 28px;\n  font-weight: 400;\n  letter-spacing: -0.3px;\n  line-height: 1.2;\n  color: var(--dsh-card-ink);\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization {\n  padding: 12px 16px;\n  border-bottom: 1px solid var(--dsw-alias-border-l2);\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization label {\n  font-size: 13px;\n  font-weight: 400;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization select {\n  height: 36px;\n  border-radius: var(--dsh-card-radius-md);\n  font-size: 15px;\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-detail-organization > button {\n  height: 36px;\n  border-radius: var(--dsh-card-radius-md);\n}\n.dsh-tavern-card-detail-organization button[aria-pressed=\"true\"] {\n  color: var(--dsh-card-action);\n}\n.dsh-tavern-card-detail > .dsh-tavern-script-hero {\n  margin: 12px 16px 0;\n  padding: 14px 16px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-card-radius-lg);\n  background: var(--dsw-specific-input-major);\n}\n.dsh-tavern-card-detail .dsh-tavern-script-hero-title {\n  color: var(--dsw-alias-label-primary);\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n}\n.dsh-tavern-card-detail .dsh-tavern-script-hero-help {\n  font-size: 13px;\n  line-height: 1.43;\n}\n.dsh-tavern-card-detail > .dsh-tavern-card-fields {\n  padding: 16px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced {\n  margin: 0 0 14px;\n  padding: 0;\n  border: 1px solid var(--dsh-card-hairline);\n  border-radius: var(--dsh-card-radius-lg);\n  background: var(--dsh-card-surface);\n  overflow: hidden;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced > summary {\n  padding: 14px 16px;\n  color: var(--dsw-alias-label-primary);\n  font-size: 15px;\n  font-weight: 600;\n  letter-spacing: -0.24px;\n  list-style: none;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced > summary::-webkit-details-marker { display: none; }\n.dsh-tavern-card-detail .dsh-tavern-card-advanced[open] > summary {\n  border-bottom: 1px solid var(--dsw-alias-border-l2);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-advanced > :not(summary) {\n  padding: 12px 16px 16px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook {\n  border: 1px solid var(--dsw-alias-border-l2);\n  background: var(--dsw-specific-input-major);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook > summary {\n  color: var(--dsw-alias-label-primary);\n  font-size: 15px;\n  font-weight: 600;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook > summary:focus-visible {\n  outline: 2px solid var(--dsh-card-action);\n  outline-offset: 2px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-worldbook > .dsh-tavern-worldbook {\n  margin: 0;\n  padding: 12px 16px 16px;\n  border: 0;\n  border-top: 1px solid var(--dsw-alias-border-l2);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field {\n  margin-bottom: 14px;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field label {\n  margin-bottom: 6px;\n  color: var(--dsw-alias-label-secondary);\n  font-size: 13px;\n  font-weight: 400;\n  letter-spacing: -0.08px;\n  line-height: 1.35;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field input,\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea {\n  min-height: 40px;\n  padding: 12px 14px;\n  border: 1px solid var(--dsw-alias-border-l2);\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsw-specific-sidebar-fill);\n  font-size: 16px;\n  letter-spacing: -0.24px;\n  line-height: 1.55;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field input:focus,\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea:focus {\n  outline: none;\n  border-color: var(--dsh-card-action);\n  box-shadow: 0 0 0 3px var(--dsh-card-action-soft);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea {\n  field-sizing: content;\n  min-height: 120px;\n  max-height: min(68vh, 520px);\n  overflow-y: auto;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea.large {\n  min-height: 240px;\n  max-height: min(72vh, 640px);\n  line-height: 1.6;\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea.is-empty,\n.dsh-tavern-card-detail .dsh-tavern-card-field.is-empty textarea {\n  min-height: 64px;\n  max-height: 96px;\n  font-size: 15px;\n  line-height: 1.45;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-field textarea.large.is-empty,\n.dsh-tavern-card-detail .dsh-tavern-card-field.is-empty textarea.large {\n  min-height: 88px;\n  max-height: 120px;\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add.dsh-tavern-worldbook-bound,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add.dsh-tavern-worldbook-new {\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsh-card-action-soft);\n  color: var(--dsh-card-action);\n  font-size: 13px;\n  font-weight: 500;\n  padding: 6px 12px;\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-add:hover {\n  background: color-mix(in srgb, var(--dsh-card-action) 22%, transparent);\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-note,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-title,\n.dsh-tavern-card-detail .dsh-tavern-worldbook-group-head {\n  font-size: 13px;\n  color: var(--dsw-alias-label-secondary);\n}\n.dsh-tavern-card-detail .dsh-tavern-worldbook-group-head b {\n  color: var(--dsh-card-action);\n  font-size: 13px;\n}\n.dsh-tavern-card-detail .dsh-card-primary {\n  min-height: 36px;\n  padding: 0 18px;\n  border: 0;\n  border-radius: var(--dsh-card-radius-md);\n  background: var(--dsh-card-action);\n  color: #fff;\n  font-size: 14px;\n  font-weight: 500;\n  letter-spacing: 0;\n}\n.dsh-tavern-card-detail .dsh-card-primary:hover {\n  filter: brightness(1.06);\n}\n.dsh-tavern-card-detail .dsh-card-primary:active:not(:disabled) {\n  transform: scale(0.97);\n}\n.dsh-tavern-card-detail .dsh-tavern-card-save {\n  padding: 14px 0 4px;\n}\n\n/* Card-only Mnemon management, shared across desktop and narrow WebViews. */\n.dsh-tavern-card-memory { padding: 16px; overflow: auto; min-width: 0; color: var(--dsw-alias-label-primary); }\n.dsh-tavern-card-memory p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }\n.dsh-tavern-memory-entry { border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; padding: 12px; margin: 10px 0; }\n.dsh-tavern-memory-entry summary { cursor: pointer; overflow-wrap: anywhere; }\n.dsh-tavern-memory-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }\n.dsh-tavern-memory-actions input { flex: 1; min-width: 120px; }\n.dsh-tavern-memory-field { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }\n.dsh-tavern-card-memory input, .dsh-tavern-card-memory textarea, .dsh-tavern-card-memory select { box-sizing: border-box; max-width: 100%; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; color: inherit; background: var(--dsw-alias-bg-base); font: inherit; }\n.dsh-tavern-memory-field textarea { width: 100%; resize: vertical; }\n\n/* Read-only, collapsible source viewer in character card details. */\n.dsh-tavern-script-code { min-width: 0; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 7px; background: var(--dsw-alias-bg-base); }\n.dsh-tavern-script-code > summary { padding: 9px 12px; cursor: pointer; color: var(--dsw-alias-label-primary); font-size: 12px; }\n.dsh-tavern-script-code-count { margin-left: 12px; color: var(--dsw-alias-label-secondary); font-size: 11px; }\n.dsh-tavern-script-code-scroll { display: flex; max-height: 480px; max-height: min(480px, 60vh); overflow: auto; border-top: 1px solid var(--dsw-alias-border-l2); font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 4; }\n.dsh-tavern-script-code-lines { flex: 0 0 auto; padding: 12px 10px; text-align: right; color: var(--dsw-alias-label-secondary); border-right: 1px solid var(--dsw-alias-border-l2); user-select: none; }\n.dsh-tavern-script-code-scroll pre { flex: 1 0 auto; margin: 0; padding: 12px; color: var(--dsw-alias-label-primary); font: inherit; white-space: pre; overflow-wrap: normal; word-break: normal; }\n.dsh-tavern-script-code-scroll code { font: inherit; }\n.dsh-tavern-script-code > summary:focus-visible, .dsh-tavern-script-code-scroll:focus-visible { outline: 2px solid var(--dsh-tavern-accent); outline-offset: -2px; }\n.dsh-tavern-variant-switcher { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 6px 8px; border-bottom: 1px solid var(--dsw-alias-border-l2); margin-bottom: 4px; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-label { font-size: 12px; color: var(--dsw-alias-label-secondary); white-space: nowrap; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows { display: inline-flex; align-items: center; gap: 8px; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button { width: 30px; padding: 4px 0; text-align: center; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-interactive-bg-normal, transparent); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1; }\n.dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }\n.dsh-tavern-variant-index { font-size: 12px; font-weight: 650; color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; user-select: none; min-width: 28px; text-align: center; }\n\n/* Story View: Tavern-owned conversation, scrolled by the shell's conversation scroller. */\n.dsh-tavern-story { box-sizing: border-box; width: 100%; max-width: var(--dsh-chat-content-width, 820px); margin: 0 auto; padding: 16px calc(var(--dsh-composer-side-clearance, 0px) + 16px) 24px; display: flex; flex-direction: column; gap: 20px; }\n.dsh-tavern-story-floor { display: flex; flex-direction: column; gap: 12px; min-width: 0; }\n.dsh-tavern-story-older { display: flex; justify-content: center; }\n.dsh-tavern-story-older button { color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-interactive-bg-hover-solid); cursor: pointer; border: none; border-radius: 14px; padding: 4px 12px; font-size: 12px; }\n.dsh-tavern-story-older button:disabled { cursor: default; opacity: .6; }\n.dsh-tavern-story-hint { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 13px; }\n.dsh-tavern-story-status { color: var(--dsw-alias-label-tertiary); font-size: 13px; }\n.dsh-tavern-story-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }\n.dsh-tavern-story-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; }\n.dsh-tavern-story-icon:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }\n.dsh-tavern-story-images { display: flex; flex-wrap: wrap; gap: 8px; }\n.dsh-tavern-story-images[data-align=\"end\"] { justify-content: flex-end; }\n.dsh-tavern-story-images img { max-width: 240px; max-height: 240px; border-radius: 10px; object-fit: cover; }\n.dsh-tavern-story-error { padding: 10px 12px; border-radius: 10px; background: rgba(208, 62, 62, .08); color: var(--dsw-alias-state-error-primary, #c0392b); font-size: 13px; }\n.dsh-tavern-story-error p { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }\n.dsh-tavern-story-error-actions { display: flex; gap: 8px; flex-wrap: wrap; }\n");
 
 
 		function isPlayMode(mode) {
@@ -462,52 +462,588 @@ window.__ModuleLoader__.load({
 			} catch (_) { }
 		}
 
+		// Shared by the host and generated iframe. Fixed seven-level radix index over
+		// JavaScript's 32-bit array indices: no linked overlays and no history-sized copy.
+		function createIndexedArrayApi(options = {}) {
+		    const states = new WeakMap();
+		    const valid = options.valid || (value => value !== undefined);
+		    const eligible = options.eligible || valid;
+		    const measure = options.measure || (() => 0);
+		    const maximum = options.maximum || (() => -Infinity);
+		    const visit = options.visit || (() => {});
+		    const width = depth => 2 ** (depth * 5);
+		    function aggregate(slots) {
+		        let count = 0, validCount = 0, eligible = 0, bytes = 320, max = -Infinity;
+		        for (const child of slots) if (child) { count += child.count; validCount += child.validCount; eligible += child.eligible; bytes += child.bytes; max = Math.max(max, child.max); }
+		        return { slots, count, validCount, eligible, bytes, max };
+		    }
+		    function put(node, depth, id, leaf, mutable) {
+		        visit();
+		        const slots = node ? (mutable ? node.slots : node.slots.slice()) : [];
+		        const digit = Math.floor(id / width(depth)) % 32;
+		        slots[digit] = depth === 0 ? leaf : put(slots[digit], depth - 1, id, leaf, mutable);
+		        return aggregate(slots);
+		    }
+		    function lookup(node, id) {
+		        for (let depth = 6; depth >= 0; depth--) {
+		            visit();
+		            node = node?.slots[Math.floor(id / width(depth)) % 32];
+		        }
+		        return node;
+		    }
+		    function trim(node, depth, limit) {
+		        if (!node || limit <= 0) return undefined;
+		        const span = width(depth);
+		        if (limit >= span * 32) return node;
+		        const slots = node.slots.slice(0, Math.ceil(limit / span));
+		        if (depth > 0 && limit % span) slots[slots.length - 1] = trim(slots[slots.length - 1], depth - 1, limit % span);
+		        return aggregate(slots);
+		    }
+		    function checkLength(length) {
+		        if (!Number.isInteger(length) || length < 0 || length > 0xffffffff) throw new Error('Invalid indexed array length');
+		    }
+		    function view(root, length) {
+		        function index(key) { return typeof key === 'string' && /^(0|[1-9]\d*)$/.test(key) && Number(key) < length; }
+		        const array = new Proxy([], {
+		            get(target, key, receiver) {
+		                if (key === 'length') return length;
+		                return index(key) ? lookup(root, Number(key))?.value : Reflect.get(target, key, receiver);
+		            },
+		            has(target, key) { return index(key) ? Boolean(lookup(root, Number(key))) : Reflect.has(target, key); },
+		            ownKeys() {
+		                const keys = [];
+		                for (let id = 0; id < length; id++) if (lookup(root, id)) keys.push(String(id));
+		                return [...keys, 'length'];
+		            },
+		            getOwnPropertyDescriptor(target, key) {
+		                if (index(key)) {
+		                    const leaf = lookup(root, Number(key));
+		                    return leaf ? { value: leaf.value, enumerable: true, writable: false, configurable: true } : undefined;
+		                }
+		                const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+		                return key === 'length' ? { ...descriptor, value: length } : descriptor;
+		            },
+		            set() { throw new Error('Indexed array is immutable'); },
+		            defineProperty() { throw new Error('Indexed array is immutable'); },
+		            deleteProperty() { throw new Error('Indexed array is immutable'); }
+		        });
+		        states.set(array, { root, length });
+		        return array;
+		    }
+		    function leaf(value) { return { value, count: 1, validCount: valid(value) ? 1 : 0, eligible: eligible(value) ? 1 : 0, bytes: 48 + measure(value), max: maximum(value) }; }
+		    function from(source) {
+		        if (states.has(source)) return source;
+		        checkLength(source.length);
+		        let root;
+		        for (let id = 0; id < source.length; id++) if (id in source) root = put(root, 6, id, leaf(source[id]), true);
+		        return view(root, source.length);
+		    }
+		    function update(source, entries, length = source.length) {
+		        checkLength(length);
+		        const state = states.get(source) || states.get(from(source));
+		        let root = length < state.length ? trim(state.root, 6, length) : state.root;
+		        for (const [id, value] of entries) {
+		            if (!Number.isInteger(id) || id < 0 || id >= length) throw new Error('Invalid indexed array position');
+		            root = put(root, 6, id, leaf(value), false);
+		        }
+		        return view(root, length);
+		    }
+		    function previous(source, exclusive) {
+		        const state = states.get(source);
+		        if (!state) throw new Error('Unindexed array');
+		        function search(node, depth, prefix, end) {
+		            visit();
+		            if (!node?.eligible) return -1;
+		            const span = width(depth), top = Math.min(31, Math.floor((end - prefix) / span));
+		            for (let digit = top; digit >= 0; digit--) {
+		                const child = node.slots[digit];
+		                if (!child?.eligible) continue;
+		                const start = prefix + digit * span;
+		                if (depth === 0) return start;
+		                const result = search(child, depth - 1, start, Math.min(end, start + span - 1));
+		                if (result >= 0) return result;
+		            }
+		            return -1;
+		        }
+		        return search(state.root, 6, 0, Math.min(exclusive, state.length) - 1);
+		    }
+		    function changed(before, after) {
+		        const left = states.get(before), right = states.get(after);
+		        if (!left || !right) return null;
+		        const result = [];
+		        function walk(a, b, depth, prefix) {
+		            visit();
+		            if (a === b) return;
+		            if (depth < 0) { if (prefix < right.length && a?.value !== b?.value) result.push(prefix); return; }
+		            for (let digit = 0; digit < 32; digit++) {
+		                const x = a?.slots[digit], y = b?.slots[digit];
+		                if (x !== y) walk(x, y, depth - 1, prefix + digit * width(depth));
+		            }
+		        }
+		        walk(left.root, right.root, 6, 0);
+		        return result;
+		    }
+		    function select(source, position) {
+		        const state=states.get(source);
+		        if(!state || !Number.isInteger(position) || position<0 || position>=(state.root?.eligible || 0))return -1;
+		        let node=state.root,id=0;
+		        for(let depth=6;depth>=0;depth--){
+		            visit();
+		            for(let digit=0;digit<32;digit++){
+		                const child=node.slots[digit],count=child?.eligible || 0;
+		                if(position<count){node=child;id+=digit*width(depth);break;}
+		                position-=count;
+		            }
+		        }
+		        return id;
+		    }
+		    function rank(source, exclusive) {
+		        const state=states.get(source);
+		        if(!state)throw new Error('Unindexed array');
+		        let node=state.root,total=0,end=Math.max(0,Math.min(exclusive,state.length));
+		        if(end===state.length)return node?.eligible || 0;
+		        for(let depth=6;depth>=0 && node;depth--){
+		            visit();
+		            const digit=Math.floor(end/width(depth))%32;
+		            for(let i=0;i<digit;i++)total+=node.slots[i]?.eligible || 0;
+		            node=node.slots[digit];
+		        }
+		        return total;
+		    }
+		    function info(source) {
+		        const state = states.get(source);
+		        return state && { length: state.length, complete: (state.root?.validCount || 0) === state.length, eligible: state.root?.eligible || 0,
+		            count: state.root?.count || 0, bytes: state.root?.bytes || 0 };
+		    }
+		    return { from, update, previous, rank, select, info, changed, maximum: source => states.get(source)?.root?.max ?? -Infinity };
+		}
+		// Persistent compressed radix tree over IEEE-754 numeric keys. At most sixteen
+		// nibble levels; insertion/removal never shifts a sorted array's suffix.
+		function createOrderedNumericIndex({visit=()=>{},measure=()=>0}={}) {
+		  const states=new WeakMap(),buffer=new DataView(new ArrayBuffer(8))
+		  function digits(key) {
+		    if(typeof key!=='number' || Number.isNaN(key))throw new Error('Invalid ordered numeric key')
+		    buffer.setFloat64(0,key===0?0:key)
+		    let high=buffer.getUint32(0),low=buffer.getUint32(4)
+		    if(high>>>31){high=(~high)>>>0;low=(~low)>>>0}else high=(high^0x80000000)>>>0
+		    const result=[]
+		    for(const word of [high,low])for(let shift=28;shift>=0;shift-=4)result.push((word>>>shift)&15)
+		    return result
+		  }
+		  const leaf=(key,value)=>({key:key===0?0:key,value,count:1,bytes:48+measure(value),unsafe:Number.isFinite(key)?0:1})
+		  function branch(depth,key,slots){
+		    let count=0,bytes=160,unsafe=0,children=0,last
+		    for(const item of slots)if(item){count+=item.count;bytes+=item.bytes;unsafe+=item.unsafe;children++;last=item}
+		    return children===0?undefined:children===1?last:{depth,key,slots,count,bytes,unsafe}
+		  }
+		  function put(node,path,key,value,mutable=false) {
+		    visit()
+		    if(!node)return value===undefined?undefined:leaf(key,value)
+		    const other=digits(node.key),limit=node.slots?node.depth:16
+		    let split=0
+		    while(split<limit && other[split]===path[split])split++
+		    if(split<limit){
+		      if(value===undefined)return node
+		      const slots=[];slots[other[split]]=node;slots[path[split]]=leaf(key,value)
+		      return branch(split,node.key,slots)
+		    }
+		    if(!node.slots)return value===undefined?undefined:node.value===value?node:leaf(key,value)
+		    const digit=path[node.depth],child=put(node.slots[digit],path,key,value,mutable)
+		    if(child===node.slots[digit])return node
+		    const slots=mutable?node.slots:node.slots.slice();slots[digit]=child
+		    return branch(node.depth,node.key,slots)
+		  }
+		  function at(root,position) {
+		    let node=root
+		    while(node?.slots){
+		      visit()
+		      if(position<0 || position>=node.count)return undefined
+		      for(const child of node.slots){if(!child)continue;if(position<child.count){node=child;break}position-=child.count}
+		    }
+		    return position===0?node?.value:undefined
+		  }
+		  function view(root) {
+		    const length=root?.count || 0
+		    const numeric=key=>typeof key==='string' && /^(0|[1-9]\d*)$/.test(key) && Number(key)<length
+		    const array=new Proxy([],{
+		      get(target,key,receiver){return key==='length'?length:numeric(key)?at(root,Number(key)):Reflect.get(target,key,receiver)},
+		      has(target,key){return numeric(key)||Reflect.has(target,key)},
+		      ownKeys(){return [...Array.from({length},(_,id)=>String(id)),'length']},
+		      getOwnPropertyDescriptor(target,key){
+		        if(numeric(key))return {value:at(root,Number(key)),enumerable:true,writable:false,configurable:true}
+		        const descriptor=Reflect.getOwnPropertyDescriptor(target,key)
+		        return key==='length'?{...descriptor,value:length}:descriptor
+		      },
+		      set(){throw new Error('Ordered index is immutable')},defineProperty(){throw new Error('Ordered index is immutable')},deleteProperty(){throw new Error('Ordered index is immutable')}
+		    })
+		    states.set(array,root);return array
+		  }
+		  function from(entries){let root;for(const [key,value] of entries)root=put(root,digits(key),key,value,true);return view(root)}
+		  function update(source,entries){if(!states.has(source))throw new Error('Unknown ordered index');let root=states.get(source);for(const [key,value] of entries)root=put(root,digits(key),key,value);return root===states.get(source)?source:view(root)}
+		  function get(source,key){let node=states.get(source);const path=digits(key);while(node?.slots){visit();node=node.slots[path[node.depth]]}visit();return node?.key===key?node.value:undefined}
+		  function rank(source,key){
+		    let node=states.get(source),position=0;const path=digits(key)
+		    while(node?.slots){
+		      visit();const prefix=digits(node.key)
+		      for(let i=0;i<node.depth;i++)if(prefix[i]!==path[i])return position+(prefix[i]<path[i]?node.count:0)
+		      const digit=path[node.depth];for(let i=0;i<digit;i++)position+=node.slots[i]?.count || 0
+		      node=node.slots[digit]
+		    }
+		    return position+(node && node.key<key?1:0)
+		  }
+		  // Keep a suffix by rank, sharing all fully retained subtrees.
+		  function suffix(source,start){
+		    if(!states.has(source))throw new Error('Unknown ordered index')
+		    function trim(node,skip){
+		      visit()
+		      if(!node || skip>=node.count)return undefined
+		      if(skip<=0)return node
+		      const slots=[]
+		      for(let id=0;id<16;id++){
+		        const child=node.slots[id];if(!child)continue
+		        slots[id]=trim(child,skip);skip=Math.max(0,skip-child.count)
+		      }
+		      return branch(node.depth,node.key,slots)
+		    }
+		    const root=trim(states.get(source),Math.max(0,Math.floor(start)))
+		    return root===states.get(source)?source:view(root)
+		  }
+		  function changed(before,after){
+		    if(!states.has(before)||!states.has(after))return null
+		    const result=[]
+		    function emit(node,removed){
+		      if(!node)return
+		      visit()
+		      if(node.slots){for(const child of node.slots)emit(child,removed)}
+		      else result.push({key:node.key,before:removed?node.value:undefined,after:removed?undefined:node.value})
+		    }
+		    function walk(left,right){
+		      visit();if(left===right)return
+		      if(!left || !right){emit(left||right,Boolean(left));return}
+		      const a=digits(left.key),b=digits(right.key),ld=left.slots?left.depth:16,rd=right.slots?right.depth:16
+		      for(let i=0;i<Math.min(ld,rd);i++)if(a[i]!==b[i]){emit(left,true);emit(right,false);return}
+		      if(ld===16 && rd===16){result.push({key:right.key,before:left.value,after:right.value});return}
+		      if(ld===rd){for(let id=0;id<16;id++)if(left.slots[id]!==right.slots[id])walk(left.slots[id],right.slots[id]);return}
+		      // Compression can promote a shared child to root. Align by prefix before
+		      // descending, so removing a sibling never enumerates that shared subtree.
+		      if(ld<rd){for(let id=0;id<16;id++)if(left.slots[id] || id===b[ld])walk(left.slots[id],id===b[ld]?right:undefined)}
+		      else {for(let id=0;id<16;id++)if(right.slots[id] || id===a[rd])walk(id===a[rd]?left:undefined,right.slots[id])}
+		    }
+		    walk(states.get(before),states.get(after));return result
+		  }
+		  return {from,update,get,rank,suffix,changed,info:source=>states.has(source)?{count:states.get(source)?.count||0,bytes:states.get(source)?.bytes||0,unsafe:states.get(source)?.unsafe||0}:null}
+		}
 		// Cached session views are immutable, like the React views returned by getSession.
 		function createSessionViewReader(maxSessions = 4) {
 		  const sessions = new Map();
+		  const index = createSessionViewReader.indexApi ||= createIndexedArrayApi();
+		  const receiptLookup = createSessionViewReader.receiptLookup ||= createTurnLookup(index,createSessionViewReader.onReceiptLookupVisit);
+		  const ordered = typeof createOrderedNumericIndex === "function" ? (createSessionViewReader.receiptOrderedIndex ||= createOrderedNumericIndex()) : null;
+		  const turnFields = ordered ? (createSessionViewReader.turnFields ||= createTurnFieldIndex()) : null;
+		  const projectionLookup = createSessionViewReader.projectionLookup ||= createTurnLookup(index);
+		  const storyTurnLookup = createSessionViewReader.storyTurnLookup ||= createStoryTurnLookup();
 		  let sequence = 0;
 		  return function begin(sessionId) {
 		    const base = sessions.get(sessionId);
 		    const requestSequence = ++sequence;
 		    return {
 		      cursor: base && base.cursor,
+		      receiptSync: ordered ? 1 : undefined,
 		      accept(result) {
-		        let view = result.view;
+		        let view = result.view, projectionChanges = null, storyChanges = null, storyKeys = null;
 		        if (result.viewDelta) {
 		          if (!base || result.viewDelta.baseCursor !== base.cursor) throw new Error("会话增量已过期，请重新读取");
-		          view = Object.assign({}, base.view);
-		          const copied = new Set();
-		          function parent(path) {
-		            let target = view;
-		            for (let i = 0; i < path.length - 1; i++) {
-		              const key = path[i];
-		              const id = JSON.stringify(path.slice(0, i + 1));
-		              if (!copied.has(id)) {
-		                const old = target[key];
-		                target[key] = Array.isArray(old) ? old.slice() : (path[i + 1] === "length" || typeof path[i + 1] === "number" ? [] : Object.assign({}, old));
-		                copied.add(id);
+		          const delta = result.viewDelta;
+		          const unchanged = delta.set.length===0 && delta.remove.length===0
+		            && (!delta.receiptDelta || delta.receiptDelta.set.length===0 && delta.receiptDelta.remove.length===0);
+		          if (unchanged) view = base.view;
+		          else {
+		            view = Object.assign({}, base.view);
+		            const copied = new Set();
+		            const messagePath = path => path[0] === "tavernHelper" && path[1] === "messages" && path.length === 3;
+		            const messageEdits = result.viewDelta.set.filter(([path]) => messagePath(path));
+		            const messageRemovals = result.viewDelta.remove.filter(messagePath);
+		            const incrementalMessages = Array.isArray(base.view?.tavernHelper?.messages)
+		              && !result.viewDelta.set.some(([path]) => path[0] === "tavernHelper" && path.length < 3)
+		              && !result.viewDelta.remove.some(path => path[0] === "tavernHelper" && path.length < 3)
+		              && messageRemovals.every(path => typeof path[2] === "number")
+		              && messageEdits.every(([path]) => path[2] === "length" || Number.isSafeInteger(path[2]));
+
+		            const receiptPath = path => path[0] === "mvuReceipts" && path.length === 2;
+		            const receiptEdits = result.viewDelta.set.filter(([path]) => receiptPath(path));
+		            const receiptRemovals = result.viewDelta.remove.filter(receiptPath);
+		            const incrementalReceipts = !result.viewDelta.receiptDelta && !ordered?.info(base.view?.mvuReceipts) && Array.isArray(base.view?.mvuReceipts)
+		              && !result.viewDelta.set.some(([path]) => path[0] === "mvuReceipts" && path.length < 2)
+		              && !result.viewDelta.remove.some(path => path[0] === "mvuReceipts" && path.length < 2)
+		              && receiptRemovals.every(path => Number.isSafeInteger(path[1]))
+		              && receiptEdits.every(([path]) => path[1] === "length" || Number.isSafeInteger(path[1]));
+
+		            const projectionPath = path => path[0] === "replyProjections" && path.length === 2;
+		            const projectionEdits = result.viewDelta.set.filter(([path]) => projectionPath(path));
+		            const projectionRemovals = result.viewDelta.remove.filter(projectionPath);
+		            const incrementalProjections = Array.isArray(base.view?.replyProjections)
+		              && !result.viewDelta.set.some(([path]) => path[0] === "replyProjections" && path.length < 2)
+		              && !result.viewDelta.remove.some(path => path[0] === "replyProjections" && path.length < 2)
+		              && projectionRemovals.every(path => Number.isSafeInteger(path[1]))
+		              && projectionEdits.every(([path]) => path[1] === "length" || Number.isSafeInteger(path[1]));
+
+		            const fieldUpdates = new Map();
+		            for (const field of ["inputSources", "inputTemplateDisplays", "regeneratedDshTurns"]) {
+		              const source = base.view?.[field];
+		              const sets = delta.set.filter(([path]) => path[0] === field);
+		              const removes = delta.remove.filter(path => path[0] === field);
+		              if (turnFields?.has(source) && sets.every(([path]) => path.length === 2 && turnFields.validKey(path[1]))
+		                && removes.every(path => path.length === 2 && turnFields.validKey(path[1]))) {
+		                fieldUpdates.set(field, turnFields.update(source, sets.map(([path,value]) => [path[1],value]), removes.map(path => path[1])));
+		                if (field === "regeneratedDshTurns") storyKeys = [...new Set([...sets.map(([path]) => String(path[1])), ...removes.map(path => String(path[1]))])];
 		              }
-		              target = target[key];
 		            }
-		            return target;
+		            function parent(path) {
+		              let target = view;
+		              for (let i = 0; i < path.length - 1; i++) {
+		                const key = path[i];
+		                const id = JSON.stringify(path.slice(0, i + 1));
+		                if (!copied.has(id)) {
+		                  const old = target[key];
+		                  target[key] = Array.isArray(old) ? old.slice() : (path[i + 1] === "length" || typeof path[i + 1] === "number" ? [] : Object.assign({}, old));
+		                  copied.add(id);
+		                }
+		                target = target[key];
+		              }
+		              return target;
+		            }
+		            // Remove old descendants before replacing a parent with null or a new object.
+		            for (const path of result.viewDelta.remove.slice().sort((a, b) => b.length - a.length)) {
+		              if (fieldUpdates.has(path[0])) continue;
+		              if (incrementalMessages && messagePath(path) || incrementalReceipts && receiptPath(path) || incrementalProjections && projectionPath(path)) continue;
+		              const target = parent(path), key = path[path.length - 1];
+		              if (!(Array.isArray(target) && key === "length")) delete target[key];
+		            }
+		            for (const [path, value] of result.viewDelta.set) {
+		              if (fieldUpdates.has(path[0])) continue;
+		              if (incrementalMessages && messagePath(path) || incrementalReceipts && receiptPath(path) || incrementalProjections && projectionPath(path)) continue;
+		              parent(path)[path[path.length - 1]] = value;
+		            }
+		            for (const [field, value] of fieldUpdates) view[field] = value;
+		            if (result.viewDelta.receiptDelta) {
+		              if (!ordered?.info(base.view?.mvuReceipts)) throw new Error("回执增量缺少基线，请重新读取");
+		              const delta = result.viewDelta.receiptDelta;
+		              view.mvuReceipts = ordered.update(base.view.mvuReceipts,[...delta.remove.map(turn=>[turn,undefined]),...delta.set.map(row=>[row.turn,row])]);
+		            }
+		            if (incrementalReceipts) {
+		              const old = base.view.mvuReceipts;
+		              const length = receiptEdits.find(([path]) => path[1] === "length")?.[1] ?? old.length;
+		              const entries = receiptEdits.filter(([path]) => path[1] !== "length").map(([path,value]) => [path[1],value]);
+		              if (receiptRemovals.some(path => path[1] < length)) throw new Error("Invalid sparse receipt delta");
+		              view.mvuReceipts = index.update(old,entries,length);
+		              receiptLookup.remember(view.mvuReceipts,old,entries);
+		            }
+		            if (incrementalProjections) {
+		              const old = base.view.replyProjections;
+		              const length = projectionEdits.find(([path]) => path[1] === "length")?.[1] ?? old.length;
+		              const entries = projectionEdits.filter(([path]) => path[1] !== "length").map(([path,value]) => [path[1],value]);
+		              if (projectionRemovals.some(path => path[1] < length)) throw new Error("Invalid sparse projection delta");
+		              view.replyProjections = entries.length || length!==old.length ? index.update(old,entries,length) : old;
+		              projectionLookup.remember(view.replyProjections,old,entries);
+		              const turns = new Set();
+		              for (const [id, row] of entries) { turns.add(Number(old[id]?.turn)); turns.add(Number(row?.turn)); }
+		              for (let id = length; id < old.length; id++) turns.add(Number(old[id]?.turn));
+		              projectionChanges = { turns: [...turns].filter(turn => !Number.isNaN(turn)),
+		                beforeLatest: projectionLookup.max(old), afterLatest: projectionLookup.max(view.replyProjections) };
+		            }
+		            if (incrementalMessages) {
+		              const old = base.view.tavernHelper.messages;
+		              const length = messageEdits.find(([path]) => path[2] === "length")?.[1] ?? old.length;
+		              const entries = messageEdits.filter(([path]) => path[2] !== "length").map(([path,value]) => [path[2],value]);
+		              // The protocol emits removals only for a truncated tail.
+		              if (messageRemovals.some(path => path[2] < length)) throw new Error("Invalid sparse message delta");
+		              view.tavernHelper = {...view.tavernHelper,messages:index.update(old,entries,length)};
+		            }
 		          }
-		          // Remove old descendants before replacing a parent with null or a new object.
-		          for (const path of result.viewDelta.remove.slice().sort((a, b) => b.length - a.length)) {
-		            const target = parent(path), key = path[path.length - 1];
-		            if (!(Array.isArray(target) && key === "length")) delete target[key];
-		          }
-		          for (const [path, value] of result.viewDelta.set) parent(path)[path[path.length - 1]] = value;
 		        }
+		        if (Array.isArray(view?.tavernHelper?.messages) && !index.info(view.tavernHelper.messages)) {
+		          view = {...view,tavernHelper:{...view.tavernHelper,messages:index.from(view.tavernHelper.messages)}};
+		        }
+		        if (Array.isArray(view?.mvuReceipts)) {
+		          if (result.receiptSync===1) {
+		            if (!ordered) throw new Error("当前客户端不支持回执索引");
+		            view = {...view,mvuReceipts:ordered.from(view.mvuReceipts.map(row=>[row.turn,row]))};
+		          } else if (!ordered?.info(view.mvuReceipts)) {
+		            if (!index.info(view.mvuReceipts)) view = {...view,mvuReceipts:index.from(view.mvuReceipts)};
+		            receiptLookup.remember(view.mvuReceipts);
+		          }
+		        }
+		        if (Array.isArray(view?.replyProjections)) {
+		          if (!index.info(view.replyProjections)) view = {...view,replyProjections:index.from(view.replyProjections)};
+		          projectionLookup.remember(view.replyProjections);
+		        }
+		        if (turnFields) for (const field of ["inputSources", "inputTemplateDisplays", "regeneratedDshTurns"]) {
+		          const value = turnFields.from(view?.[field]);
+		          if (value !== view?.[field]) view = {...view, [field]: value};
+		        }
+		        storyChanges = storyTurnLookup.remember(view?.regeneratedDshTurns, base?.view?.regeneratedDshTurns, storyKeys);
 		        const latest = sessions.get(sessionId);
 		        if (!latest || latest.sequence < requestSequence) {
 		          sessions.delete(sessionId);
 		          sessions.set(sessionId, { view, cursor: result.viewCursor, sequence: requestSequence });
 		          while (sessions.size > maxSessions) sessions.delete(sessions.keys().next().value);
 		        }
-		        return Object.assign({}, result, { view });
+		        return Object.assign({}, result, { view, viewBase: result.viewDelta ? base.view : undefined, projectionChanges, storyChanges });
 		      }
 		    };
 		  };
+		}
+
+		// Weak array-version keys preserve concurrent/older views without retaining them.
+		function createTurnLookup(index,onVisit = () => {}) {
+		  const versions = new WeakMap();
+		  // Number-to-string has bounded length for IEEE-754 turns, including infinities.
+		  // A character trie avoids history-sized Map copies while retaining old roots.
+		  const turnKey = value => { const turn=Number(value); return Number.isNaN(turn) ? null : String(turn); };
+		  function get(root,key) {
+		    let node=root;
+		    for (const character of key) { onVisit(); node=node?.[character]; }
+		    return node?.$;
+		  }
+		  function put(root,key,value,offset=0) {
+		    onVisit();
+		    const next={...root}, character=offset===key.length ? "$" : key[offset];
+		    const child=offset===key.length ? value : put(root?.[character],key,value,offset+1);
+		    if (child===undefined) delete next[character]; else next[character]=child;
+		    let maximum=0,children=0;
+		    for (const name of Object.keys(next)) if (name!=="_max") {
+		      children++; maximum=Math.max(maximum,name==="$" ? Number(next[name].turn)||0 : next[name]._max||0);
+		    }
+		    if (!children) return undefined;
+		    next._max=maximum;
+		    return next;
+		  }
+		  function change(root,key,id,row) {
+		    if (key===null) return root;
+		    const old=get(root,key);
+		    let next;
+		    if (old?.rows) {
+		      const rows=index.update(old.rows,[[id,row]],Math.max(old.rows.length,id+1));
+		      const count=index.info(rows).eligible;
+		      if (count>1) next={rows};
+		      else if (count===1) { const last=index.previous(rows,rows.length); next={id:last,row:rows[last]}; }
+		    } else if (row!==undefined) {
+		      next=old && old.id!==id
+		        ? {rows:index.update([],[[old.id,old.row],[id,row]],Math.max(old.id,id)+1)} : {id,row};
+		    } else if (old?.id!==id) next=old;
+		    return put(root,key,next ? {...next,turn:Number(key)} : undefined);
+		  }
+		  function remember(rows,before,entries) {
+		    if (versions.has(rows)) return;
+		    let root;
+		    if (before && versions.has(before)) {
+		      root=versions.get(before);
+		      const changed=new Map(entries);
+		      // Clear all old owners first, so swaps and duplicate-turn promotion work.
+		      for (const [id] of changed) if (id<before.length) root=change(root,turnKey(before[id]?.turn),id,undefined);
+		      for (let id=rows.length;id<before.length;id++) if (!changed.has(id)) root=change(root,turnKey(before[id]?.turn),id,undefined);
+		      for (const [id,row] of changed) if (id<rows.length) root=change(root,turnKey(row?.turn),id,row);
+		    } else {
+		      for (let id=0;id<rows.length;id++) { const row=rows[id]; root=change(root,turnKey(row?.turn),id,row); }
+		    }
+		    versions.set(rows,root);
+		  }
+		  function row(rows,turn) {
+		    const key=turnKey(turn);
+		    if (key===null) return null;
+		    const bucket=get(versions.get(rows),key);
+		    const row=bucket?.rows ? bucket.rows[index.previous(bucket.rows,bucket.rows.length)] : bucket?.row;
+		    return row || null;
+		  }
+		  return {remember,row,read:(rows,turn)=>row(rows,turn)?.receipt || null,max:rows=>versions.get(rows)?._max || 0,has:rows=>versions.has(rows)};
+		}
+
+		function createStoryTurnLookup() {
+		  const versions = new WeakMap();
+		  const ordered = typeof createOrderedNumericIndex === "function" ? createOrderedNumericIndex({visit: () => createSessionViewReader.onStoryLookupVisit?.()}) : null;
+		  const validKey = key => /^(0|[1-9]\d*)$/.test(key) && Number(key) < 0xffffffff;
+		  function remember(source, before, keys) {
+		    if (!source || typeof source !== "object") return null;
+		    if (versions.has(source)) return source === before ? [] : null;
+		    const previous = versions.get(before);
+		    if (ordered && previous?.root && Array.isArray(keys) && keys.every(validKey)) {
+		      let root = previous.root;
+		      const hosts = new Set();
+		      function change(host, story, remove) {
+		        if (Number.isNaN(host)) return;
+		        hosts.add(host);
+		        let rows = ordered.get(root, host) || ordered.from([]);
+		        rows = ordered.update(rows, [[Number(story), remove ? undefined : Number(story)]]);
+		        root = ordered.update(root, [[host, rows.length ? rows : undefined]]);
+		      }
+		      for (const key of keys) if (Object.prototype.hasOwnProperty.call(before, key)) change(Number(before[key]), key, true);
+		      for (const key of keys) if (Object.prototype.hasOwnProperty.call(source, key)) change(Number(source[key]), key, false);
+		      versions.set(source, { root });
+		      return [...hosts];
+		    }
+		    const names = Object.keys(source);
+		    if (ordered && names.every(validKey)) {
+		      const hosts = new Map();
+		      for (const story of names) {
+		        const host = Number(source[story]);
+		        if (Number.isNaN(host)) continue;
+		        if (!hosts.has(host)) hosts.set(host, []);
+		        hosts.get(host).push([Number(story), Number(story)]);
+		      }
+		      versions.set(source, { root: ordered.from([...hosts].map(([host, rows]) => [host, ordered.from(rows)])) });
+		    } else {
+		      const turns = new Map();
+		      for (const story of names) {
+		        const turn = Number(source[story]);
+		        if (!Number.isNaN(turn) && !turns.has(turn)) turns.set(turn, Number(story));
+		      }
+		      versions.set(source, { turns });
+		    }
+		    return null;
+		  }
+		  return { remember, has: source => versions.has(source), read(source, turn) {
+		    const key = Number(turn), version = versions.get(source);
+		    if (version?.root && !Number.isNaN(key)) return ordered.get(version.root, key)?.[0] ?? key;
+		    return version?.turns?.has(key) ? version.turns.get(key) : key;
+		  } };
+		}
+
+		// Canonical array-index keys retain ordinary object enumeration order. Legacy
+		// non-turn keys use the original object path instead of changing its semantics.
+		function createTurnFieldIndex() {
+		  const index = createOrderedNumericIndex({visit: () => createSessionViewReader.onTurnFieldVisit?.()});
+		  const states = new WeakMap();
+		  const validKey = key => /^(0|[1-9]\d*)$/.test(String(key)) && Number(key) < 0xffffffff;
+		  function wrap(rows) {
+		    const target = {};
+		    const lookup = key => validKey(key) ? index.get(rows, Number(key)) : undefined;
+		    const value = new Proxy(target, {
+		      get: (object,key,receiver) => { const row = lookup(key); return row ? row.value : Reflect.get(object,key,receiver); },
+		      has: (object,key) => Boolean(lookup(key)) || Reflect.has(object,key),
+		      ownKeys: () => rows.map(row => row.key),
+		      getOwnPropertyDescriptor: (object,key) => {
+		        const row = lookup(key);
+		        return row ? {value:row.value,enumerable:true,configurable:true,writable:false} : Reflect.getOwnPropertyDescriptor(object,key);
+		      },
+		      set() { throw new Error("Turn fields are immutable"); },
+		      defineProperty() { throw new Error("Turn fields are immutable"); },
+		      deleteProperty() { throw new Error("Turn fields are immutable"); }
+		    });
+		    states.set(value,rows);return value;
+		  }
+		  function from(source) {
+		    if (!source || typeof source !== "object" || Array.isArray(source) || states.has(source)) return source;
+		    const keys = Reflect.ownKeys(source);
+		    if (!keys.every(key => typeof key === "string" && validKey(key))) return source;
+		    return wrap(index.from(keys.map(key => [Number(key),{key,value:source[key]}])));
+		  }
+		  function update(source,sets,removes) {
+		    if (!sets.length && !removes.length) return source;
+		    const entries = removes.map(key => [Number(key),undefined]);
+		    for (const [key,value] of sets) entries.push([Number(key),{key:String(key),value}]);
+		    return wrap(index.update(states.get(source),entries));
+		  }
+		  return {from,update,validKey,has:source => states.has(source)};
 		}
 		const beginSessionViewRead = createSessionViewReader();
 
@@ -787,13 +1323,105 @@ window.__ModuleLoader__.load({
 			function initialState() { return { phase: "idle", view: null, error: "", updatedAt: 0 }; }
 			function recordFor(sessionId) {
 				const id = String(sessionId || "");
-				if (!records.has(id)) records.set(id, { id: id, state: initialState(), listeners: new Set(), timer: null, watchdog: null, loading: false, reloadRequested: false, optimisticBusy: false, eviction: null, controller: null });
+				if (!records.has(id)) records.set(id, { id: id, state: initialState(), listeners: new Set(), paths: dependencyNode(), timer: null, watchdog: null, loading: false, reloadRequested: false, optimisticBusy: false, eviction: null, controller: null, generation: 0 });
 				return records.get(id);
 			}
-			function publish(record, state) {
+			function dependencyNode() { return { exact: new Set(), all: new Set(), children: new Map() }; }
+			function register(root, paths, listener) {
+				const nodes = new Set(), leaves = new Set(), edges = [];
+				paths.forEach(function (path) {
+					let node = root; nodes.add(node);
+					path.forEach(function (key) {
+						key = String(key);
+						if (!node.children.has(key)) node.children.set(key, dependencyNode());
+						edges.push([node, key]); node = node.children.get(key); nodes.add(node);
+					});
+					leaves.add(node);
+				});
+				nodes.forEach(node => node.all.add(listener));
+				leaves.forEach(node => node.exact.add(listener));
+				return function () {
+					nodes.forEach(node => node.all.delete(listener));
+					leaves.forEach(node => node.exact.delete(listener));
+					for (let i = edges.length - 1; i >= 0; i--) {
+						const [parent, key] = edges[i];
+						if (parent.children.get(key)?.all.size === 0) parent.children.delete(key);
+					}
+				};
+			}
+			function affected(root, paths) {
+				const listeners = new Set(root.exact);
+				paths.forEach(function (path) {
+					let node = root;
+					for (const key of path) {
+						node = node.children.get(String(key));
+						if (!node) return;
+						node.exact.forEach(listener => listeners.add(listener));
+					}
+					node.all.forEach(listener => listeners.add(listener));
+				});
+				return listeners;
+			}
+			function addReceiptStatePaths(paths, before, after) {
+				if (Boolean(before?.activity?.busy) !== Boolean(after?.activity?.busy)) paths.push(["$receiptBusy"]);
+				if (!Object.is(before?.settlementTurn, after?.settlementTurn)) {
+					paths.push(["$settlementOwner", String(before?.settlementTurn)], ["$settlementOwner", String(after?.settlementTurn)]);
+				}
+			}
+			function publish(record, state, result) {
 				if (records.get(record.id) !== record) return;
+				// A confirmed no-op should not wake every mounted history component.
+				// In this opt-in mode updatedAt records the last published state change.
+				if (options.deduplicateViews === true && record.state.phase === state.phase
+					&& record.state.view === state.view && record.state.error === state.error) return;
+				let listeners = record.listeners;
+				if (result && result.viewBase === record.state.view && result.viewDelta
+					&& record.state.phase === state.phase && record.state.error === state.error) {
+					const delta = result.viewDelta;
+					const paths = delta.set.map(entry => entry[0]).concat(delta.remove);
+					if (paths.some(path => path[0] === "regeneratedDshTurns")) {
+						if (Array.isArray(result.storyChanges)) for (const turn of result.storyChanges) paths.push(["$storyHostTurn", String(turn)]);
+						else paths.push(["$storyHostTurn"]);
+					}
+					if (paths.some(path => path[0] === "replyProjections")) {
+						const change = result.projectionChanges;
+						if (change) {
+							for (const turn of change.turns) paths.push(["$projectionTurn", String(turn)]);
+							if (change.beforeLatest !== change.afterLatest) {
+								paths.push(["$projectionLatestTurn", String(change.beforeLatest)], ["$projectionLatestTurn", String(change.afterLatest)]);
+							}
+						} else paths.push(["$projectionTurn"], ["$projectionLatestTurn"]);
+					}
+					// Virtual turn dependencies are separate from positional array paths.
+					// Legacy/whole-array edits cannot prove turn locality and invalidate all.
+					if (paths.some(path => path[0] === "mvuReceipts")) paths.push(["$mvuReceiptTurn"]);
+					if (delta.receiptDelta && (delta.receiptDelta.set.length || delta.receiptDelta.remove.length)) {
+						paths.push(["mvuReceipts"]);
+						for (const row of delta.receiptDelta.set) paths.push(["$mvuReceiptTurn", String(row.turn)]);
+						for (const turn of delta.receiptDelta.remove) paths.push(["$mvuReceiptTurn", String(turn)]);
+					}
+					if (Boolean(record.state.view?.tavernHelper) !== Boolean(state.view?.tavernHelper)) paths.push(["$helperAvailable"]);
+					addReceiptStatePaths(paths, record.state.view, state.view);
+					listeners = affected(record.paths, paths);
+				} else if (options.deduplicateViews === true && record.state.view && state.view
+					&& record.state.phase === state.phase && record.state.error === state.error) {
+					// The identity-based mode already requires immutable published views.
+					// Hydration and local replacements preserve unrelated field identities:
+					// route those updates without enumerating history or all subscribers.
+					const before = record.state.view, after = state.view;
+					const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+					const paths = [];
+					for (const key of keys) if (Object.prototype.hasOwnProperty.call(before, key) !== Object.prototype.hasOwnProperty.call(after, key)
+						|| !Object.is(before[key], after[key])) paths.push([key]);
+					if (paths.some(path => path[0] === "regeneratedDshTurns")) paths.push(["$storyHostTurn"]);
+					if (paths.some(path => path[0] === "replyProjections")) paths.push(["$projectionTurn"], ["$projectionLatestTurn"]);
+					if (paths.some(path => path[0] === "mvuReceipts")) paths.push(["$mvuReceiptTurn"]);
+					if (Boolean(record.state.view?.tavernHelper) !== Boolean(state.view?.tavernHelper)) paths.push(["$helperAvailable"]);
+					addReceiptStatePaths(paths, record.state.view, state.view);
+					listeners = affected(record.paths, paths);
+				}
 				record.state = state;
-				record.listeners.forEach(function (listener) { listener(state); });
+				listeners.forEach(function (listener) { listener(state); });
 			}
 			function schedule(record, delay) {
 				if (records.get(record.id) !== record || record.listeners.size === 0) return;
@@ -806,6 +1434,7 @@ window.__ModuleLoader__.load({
 			async function refresh(record) {
 				if (records.get(record.id) !== record || record.listeners.size === 0) return;
 				if (record.loading) { record.reloadRequested = true; return; }
+				const generation = ++record.generation;
 				record.loading = true;
 				if (record.state.view === null) publish(record, Object.assign({}, record.state, { phase: "loading", error: "" }));
 				let deadlineExpired = false;
@@ -830,18 +1459,18 @@ window.__ModuleLoader__.load({
 					let result = null;
 					try { result = await load; }
 					finally { if (deadlineTimer !== null) cancelTimer(deadlineTimer); }
-					if (records.get(record.id) !== record) return;
+					if (records.get(record.id) !== record || record.generation !== generation) return;
 					let view = result && result.view ? result.view : null;
 					if (pollWhileBusy && record.optimisticBusy && !shouldPoll(view)) {
 						schedule(record, 200);
 						return;
 					}
 					if (shouldPoll(view)) record.optimisticBusy = false;
-					publish(record, { phase: "ready", view: view, error: "", updatedAt: Date.now() });
+					publish(record, { phase: "ready", view: view, error: "", updatedAt: Date.now() }, result);
 					if (view && view.tavernHelper && view.tavernHelper.messagesPending && typeof options.hydrateHelperMessages === "function") {
 						try {
 							view = await options.hydrateHelperMessages(record.id, view) || view;
-							if (records.get(record.id) !== record) return;
+							if (records.get(record.id) !== record || record.generation !== generation) return;
 							publish(record, { phase: "ready", view: view, error: "", updatedAt: Date.now() });
 						} catch (hydrateError) {
 							if (records.get(record.id) !== record) return;
@@ -871,6 +1500,7 @@ window.__ModuleLoader__.load({
 			function invalidate(sessionId) {
 				const targets = sessionId === undefined || sessionId === null || sessionId === "" ? Array.from(records.values()) : [recordFor(sessionId)];
 				targets.forEach(function (record) {
+					record.generation++;
 					if (record.loading) record.reloadRequested = true;
 					else schedule(record, 0);
 				});
@@ -887,10 +1517,52 @@ window.__ModuleLoader__.load({
 			}
 
 			return {
+				// Each selection owns a stable snapshot, including missing-property semantics.
+				select: function (sessionId, paths) {
+					const module = this;
+					paths = paths.map(path => path.map(String));
+					if (paths.some(path => path.length === 0)) return {
+						getSnapshot: function () { return module.getSnapshot(sessionId); },
+						subscribe: function (notify) { return module.subscribe(sessionId, notify); }
+					};
+					// A selected parent already includes its children. Never write a child
+					// through a borrowed parent object while constructing the projection.
+					paths = paths.filter((path, i, all) => !all.some((parent, j) =>
+						(j < i || parent.length < path.length) && parent.length <= path.length
+						&& parent.every((key, depth) => path[depth] === key)));
+					let previous = null, values = null;
+					function snapshot() {
+						const state = module.getSnapshot(sessionId);
+						const next = paths.map(function (path) {
+							let value = state.view, present = value != null;
+							for (const key of path) {
+								present = value != null && Object.prototype.hasOwnProperty.call(value, key);
+								if (!present) return [false, undefined];
+								value = value[key];
+							}
+							return [present, value];
+						});
+						if (previous && previous.phase === state.phase && previous.error === state.error
+							&& (previous.view === null) === (state.view === null)
+							&& next.every((entry, i) => entry[0] === values[i][0] && Object.is(entry[1], values[i][1]))) return previous;
+						const view = state.view === null ? null : Object.create(null);
+						if (view) paths.forEach(function (path, i) {
+							if (!next[i][0]) return;
+							let target = view;
+							path.slice(0, -1).forEach(key => { target = target[key] || (target[key] = Object.create(null)); });
+							target[path[path.length - 1]] = next[i][1];
+						});
+						values = next;
+						return previous = Object.assign({}, state, { view: view });
+					}
+					return { getSnapshot: snapshot, subscribe: function (notify) { return module.subscribe(sessionId, notify, paths); } };
+				},
 				evict: evict,
 				getSnapshot: function (sessionId) { return recordFor(sessionId).state; },
 				setView: function (sessionId, view) {
 					const record = recordFor(sessionId);
+					record.generation++;
+					record.reloadRequested = record.loading || record.reloadRequested;
 					record.optimisticBusy = shouldPoll(view);
 					publish(record, { phase: "ready", view: view, error: "", updatedAt: Date.now() });
 					if (pollWhileBusy && shouldPoll(view)) schedule(record, 0);
@@ -902,10 +1574,11 @@ window.__ModuleLoader__.load({
 						if (records.get(record.id) === record) invalidate(sessionId);
 					};
 				},
-				subscribe: function (sessionId, listener) {
+				subscribe: function (sessionId, listener, paths) {
 					const record = recordFor(sessionId);
 					if (record.eviction !== null) { cancelTimer(record.eviction); record.eviction = null; }
 					const firstSubscriber = record.listeners.size === 0;
+					const unregister = register(record.paths, paths || [[]], listener);
 					record.listeners.add(listener);
 					listener(record.state);
 					if (firstSubscriber) schedule(record, 0);
@@ -915,6 +1588,7 @@ window.__ModuleLoader__.load({
 						}, watchdogIntervalMs);
 					}
 					return function () {
+						unregister();
 						record.listeners.delete(listener);
 						if (record.listeners.size === 0) {
 							if (cacheRetentionMs > 0 && record.eviction === null) record.eviction = scheduleTimer(function () {
@@ -1103,120 +1777,6 @@ window.__ModuleLoader__.load({
 			if (busy && role === "candidate") { label = "生成中…"; blockReason = "正在生成候选项，请稍候…"; }
 			else if (busy) { label = "后台结算中…"; blockReason = "后台结算中，请稍候…"; }
 			return { phase: String(activity.phase || "idle"), busy: busy, role: role, label: label, blockReason: blockReason };
-		}
-
-		// Bound initial story rendering independently of host child-slot ownership.
-		// Only explicit input expands history; canonical records are never changed.
-		function createTavernHistoryViewport(initialLimit = 20) {
-		    const entries = new Map(), listeners = new Set(), limits = new Map();
-		    let snapshot = new Set();
-		    function publish(next, force = false) {
-		        if (!force && next.size === snapshot.size && [...next].every(key => snapshot.has(key))) return;
-		        const previous = snapshot;
-		        snapshot = new Set(next);
-		        for (const key of previous) if (!next.has(key)) entries.get(key)?.release();
-		        listeners.forEach(fn => fn());
-		    }
-		    function ordered(sessionId) {
-		        return [...entries.values()].filter(item => item.sessionId === sessionId).sort((a, b) => a.turn - b.turn);
-		    }
-		    function select(sessionId) {
-		        const rows = ordered(sessionId);
-		        publish(new Set(rows.slice(-(limits.get(sessionId) || initialLimit)).map(item => item.key)), true);
-		    }
-		    return {
-		        subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-		        snapshot() { return snapshot; },
-		        register(sessionId, turn, release) {
-		            const key = JSON.stringify([sessionId, turn]);
-		            let item = entries.get(key);
-		            const added = !item;
-		            const newest = ordered(sessionId).at(-1);
-		            if (added && limits.has(sessionId) && newest && turn > newest.turn) limits.set(sessionId, limits.get(sessionId) + 1);
-		            if (!item) { item = { key, sessionId, turn, release, mounts: 0 }; entries.set(key, item); }
-		            item.mounts++;
-		            if (added) select(sessionId);
-		            return () => {
-		                if (--item.mounts > 0) return;
-		                item.release();
-		                entries.delete(key);
-		                if (!ordered(sessionId).length) limits.delete(sessionId);
-		                publish(new Set([...snapshot].filter(k => k !== key)));
-		            };
-		        },
-		        more(sessionId) {
-		            limits.set(sessionId, (limits.get(sessionId) || initialLimit) + initialLimit);
-		            select(sessionId);
-		        },
-		        hasEarlier(sessionId, turn) {
-		            const rows = ordered(sessionId), selected = rows.filter(item => snapshot.has(item.key));
-		            return selected[0]?.turn === turn && rows[0]?.turn < turn;
-		        },
-		        key(sessionId, turn) { return JSON.stringify([sessionId, turn]); }
-		    };
-		}
-		const tavernHistoryViewport = createTavernHistoryViewport();
-
-		function TavernWindowedNode(props) {
-		    const ref = React.useRef(null);
-		    const expanding = React.useRef(false);
-		    const turn = Number(props.node.location?.turn?.turn || 0);
-		    const key = tavernHistoryViewport.key(props.sessionId, turn);
-		    const active = React.useSyncExternalStore(tavernHistoryViewport.subscribe, tavernHistoryViewport.snapshot).has(key);
-		    React.useLayoutEffect(() => tavernHistoryViewport.register(props.sessionId, turn, () => {
-		        tavernRetainedFrames.invalidateOwner(key);
-		    }), [key]);
-		    const earlier = props.node.kind !== "user" && tavernHistoryViewport.hasEarlier(props.sessionId, turn);
-		    function more() {
-		        if (expanding.current) return;
-		        expanding.current = true;
-		        const node = ref.current, top = node?.getBoundingClientRect().top;
-		        const scroller = node?.closest("[data-conversation-scroll]");
-		        tavernHistoryViewport.more(props.sessionId);
-		        // Keep the previously visible round anchored while older bodies mount.
-		        requestAnimationFrame(() => {
-		            if (node?.isConnected && scroller) scroller.scrollTop += node.getBoundingClientRect().top - top;
-		            expanding.current = false;
-		        });
-		    }
-		    React.useEffect(() => {
-		        if (!active || !earlier) return;
-		        const node = ref.current, scroller = node?.closest("[data-conversation-scroll]");
-		        if (!scroller) return;
-		        let previousTop = scroller.scrollTop, touchY = null;
-		        function nearStart() {
-		            return node.isConnected && node.getBoundingClientRect().top - scroller.getBoundingClientRect().top >= -120
-		                && node.getBoundingClientRect().top - scroller.getBoundingClientRect().top <= 180;
-		        }
-		        function scroll() {
-		            const top = scroller.scrollTop;
-		            if (top < previousTop && nearStart()) more();
-		            previousTop = top;
-		        }
-		        function wheel(event) { if (event.deltaY < 0 && nearStart()) more(); }
-		        function touchStart(event) { touchY = event.touches[0]?.clientY ?? null; }
-		        function touchMove(event) {
-		            const nextY = event.touches[0]?.clientY;
-		            if (touchY !== null && nextY > touchY && nearStart()) more();
-		            touchY = nextY ?? null;
-		        }
-		        scroller.addEventListener("scroll", scroll, { passive: true });
-		        scroller.addEventListener("wheel", wheel, { passive: true });
-		        scroller.addEventListener("touchstart", touchStart, { passive: true });
-		        scroller.addEventListener("touchmove", touchMove, { passive: true });
-		        return () => {
-		            scroller.removeEventListener("scroll", scroll);
-		            scroller.removeEventListener("wheel", wheel);
-		            scroller.removeEventListener("touchstart", touchStart);
-		            scroller.removeEventListener("touchmove", touchMove);
-		        };
-		    }, [active, earlier, key]);
-		    return React.createElement("div", { ref, "data-tavern-history-turn": turn, hidden: !active },
-		        active ? React.createElement(React.Fragment, null,
-		            earlier ? React.createElement("div", { className: "dsh-tavern-history-controls" },
-		                React.createElement("button", { type: "button", className: "dsh-tavern-btn", onClick: more }, "加载更多（20 轮）")) : null,
-		            React.createElement(props.bodyComponent, { ...props, frameOwner: key })
-		        ) : null);
 		}
 
 		function useLiveTavernView(sessionId, revision) {
@@ -3242,6 +3802,15 @@ window.__ModuleLoader__.load({
 				return /(?:^|[^\d.])100(?:d|s|l)?vh\b/i.test((style.height || '') + ' ' + (style.minHeight || ''));
 			}
 			function visible(node) {
+		        // The embedding adapter resets document roots to content height. An
+		        // overridden author rule on body/html is not a live viewport-sized panel.
+		        if (node === document.body || node === document.documentElement) return false;
+		        for (var ancestor = node.parentElement; ancestor; ancestor = ancestor.parentElement) {
+		            if (ancestor.tagName === 'DETAILS' && !ancestor.open) {
+		                var summary = ancestor.querySelector('summary');
+		                if (!summary || !summary.contains(node)) return false;
+		            }
+		        }
 				var rect = node.getBoundingClientRect();
 				var style = getComputedStyle(node);
 				return rect.width > window.innerWidth / 2 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
@@ -3268,6 +3837,143 @@ window.__ModuleLoader__.load({
 				if (style.position === 'fixed' && style.top === '0px' && style.bottom === '0px') return viewport;
 			}
 			return 0;
+		}
+		function normalizeFrameSizing(value) {
+		  if (!value || !['content', 'viewport', 'fixed'].includes(value.mode)) return null
+		  const result = { mode: value.mode, minHeight: 48, maxHeight: 32000 }
+		  for (const key of ['height', 'minHeight', 'maxHeight', 'aspectRatio']) {
+		    if (value[key] === undefined) continue
+		    const n = value[key]
+		    if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0 || n > 32000) return null
+		    result[key] = n
+		  }
+		  if (result.minHeight < 48 || result.maxHeight < result.minHeight) return null
+		  if (result.mode === 'fixed' && !result.height && !result.aspectRatio) return null
+		  return result
+		}
+
+		function normalizeCardFrameSizing(value) {
+		  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+		  const panels = Object.create(null)
+		  for (const [id, config] of Object.entries(value.panels || {}).slice(0, 64)) {
+		    if (!/^[a-zA-Z0-9_-]{1,80}$/.test(id)) continue
+		    const normalized = normalizeFrameSizing(config)
+		    if (normalized) panels[id] = normalized
+		  }
+		  const fallback = normalizeFrameSizing(value.default)
+		  return fallback || Object.keys(panels).length ? { default: fallback, panels } : null
+		}
+		// Opt-in, template-local sizing. An absent/invalid declaration stays on the
+		// legacy path, including its viewport heuristics and cached initial height.
+		function tavernFrameSizingDeclaration(content) {
+		    if (!String(content || "").includes("dsh-tavern-frame")) return null;
+		    const markup = String(content || "").replace(/<!--[\s\S]*?-->|<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "");
+		    for (const tag of markup.match(/<meta\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi) || []) {
+		        const attrs = Object.create(null);
+		        for (const match of tag.matchAll(/([^\s=<>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
+		            const key = match[1].toLowerCase();
+		            if (!(key in attrs)) attrs[key] = match[2] ?? match[3] ?? match[4];
+		        }
+		        if (attrs.name !== "dsh-tavern-frame") continue;
+		        return attrs;
+		    }
+		    return null;
+		}
+
+		function tavernFrameSizing(content, settings, panelId) {
+		    const attrs = tavernFrameSizingDeclaration(content);
+		    if (attrs?.content) {
+		        const value = { mode: attrs.content };
+		        for (const [attribute, key] of [["data-height", "height"], ["data-min-height", "minHeight"], ["data-max-height", "maxHeight"], ["data-aspect-ratio", "aspectRatio"]]) {
+		            if (attrs[attribute] === undefined) continue;
+		            if (!/^\d+(?:\.\d+)?$/.test(attrs[attribute])) return null;
+		            value[key] = Number(attrs[attribute]);
+		        }
+		        const config = normalizeFrameSizing(value);
+		        return config ? Object.assign(config, { source: "template" }) : null;
+		    }
+		    const card = normalizeCardFrameSizing(settings);
+		    const id = attrs?.["data-panel-id"] || panelId;
+		    const panel = card?.panels[id];
+		    const config = panel || card?.default;
+		    return config ? Object.assign({}, config, { source: panel ? "panel" : "card" }) : null;
+		}
+
+		function tavernFrameSizingHeight(config, width, available, measured) {
+		    const target = config.mode === "content" ? measured : config.mode === "viewport" ? available
+		        : config.height || width / config.aspectRatio;
+		    const limit = config.mode === "content" ? config.maxHeight : Math.min(config.maxHeight, available);
+		    return Math.max(48, Math.round(Math.min(limit, Math.max(config.minHeight, target || 48))));
+		}
+
+		// Size against a scroll viewport, not the frame's top or its content height:
+		// scrolling a message must not shrink its application or create a feedback loop.
+		function observeTavernFrameSizing(host, frame, config, change) {
+		    let stopped = false, queued = null, ancestors = [], observer;
+		    function update() {
+		        queued = null;
+		        if (stopped || !frame.isConnected || !frame.getClientRects().length) return;
+		        const viewport = host.visualViewport;
+		        let top = viewport?.offsetTop || 0, bottom = top + (viewport?.height || host.innerHeight);
+		        const next = [];
+		        for (let node = frame.parentElement; node && node !== host.document.body; node = node.parentElement) {
+		            next.push(node);
+		            const style = host.getComputedStyle(node);
+		            // Scroll containers define the viewport even when content currently
+		            // fits; using scrollHeight here would oscillate at the fit boundary.
+		            // Plain clipping wrappers are not available-height contracts.
+		            if (!/(auto|scroll)/.test(style.overflowY) && !node.hasAttribute("data-dsh-tavern-frame-viewport")) continue;
+		            const rect = node.getBoundingClientRect();
+		            top = Math.max(top, rect.top + node.clientTop + (parseFloat(style.paddingTop) || 0));
+		            bottom = Math.min(bottom, rect.top + node.clientTop + node.clientHeight - (parseFloat(style.paddingBottom) || 0));
+		        }
+		        if (observer && (next.length !== ancestors.length || next.some((node, index) => node !== ancestors[index]))) {
+		            observer.disconnect(); observer.observe(frame);
+		            next.forEach(node => observer.observe(node)); ancestors = next;
+		        }
+		        const width = frame.getBoundingClientRect().width;
+		        const available = Math.max(48, bottom - top);
+		        change({ width, available, height: tavernFrameSizingHeight(config, width, available, frame.clientHeight), reason: "container" });
+		    }
+		    function schedule() { if (!stopped && queued === null) queued = host.requestAnimationFrame(update); }
+		    if (typeof host.ResizeObserver === "function") { observer = new host.ResizeObserver(schedule); observer.observe(frame); }
+		    host.addEventListener("resize", schedule);
+		    host.addEventListener("scroll", schedule, true);
+		    host.visualViewport?.addEventListener("resize", schedule);
+		    host.visualViewport?.addEventListener("scroll", schedule);
+		    frame.addEventListener("load", schedule);
+		    schedule();
+		    return { schedule, stop() {
+		        stopped = true;
+		        if (queued !== null) host.cancelAnimationFrame(queued);
+		        observer?.disconnect();
+		        host.removeEventListener("resize", schedule);
+		        host.removeEventListener("scroll", schedule, true);
+		        host.visualViewport?.removeEventListener("resize", schedule);
+		        host.visualViewport?.removeEventListener("scroll", schedule);
+		        frame.removeEventListener("load", schedule);
+		    } };
+		}
+
+		// Runs inside the iframe, including opaque-origin sandboxed cards.
+		function installTavernFrameSizing(token, config) {
+		    window.__dshTavernFrameLayout = function () {
+		        return { mode: config?.mode || "legacy", source: config?.source || "legacy",
+		            phase: document.readyState, width: innerWidth, height: innerHeight, minHeight: config?.minHeight || 48,
+		            maxHeight: config?.maxHeight || 32000,
+		            roots: [document.documentElement, document.body, document.getElementById("app")].filter(Boolean).map(node => {
+		                const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
+		                return { tag: node.tagName, id: node.id, width: rect.width, height: rect.height,
+		                    clientHeight: node.clientHeight, scrollHeight: node.scrollHeight,
+		                    position: style.position, overflowY: style.overflowY, cssHeight: style.height, minHeight: style.minHeight };
+		            }) };
+		    };
+		    if (!config) return;
+		    addEventListener("message", event => {
+		        const data = event.data;
+		        if (event.source !== parent || data?.token !== token || data.type !== "dsh-tavern-frame-layout") return;
+		        if (config.mode === "content") document.documentElement.toggleAttribute("data-dsh-tavern-sizing-scroll", data.scroll === true);
+		    });
 		}
 
 				function TavernStartCards(props) {
@@ -3780,6 +4486,44 @@ window.__ModuleLoader__.load({
 		// null requests a read-only snapshot; an obsolete receipt cannot roll state back.
 		// Untouched history remains shared. This function also runs inside script iframes.
 		function applyTavernVariableReceipt(previous, delta) {
+		    if (previous && delta && delta.version === 2) {
+		        if (delta.chatId !== previous.chatId || delta.lifecycleRevision < Number(previous.lifecycleRevision || 0)) return previous;
+		        if (delta.lifecycleRevision !== Number(previous.lifecycleRevision || 0)) return null;
+		        if (delta.kind === 'transaction') {
+		            if (previous.transaction?.eventId !== delta.eventId) return previous;
+		            if (delta.sequence <= previous.transaction.sequence) return previous;
+		            if (delta.baseSequence !== previous.transaction.sequence || delta.sequence !== delta.baseSequence + 1) return null;
+		        } else if (delta.kind === 'committed') {
+		            if (delta.stateRevision < previous.stateRevision) return previous;
+		            if (delta.baseRevision !== previous.stateRevision || previous.messagesPending) return null;
+		        } else if (delta.kind === 'dispatch') {
+		            if (previous.transaction || delta.baseRevision !== previous.stateRevision || previous.messagesPending) return null;
+		        } else return null;
+		        const context = Object.assign({}, previous, delta.header || {}, {
+		            stateRevision: delta.stateRevision,
+		            transaction: { eventId: delta.eventId, sequence: delta.kind === 'dispatch' ? 0 : delta.sequence }
+		        });
+		        if (delta.kind === 'committed') delete context.transaction;
+		        const api = applyTavernVariableReceipt.indexApi;
+		        const length = delta.kind === 'dispatch' ? delta.messageCount : (previous.messages || []).length;
+		        if (!Number.isInteger(length) || length < 0 || length > 0xffffffff) return null;
+		        const entries = [];
+		        for (const source of delta.messages || []) {
+		            const index = source.message_id;
+		            if (!Number.isInteger(index) || index < 0 || index >= length) return null;
+		            const message = JSON.parse(JSON.stringify(source));
+		            // Dispatch used to decorate every floor. A compact floor must keep
+		            // these aliases too: official MVU compares name with SillyTavern.name2.
+		            message.mes = message.message;
+		            message.is_user = message.role === 'user'; message.is_system = message.role === 'system';
+		            if (!message.name) message.name = message.is_user ? (context.playerName || '你') : (context.characterName || context.character?.name || '角色');
+		            entries.push([index, message]);
+		        }
+		        context.messages = api.update(previous.messages || [], entries, length);
+		        if (!api.info(context.messages).complete) return null;
+		        for (const key of ['chatVariables', 'scriptVariables', 'scriptPrompts']) if (Object.hasOwn(delta, key)) context[key] = JSON.parse(JSON.stringify(delta[key]));
+		        return context;
+		    }
 		    if (!previous || !delta || delta.version !== 1) return null;
 		    if (delta.chatId !== previous.chatId || delta.lifecycleRevision < Number(previous.lifecycleRevision || 0)) return previous;
 		    if (delta.lifecycleRevision !== Number(previous.lifecycleRevision || 0)) return null;
@@ -3789,11 +4533,11 @@ window.__ModuleLoader__.load({
 		    const context = Object.assign({}, previous, { stateRevision: delta.stateRevision });
 		    if (delta.message) {
 		        if (!Number.isInteger(delta.messageId) || !previous.messages || !previous.messages[delta.messageId]) return null;
-		        context.messages = previous.messages.slice();
+
 		        const message = Object.assign({}, previous.messages[delta.messageId], copy(delta.message));
 		        // Retain the parent runtime's compatibility aliases without copying history.
 		        if (Object.prototype.hasOwnProperty.call(message, 'mes')) message.mes = message.message;
-		        context.messages[delta.messageId] = message;
+		        context.messages = applyTavernVariableReceipt.indexApi.update(previous.messages, [[delta.messageId, message]]);
 		    } else if (delta.chatVariables) context.chatVariables = copy(delta.chatVariables);
 		    else if (delta.scriptVariables) context.scriptVariables = copy(delta.scriptVariables);
 		    else return null;
@@ -7249,7 +7993,11 @@ window.__ModuleLoader__.load({
 		    }, [activated, props.eager]);
 		    React.useLayoutEffect(function () {
 		        if (!activated) return;
-		        const mounted = tavernRetainedFrames.mount(frameProps, home.current);
+		        // Deferred historical frames take their frozen baseline when activated.
+		        // Their parent need not receive every intervening Helper update.
+		        const initialProps = props.helperContextReader
+		            ? Object.assign({}, frameProps, { helperContext: props.helperContextReader() }) : frameProps;
+		        const mounted = tavernRetainedFrames.mount(initialProps, home.current);
 		        lease.current = mounted;
 		        return function () { lease.current = null; mounted.detach(); };
 		    }, [activated, key]);
@@ -7261,6 +8009,7 @@ window.__ModuleLoader__.load({
 		            try { tavernPanelRegistry.pin(panelId, !pinned); }
 		            catch (error) { tavernErrorHub.report("固定面板", error); }
 		        } }, pinned ? "返回原消息" : "固定到右侧") : null,
+		        tavernFrameSizing(props.content, props.frameSizing, props.persistent ? props.panelId : undefined) ? React.createElement("button", { type: "button", className: "dsh-tavern-btn", onClick: () => { if (!activated) { setActivated(true); return; } return lease.current?.expand(); } }, "展开大屏") : null,
 		        React.createElement("div", { ref: home, style: { minHeight: activated ? undefined : estimatedTavernFrameHeight(props.content) + "px" } }));
 		}
 		const tavernRetainedFrames = createRetainedTavernFrames({
@@ -7455,31 +8204,6 @@ window.__ModuleLoader__.load({
 
 		}
 
-		function tavernProjectionForTurn(view, turn) {
-			if (!view || !isPlayMode(view.mode) || !Array.isArray(view.replyProjections)) return null;
-			for (let index = view.replyProjections.length - 1; index >= 0; index -= 1) {
-				const projection = view.replyProjections[index];
-				if (Number(projection && projection.turn) === Number(turn)) return Number(projection.version) === 1 || Number(projection.version) === 2 ? projection : null;
-			}
-			return null;
-		}
-
-		function tavernStoryTurnForDshTurn(view, turn) {
-			const mappings = view && view.regeneratedDshTurns && typeof view.regeneratedDshTurns === "object" ? view.regeneratedDshTurns : {};
-			for (const storyTurn of Object.keys(mappings)) {
-				if (Number(mappings[storyTurn]) === Number(turn)) return Number(storyTurn);
-			}
-			return Number(turn);
-		}
-
-		function tavernMvuReceiptForTurn(view, turn) {
-			const receipts = view && Array.isArray(view.mvuReceipts) ? view.mvuReceipts : [];
-			for (let index = receipts.length - 1; index >= 0; index -= 1) {
-				if (Number(receipts[index] && receipts[index].turn) === Number(turn)) return receipts[index].receipt || null;
-			}
-			return null;
-		}
-
 		function TavernMvuReceipt(props) {
 			const h = React.createElement;
 			const [retrying, setRetrying] = React.useState(false);
@@ -7644,26 +8368,6 @@ window.__ModuleLoader__.load({
 			return rendered;
 		}
 
-		function userContentParts(content) {
-			const texts = [];
-			const images = [];
-			const rest = [];
-			for (const block of Array.isArray(content) ? content : []) {
-				if (block && block.type === "text" && typeof block.text === "string") texts.push(block.text);
-				else if (block && block.type === "image" && block.attachment !== undefined) images.push({ attachment: block.attachment });
-				else if (block) rest.push(block);
-			}
-			return { text: texts.join(""), images: images, rest: rest };
-		}
-
-		function tavernUserTextForTurn(view, turn, content) {
-			const fallback = userContentParts(content).text;
-			const sources = view && view.inputSources;
-			const key = String(Number(turn) || 0);
-			if (!sources || !Object.prototype.hasOwnProperty.call(sources, key)) return fallback;
-			return String(sources[key] === undefined || sources[key] === null ? "" : sources[key]);
-		}
-
 		function createTavernFrameSlashExecutor(ctx, hostWindow) {
 			hostWindow = hostWindow || window;
 			return function (line, sessionId, options) {
@@ -7775,35 +8479,6 @@ window.__ModuleLoader__.load({
 		})();
 
 		function createTavernAssistantRendererFeatureModule() {
-			function TavernUserNodeView(props) {
-				const data = props.node.data;
-				const location = props.node.location;
-				const turnRef = location && (location.kind === "turn" || location.kind === "step") ? location.turn : null;
-				const turn = turnRef ? Number(turnRef.turn) : 0;
-				const liveState = useLiveTavernView(props.sessionId, String(data.time || ""));
-				const parts = userContentParts(data.content);
-				const text = tavernUserTextForTurn(liveState.view, turn, data.content);
-				const [copied, setCopied] = React.useState(false);
-				const copyTimer = React.useRef(null);
-				React.useEffect(function () { return function () { if (copyTimer.current !== null) window.clearTimeout(copyTimer.current); }; }, []);
-				function copy() {
-					DshUi.writeClipboard(text).then(function (ok) {
-						if (!ok) return;
-						setCopied(true);
-						if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
-						copyTimer.current = window.setTimeout(function () { copyTimer.current = null; setCopied(false); }, 1000);
-					});
-				}
-				const renderedImages = parts.images.length > 0 ? props.renderMessageImages({ images: parts.images, align: "end" }) : null;
-				const extras = parts.rest.map(function (block, index) {
-					return React.createElement("div", { key: index, className: "dsh-tavern-user-extra" }, React.createElement(DshUi.JsonBlock, { label: typeof props.t === "function" ? props.t("message.extraBlock") : "附加内容", payload: block, truncatedLabel: function (total) { return "内容过长（共 " + String(total) + " 项）"; } }));
-				});
-				const time = Number.isFinite(Number(data.time)) ? new Date(Number(data.time)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
-				return React.createElement("div", { className: "dsh-tavern-user-row" },
-					React.createElement("div", { className: "dsh-tavern-user-stack" }, renderedImages, (text !== "" || extras.length > 0) ? React.createElement("div", { className: "dsh-tavern-user-bubble" }, liveState.view?.inputTemplateDisplays?.[turn] ? React.createElement(TavernMessageFrame, { content: liveState.view.inputTemplateDisplays[turn], sessionId: props.sessionId, turn: turn, partIndex: "user-template", frameOwner: props.frameOwner, eager: true }) : React.createElement("div", { style: { whiteSpace: "pre-wrap" } }, text), extras) : null),
-					React.createElement("div", { className: "dsh-tavern-user-actions" }, time ? React.createElement("span", null, time) : null, React.createElement(DshUi.Tooltip, { label: copied ? "已复制" : "复制", side: "bottom" }, React.createElement("button", { type: "button", className: "dsh-tavern-user-copy", "aria-label": copied ? "已复制" : "复制", onClick: copy }, React.createElement(copied ? DshUi.IconCheckOutline16 : DshUi.IconCopyOutline16, null))))
-				);
-			}
 			function openSceneImagePreview(url, opener) {
 				const dialog = document.createElement("dialog");
 				dialog.className = "dsh-tavern-image-preview";
@@ -7945,66 +8620,6 @@ window.__ModuleLoader__.load({
 					error || state && state.error ? React.createElement("span", { role: "alert", className: "dsh-tavern-settings-error" }, error || state.error) : null
 				);
 			}
-			function TavernAssistantNodeView(props) {
-				const data = props.node.data;
-				const turnRef = props.node.location.kind === "turn" || props.node.location.kind === "step" ? props.node.location.turn : null;
-				const turn = turnRef ? Number(turnRef.turn) : 0;
-				const settled = data.status !== "running";
-				const revision = String(data.status || "") + ":" + String(data.finalNode && data.finalNode.seq || "");
-				const liveState = useLiveTavernView(props.sessionId, revision);
-				const storyTurn = tavernStoryTurnForDshTurn(liveState.view, turn);
-				const sessionTransitioning = React.useSyncExternalStore(tavernSessionTransition.subscribe, tavernSessionTransition.getSnapshot, tavernSessionTransition.getSnapshot);
-				const projection = settled ? tavernProjectionForTurn(liveState.view, storyTurn) : null;
-				const mvuReceipt = settled ? tavernMvuReceiptForTurn(liveState.view, storyTurn) : null;
-				const latestProjectionTurn = liveState.view && Array.isArray(liveState.view.replyProjections) ? liveState.view.replyProjections.reduce(function (latest, item) { return Math.max(latest, Number(item && item.turn) || 0); }, 0) : 0;
-				const tail = props.useTurnData("turn-tail");
-				const owner = React.useMemo(function () {
-					if (!turnRef || turnRef.status !== "closed" || !data.finalNode || !tail || !tail.closing || tail.closing.finalNode.seq !== data.finalNode.seq) return undefined;
-					return { turn: turnRef, seq: data.finalNode.seq, openFile: props.openFile };
-				}, [turnRef, data.finalNode, tail, props.openFile]);
-				const mentions = React.useMemo(function () { return owner === undefined ? undefined : props.fileMentions(owner); }, [owner, props.fileMentions]);
-				const rendered = sessionTransitioning ? [React.createElement("div", { key: "switching", className: "dsh-tavern-session-switching", role: "status" }, "正在完成游戏初始化…")] : renderTavernAssistantBlocks({
-					blocks: data.blocks,
-					streaming: data.status === "running",
-					interrupted: data.status === "interrupted",
-					projection: projection,
-					helperContext: liveState.view && liveState.view.tavernHelper,
-					trustedCardMode: Boolean(liveState.view && liveState.view.tavernRuntimePolicy && liveState.view.tavernRuntimePolicy.trustedCardMode),
-					frameOwner: props.frameOwner,
-					eagerFrame: storyTurn > 0 && storyTurn === latestProjectionTurn,
-					executeSlash: props.executeSlash,
-					sessionId: props.sessionId,
-					turn: storyTurn,
-					renderMessageImages: props.renderMessageImages,
-					mentions: mentions,
-					t: props.t
-				});
-				if (!(data.status === "running" || data.status === "interrupted" || rendered.length > 0)) return null;
-				const mvuReceiptNode = mvuReceipt ? React.createElement(TavernMvuReceipt, { receipt: mvuReceipt, sessionId: props.sessionId, turn: storyTurn, latest: storyTurn === liveState.view?.settlementTurn, busy: Boolean(liveState.view?.activity?.busy) }) : null;
-				const sceneImagesEnabled = Boolean(liveState.view && liveState.view.releaseCapabilities && liveState.view.releaseCapabilities.sceneImages);
-				const illustration = sceneImagesEnabled && settled && storyTurn > 0 && isPlayMode(liveState.view && liveState.view.mode) && !sessionTransitioning ? React.createElement(SceneIllustration, { key: props.sessionId + ":" + storyTurn + ":" + JSON.stringify(projection), sessionId: props.sessionId, turn: storyTurn }) : null;
-				const inlineStatus = liveState.view?.statusBarPlacement === "body" && !sessionTransitioning && storyTurn > 0 && storyTurn === latestProjectionTurn && data.finalNode && tail?.closing?.finalNode?.seq === data.finalNode.seq
-					? React.createElement(TavernPersistentStatusRuntime, { sessionId: props.sessionId, view: liveState.view, executeSlash: props.executeSlash }) : null;
-				return React.createElement("div", { className: "dsh-tavern-assistant", "data-streaming": data.status === "running" || undefined }, rendered, illustration, mvuReceiptNode, inlineStatus);
-			}
-			function TavernForkAssistantAction(props) {
-				const liveState = useLiveTavernView(props.sessionId, String(props.messageId || ""));
-				const [forking, setForking] = React.useState(false);
-				const view = liveState.view;
-				const forkTurn = Number(view && view.forkTurnsByMessageId && view.forkTurnsByMessageId[String(props.messageId || "")]) || 0;
-				const canFork = view && isPlayMode(view.mode) && forkTurn > 0;
-				if (!canFork) return null;
-				async function fork() {
-					if (forking) return;
-					setForking(true);
-					try { await tavernConversationForkRequests.request({ sessionId: props.sessionId, turn: forkTurn }); }
-					catch (error) { tavernErrorHub.report("分叉对话", error); }
-					finally { setForking(false); }
-				}
-				return React.createElement(DshUi.Tooltip, { label: forking ? "正在分叉…" : "从这一轮分叉", side: "bottom" },
-					React.createElement("button", { type: "button", className: "dsh-tavern-message-fork", "aria-label": "从这一轮分叉", disabled: forking, onClick: fork },
-						React.createElement(DshUi.IconBranchOutline16, null)));
-			}
 			function register(input) {
 				const scriptOwner = createTavernScriptSessionOwner({ sessions: input.ctx.sessions, executeSlash: createTavernFrameSlashExecutor(input.ctx) });
 				const executeSlash = createTavernFrameSlashExecutor(input.ctx);
@@ -8019,38 +8634,8 @@ window.__ModuleLoader__.load({
 						}, function () { return React.createElement(TavernScriptRuntime, { owner: scriptOwner }); });
 					});
 				}, "dsh-tavern: conversation script lifecycle");
-				input.ctx.effect(function () {
-					return input.slots.inject("conversation.chat.node", function () {
-						return input.slots.register({
-							name: "conversation.chat.node",
-							key: "assistant-step",
-							priority: -1
-						}, function (props) {
-							// Hide only our model-facing seed; keep it in Session history and requests.
-							if (props.node.data.finalNode && /^tavern-seed-trajectory:v1:.+:2$/.test(String(props.node.data.finalNode.messageId || ""))) return null;
-							return React.createElement(TavernAssistantNodeView, Object.assign({}, props, { executeSlash: executeSlash }));
-						});
-					});
-				}, "dsh-tavern: inline assistant renderer");
-				input.ctx.effect(function () {
-					return input.slots.inject("conversation.chat.node", function () {
-						return input.slots.register({
-							name: "conversation.chat.node",
-							key: "user",
-							priority: -1
-						}, TavernUserNodeView);
-					});
-				}, "dsh-tavern: raw user message renderer");
-				input.ctx.effect(function () {
-					return input.slots.inject("conversation.chat.assistant-actions", function () {
-						return input.slots.register({
-							name: "conversation.chat.assistant-actions", id: "dsh-tavern-fork", order: 20,
-							inject: function (sessionId) { return { sessionId: sessionId }; }
-						}, TavernForkAssistantAction);
-					});
-				}, "dsh-tavern: conversation fork action");
 			}
-			return Object.freeze({ register: register });
+			return Object.freeze({ register: register, SceneIllustration: SceneIllustration });
 		}
 
 		async function deleteTavernCards(cards, remove) {
@@ -9367,6 +9952,9 @@ window.__ModuleLoader__.load({
 				const ctx = input.ctx;
 				const slots = input.slots;
 				const uiConversation = ctx.get("uiConversation") || ctx.get("conversation");
+				if (uiConversation && uiConversation.events && typeof uiConversation.events.register === "function") {
+					ctx.effect(function () { return uiConversation.events.register(tavernSurfaceSelectTrajectoryDefinition()); }, "dsh-tavern: trajectory surface selection");
+				}
 				ctx.effect(function () {
 					document.body.classList.add("dsh-tavern-shell-active");
 					const releaseLandingStyles = installTavernLandingStyles(document);
@@ -11584,416 +12172,8 @@ window.__ModuleLoader__.load({
 			return null;
 		}
 
-		// Presentation only: keep host-owned error nodes and append-only history intact.
-		const turnErrorControlOwners = new WeakMap();
-		function turnErrorRowTurn(row) {
-		    const direct = row.getAttribute('data-chat-turn');
-		    if (direct && /^\d+$/.test(direct)) return Number(direct);
-		    const match = /(\d+)$/.exec(row.getAttribute('data-chat-flow-key') || '');
-		    return match ? Number(match[1]) : NaN;
-		}
-		function createTurnErrorControls(root, options) {
-		    turnErrorControlOwners.get(root)?.dispose();
-		    let disposed = false;
-		    const key = 'dsh-tavern-hidden-errors:' + options.sessionId;
-		    let hidden = new Set();
-		    try {
-		        const stored = JSON.parse(options.storage.getItem(key) || '[]');
-		        if (Array.isArray(stored)) hidden = new Set(stored.filter(value => typeof value === 'string'));
-		    } catch (_) {}
-		    if (Array.isArray(options.hiddenTurns)) hidden = new Set(options.hiddenTurns.map(String));
-		    const owned = new Map();
-		    function save() {
-		        try { options.storage.setItem(key, JSON.stringify([...hidden])); } catch (_) {}
-		    }
-		    function remove(row, entry) {
-		        if (row.style.display === 'none') row.style.display = entry.display;
-		        entry.panel.remove();
-		    }
-		    function apply() {
-		        if (disposed) return;
-		        const rows = new Set(root.querySelectorAll('[data-chat-flow-kind="turn-error"]'));
-		        for (const [row, entry] of owned) if (!rows.has(row)) { remove(row, entry); owned.delete(row); }
-		        for (const row of rows) {
-		            const id = row.getAttribute('data-chat-turn') || row.getAttribute('data-chat-flow-key');
-		            if (!id) continue;
-		            let entry = owned.get(row);
-		            if (!entry) {
-		                if (row.hidden) continue;
-		                const panel = root.ownerDocument.createElement('div');
-		                panel.className = 'dsh-tavern-error-controls';
-		                const label = root.ownerDocument.createElement('span');
-		                const replay = root.ownerDocument.createElement('button');
-		                const details = root.ownerDocument.createElement('button');
-		                const toggle = root.ownerDocument.createElement('button');
-		                replay.className = 'dsh-tavern-error-replay';
-		                replay.type = details.type = toggle.type = 'button';
-		                // Appended last: hosts and smoke checks address the first two
-		                // controls positionally, and the replay action is tail-only.
-		                panel.append(label, details, toggle, replay);
-		                entry = { panel, label, replay, details, toggle, display: row.style.display, expanded: false };
-		                owned.set(row, entry);
-		                details.onclick = function () { entry.expanded = !entry.expanded; apply(); };
-		                // One click removes the interrupted reply and replays the same
-		                // request, so the provider reuses the cached prompt prefix.
-		                replay.onclick = function () {
-		                    if (disposed || replay.disabled || typeof options.onReplay !== 'function') return;
-		                    replay.disabled = true;
-		                    return Promise.resolve().then(function () { return options.onReplay(turnErrorRowTurn(row)); })
-		                        .catch(function (error) { if (options.onError) options.onError(error); })
-		                        .finally(function () { replay.disabled = false; });
-		                };
-		                toggle.onclick = function () {
-		                    const dismiss = !hidden.has(id);
-		                    function commit() {
-		                        if (disposed) return;
-		                        if (dismiss) hidden.add(id); else hidden.delete(id);
-		                        save(); apply();
-		                    }
-		                    if (!options.onToggle) { commit(); return; }
-		                    if (toggle.disabled) return;
-		                    toggle.disabled = true;
-		                    return Promise.resolve().then(function () { return options.onToggle(Number(id), dismiss); })
-		                        .then(commit, function (error) { if (options.onError) options.onError(error); })
-		                        .finally(function () { toggle.disabled = false; });
-		                };
-		                row.insertAdjacentElement('afterend', panel);
-		            }
-		            const text = row.textContent || '';
-		            const long = text.length > 1000;
-		            const dismissed = hidden.has(id);
-		            const conceal = dismissed || (long && !entry.expanded);
-		            const display = conceal ? 'none' : entry.display;
-		            // Superseded-turn projection owns `hidden`; keep its errors hidden.
-		            if (!row.hidden && row.style.display !== display) row.style.display = display;
-		            if (entry.panel.hidden !== row.hidden) entry.panel.hidden = row.hidden;
-		            const summary = dismissed ? '错误提示已隐藏' : long
-		                ? (/message content cannot be empty/i.test(text) ? '模型接口错误：消息内容不能为空。' : '模型接口调用失败，已收起过长的错误信息。') : '';
-		            if (entry.label.textContent !== summary) entry.label.textContent = summary;
-		            if (entry.details.hidden !== (dismissed || !long)) entry.details.hidden = dismissed || !long;
-		            const detailText = entry.expanded ? '收起详情' : '显示原始错误';
-		            if (entry.details.textContent !== detailText) entry.details.textContent = detailText;
-		            const toggleText = dismissed ? '恢复错误提示' : '隐藏此错误';
-		            if (entry.toggle.textContent !== toggleText) entry.toggle.textContent = toggleText;
-		            // Replaying is only meaningful for the failure still owning the tail.
-		            const replayable = typeof options.onReplay === 'function' &&
-		                Number.isSafeInteger(Number(options.replayTurn)) &&
-		                turnErrorRowTurn(row) === Number(options.replayTurn);
-		            if (entry.replay.hidden !== !replayable) entry.replay.hidden = !replayable;
-		            const replayText = '重新生成本轮';
-		            if (entry.replay.textContent !== replayText) entry.replay.textContent = replayText;
-		            const replayTitle = '移除被中断的回复，并原样重发本轮请求（复用模型缓存）';
-		            if (entry.replay.title !== replayTitle) entry.replay.title = replayTitle;
-		        }
-		    }
-		    const controls = { apply, dispose() {
-		        if (disposed) return;
-		        disposed = true;
-		        for (const [row, entry] of owned) remove(row, entry);
-		        owned.clear();
-		        if (turnErrorControlOwners.get(root) === controls) turnErrorControlOwners.delete(root);
-		    } };
-		    turnErrorControlOwners.set(root, controls);
-		    return controls;
-		}
-
-		function createSupersededErrorProjection(root) {
-			const owned = new Map();
-			function restore(row, previous) {
-				row.hidden = previous.hidden;
-				if (row.style) row.style.display = previous.display;
-			}
-			function dispose() {
-				for (const [row, previous] of owned) restore(row, previous);
-				owned.clear();
-			}
-			function apply(turns) {
-				const hidden = new Set(turns.map(String));
-				const rows = root.querySelectorAll('[data-chat-flow-kind]');
-				const keep = new Set();
-				let pending = [];
-				let failedTurn = "";
-				function flush(turn) {
-					for (const row of pending) {
-						const owner = row.getAttribute("data-chat-turn") || turn;
-						if (!hidden.has(owner)) continue;
-						keep.add(row);
-						if (!owned.has(row)) owned.set(row, { hidden: row.hidden, display: row.style && row.style.display });
-						row.hidden = true;
-						// Native process rows update `hidden` themselves when folding.
-						// Keep suppression independent of that presentation state.
-						if (row.style) row.style.display = "none";
-					}
-					pending = [];
-				}
-				for (const row of rows) {
-					pending.push(row);
-					const kind = row.getAttribute("data-chat-flow-kind");
-					if (kind !== "turn-error" && kind !== "turn-tail") { failedTurn = ""; continue; }
-					// Legacy rows have message IDs, not turn IDs. The terminal error or
-					// tail anchors the whole turn, including its input and reasoning.
-					// A failed tail can be empty, so inherit its preceding error's turn.
-					const key = row.getAttribute("data-chat-flow-key") || "";
-					const prefix = kind.length + ":" + kind;
-					const keyTurn = key.startsWith(prefix) ? key.slice(prefix.length) : "";
-					const tail = kind === "turn-tail" && row.querySelector ? row.querySelector("[data-turn-tail]") : null;
-					const turn = row.getAttribute("data-chat-turn") || row.getAttribute("data-turn-tail") || (tail && tail.getAttribute("data-turn-tail")) || (/^\d+$/.test(keyTurn) ? keyTurn : "") || (kind === "turn-tail" ? failedTurn : "");
-					flush(turn);
-					failedTurn = kind === "turn-error" ? turn : "";
-				}
-				// alpha has explicit ownership even before its tail is mounted.
-				flush("");
-				for (const [row, previous] of owned) {
-					if (!keep.has(row)) { restore(row, previous); owned.delete(row); }
-				}
-			}
-			return { apply: apply, dispose: dispose };
-		}
-		// One owner for persisted suppression and legacy browser-only history records.
-		// Kept in the loader bundle so DSH needs no new browser module protocol.
-		function createTurnHistoryProjection(options) {
-			options = options || {};
-			const root = options.root || function () { return document; };
-			const storage = options.storage || function () { return window.localStorage; };
-			const hiddenRows = new Map();
-			function hideRow(row) {
-				if (!hiddenRows.has(row)) hiddenRows.set(row, row.style.display);
-				row.style.display = "none";
-			}
-			function restoreHiddenRows() {
-				for (const [row, previous] of hiddenRows) {
-					if (row.style.display === "none") row.style.display = previous;
-				}
-				hiddenRows.clear();
-			}
-			const HIDDEN_TURNS_KEY = "dsh-tavern-hidden-turns";
-			const ROLLED_BACK_TURNS_KEY = "dsh-tavern-rolled-back-turns";
-			const HIDDEN_REGEN_USER_TURNS_KEY = "dsh-tavern-hidden-regen-user-turns";
-			function forgetHiddenTurn(storageKey, sessionId, turn) {
-				try {
-					const all = JSON.parse(storage().getItem(storageKey) || "{}");
-					const list = Array.isArray(all[sessionId]) ? all[sessionId].filter(function (item) { return Number(item) !== Number(turn); }) : [];
-					if (list.length) all[sessionId] = list;
-					else delete all[sessionId];
-					storage().setItem(storageKey, JSON.stringify(all));
-				} catch (err) { }
-			}
-			function hideUserForTurnTail(tail) {
-				if (!tail) return;
-				const turn = tailTurnOf(tail);
-				let sib = tail.previousElementSibling;
-				while (sib) {
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					// An unlabeled row proves nothing about turn ownership: after
-					// rollbacks and undo restores a stale tail may sit far from
-					// its own input. Only a row carrying the same turn label may
-					// be hidden; an unlabeled row ends the walk instead of
-					// leaking it across round boundaries onto a neighbouring
-					// player input.
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					if (turn && !siblingTurn) break;
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "user") {
-						hideRow(sib);
-						break;
-					}
-					if (kind === "turn-tail") break;
-					sib = sib.previousElementSibling;
-				}
-			}
-			function applyHiddenRegenUserTurns(sessionId) {
-				try {
-					const all = JSON.parse(storage().getItem(HIDDEN_REGEN_USER_TURNS_KEY) || "{}");
-					const turns = all[sessionId];
-					if (!Array.isArray(turns) || turns.length === 0) return;
-					const set = new Set(turns.map(String));
-					const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-					for (let i = 0; i < tails.length; i++) {
-						const tail = tails[i];
-						if (!set.has(tailTurnOf(tail))) continue;
-						hideUserForTurnTail(tail);
-					}
-				} catch (err) { }
-			}
-			function hideTurnTail(el) {
-				if (!el) return;
-				hideRow(el);
-				const turn = tailTurnOf(el);
-				let sib = el.previousElementSibling;
-				while (sib) {
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "user" || kind === "turn-tail") break;
-					hideRow(sib);
-					sib = sib.previousElementSibling;
-				}
-			}
-			function showTurnTail(el) {
-				if (!el) return;
-				el.style.display = "";
-				const turn = tailTurnOf(el);
-				let sib = el.previousElementSibling;
-				while (sib) {
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "user" || kind === "turn-tail") break;
-					sib.style.display = "";
-					sib = sib.previousElementSibling;
-				}
-			}
-			function hideTurnTailWithUser(el) {
-				if (!el) return;
-				hideRow(el);
-				const turn = el.getAttribute("data-chat-turn");
-				let sib = el.previousElementSibling;
-				while (sib) {
-					const kind = sib.getAttribute("data-chat-flow-kind");
-					if (kind === "turn-tail") break;
-					const siblingTurn = sib.getAttribute("data-chat-turn");
-					if (turn && siblingTurn && siblingTurn !== turn) break;
-					// System prompts precede the user row. Hide through the turn boundary,
-					// not just through its input; alpha also supplies explicit ownership.
-					hideRow(sib);
-					sib = sib.previousElementSibling;
-				}
-			}
-			function tailTurnOf(el) {
-				if (!el) return "";
-				if (el.getAttribute("data-chat-turn")) return el.getAttribute("data-chat-turn");
-				if (el.getAttribute("data-turn-tail")) return el.getAttribute("data-turn-tail");
-				const inner = el.querySelector("[data-turn-tail]");
-				return inner ? inner.getAttribute("data-turn-tail") : "";
-			}
-			function applyHiddenTurns(sessionId) {
-				try {
-					const all = JSON.parse(storage().getItem(HIDDEN_TURNS_KEY) || "{}");
-					const turns = all[sessionId];
-					if (!Array.isArray(turns) || turns.length === 0) return;
-					const set = new Set(turns.map(String));
-					const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-					for (let i = 0; i < tails.length; i++) {
-						const tail = tails[i];
-						if (!set.has(tailTurnOf(tail))) continue;
-						hideTurnTail(tail);
-					}
-				} catch (err) { }
-			}
-			function applyRolledBackTurns(sessionId) {
-				try {
-					const all = JSON.parse(storage().getItem(ROLLED_BACK_TURNS_KEY) || "{}");
-					const turns = all[sessionId];
-					if (!Array.isArray(turns) || turns.length === 0) return;
-					const set = new Set(turns.map(String));
-					const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-					for (let i = 0; i < tails.length; i++) {
-						const tail = tails[i];
-						if (!set.has(tailTurnOf(tail))) continue;
-						hideTurnTailWithUser(tail);
-					}
-				} catch (err) { }
-			}
-			function applySuppressedDshTurns(turns, regeneratedDshTurns) {
-				const set = new Set((Array.isArray(turns) ? turns : []).map(String));
-				if (set.size === 0) return;
-				const visibleRegenerations = new Set(Object.values(regeneratedDshTurns && typeof regeneratedDshTurns === "object" ? regeneratedDshTurns : {}).map(String));
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-				for (let i = 0; i < tails.length; i++) {
-					const tail = tails[i];
-					const turn = tailTurnOf(tail);
-					if (!set.has(turn)) continue;
-					if (visibleRegenerations.has(turn)) {
-						showTurnTail(tail);
-						hideUserForTurnTail(tail);
-					} else hideTurnTailWithUser(tail);
-				}
-			}
-			function applyRegeneratedDshTurns(regeneratedDshTurns) {
-				const mappings = regeneratedDshTurns && typeof regeneratedDshTurns === "object" ? regeneratedDshTurns : {};
-				const hiddenStoryTurns = new Set(Object.keys(mappings).map(String));
-				if (hiddenStoryTurns.size === 0) return;
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-				for (let i = 0; i < tails.length; i++) {
-					const tail = tails[i];
-					if (hiddenStoryTurns.has(tailTurnOf(tail))) hideTurnTail(tail);
-				}
-			}
-			function apply(sessionId, turns, regeneratedDshTurns) {
-				// Reconcile both directions: an older observer may have hidden a
-				// restored turn after the action's immediate DOM update.
-				// Phone-scale guard: the body observer fires on our own hides and
-				// on streaming layout churn alike. Same inputs plus an unchanged
-				// tracked-row population means the previous pass is still valid;
-				// skipping it keeps long histories interactive on mobile.
-				const rowKey = suppressedDshTurnsRevisionOf(turns, regeneratedDshTurns, sessionId);
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"], [data-chat-turn]');
-				let population = 0
-				for (let i = 0; i < tails.length; i++) if (tails[i].getAttribute("data-chat-turn")) population++
-				if (applyMemo && applyMemo.key === rowKey && applyMemo.population === population) return
-				applyMemo = { key: rowKey, population: population }
-				restoreHiddenRows();
-				applySuppressedDshTurns(turns, regeneratedDshTurns);
-				applyRegeneratedDshTurns(regeneratedDshTurns);
-				// Native rows can mount without their turn tail. Explicit ownership
-				// must remain authoritative during streaming and partial hydration.
-				const suppressed = new Set((Array.isArray(turns) ? turns : []).map(String));
-				const mappings = regeneratedDshTurns || {};
-				const replacements = new Set(Object.values(mappings).map(String));
-				for (const row of root().querySelectorAll('[data-chat-turn]')) {
-					const turn = row.getAttribute("data-chat-turn");
-					const kind = row.getAttribute("data-chat-flow-kind");
-					if (!kind) continue;
-					if (suppressed.has(turn) && (!replacements.has(turn) || kind === "user")) hideRow(row);
-					if (Object.prototype.hasOwnProperty.call(mappings, turn) && kind !== "user") hideRow(row);
-				}
-				applyHiddenTurns(sessionId);
-				applyRolledBackTurns(sessionId);
-				applyHiddenRegenUserTurns(sessionId);
-				for (const row of root().querySelectorAll('[data-chat-flow-kind="context"]')) {
-					const source = row.querySelector('[data-context-source]');
-					if (source && source.textContent.trim() === "dsh-tavern-surface-restore") hideRow(row);
-				}
-			}
-			let applyMemo = null
-			function suppressedDshTurnsRevisionOf(turns, regeneratedDshTurns, sessionId) {
-				return sessionId + "|" + (Array.isArray(turns) ? turns.join(",") : "") + "|" + JSON.stringify(regeneratedDshTurns || {})
-			}
-			function regenerated(sessionId, view, tail) {
-				const adopted = view && view.adopted;
-				if (adopted && Number(adopted.hiddenTurn) > 0) forgetHiddenTurn(HIDDEN_TURNS_KEY, sessionId, Number(adopted.hiddenTurn));
-				if (adopted && Number(adopted.syntheticTurn) > 0) forgetHiddenTurn(HIDDEN_REGEN_USER_TURNS_KEY, sessionId, Number(adopted.syntheticTurn));
-				apply(sessionId, view && view.suppressedDshTurns, view && view.regeneratedDshTurns);
-			}
-			function restored(sessionId, view) {
-				const turn = Number(view && view.undoneRollback && view.undoneRollback.turn);
-				const turns = [turn].concat(Object.values(view && view.regeneratedDshTurns || {})).map(String);
-				for (const restoredTurn of turns) {
-					forgetHiddenTurn(ROLLED_BACK_TURNS_KEY, sessionId, restoredTurn);
-					forgetHiddenTurn(HIDDEN_TURNS_KEY, sessionId, restoredTurn);
-				}
-				const tails = root().querySelectorAll('[data-chat-flow-kind="turn-tail"]');
-				for (const tail of tails) {
-					if (!turns.includes(tailTurnOf(tail))) continue;
-					tail.style.display = "";
-					const owner = tail.getAttribute("data-chat-turn");
-					let row = tail.previousElementSibling;
-					while (row && row.getAttribute("data-chat-flow-kind") !== "turn-tail") {
-						const rowTurn = row.getAttribute("data-chat-turn");
-						if (owner && rowTurn && owner !== rowTurn) break;
-						row.style.display = ""; row = row.previousElementSibling;
-					}
-				}
-				apply(sessionId, view && view.suppressedDshTurns, view && view.regeneratedDshTurns);
-			}
-			function rolledBack(sessionId, view) {
-				apply(sessionId, view && view.suppressedDshTurns, view && view.regeneratedDshTurns);
-			}
-			return Object.freeze({ apply: apply, regenerated: regenerated, rolledBack: rolledBack, restored: restored });
-		}
 		function applyBodyRegenerationResult(options) {
 			options.liveTavernView.setView(options.sessionId, options.view);
-			options.historyProjection.regenerated(options.sessionId, options.view, options.tail);
 		}
 
 		function resolveConversationChatBinding(uiConversation, binding) {
@@ -12014,7 +12194,6 @@ window.__ModuleLoader__.load({
 		}
 
 		function createPlayControlsFeatureModule() {
-			const historyProjection = createTurnHistoryProjection();
 			function TavernConversationExportAction(props) {
 				const [available, setAvailable] = React.useState(false);
 				const [busy, setBusy] = React.useState(false);
@@ -12756,7 +12935,7 @@ window.__ModuleLoader__.load({
 
 			async function submitBodyRegeneration(sessionId, panel, guidance, input) {
 			const res = await rpc("regenBody", { guidance: String(guidance || "").trim(), input: String(input || "") }, sessionId);
-			applyBodyRegenerationResult({ liveTavernView: liveTavernView, historyProjection: historyProjection, sessionId: sessionId, view: res.view, tail: panel.tail });
+			applyBodyRegenerationResult({ liveTavernView: liveTavernView, sessionId: sessionId, view: res.view });
 			setCandidatePanel(null);
 		}
 
@@ -12765,7 +12944,7 @@ window.__ModuleLoader__.load({
 			// lets the provider reuse the cached prompt prefix.
 			async function submitFailedTurnReplay(sessionId) {
 				const res = await rpc("replayTurn", {}, sessionId);
-				applyBodyRegenerationResult({ liveTavernView: liveTavernView, historyProjection: historyProjection, sessionId: sessionId, view: res.view, tail: null });
+				applyBodyRegenerationResult({ liveTavernView: liveTavernView, sessionId: sessionId, view: res.view });
 				setRegenPanel(null);
 				setCandidatePanel(null);
 				setCandidateGuidePanel(null);
@@ -12831,8 +13010,7 @@ window.__ModuleLoader__.load({
 					finally { setBusy(false); liveTavernView.invalidate(props.sessionId); tavernCoordination.invalidate(props.sessionId); }
 				}
 				function regenerationPanelFor(event, phase) {
-				const tail = event && event.currentTarget ? event.currentTarget.closest('[data-chat-flow-kind="turn-tail"]') : null;
-				return { sessionId: props.sessionId, phase: phase, guidance: "", text: "", error: "", tail: tail, openedAt: Date.now() };
+				return { sessionId: props.sessionId, phase: phase, guidance: "", text: "", error: "", openedAt: Date.now() };
 			}
 				function openRegeneration(event) {
 					if (!canRollback || frontRunning || (activity.busy && !settlementActive) || regenBusy) return;
@@ -12886,9 +13064,6 @@ window.__ModuleLoader__.load({
 					setBusy(true);
 					try {
 						const result = await rpc("switchVariant", { index: index }, props.sessionId);
-						// A switch changes no turn suppression — feeding historyProjection
-						// here re-hides rows against a stale DOM and blanks the page.
-						// Only the live view store carries the new floor.
 						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						liveTavernView.invalidate(props.sessionId);
 						notifyTavernDataChanged(["sessions"], "variant-switch");
@@ -12932,7 +13107,7 @@ window.__ModuleLoader__.load({
 					setRolling(true);
 					try {
 						const result = await rpc("rollbackTurn", { expectedTurn: clearIncomplete ? null : targetTurn }, props.sessionId);
-						historyProjection.rolledBack(props.sessionId, result && result.view);
+						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						setCandidatePanel(null);
 						setRegenPanel(null);
 						setCandidateGuidePanel(null);
@@ -12960,7 +13135,7 @@ window.__ModuleLoader__.load({
 					setBusy(true);
 					try {
 						const result = await rpc("undoRollbackTurn", {}, props.sessionId);
-						historyProjection.restored(props.sessionId, result && result.view);
+						if (result && result.view) liveTavernView.setView(props.sessionId, result.view);
 						setCandidatePanel(null); setRegenPanel(null); setCandidateGuidePanel(null);
 						notifyTavernDataChanged(["sessions"], "play-controls");
 					} catch (error) { tavernErrorHub.report("撤销回退", error); }
@@ -13289,124 +13464,6 @@ window.__ModuleLoader__.load({
 				);
 			}
 
-			function observeTurnErrorProjection(root, apply, host = window) {
-				let frame = null, disposed = false;
-				const selector = '[data-chat-flow-kind], [data-turn-tail]';
-				function containsRows(node) {
-					return node.nodeType === 1 && (node.matches(selector) || !!node.querySelector(selector));
-				}
-				const observer = new host.MutationObserver(function (records) {
-					if (disposed || !records.some(function (record) {
-						if (record.type === "attributes") return true;
-						// Native error contents may replace our controls; prose streaming cannot.
-						if (record.target.closest?.('[data-chat-flow-kind="turn-error"]')) return true;
-						return Array.from(record.addedNodes).some(containsRows) || Array.from(record.removedNodes).some(containsRows);
-					})) return;
-					if (frame === null) frame = host.requestAnimationFrame(function () {
-						frame = null;
-						if (!disposed) apply();
-					});
-				});
-				observer.observe(root, {
-					childList: true, subtree: true, attributes: true,
-					attributeFilter: ["data-chat-flow-kind", "data-chat-flow-key", "data-chat-turn", "data-turn-tail"]
-				});
-				return {
-					disconnect() {
-						disposed = true; observer.disconnect();
-						if (frame !== null) host.cancelAnimationFrame(frame);
-						frame = null;
-					}
-				};
-			}
-			function SupersededTurnErrors(props) {
-				const marker = React.useRef(null);
-				const running = props.useSession(function (snapshot) { return snapshot.running; });
-				const latestMessageId = props.useChat(latestTavernAssistantMessageId);
-				const state = useLiveTavernView(props.sessionId, "suppression:" + String(latestMessageId || "") + ":" + String(running));
-				const turns = state.view && state.view.suppressedDshErrorTurns || [];
-				const hiddenTurns = state.view && state.view.hiddenDshErrorTurns;
-				const replayTurn = state.view && state.view.canReplayFailedTurn ? Number(state.view.replayFailedTurn) || null : null;
-				const revision = turns.join(",") + ":" + (Array.isArray(hiddenTurns) ? "saved:" + hiddenTurns.join(",") : "local") + ":" + String(replayTurn || "");
-				React.useEffect(function () {
-					const root = marker.current && marker.current.closest("[data-conversation-scroll]");
-					if (!root) return;
-					const projection = createSupersededErrorProjection(root);
-					const controls = createTurnErrorControls(root, {
-						sessionId: props.sessionId, storage: window.localStorage, hiddenTurns: hiddenTurns, replayTurn: replayTurn,
-						onToggle: !Array.isArray(hiddenTurns) ? undefined : async function (turn, hidden) {
-							const result = await rpc("setFailedErrorVisibility", { sessionId: props.sessionId, turn: turn, hidden: hidden });
-							liveTavernView.setView(props.sessionId, result.view);
-						},
-						onReplay: replayTurn === null ? undefined : async function () {
-							try { await submitFailedTurnReplay(props.sessionId); }
-							catch (error) { tavernErrorHub.report("重新生成本轮", error); }
-							finally { liveTavernView.invalidate(props.sessionId); }
-						},
-						onError: function (error) { tavernErrorHub.report("保存错误提示状态失败", error); }
-					});
-					const apply = function () { projection.apply(turns); controls.apply(); };
-					apply();
-					const observer = observeTurnErrorProjection(root, apply);
-					return function () { observer.disconnect(); controls.dispose(); projection.dispose(); };
-				}, [props.sessionId, revision]);
-				return React.createElement("span", { ref: marker, hidden: true, "data-tavern-error-projection": props.sessionId });
-			}
-			// Share in-flight reads across effect restarts and duplicate mounts.
-			function createBackgroundSuppressionPoller(rpc, timers = window) {
-			  const inFlight = new Map();
-			  return function subscribe(sessionId, running, onResult, onError) {
-			    let disposed = false, timer;
-			    async function refresh() {
-			      let request = inFlight.get(sessionId);
-			      if (!request) {
-			        request = Promise.resolve().then(() => rpc("getBackgroundSuppressedTurns", {sessionId}));
-			        inFlight.set(sessionId, request);
-			        const clear = () => { if (inFlight.get(sessionId) === request) inFlight.delete(sessionId); };
-			        request.then(clear, clear);
-			      }
-			      try { const result = await request; if (!disposed) onResult(result); }
-			      catch (error) { if (!disposed) onError(error); }
-			      finally { if (!disposed && running) timer = timers.setTimeout(refresh, 15000); }
-			    }
-			    refresh();
-			    return () => { disposed = true; timers.clearTimeout(timer); };
-			  };
-			}
-			const pollBackgroundSuppression = createBackgroundSuppressionPoller(rpc);
-			function TurnHistoryProjection(props) {
-				const running = props.useSession(function (snapshot) { return snapshot.running; });
-				const latestMessageId = props.useChat(latestTavernAssistantMessageId);
-				const suppressionState = useLiveTavernView(props.sessionId, "suppression:" + String(latestMessageId || "") + ":" + String(running));
-				const [backgroundTurns, setBackgroundTurns] = React.useState([]);
-				React.useEffect(function () { setBackgroundTurns([]); }, [props.sessionId]);
-				React.useEffect(function () {
-					if (!String(props.sessionId || "").startsWith("background-")) return;
-					return pollBackgroundSuppression(props.sessionId, running,
-						result => setBackgroundTurns(result.turns || []),
-						error => console.warn("后台回退显示刷新失败", error));
-				}, [props.sessionId, latestMessageId, running]);
-				const foregroundTurns = suppressionState.view && Array.isArray(suppressionState.view.suppressedDshTurns) ? suppressionState.view.suppressedDshTurns : [];
-				const suppressedDshTurns = foregroundTurns.concat(backgroundTurns);
-				const suppressedDshTurnsRevision = suppressedDshTurns.join(",");
-				const regeneratedDshTurns = suppressionState.view && suppressionState.view.regeneratedDshTurns || {};
-				const regeneratedDshTurnsRevision = JSON.stringify(regeneratedDshTurns);
-				React.useEffect(function () {
-					let frame = null;
-					function applyProjectionState() {
-						frame = null;
-						historyProjection.apply(props.sessionId, suppressedDshTurns, regeneratedDshTurns);
-					}
-					function scheduleProjection() {
-						if (frame === null) frame = window.requestAnimationFrame(applyProjectionState);
-					}
-					scheduleProjection();
-					const observer = new window.MutationObserver(scheduleProjection);
-					observer.observe(document.body, { childList: true, subtree: true });
-					return function () { observer.disconnect(); if (frame !== null) window.cancelAnimationFrame(frame); };
-				}, [props.sessionId, latestMessageId, running, suppressedDshTurnsRevision, regeneratedDshTurnsRevision]);
-				return null;
-			}
 			function CandidateQuestion(props) {
 				const dismissMode = useCandidatePreferences();
 				const panel = useCandidatePanel();
@@ -13601,11 +13658,328 @@ window.__ModuleLoader__.load({
 				body
 			);
 		}
+			// Story View: the Tavern conversation read one story floor at a time. Floors
+			// come from getStoryFloors (Chat); the reply being generated comes from the
+			// host Chat target's partial assistant. Native rows, native turns and
+			// bookkeeping never reach this view, so nothing here hides host DOM.
+			const STORY_VIEW_ID = "dsh-tavern:story";
+			const STORY_VIEW_FOLLOW_SLACK = 96;
+
+			const storyFloorStore = (function () {
+				const states = new Map();
+				const listeners = new Map();
+				const requests = new Map();
+				const empty = Object.freeze({ floors: [], hasMore: false, total: 0, loaded: false, loading: false, error: "" });
+				function get(sessionId) { return states.get(sessionId) || empty; }
+				function set(sessionId, patch) {
+					states.set(sessionId, Object.assign({}, get(sessionId), patch));
+					(listeners.get(sessionId) || []).forEach(function (listener) { listener(); });
+				}
+				function subscribe(sessionId, listener) {
+					const set = listeners.get(sessionId) || new Set();
+					set.add(listener); listeners.set(sessionId, set);
+					return function () { set.delete(listener); };
+				}
+				// Each request supersedes older ones for the same session; a late reply
+				// never overwrites floors a newer read already published.
+				async function request(sessionId, args, merge) {
+					const id = (requests.get(sessionId) || 0) + 1;
+					requests.set(sessionId, id);
+					set(sessionId, { loading: true, error: "" });
+					try {
+						const page = await rpc("getStoryFloors", args, sessionId);
+						if (requests.get(sessionId) !== id) return;
+						set(sessionId, { floors: merge(get(sessionId).floors, page.floors || []), hasMore: page.hasMore === true, total: Number(page.total) || 0, loaded: true, loading: false, revision: page.revision });
+					} catch (error) {
+						if (requests.get(sessionId) === id) set(sessionId, { loading: false, error: String(error && error.message || error) });
+					}
+				}
+				function loadLatest(sessionId) {
+					return request(sessionId, {}, function (_previous, floors) { return floors; });
+				}
+				// Refresh everything from the oldest loaded floor so earlier pages stay.
+				function refresh(sessionId) {
+					const floors = get(sessionId).floors;
+					if (!floors.length) return loadLatest(sessionId);
+					const from = floors[0].turn;
+					return request(sessionId, { from: from }, function (previous, next) {
+						return previous.filter(function (floor) { return floor.turn < from; }).concat(next);
+					});
+				}
+				function loadOlder(sessionId) {
+					const floors = get(sessionId).floors;
+					if (!floors.length) return loadLatest(sessionId);
+					const before = floors[0].turn;
+					return request(sessionId, { before: before }, function (previous, older) {
+						return older.filter(function (floor) { return floor.turn < before; }).concat(previous);
+					});
+				}
+				return Object.freeze({ get: get, subscribe: subscribe, loadLatest: loadLatest, refresh: refresh, loadOlder: loadOlder });
+			})();
+
+			function useStoryFloors(sessionId) {
+				const subscribe = React.useCallback(function (notify) { return storyFloorStore.subscribe(sessionId, notify); }, [sessionId]);
+				const snapshot = React.useCallback(function () { return storyFloorStore.get(sessionId); }, [sessionId]);
+				return React.useSyncExternalStore(subscribe, snapshot, snapshot);
+			}
+
+			// The host shell picks a persisted view, else Chat. Tavern play sessions open
+			// the story view by default: the preference is written before first binding,
+			// and only while the player has never chosen a view for that session.
+			function preferStoryView(sessionId) {
+				const key = "dsh.conversation." + sessionId;
+				try {
+					const raw = window.localStorage.getItem(key);
+					const stored = raw ? JSON.parse(raw) : null;
+					if (stored && typeof stored === "object" && typeof stored.view === "string") return;
+					window.localStorage.setItem(key, JSON.stringify(Object.assign({ draft: "", viewRequest: null }, stored && typeof stored === "object" ? stored : {}, { view: STORY_VIEW_ID })));
+				} catch (_) { }
+			}
+
+			function TavernStoryImages(props) {
+				const [urls, setUrls] = React.useState([]);
+				const attachments = props.images.map(function (image) { return image.attachment; });
+				const key = JSON.stringify(attachments);
+				React.useEffect(function () {
+					let active = true;
+					if (!props.uiConversation || typeof props.uiConversation.imageUrl !== "function") return;
+					Promise.all(attachments.map(function (attachment) { return Promise.resolve(props.uiConversation.imageUrl(props.sessionId, attachment)).catch(function () { return ""; }); }))
+						.then(function (next) { if (active) setUrls(next); });
+					return function () { active = false; };
+				}, [props.sessionId, key]);
+				if (!attachments.length) return null;
+				return React.createElement("div", { className: "dsh-tavern-story-images", "data-align": props.align || "end" },
+					urls.filter(Boolean).map(function (url, index) { return React.createElement("img", { key: index, src: url, alt: "图片附件", loading: "lazy" }); }));
+			}
+
+			function TavernStoryCopy(props) {
+				const [copied, setCopied] = React.useState(false);
+				return React.createElement(DshUi.Tooltip, { label: copied ? "已复制" : "复制", side: "bottom" },
+					React.createElement("button", { type: "button", className: "dsh-tavern-story-icon", "aria-label": copied ? "已复制" : "复制", onClick: function () {
+						DshUi.writeClipboard(props.text).then(function (ok) { if (!ok) return; setCopied(true); window.setTimeout(function () { setCopied(false); }, 1000); });
+					} }, React.createElement(copied ? DshUi.IconCheckOutline16 : DshUi.IconCopyOutline16, null)));
+			}
+
+			function TavernStoryInput(props) {
+				const h = React.createElement;
+				const input = props.input;
+				const images = (input.attachments || []).filter(function (block) { return block && block.type === "image" && block.attachment !== undefined; });
+				return h("div", { className: "dsh-tavern-user-row" },
+					h("div", { className: "dsh-tavern-user-stack" },
+						images.length ? h(TavernStoryImages, { images: images, sessionId: props.sessionId, uiConversation: props.uiConversation, align: "end" }) : null,
+						input.text !== "" || input.templateDisplay ? h("div", { className: "dsh-tavern-user-bubble" }, input.templateDisplay
+							? h(TavernMessageFrame, { content: input.templateDisplay, sessionId: props.sessionId, turn: props.turn, partIndex: "user-template", eager: true })
+							: h("div", { style: { whiteSpace: "pre-wrap" } }, input.text)) : null),
+					input.text !== "" ? h("div", { className: "dsh-tavern-user-actions" }, h(TavernStoryCopy, { text: input.text })) : null);
+			}
+
+			function TavernStoryForkAction(props) {
+				const [forking, setForking] = React.useState(false);
+				async function fork() {
+					if (forking) return;
+					setForking(true);
+					try { await tavernConversationForkRequests.request({ sessionId: props.sessionId, turn: props.turn }); }
+					catch (error) { tavernErrorHub.report("分叉对话", error); }
+					finally { setForking(false); }
+				}
+				return React.createElement(DshUi.Tooltip, { label: forking ? "正在分叉…" : "从这一轮分叉", side: "bottom" },
+					React.createElement("button", { type: "button", className: "dsh-tavern-story-icon", "aria-label": "从这一轮分叉", disabled: forking, onClick: fork },
+						React.createElement(DshUi.IconBranchOutline16, null)));
+			}
+
+			function TavernStoryFloor(props) {
+				const h = React.createElement;
+				const floor = props.floor;
+				const view = props.view || {};
+				const SceneIllustration = assistantRendererFeature.SceneIllustration;
+				const body = props.liveBody || (floor.body ? renderTavernProjection(floor.body, {
+					streaming: false, codeLabels: { copyLabel: "复制", copiedLabel: "已复制" }, sessionId: props.sessionId, turn: floor.turn,
+					helperContext: view.tavernHelper, trustedCardMode: Boolean(view.tavernRuntimePolicy && view.tavernRuntimePolicy.trustedCardMode),
+					eagerFrame: props.latest, executeSlash: props.executeSlash
+				}) : null);
+				const settled = !props.liveBody && floor.body;
+				const receipt = settled && floor.receipt ? floor.receipt.receipt || null : null;
+				const sceneImages = settled && !floor.greeting && view.releaseCapabilities && view.releaseCapabilities.sceneImages;
+				return h("article", { className: "dsh-tavern-story-floor", "data-story-turn": floor.turn },
+					floor.input ? h(TavernStoryInput, { input: floor.input, turn: floor.turn, sessionId: props.sessionId, uiConversation: props.uiConversation }) : null,
+					body ? h("div", { className: "dsh-tavern-assistant", "data-streaming": props.streaming || undefined }, body,
+						sceneImages ? h(SceneIllustration, { key: props.sessionId + ":" + floor.turn, sessionId: props.sessionId, turn: floor.turn }) : null,
+						receipt ? h(TavernMvuReceipt, { receipt: receipt, sessionId: props.sessionId, turn: floor.turn, latest: floor.turn === view.settlementTurn, busy: Boolean(view.activity && view.activity.busy) }) : null,
+						settled && props.latest && view.statusBarPlacement === "body" ? h(TavernPersistentStatusRuntime, { sessionId: props.sessionId, view: view, executeSlash: props.executeSlash }) : null) : null,
+					settled ? h("div", { className: "dsh-tavern-story-actions" },
+						h(TavernStoryCopy, { text: floor.body.text }),
+						!floor.greeting ? h(TavernStoryForkAction, { sessionId: props.sessionId, turn: floor.turn }) : null,
+						props.latest && props.hostProps ? h(TavernVariantSwitcher, props.hostProps) : null) : null,
+					props.children);
+			}
+
+			function TavernStoryFailedTurn(props) {
+				const h = React.createElement;
+				const [busy, setBusy] = React.useState(false);
+				const view = props.view;
+				const error = view.foregroundError && view.foregroundError.message || "本轮正文生成失败。";
+				async function replay() {
+					if (busy) return;
+					setBusy(true);
+					try { await submitFailedTurnReplay(props.sessionId); }
+					catch (caught) { tavernErrorHub.report("重新生成本轮", caught); }
+					finally { setBusy(false); liveTavernView.invalidate(props.sessionId); }
+				}
+				async function dismiss() {
+					if (busy) return;
+					setBusy(true);
+					try {
+						const result = await rpc("setFailedErrorVisibility", { sessionId: props.sessionId, turn: view.replayFailedTurn, hidden: true });
+						liveTavernView.setView(props.sessionId, result.view);
+					} catch (caught) { tavernErrorHub.report("隐藏错误提示", caught); }
+					finally { setBusy(false); }
+				}
+				return h("div", { className: "dsh-tavern-story-error", role: "alert" },
+					h("p", null, error.length > 600 ? error.slice(0, 600) + "…" : error),
+					h("div", { className: "dsh-tavern-story-error-actions" },
+						h("button", { type: "button", className: "dsh-tavern-btn", disabled: busy, title: "移除被中断的回复，并原样重发本轮请求（复用模型缓存）", onClick: replay }, busy ? "处理中…" : "重新生成本轮"),
+						h("button", { type: "button", className: "dsh-tavern-btn", disabled: busy, onClick: dismiss }, "隐藏此错误")));
+			}
+
+			function TavernStoryView(props) {
+				const h = React.createElement;
+				const sessionId = props.sessionId;
+				const running = props.useSession(function (snapshot) { return snapshot.running === true; });
+				const partial = props.useChat(function (snapshot) { return snapshot.legacy.partial; });
+				const live = useLiveTavernView(sessionId, "story:" + String(running));
+				const view = live.view;
+				const story = useStoryFloors(sessionId);
+				const transitioning = React.useSyncExternalStore(tavernSessionTransition.subscribe, tavernSessionTransition.getSnapshot, tavernSessionTransition.getSnapshot);
+				const root = React.useRef(null);
+				const follow = React.useRef(true);
+				const anchor = React.useRef(null);
+				// The last streamed blocks stay until the refreshed floors carry the reply.
+				const [lingering, setLingering] = React.useState(null);
+				const lastBlocks = React.useRef(null);
+				const rerolling = React.useRef(false);
+				if (partial && Array.isArray(partial.blocks)) lastBlocks.current = partial.blocks;
+				if (running && view) rerolling.current = view.regenerating === true;
+				const subagent = props.storySessions && typeof props.storySessions.subagentAddress === "function" && props.storySessions.subagentAddress(sessionId);
+				const notStory = Boolean(subagent) || Boolean(view && !isPlayMode(view.mode));
+				React.useEffect(function () { if (notStory && typeof props.openView === "function") props.openView("chat"); }, [notStory]);
+				React.useEffect(function () { if (!storyFloorStore.get(sessionId).loaded) storyFloorStore.loadLatest(sessionId); }, [sessionId]);
+				// Any published view change may move floors (reroll, switch, rollback, edit,
+				// settlement); one coalesced refresh rereads the loaded range.
+				React.useEffect(function () {
+					if (!view) return;
+					const timer = window.setTimeout(function () { storyFloorStore.refresh(sessionId); }, 120);
+					return function () { window.clearTimeout(timer); };
+				}, [sessionId, view]);
+				React.useEffect(function () {
+					if (running) { setLingering(null); return; }
+					if (lastBlocks.current) { setLingering({ blocks: lastBlocks.current, revision: story.revision, rerolled: rerolling.current }); lastBlocks.current = null; }
+				}, [running]);
+				React.useEffect(function () {
+					if (!lingering) return;
+					if (story.revision !== lingering.revision) { setLingering(null); return; }
+					const timer = window.setTimeout(function () { setLingering(null); }, 15000);
+					return function () { window.clearTimeout(timer); };
+				}, [story.revision, lingering]);
+				// Scrolling belongs to the shell's conversation scroller; stick to the
+				// bottom while the reader is there, and keep position when older floors load.
+				React.useEffect(function () {
+					const scroller = root.current && root.current.closest("[data-conversation-scroll]");
+					if (!scroller) return;
+					// Only the reader's own scrolling decides whether to follow; layout
+					// growth and shell scroll restoration must not unstick the tail.
+					let touched = 0;
+					function onInput() { touched = Date.now(); }
+					function onScroll() {
+						if (Date.now() - touched > 1000) return;
+						follow.current = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < STORY_VIEW_FOLLOW_SLACK;
+					}
+					const observer = new ResizeObserver(function () { if (follow.current) scroller.scrollTop = scroller.scrollHeight; });
+					observer.observe(root.current);
+					const inputs = ["wheel", "touchmove", "keydown", "pointerdown"];
+					inputs.forEach(function (type) { scroller.addEventListener(type, onInput, { passive: true }); });
+					scroller.addEventListener("scroll", onScroll, { passive: true });
+					follow.current = true;
+					scroller.scrollTop = scroller.scrollHeight;
+					return function () {
+						observer.disconnect();
+						inputs.forEach(function (type) { scroller.removeEventListener(type, onInput); });
+						scroller.removeEventListener("scroll", onScroll);
+					};
+				}, [sessionId]);
+				React.useLayoutEffect(function () {
+					const scroller = root.current && root.current.closest("[data-conversation-scroll]");
+					if (scroller && follow.current) scroller.scrollTop = scroller.scrollHeight;
+				}, [story.floors, partial]);
+				const firstTurn = story.floors.length ? story.floors[0].turn : 0;
+				React.useLayoutEffect(function () {
+					const scroller = root.current && root.current.closest("[data-conversation-scroll]");
+					const previous = anchor.current;
+					anchor.current = null;
+					if (!scroller || !previous || previous.turn === firstTurn) return;
+					scroller.scrollTop = previous.top + (scroller.scrollHeight - previous.height);
+				}, [firstTurn]);
+				function loadOlder() {
+					const scroller = root.current && root.current.closest("[data-conversation-scroll]");
+					if (scroller) anchor.current = { turn: firstTurn, top: scroller.scrollTop, height: scroller.scrollHeight };
+					follow.current = false;
+					storyFloorStore.loadOlder(sessionId);
+				}
+				if (notStory) return h("section", { className: "dsh-tavern-story", ref: root, "data-session-id": sessionId }, h("p", { className: "dsh-tavern-story-hint" }, "这个会话不是游玩会话，请使用对话页。"));
+				const floors = story.floors.filter(function (floor) { return !floor.open; });
+				const latestFloor = floors[floors.length - 1];
+				const viewState = view || {};
+				const regenerating = running ? viewState.regenerating === true : Boolean(lingering && lingering.rerolled);
+				const streamingBlocks = running ? (partial && partial.blocks) || [] : lingering && lingering.blocks;
+				const liveBody = streamingBlocks ? renderTavernAssistantBlocks({
+					blocks: streamingBlocks, streaming: running, projection: null, sessionId: sessionId, turn: 0,
+					helperContext: viewState.tavernHelper, executeSlash: props.executeSlash,
+					renderMessageImages: function (input) { return h(TavernStoryImages, { images: input.images, sessionId: sessionId, uiConversation: props.uiConversation, align: input.align }); }
+				}) : null;
+				const generating = running && !(liveBody && liveBody.length) ? h("div", { className: "dsh-tavern-story-status", role: "status" }, "正在生成…") : null;
+				const failed = !running && !lingering && viewState.canReplayFailedTurn === true && !(viewState.hiddenDshErrorTurns || []).map(Number).includes(Number(viewState.replayFailedTurn));
+				const pendingInput = viewState.latestInput && (running || failed || lingering) && !regenerating ? { text: String(viewState.latestInput.text || "") } : null;
+				return h("section", { className: "dsh-tavern-story", ref: root, "data-session-id": sessionId },
+					story.hasMore ? h("div", { className: "dsh-tavern-story-older" }, h("button", { type: "button", disabled: story.loading, onClick: loadOlder }, story.loading ? "加载中…" : "加载更早")) : null,
+					!story.loaded && story.loading ? h("p", { className: "dsh-tavern-story-hint", role: "status" }, "正在加载剧情…") : null,
+					story.error ? h("p", { className: "dsh-tavern-story-hint", role: "alert" }, "剧情加载失败：" + story.error, " ", h("button", { type: "button", className: "dsh-tavern-btn", onClick: function () { storyFloorStore.refresh(sessionId); } }, "重试")) : null,
+					transitioning ? h("div", { className: "dsh-tavern-session-switching", role: "status" }, "正在完成游戏初始化…") : null,
+					floors.map(function (floor) {
+						const isLatest = floor === latestFloor;
+						const replaced = isLatest && regenerating;
+						return h(TavernStoryFloor, {
+							key: floor.turn, floor: floor, view: view, latest: isLatest, sessionId: sessionId,
+							executeSlash: props.executeSlash, uiConversation: props.uiConversation, hostProps: isLatest ? props : null,
+							liveBody: replaced && liveBody && liveBody.length ? liveBody : null, streaming: replaced && running
+						}, replaced ? generating : null);
+					}),
+					failed || pendingInput || (!regenerating && (liveBody && liveBody.length || generating)) ? h("article", { className: "dsh-tavern-story-floor", "data-story-turn": "live" },
+						pendingInput ? h(TavernStoryInput, { input: pendingInput, turn: 0, sessionId: sessionId, uiConversation: props.uiConversation }) : null,
+						!regenerating && liveBody && liveBody.length ? h("div", { className: "dsh-tavern-assistant", "data-streaming": running || undefined }, liveBody) : null,
+						!regenerating ? generating : null,
+						failed ? h(TavernStoryFailedTurn, { sessionId: sessionId, view: viewState }) : null) : null);
+			}
 			function register(input) {
 				const ctx = input.ctx;
 				const slots = input.slots;
 				const uiConversation = ctx.get("uiConversation") || ctx.get("conversation");
 				const executeSlash = createTavernFrameSlashExecutor(ctx);
+				ctx.effect(() => slots.inject("conversation.view", () => slots.register({
+					name: "conversation.view", id: STORY_VIEW_ID, order: -10, label: "剧情",
+					inject: function () { return { executeSlash: executeSlash, uiConversation: uiConversation, storySessions: ctx.sessions }; }
+				}, TavernStoryView)), "dsh-tavern: story view");
+				ctx.effect(function () {
+					const list = ctx.sessions.list;
+					function prefer() {
+						const byId = list.getSnapshot().byId || {};
+						for (const id of Object.keys(byId)) {
+							const summary = byId[id];
+							if (!summary || summary.parentId || summary.origin === "subagent" || id.startsWith("background-")) continue;
+							preferStoryView(id);
+						}
+					}
+					prefer();
+					return list.subscribe(prefer);
+				}, "dsh-tavern: story view default");
 				ctx.effect(() => ctx.betterSidebar.registerTab({
 					id: "dsh-tavern:conversation-settings", title: "本局设置", order: 8, single: true,
 					component: props => React.createElement(TavernConversationSettingsTab, { sessionId: props.scope.sessionId, sessions: ctx.sessions })
@@ -13659,8 +14033,6 @@ window.__ModuleLoader__.load({
 					{ name: "conversation.input.dock", id: "dsh-tavern-question", order: -120, label: "下一步行动" },
 					function (props) {
 						return React.createElement(React.Fragment, null,
-							React.createElement(SupersededTurnErrors, Object.assign({}, props, { key: props.sessionId })),
-							React.createElement(TurnHistoryProjection, Object.assign({}, props, { key: "history:" + props.sessionId })),
 							React.createElement(CandidateQuestion, Object.assign({}, props, { sessions: ctx.sessions }))
 						);
 					}
@@ -13784,11 +14156,16 @@ window.__ModuleLoader__.load({
 			const [refresh, setRefresh] = React.useState(0);
 			const loaded = React.useRef(null);
 			const [loading, setLoading] = React.useState(true);
+			const [contextChanged, setContextChanged] = React.useState(false);
 			React.useEffect(() => {
 				let active = true; setError(""); setLoading(true);
 				if (loaded.current?.sessionId !== props.contextSessionId) { loaded.current = null; setRecord(null); }
 				rpc("getLatestRequestContext", { sessionId: props.contextSessionId, knownId: loaded.current?.id || "" }, props.contextSessionId)
-					.then(value => { if (active && !value.record?.unchanged) { setRecord(value.record); loaded.current = value.record ? { sessionId: props.contextSessionId, id: value.record.id } : null; } })
+					.then(value => {
+						if (!active) return;
+						setContextChanged(value.contextChanged === true);
+						if (!value.record?.unchanged) { setRecord(value.record); loaded.current = value.record ? { sessionId: props.contextSessionId, id: value.record.id } : null; }
+					})
 					.catch(e => { if (active) setError(String(e.message || e)); })
 					.finally(() => { if (active) setLoading(false); });
 				return () => { active = false; };
@@ -13810,6 +14187,7 @@ window.__ModuleLoader__.load({
 					h("span", { className: "dsh-context-badge" }, "第 " + record.turn + " 轮 · 步骤 " + record.step),
 					h("span", null, request.model || ""),
 					h("time", null, new Date(record.createdAt).toLocaleString())) : null,
+				record && contextChanged ? h("p", { className: "dsh-context-stale", role: "status" }, "上下文已变更（切换变体、回退或编辑），下次生成后更新") : null,
 				h("div", { className: "dsh-context-toolbar" },
 					h("input", { type: "search", "aria-label": "搜索完整上下文", placeholder: "搜索提示词、消息或工具…", value: query, onChange: e => setQuery(e.target.value) }),
 					request ? h("button", { onClick: async () => { try { await navigator.clipboard.writeText(text); } catch (e) { setError("复制失败：" + String(e.message || e)); } } }, "复制 JSON") : null,
@@ -13838,7 +14216,19 @@ window.__ModuleLoader__.load({
 
 		const inject = ["slots", "sessions", "workspaces", "layout", "connection", "conversation", "betterSidebar", "remote", "remote.commands", "tavernSessionSignals"];
 
+		// The host chat page's row-hiding layer is gone; drop what it left behind.
+		function forgetRetiredHidingKeys(storage) {
+			try {
+				for (const key of ["dsh-tavern-hidden-turns", "dsh-tavern-rolled-back-turns", "dsh-tavern-hidden-regen-user-turns"]) storage.removeItem(key);
+				for (let index = storage.length - 1; index >= 0; index -= 1) {
+					const key = storage.key(index);
+					if (key && key.startsWith("dsh-tavern-hidden-errors:")) storage.removeItem(key);
+				}
+			} catch (_) { }
+		}
+
 		function apply(ctx) {
+			forgetRetiredHidingKeys(window.localStorage);
 			ctx.effect(() => tavernInteractionDiagnostics.start(), "dsh-tavern: interaction diagnostics");
 			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;
@@ -13968,7 +14358,6 @@ window.__ModuleLoader__.load({
 			registerTavernStartPage(ctx, slots);
 			playControlsFeature.register({ ctx: ctx, slots: slots });
 			assistantRendererFeature.register({ ctx: ctx, slots: slots });
-			// Native history paging owns loading; TavernWindowedNode bounds live bodies without shadowing its slots.
 			ctx.effect(function () {
 				return slots.inject("conversation.input.right", function () {
 					return slots.register({
@@ -14026,9 +14415,6 @@ window.__ModuleLoader__.load({
 		exports.installTavernTextColors = installTavernTextColors;
 		exports.TavernColoredMarkdown = TavernColoredMarkdown;
 		exports.apply = apply;
-		exports.createTurnHistoryProjection = createTurnHistoryProjection;
-		exports.createTurnErrorControls = createTurnErrorControls;
-		exports.createSupersededErrorProjection = createSupersededErrorProjection;
 		exports.inject = inject;
 		exports.buildOpeningPreviewDocument = buildOpeningPreviewDocument;
 		exports.buildTavernFrameDocument = buildTavernFrameDocument;
@@ -14054,9 +14440,6 @@ window.__ModuleLoader__.load({
 		exports.applyTavernHelperContextUpdate = applyTavernHelperContextUpdate;
 		exports.projectionPartsOf = projectionPartsOf;
 		exports.createTavernPreviewWindow = createTavernPreviewWindow;
-		exports.tavernStoryTurnForDshTurn = tavernStoryTurnForDshTurn;
-		exports.tavernMvuReceiptForTurn = tavernMvuReceiptForTurn;
-		exports.tavernUserTextForTurn = tavernUserTextForTurn;
 		exports.createTavernFrameSlashExecutor = createTavernFrameSlashExecutor;
 		exports.createWorldBookLibraryRefreshModule = createWorldBookLibraryRefreshModule;
 		exports.groupWorldBookEditorEntries = groupWorldBookEditorEntries;
@@ -14087,9 +14470,21 @@ window.__ModuleLoader__.load({
 		exports.createTavernAssistantRendererFeatureModule = createTavernAssistantRendererFeatureModule;
 		exports.createTavernShellFeatureModule = createTavernShellFeatureModule;
 		exports.createTavernRuntimeGenerationMonitor = createTavernRuntimeGenerationMonitor;
+		// Empty append-origin rows Tavern wrote as conversation bookkeeping before
+		// ADR-0009 (branch metadata carriers, checkout and restoration placeholders).
+		// They carry no content; the host would render each as "context injection".
+		function tavernBookkeepingContext(data) {
+			if (!data || data.kind !== "context" || !Array.isArray(data.content) || data.content.length !== 0) return false;
+			const source = data.source || {};
+			if (source.kind !== "plugin") return false;
+			if (source.plugin === "dsh-tavern-surface-restore") return true;
+			return source.plugin === "dsh-tavern" && (source.form === "conversation-metadata" || source.form === "checkout");
+		}
+
 		// DSH 0.1.5 may withdraw an already materialized assistant when a stream block
 		// becomes empty. Preserve its identity at the assembler boundary, before the
 		// core enforces monotonic node membership. React renderers cannot enforce this.
+		// The same boundary hides legacy bookkeeping rows instead of the DOM.
 		function installTavernAssistantVisibilityPatch(require) {
 			let conversation;
 			try { conversation = require("@deepseek-ai/dsh-client-ui-conversation/client"); }
@@ -14099,6 +14494,7 @@ window.__ModuleLoader__.load({
 			const buildNode = proto.buildNode;
 			proto.buildNode = function (context, target) {
 				const node = buildNode.call(this, context, target);
+				if (target === "chat" && node !== null && tavernBookkeepingContext(node.data)) return Object.assign({}, node, { visibility: "hidden" });
 				if (target !== "chat" || context.kind !== "assistant-step") return node;
 				if (node === null) {
 					const previous = context.current.get(target);
@@ -14114,6 +14510,29 @@ window.__ModuleLoader__.load({
 			Object.defineProperty(proto, "__dshTavernAssistantVisibility", { value: true });
 		}
 		installTavernAssistantVisibilityPatch(require);
+		// ADR-0009: the host Trajectory has no Definition for surface selections, so
+		// they build no node and leave no fold evidence. This Definition gives each
+		// selection a node carrying its seq list; the fold below hides the node itself.
+		const TAVERN_SURFACE_SELECT = "dsh-tavern/surface-select";
+		function tavernSurfaceSelectTrajectoryDefinition() {
+					return {
+						kind: "tavern-surface-select",
+						target: "trajectory",
+						match: function (event) { return event.type === TAVERN_SURFACE_SELECT ? { id: String(event.seq), role: "start" } : null; },
+						start: function (_context, match) {
+							const event = match.event;
+							return { kind: "context", seq: event.seq, time: event.time, content: [],
+								source: { kind: "plugin", plugin: "dsh-tavern", form: "surface-select" }, provenance: { role: "inject", label: "dsh-tavern" }, form: null };
+						},
+						update: function (context) { return context.state; },
+						buildViewNode: function (context) {
+							if (context.state === undefined) return null;
+							return { key: context.key, kind: context.kind, id: context.id, target: "trajectory", anchorSeq: context.state.seq,
+								location: (context.start && context.start.location) || { kind: "unresolved" }, data: { kind: "node", node: context.state } };
+						}
+					};
+				}
+
 		function installTavernTrajectorySurfaceView(require) {
 					let conversation;
 					try { conversation = require("@deepseek-ai/dsh-client-ui-conversation/client"); }
@@ -14121,6 +14540,16 @@ window.__ModuleLoader__.load({
 					const proto = conversation && conversation.ConversationNodeAssembler && conversation.ConversationNodeAssembler.prototype;
 					if (!proto || typeof proto.buildNode !== "function" || typeof proto.replaceView !== "function" || proto.__dshTavernTrajectorySurface) return;
 					const ELIGIBLE = { "system/message": 1, "user/message": 1, "assistant/message": 1, "tool/result": 1 };
+					// Cheap content identity: verbatim copies of one message share it.
+					function contentKey(event) {
+						if (!ELIGIBLE[event.type] || !event.data) return undefined;
+						const message = event.type === "user/message" ? event.data : event.data.message;
+						const text = JSON.stringify(message && message.content);
+						if (typeof text !== "string") return undefined;
+						let hash = 5381;
+						for (let index = 0; index < text.length; index++) hash = ((hash << 5) + hash + text.charCodeAt(index)) | 0;
+						return text.length + ":" + hash;
+					}
 					const buildNode = proto.buildNode;
 					const replaceView = proto.replaceView;
 					const prepend = proto.prepend;
@@ -14143,7 +14572,10 @@ window.__ModuleLoader__.load({
 							const event = match && match.event;
 							if (!event || typeof event.seq !== "number") continue;
 							const source = event.type === "user/message" && event.data && event.data.source;
-							matches.push({ seq: event.seq, type: String(event.type || ""), surfaceOp: event.surfaceOp === undefined ? null : event.surfaceOp,
+							const selected = event.type === TAVERN_SURFACE_SELECT && event.data && Array.isArray(event.data.nodes) ? { nodes: event.data.nodes.slice() } : {};
+							const key = contentKey(event);
+							matches.push({ seq: event.seq, type: String(event.type || ""), surfaceOp: event.surfaceOp === undefined ? null : event.surfaceOp, ...selected,
+								...(key === undefined ? {} : { contentKey: key }),
 								...(event.data && Number.isSafeInteger(event.data.turn) ? { turn: event.data.turn } : {}),
 								...(event.data && Number.isSafeInteger(event.data.step) ? { step: event.data.step } : {}),
 								...(source && typeof source === "object" ? { source: { kind: String(source.kind || ""), plugin: String(source.plugin || "") } } : {}) });
@@ -14183,9 +14615,13 @@ window.__ModuleLoader__.load({
 						// 状态不明的行保守保留（最坏情况是多显示，不会丢内容）。
 						function liveSurfaceSeqsAndDead() {
 							const metas = [...evidence.values()].sort(function (left, right) { return left.seq - right.seq; });
-							const live = [];
+							let live = [];
 							const dead = new Set();
+							let selected = false;
 							for (const meta of metas) {
+								// A selection names the complete surface, so the fold is exact
+								// from here on even when earlier rows are outside the window.
+								if (meta.type === TAVERN_SURFACE_SELECT && Array.isArray(meta.nodes)) { live = meta.nodes.slice(); selected = true; continue; }
 								if (!ELIGIBLE[meta.type]) continue;
 								const op = meta.surfaceOp;
 								if (op === null || op === "append" || op === undefined) { live.push(meta.seq); continue; }
@@ -14197,6 +14633,11 @@ window.__ModuleLoader__.load({
 										live.splice(start, end - start + 1, meta.seq);
 									} else live.push(meta.seq);
 								}
+							}
+							if (selected) {
+								const kept = new Set(live);
+								dead.clear();
+								for (const meta of metas) if (ELIGIBLE[meta.type] && !kept.has(meta.seq)) dead.add(meta.seq);
 							}
 							return { live, dead };
 						}
@@ -14214,11 +14655,22 @@ window.__ModuleLoader__.load({
 						// contributions / eventLocations 索引，工具调用行会被分到错误的轮次
 						// 而显示到对话顶部。折叠依据（evidence）与节点存储都只增不减，
 						// 因此每次隐藏都是可逆的呈现层过滤。
+						// 宿主按 turn:step（工具按 callId）只建一个节点、显示最新那条事件。旧日志里
+						// 的原样恢复副本与原文同键，于是节点可能显示一条已不在上下文里的副本，
+						// 而上下文里那条内容相同。内容一致时这一行就是上下文的真实内容，保留。
+						function sharesLiveCopy(seq, meta, dead) {
+							if (meta.contentKey === undefined) return false;
+							const node = nodeForSeq(seq);
+							return Boolean(node && node.tavernMatches.some(function (other) {
+								return other.seq !== meta.seq && other.type === meta.type && other.contentKey === meta.contentKey && !dead.has(other.seq);
+							}));
+						}
 						function rowIsHidden(entry, dead) {
 							if (!entry || !Number.isFinite(entry.seq)) return false;
 							const meta = evidence.get(entry.seq);
+							if (meta && meta.type === TAVERN_SURFACE_SELECT) return true; // 选择只改上下文，本身不是消息
 							if (!meta || !ELIGIBLE[meta.type]) return false; // 审计行（轮次轨、请求）保留
-							if (dead.has(meta.seq)) return true; // 窗口内可验证的已折叠死行
+							if (dead.has(meta.seq)) return !sharesLiveCopy(entry.seq, meta, dead); // 窗口内可验证的已折叠死行
 							if (Array.isArray(entry.content) && entry.content.length === 0) return true; // 空墓碑行
 							return rowIsEmpty(nodeForSeq(entry.seq));
 						}
@@ -14355,56 +14807,6 @@ window.__ModuleLoader__.load({
 					Object.defineProperty(proto, "__dshTavernTrajectorySurface", { value: true });
 				}
 		installTavernTrajectorySurfaceView(require);
-		// The pinned host's human transcript deliberately renders append-origin input
-		// only. Tavern input edits are single-node surface replacements: project those
-		// into the original bubble, retaining its key, turn and presentation position.
-		function installTavernUserSurfaceView(require) {
-			let conversation;
-			try { conversation = require("@deepseek-ai/dsh-client-ui-conversation/client"); } catch (_) { return; }
-			const proto = conversation && conversation.ConversationNodeAssembler && conversation.ConversationNodeAssembler.prototype;
-			if (!proto || typeof proto.buildNode !== "function" || typeof proto.append !== "function" || typeof proto.replaceWindow !== "function" || typeof proto.markDirty !== "function" || proto.__tavernUserSurfaceView) return;
-			const build = proto.buildNode, append = proto.append, replaceWindow = proto.replaceWindow;
-			const caches = new WeakMap();
-			function edits(assembler) {
-				const cached = caches.get(assembler);
-				if (cached && cached.size === assembler.inputs.size) return cached.values;
-				const owners = new Map(), values = new Map();
-				const events = Array.from(assembler.inputs.values(), function (record) { return record.event; }).sort(function (a, b) { return a.seq - b.seq; });
-				for (const event of events) {
-					const op = event.surfaceOp;
-					if (op === "append" && event.type === "user/message" && event.data.source.kind === "user") owners.set(event.seq, event.seq);
-					if (!op || op.op !== "replace" || op.startSeq !== op.endSeq || !owners.has(op.startSeq)) continue;
-					const owner = owners.get(op.startSeq);
-					owners.delete(op.startSeq);
-					owners.set(event.seq, owner);
-					if (event.type === "user/message" && event.data.source.kind === "user" && event.data.content.length > 0) values.set(owner, event.data);
-				}
-				caches.set(assembler, { size: assembler.inputs.size, values: values });
-				return values;
-			}
-			proto.buildNode = function (context, target) {
-				const node = build.call(this, context, target);
-				if (!node || target !== "chat" || node.kind !== "user") return node;
-				const replacement = edits(this).get(node.data.seq);
-				if (!replacement) return node;
-				return Object.assign({}, node, { data: Object.assign({}, node.data, { content: replacement.content, source: replacement.source }) });
-			};
-			proto.append = function (record) {
-				const publication = append.call(this, record);
-				const op = record.event.surfaceOp;
-				if (!op || op.op !== "replace") return publication;
-				// Replacement events do not match the host's input-message Definition,
-				// so explicitly invalidate its existing bubbles for incremental delivery.
-				for (const context of this.contextsByKind.get("input-message") || []) this.markDirty(context);
-				return "immediate";
-			};
-			proto.replaceWindow = function () {
-				caches.delete(this);
-				return replaceWindow.apply(this, arguments);
-			};
-			Object.defineProperty(proto, "__tavernUserSurfaceView", { value: true });
-		}
-		installTavernUserSurfaceView(require);
 		function evaluatePatchedSessionClient(source, require) {
 			let exports
 			const previous = window.__ModuleLoader__

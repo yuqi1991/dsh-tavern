@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {computeFold,editStep,checkout,branch} from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
+import {computeFold,editStep,checkout,branch,committedMetadata} from '../../lib/domain/conversation-algebra/index.js'
 import {appendRaw,applyWrites,user,assistant,toolResult} from './helpers.mjs'
 
 test('rollback second round retains the edited first round at its original anchor',()=>{
@@ -32,22 +32,21 @@ test('anchor refuses a range-collapsed position and a partial tool pair without 
 
 test('real host branch plus checkout preserves edited prefix and can restore the saved full line',async()=>{
  const {Session}=await import('/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js')
- const {prepareExpandedPatch}=await import('../../tavern-plugin/lib/domain/host-session-patch.js')
- const {createConversationAlgebraHostAdapter}=await import('../../tavern-plugin/lib/domain/conversation-algebra-host-adapter.js')
- const {runTransaction}=await import('../../tavern-plugin/lib/domain/conversation-algebra/index.js')
+ const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
+ const {createConversationAlgebraHostAdapter}=await import('../../lib/domain/conversation-algebra-host-adapter.js')
+ const {runTransaction}=await import('../../lib/domain/conversation-algebra/index.js')
  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
  try {
   const session=Session.create('anchor-edit-rollback'),rows=[user('u1','input'),assistant('a1','old',1)]
   for(const row of rows)session.append(row.type,row.data,{surfaceOp:'append'})
-  let metadata
-  const adapter=createConversationAlgebraHostAdapter(session,{flush:async()=>{},write:async value=>{metadata=value}})
+  const adapter=createConversationAlgebraHostAdapter(session,{flush:async()=>{}})
   let state=computeFold(session.snapshotEvents())
   await runTransaction(adapter,{expectedHead:state.headSeq,operationId:'edit',ops:editStep(state,1,'edited')})
   for(const row of [user('u2','second'),assistant('a2','second reply',2)])session.append(row.type,row.data,{surfaceOp:'append'})
   state=computeFold(session.snapshotEvents());const save=branch(state,'before rollback')
   await runTransaction(adapter,{expectedHead:state.headSeq,operationId:'rollback',ops:[...save,...checkout(state,{anchorSeq:1})]})
   assert.deepEqual(computeFold(session.snapshotEvents()).rows.map(row=>(row.data.message??row.data).content[0].text),['input','edited'])
-  state={...computeFold(session.snapshotEvents()),branchRegistry:metadata}
+  state={...computeFold(session.snapshotEvents()),branchRegistry:committedMetadata(session.snapshotEvents())}
   await runTransaction(adapter,{expectedHead:state.headSeq,operationId:'restore',ops:checkout(state,save[0].branch.branchId)})
   assert.deepEqual(computeFold(session.snapshotEvents()).rows.map(row=>(row.data.message??row.data).content[0].text),['input','edited','second','second reply'])
  }finally{patch.dispose()}

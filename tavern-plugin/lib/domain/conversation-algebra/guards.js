@@ -1,3 +1,4 @@
+import { SURFACE_SELECT_TYPE } from '../surface-selection.js'
 export class GuardError extends Error {
   constructor(rule, message, details = {}) {
     super(`[${rule}] ${message}`)
@@ -32,6 +33,33 @@ function nonempty(value) {
 export function messageOf(event) {
   if (event?.type === 'user/message') return event.data
   return event?.data?.message
+}
+
+/** The conversation-transaction tag a write carries, or undefined. A surface
+ * selection (ADR-0009) carries it on its own data. */
+export function transactionOf(event) {
+  const carrier = event?.type === SURFACE_SELECT_TYPE ? event.data : messageOf(event)
+  return carrier?.source?.conversationTransaction
+}
+
+/** operationIds whose final write (commit or single begin-commit) is in the log. */
+export function committedOperationIds(events) {
+  const ids = new Set()
+  for (const event of events) {
+    const tx = transactionOf(event)
+    if (tx && typeof tx.operationId === 'string' && ['commit', 'begin-commit'].includes(tx.phase)) ids.add(tx.operationId)
+  }
+  return ids
+}
+
+export function operationCommitted(events, operationId) {
+  return committedOperationIds(events).has(operationId)
+}
+
+/** A transaction began in the log but its commit never landed. */
+export function hasPendingTransaction(events) {
+  const committed = committedOperationIds(events)
+  return events.some(event => transactionOf(event)?.phase === 'begin' && !committed.has(transactionOf(event).operationId))
 }
 
 export function sourceOf(event) {

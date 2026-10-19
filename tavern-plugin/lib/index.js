@@ -18,7 +18,6 @@ import { installHostSessionPatch } from './domain/host-session-patch.js'
 import { installHostSubprocessPatch } from './domain/host-subprocess-patch.js'
 import { migrateInstalledLegacySessions } from './domain/legacy-session-migration.js'
 import { measureForegroundPressure } from './domain/foreground-context-pressure.js'
-import { replaceSessionSurface } from './domain/session-surface-mutations.js'
 import { installWorkspaceInstructionPresentation } from './domain/workspace-instruction-presentation.js'
 import { createPresetDiagnostics } from './domain/preset-diagnostics.js'
 import { createIncrementalReplyView } from './domain/incremental-reply-view.js'
@@ -27,8 +26,9 @@ import { scriptChunkLayout } from './domain/script-chunks.js'
 import { createScriptNavigation } from './domain/script-navigation.js'
 import { createSessionInventory } from './domain/session-inventory.js'
 import { createSessionViewSync } from './domain/session-view-sync.js'
-import { projectInputFields } from './domain/input-fields-projection.js'
-import { projectVariantBodies, distinctFloorVariants } from './domain/variant-bodies.js'
+import { pageStoryFloors, storyFloorsOf } from './domain/story-floors.js'
+import { runDetachedWrite } from './domain/detached-write.js'
+import { projectVariantBodies, distinctFloorVariants, branchRegistryOf } from './domain/floor-projection.js'
 import { setFailedErrorVisibility, setAllFailedErrorVisibility } from './domain/failed-error-visibility.js'
 import { createManualCharacterDesign } from './domain/manual-character-design.js'
 import { prepareTemplateHistory, synchronizeTemplateHistory } from './domain/template-history.js'
@@ -52,7 +52,6 @@ import { compactBackgroundIfNeeded, measureBackgroundBudget } from './domain/bac
 import { createAutoCompaction, installCompactionPolicy } from './domain/auto-compaction.js'
 import { observeHttpRequests } from './domain/http-performance-diagnostics.js'
 import { createPerformanceDiagnostics } from './domain/performance-diagnostics.js'
-import { createBackgroundSuppressionReader } from './domain/background-surface.js'
 import { ensureCardWorkspaceMessage } from './domain/card-workspace-message.js'
 import { createPromptTemplateGlobalVariables } from './domain/prompt-template-global-variables.js'
 import { FULL_PROMPT_TEMPLATE_ASSET_PREFIX, readFullPromptTemplateAsset } from './domain/full-prompt-template-assets.js'
@@ -103,9 +102,8 @@ import { createFileResourceStore, normalizeResourcePath, resourceKind } from './
 import { createMobileCardImport } from './domain/mobile-card-import.js'
 import { createForegroundHandoff } from './domain/foreground-handoff.js'
 import { createForegroundFrameBuilder } from './domain/agent-input-frame.js'
-import { retireForegroundFrames } from './domain/foreground-frame-retirement.js'
 import { retireForegroundWithAlgebra } from './domain/conversation-algebra-retirement.js'
-import { computeFold, runTransaction, waitForTransactionReady } from './domain/conversation-algebra/index.js'
+import { computeFold, runTransaction, transactionOf, waitForTransactionReady } from './domain/conversation-algebra/index.js'
 import { createConversationAlgebraHostAdapter } from './domain/conversation-algebra-host-adapter.js'
 import { createConversationReadiness } from './domain/conversation-algebra-readiness.js'
 import { installConversationHistoryGate } from './domain/conversation-algebra-isolation.js'
@@ -114,7 +112,7 @@ import { compactionFailureMessage } from './domain/compaction-failure.js'
 import { createForegroundFrameSessionAdapter } from './domain/foreground-frame-session-adapter.js'
 import { HISTORY_RECALL_OUTPUT_SCHEMA, HISTORY_RECALL_TOOL, createHistoryRecall, renderHistoryRecall } from './domain/history-recall.js'
 import { dshParameterFields } from './domain/dsh-tool-schema.js'
-import { createModelRequestLog } from './domain/model-request-log.js'
+import { createModelRequestLog, requestContextStale } from './domain/model-request-log.js'
 import { MVU_SUBMIT_UPDATE_TOOL, collectMvuHelperContext, createMvuSettlementModule } from './domain/mvu-background-settlement.js'
 import { applyMvuSettlementEffect } from './domain/mvu-settlement-effect.js'
 import { createMvuSettlementReconciler } from './domain/mvu-settlement-reconciler.js'
@@ -227,6 +225,16 @@ export async function apply(ctx) {
   const compactionTimers = new Map()
   const compactionAbort = new AbortController()
   const sessionSignals = createSessionSignalTransport()
+  const coldSessions = new Map()
+  function sessionForId(sessionId) {
+    const id = str(sessionId)
+    return sessionStore.get(id) || agentRegistry.get(id)?.session || coldSessions.get(id) || null
+  }
+  // Cold folds serve read-only projections; writes must first resume the host Session.
+  function liveSessionForId(sessionId) {
+    const id = str(sessionId)
+    return sessionStore.get(id) || agentRegistry.get(id)?.session || null
+  }
   function queueAutoCompaction(sessionId) {
     if (!autoCompaction || compactionAbort.signal.aborted || compactionTimers.has(sessionId)) return
     const timer = setTimeout(async () => {
@@ -238,7 +246,7 @@ export async function apply(ctx) {
     }, 50)
     timer.unref?.(); compactionTimers.set(sessionId, timer)
   }
-  ctx.effect(() => () => { compactionAbort.abort(); for (const timer of compactionTimers.values()) clearTimeout(timer) })
+  ctx.effect(() => () => { compactionAbort.abort(); for (const timer of compactionTimers.values()) clearTimeout(timer); coldSessions.clear() })
 	const tavernScriptDispatch = createTavernScriptDispatch({
     publishSignal: function (sessionId, signal) { sessionSignals.publish(sessionId, signal) }
   })
@@ -317,16 +325,34 @@ export async function apply(ctx) {
   const readPromptTemplateGlobalVariables = promptTemplateGlobalVariables.read
   const writePromptTemplateGlobalVariables = promptTemplateGlobalVariables.save
   let tavernSettingsDocument = await profileData.readJson(settingsPath)
-  // A process-local allowlist permits acceptance on disposable UI-created
-  // sessions without editing profile data or enabling writes for other chats.
-  const algebraTestSessions = new Set(String(process.env.DSH_TAVERN_CONVERSATION_ALGEBRA_SESSIONS || '').split(',').map(value => value.trim()).filter(Boolean))
-  const algebraEnabled = sessionId => tavernSettingsDocument?.conversationAlgebra === true || algebraTestSessions.has(sessionId)
+  // Every conversation writes through the conversation algebra (ADR-0009).
+  // Without the history isolation gate there is no safe fallback: refuse.
+  function assertAlgebraReady() {
+    if (!algebraHistoryInstalled) throw new Error('会话历史隔离未就绪，请重启后再试')
+  }
   const algebraReadiness = createConversationReadiness({
-    getSession: id => sessionStore.get(id) || agentRegistry.get(id)?.session,
-    observe: (id, signal) => ctx.get('sessionQuery').observeSession(id, { signal, projectionMode: 'none' }),
-    resume: id => agentRegistry.resume({ resumeSessionId: id }),
+    // Live sessions only: a detached cold copy must never reach live()'s
+    // recovery/flush path (it would persist a stale registry or throw).
+    getSession: id => liveSessionForId(id),
+    observe: async (id, signal) => {
+      const observation = await ctx.get('sessionQuery').observeSession(id, { signal, projectionMode: 'none' })
+      if (!sessionStore.get(id) && !agentRegistry.get(id)?.session && observation.source === 'prepared') {
+        const session = sessionStore.prepare(id, {
+          seed: structuredClone(observation.events),
+          meta: structuredClone(observation.header),
+          inheritedEventCount: observation.inheritedEventCount,
+          eventState: 'detached'
+        })
+        coldSessions.set(id, session)
+      }
+      return observation
+    },
+    resume: async id => {
+      const handle = await agentRegistry.resume({ resumeSessionId: id })
+      coldSessions.delete(id)
+      return handle
+    },
     flush: session => sessionStore.flush(session),
-    writeRegistry: persistConversationRegistry,
     hasHistoryIntent: async id => {
       const chat = await chatForSession(id)
       return Boolean(chat?.conversationHistoryIntent || chat?.regenRecovery?.abortTransaction)
@@ -335,7 +361,10 @@ export async function apply(ctx) {
       const chat = await chatForSession(session.id)
       if (chat?.conversationHistoryIntent) await algebraHistory.recover(session, chat.id)
       if (chat?.regenRecovery?.abortTransaction) await recoverRegeneration(chat.id)
-    }
+    },
+    // Read-only projections may fold a cold session, but durable transactions
+    // need the writable host Session: resist resume into a detached copy.
+    live: session => Boolean(liveSessionForId(session.id))
   })
   let algebraHistoryInstalled = false
   ctx.inject(['sessionController'], scope => {
@@ -859,16 +888,6 @@ export async function apply(ctx) {
     }
   })
   function chatForSession(sessionId) { return sessionChats.read(sessionId) }
-  async function persistConversationRegistry(sessionId, registry) {
-    const chat = await chatForSession(sessionId)
-    if (!chat) throw new Error('分支注册表缺少对应 Chat')
-    if (JSON.stringify(chat.branchRegistry) === JSON.stringify(registry)) return
-    await rawUpdateChat(chat.id, current => {
-      if (JSON.stringify(current.branchRegistry) === JSON.stringify(registry)) return undefined
-      current.branchRegistry = structuredClone(registry)
-      return current
-    }, { source: 'conversation-algebra.registry' })
-  }
   function sessionStateForSession(sessionId) {
     return requestPerformance.stage('readSessionState', () => sessionChats.readState(sessionId))
   }
@@ -1325,11 +1344,15 @@ export async function apply(ctx) {
   const tavernScriptHostAdapter = createTavernScriptHostAdapter({
     recordResourceSave: (sessionId, summary) => apiDiagnostics.recordResourceSave(sessionId, summary),
     publishCreatedMessages: async function (chat, targets) {
-      const session = sessionStore.get(chat.sessionId) || agentRegistry.get(chat.sessionId)?.session
+      const session = sessionForId(chat.sessionId)
       appendHelperUserSessionContext(session, chat, targets)
       await sessionStore.flush(session)
     },
     resolveChat: chatForSession,
+    variantBodiesOf: chat => {
+      const session = sessionForId(chat?.sessionId)
+      return projectVariantBodies(session)
+    },
     resolveChatSlice: async (sessionId,indices) => {
       const chatId=(await readSessionMap())[sessionId]
       if(!chatId)return undefined
@@ -1360,12 +1383,12 @@ export async function apply(ctx) {
     updateChat,
     readChatRevision,
     synchronizeTemplateHistory: async chat => {
-      const session = sessionStore.get(chat.sessionId) || agentRegistry.get(chat.sessionId)?.session
-      if (session) await synchronizeTemplateHistory(session, chat, session => sessionStore.flush(session), algebraEnabled(chat.sessionId))
+      const session = sessionForId(chat.sessionId)
+      if (session) await synchronizeTemplateHistory(session, chat, session => sessionStore.flush(session))
     },
     prepareTemplateHistory: async (before, after) => {
-      const session = sessionStore.get(before.sessionId) || agentRegistry.get(before.sessionId)?.session
-      return session ? await prepareTemplateHistory(session, before, after, algebraEnabled(before.sessionId)) : after
+      const session = sessionForId(before.sessionId)
+      return session ? await prepareTemplateHistory(session, before, after) : after
     },
     readCard: readChatCard,
     modelFor: chat => modelSelection(chat.sessionId)?.model || '',
@@ -1406,7 +1429,8 @@ export async function apply(ctx) {
     return { sessionId: id, loaded: Boolean(session && (typeof session.snapshotEvents === 'function' || Array.isArray(session.events))), events: sessionEvents(session), ...(includeSession ? {session} : {}) }
   }
 
-  const readBackgroundSuppression = createBackgroundSuppressionReader(id => sessionDebugEvidence(id, true))
+  // Rollback needs the live Session; floors are read-only and may come from
+  // the cold fold before the page resumes the Agent.
 
   // ---------- 聊天 ----------
   function cardViewOf(card, chat) {
@@ -1450,26 +1474,7 @@ export async function apply(ctx) {
     const activePresetSnapshot = groupOfMode(chat.mode) === 'play' && chat.runtimePresetSnapshot && typeof chat.runtimePresetSnapshot === 'object'
       ? chat.runtimePresetSnapshot
       : null
-    let replyDisplay = { projections: replyProjectionsOf(chat), presentation: null, latestSourceBacked: false }
-    let cardExtensions = { regexScripts: [], helperScripts: [] }
-    if ((chat.mode || 'story') === 'story' || (chat.mode || 'story') === 'script') {
-      cardExtensions = await requestPerformance.stage('cardExtensions', () => readCardExtensions(chat.cardPath, chat)) || cardExtensions
-      const pinnedExtensions = await requestPerformance.stage('remoteAssets', () => tavernRemoteAssets.pinExtensions(cardExtensions))
-      cardExtensions = Object.assign({}, cardExtensions, {
-        helperScripts: pinnedExtensions.helperScripts,
-        regexScripts: pinnedExtensions.regexScripts,
-        remoteAssetDiagnostics: pinnedExtensions.diagnostics,
-        remoteAssetPins: pinnedExtensions.pins
-      })
-      const presetRegexScripts = Array.isArray(activePresetSnapshot && activePresetSnapshot.regexScripts) ? activePresetSnapshot.regexScripts : []
-      replyDisplay = await requestPerformance.stage('historyProjection', () => incrementalReplyView.project(persistedProjection ? chat : { ...chat, _storageRevision: undefined }, {
-        charName: chat.cardName, macroState: chat.macroState,
-        regexScripts: withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(cardExtensions, presetRegexScripts)),
-        placement: 2, isMarkdown: true, isEdit: false, depth: 0
-      }, { charName: chat.cardName, macroState: chat.macroState, regexScripts: withDefaultStatusRegexScripts(chat, cardExtensions.regexScripts) }))
-      replyDisplay = await liveCardUpdate.project(chat, card, replyDisplay, {charName:chat.cardName,macroState:chat.macroState,regexScripts:cardExtensions.regexScripts})
-      replyDisplay.projections = withLegacyPresentationProjection(chat, replyDisplay.projections)
-    }
+    const { replyDisplay, cardExtensions } = await replyDisplayOf(chat, card, persistedProjection, activePresetSnapshot)
     const activity = backgroundTasks.activity(chat)
     const debugTurns = []
     for (const message of Array.isArray(chat.messages) ? chat.messages : []) {
@@ -1480,22 +1485,11 @@ export async function apply(ctx) {
       debugTurns.push({ turn, preview: source.slice(0, 90), chars: source.length })
     }
     const latestStoryTurn = Number(debugTurns[debugTurns.length - 1]?.turn) || 0
-    const liveSession = sessionStore.get(str(chat.sessionId)) || agentRegistry.get(str(chat.sessionId))?.session
+    const liveSession = sessionForId(chat.sessionId)
     const latestAssistant = latestStoryTurn > 0 ? assistantResultForTurn(liveSession, latestStoryTurn) : null
     const latestAssistantMessageId = str(latestAssistant?.event?.data?.message?.id)
-    const forkTurnsByMessageId = {}
-    const visibleTurns = new Set(debugTurns.map(item => item.turn))
-    const messagesByTurn = new Map()
-    for (const event of sessionEvents(liveSession)) {
-      const turn = Number(event.data?.turn)
-      if (!visibleTurns.has(turn)) continue
-      if (event.type === 'turn/start') messagesByTurn.delete(turn)
-      if (event.type === 'assistant/message' && event.data?.message?.source?.kind === 'model') messagesByTurn.set(turn, event.data.message.id)
-    }
-    for (const [turn, messageId] of messagesByTurn) if (messageId) forkTurnsByMessageId[messageId] = turn
-    const { inputSources, inputTemplateDisplays } = projectInputFields(chat)
     // P2-B: variant bodies for the helper surface and the variant switcher.
-    const variantBodies = projectVariantBodies(liveSession, chat.branchRegistry)
+    const variantBodies = projectVariantBodies(liveSession)
     const cardUpdate = ['story', 'script'].includes(chat.mode || 'story') && chat.requestMode !== 'sillytavern'
       ? await cardUpdateStatus(chat) : { available: false }
     const helperEnabled = hasTavernScriptRuntime(chat, cardExtensions.helperScripts)
@@ -1544,15 +1538,13 @@ export async function apply(ctx) {
       guides: Array.isArray(chat.guides) ? chat.guides : [],
       debugTurns: debugTurns.slice(-12).reverse(),
       latestAssistantMessageId,
-      forkTurnsByMessageId,
       latestAssistantTurn: latestStoryTurn,
       variantSwitch: variantSwitchView(chat, latestStoryTurn),
-      inputSources,
-      inputTemplateDisplays,
+      latestInput: latestRuntimeInput(chat),
+      regenerating: chat.regenInProgress === true,
       variantBodies,
       ...rollbackFields,
       presentation: null,
-      replyProjections: replyDisplay.projections,
       tavernStatusView: replyDisplay.statusView || null,
       tavernStatusViews: replyDisplay.statusViews || [],
       mvuReceipts: mvuReceiptsOf(chat),
@@ -1582,6 +1574,47 @@ export async function apply(ctx) {
       scriptProgress: scriptProgress,
       updatedAt: chat.updatedAt || 0
     }
+  }
+  /** Reply display projections shared by the session view and story floors. */
+  async function replyDisplayOf(chat, card, persistedProjection, activePresetSnapshot) {
+    let replyDisplay = { projections: replyProjectionsOf(chat), presentation: null, latestSourceBacked: false }
+    let cardExtensions = { regexScripts: [], helperScripts: [] }
+    if ((chat.mode || 'story') === 'story' || (chat.mode || 'story') === 'script') {
+      cardExtensions = await requestPerformance.stage('cardExtensions', () => readCardExtensions(chat.cardPath, chat)) || cardExtensions
+      const pinnedExtensions = await requestPerformance.stage('remoteAssets', () => tavernRemoteAssets.pinExtensions(cardExtensions))
+      cardExtensions = Object.assign({}, cardExtensions, {
+        helperScripts: pinnedExtensions.helperScripts,
+        regexScripts: pinnedExtensions.regexScripts,
+        remoteAssetDiagnostics: pinnedExtensions.diagnostics,
+        remoteAssetPins: pinnedExtensions.pins
+      })
+      const presetRegexScripts = Array.isArray(activePresetSnapshot && activePresetSnapshot.regexScripts) ? activePresetSnapshot.regexScripts : []
+      replyDisplay = await requestPerformance.stage('historyProjection', () => incrementalReplyView.project(persistedProjection ? chat : { ...chat, _storageRevision: undefined }, {
+        charName: chat.cardName, macroState: chat.macroState,
+        regexScripts: withDefaultStatusRegexScripts(chat, composeTavernRegexScripts(cardExtensions, presetRegexScripts)),
+        placement: 2, isMarkdown: true, isEdit: false, depth: 0
+      }, { charName: chat.cardName, macroState: chat.macroState, regexScripts: withDefaultStatusRegexScripts(chat, cardExtensions.regexScripts) }))
+      replyDisplay = await liveCardUpdate.project(chat, card, replyDisplay, {charName:chat.cardName,macroState:chat.macroState,regexScripts:cardExtensions.regexScripts})
+      replyDisplay.projections = withLegacyPresentationProjection(chat, replyDisplay.projections)
+    }
+    return { replyDisplay, cardExtensions }
+  }
+  /** One page of story floors for the Tavern conversation view. */
+  async function storyFloors(sessionId, args = {}) {
+    const chat = await chatForSession(sessionId)
+    if (!chat) throw new Error('请先打开游玩会话')
+    const card = await readChatCard(chat)
+    const preset = groupOfMode(chat.mode) === 'play' && chat.runtimePresetSnapshot && typeof chat.runtimePresetSnapshot === 'object' ? chat.runtimePresetSnapshot : null
+    const { replyDisplay } = await replyDisplayOf(chat, card, true, preset)
+    const floors = storyFloorsOf(chat, { projections: replyDisplay.projections, receipts: mvuReceiptsOf(chat) })
+    return { chatId: chat.id, revision: Number(chat._storageRevision || 0), ...pageStoryFloors(floors, args) }
+  }
+  /** The newest player input by native turn: the open floor (generating or
+   * failed) is not in Chat yet, so the story view reads its text here. */
+  function latestRuntimeInput(chat) {
+    const inputs = chat.runtimeInputs && typeof chat.runtimeInputs === 'object' ? chat.runtimeInputs : {}
+    const turn = Math.max(0, ...Object.keys(inputs).map(Number).filter(Number.isSafeInteger))
+    return turn > 0 ? { turn, text: str(inputs[String(turn)]?.source) } : null
   }
   function replyProjectionsOf(chat) {
     const messages = Array.isArray(chat && chat.messages) ? chat.messages : []
@@ -1678,17 +1711,28 @@ export async function apply(ctx) {
    * rolled-back branch without an anchor record. */
   function variantSwitchView(chat, turn) {
     if (!(turn > 0)) return { available: false, turn: 0, count: 1, selected: 0, reason: '没有剧情楼层' }
-    const registry = chat.branchRegistry && Array.isArray(chat.branchRegistry.branches) ? chat.branchRegistry : { branches: [], activeHeadSeq: null }
-    const variants = distinctFloorVariants(sessionStore.get(str(chat.sessionId)) || agentRegistry.get(str(chat.sessionId))?.session, registry, turn)
-    const activeHead = Number(registry.activeHeadSeq)
-    const selectedNow = variants.findIndex(variant => variant.headSeq === activeHead)
-    // Same enumeration as switchVariant: the live line occupies slot 0 while
-    // active; distinct archived variants follow, newest first.
+    const session = sessionForId(chat.sessionId)
+    const stored = branchRegistryOf(session)
+    const registry = Array.isArray(stored?.branches) ? stored : { branches: [], activeHeadSeq: null }
+    const variants = distinctFloorVariants(session, turn, registry)
+    const activeHead = registry.activeHeadSeq === null || registry.activeHeadSeq === undefined ? null : Number(registry.activeHeadSeq)
+    const selectedNow = activeHead === null ? -1 : variants.findIndex(variant => variant.headSeq === activeHead)
+    // Sibling variants use creation order; the active unregistered line is
+    // appended at the end so a fresh reroll is selected as the last slot.
     const count = selectedNow >= 0 ? variants.length : 1 + variants.length
     if (count <= 1) return { available: false, turn, count: 1, selected: 0, reason: '' }
-    if (!algebraEnabled(chat.sessionId)) return { available: false, turn, count, selected: 0, reason: '当前会话未启用会话历史隔离' }
-    const selected = selectedNow >= 0 ? selectedNow : 0
+    const selected = selectedNow >= 0 ? selectedNow : count - 1
     return { available: true, turn, count, selected, reason: '' }
+  }
+  function latestStoryTurnOf(chat) {
+    const messages = Array.isArray(chat?.messages) ? chat.messages : []
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index]
+      if (!message || message.role !== 'assistant' || message.greeting === true) continue
+      const turn = Number(message.turn) || 0
+      if (turn > 0) return turn
+    }
+    return 0
   }
   function volatileSessionViewFields(chat, activity) { return sessionStateView.volatile(chat, activity) }
 
@@ -1713,10 +1757,13 @@ export async function apply(ctx) {
       posture: chat.posture || '',
       guides: Array.isArray(chat.guides) ? chat.guides : []
     })
+    const variantSession = sessionForId(chat.sessionId)
+    next.variantBodies = projectVariantBodies(variantSession)
+    next.variantSwitch = variantSwitchView(chat, latestStoryTurnOf(chat))
     const helperCore = await requestPerformance.stage('helperMessagesProjection', () => projectTavernHelperContext(chat, {
       previousMessages,
       dirtyIndices: dirtyMessageIndices,
-      variantBodies: projectVariantBodies(sessionStore.get(chat.sessionId) || agentRegistry.get(chat.sessionId)?.session, chat.branchRegistry)
+      variantBodies: next.variantBodies
     }))
     next.tavernHelper = Object.assign({}, previous.tavernHelper, helperCore, {
       openingHost: previous.tavernHelper.openingHost,
@@ -1743,7 +1790,6 @@ export async function apply(ctx) {
       const renderChat = {...chat,messages:chat.messages.map((message,index) => message.variables ? message : {...message,variables:helperCore.messages[index]?.swipes_data || []})}
       replyDisplay = await liveCardUpdate.project(renderChat, card, replyDisplay, {charName:chat.cardName,macroState:chat.macroState,regexScripts:cardExtensions.regexScripts})
       replyDisplay.projections = withLegacyPresentationProjection(chat, replyDisplay.projections)
-      next.replyProjections = replyDisplay.projections
       next.tavernStatusView = replyDisplay.statusView || null
       next.tavernStatusViews = replyDisplay.statusViews || []
     }
@@ -1796,8 +1842,7 @@ export async function apply(ctx) {
     const before = readSessionStablePrefix(session)
     const revision = Number(chat.cardContextRevision) || 0
     const text = before?.version === 3 && revision <= before.revision ? '' : await ensurePlayCardSnapshot(chat)
-    const prefix = await ensureSessionStablePrefix(session, text, stablePrefixStorage, revision,
-      { enabled: algebraEnabled(session.id), flush: session => sessionStore.flush(session) })
+    const prefix = await ensureSessionStablePrefix(session, text, stablePrefixStorage, revision, session => sessionStore.flush(session))
     if (prefix && prefix.event !== before?.event) await sessionStore.flush(session)
     return prefix
   }
@@ -1822,7 +1867,7 @@ export async function apply(ctx) {
     id: uid,
     native: {
       wait: function (sessionId) { return waitForWritableSession({ registry: agentRegistry, sessions: sessionStore, sessionId, sleep }) },
-      ensurePrefix: function (session, text) { return ensureSessionStablePrefix(session, text, stablePrefixStorage) },
+      ensurePrefix: function (session, text) { return ensureSessionStablePrefix(session, text, stablePrefixStorage, 0, session => sessionStore.flush(session)) },
       ensureCardWorkspace: ensureNativeCardWorkspace,
       flush: function (session) { return sessionStore.flush(session) },
       selection: modelSelection,
@@ -1873,7 +1918,7 @@ export async function apply(ctx) {
     chats: { resolve: chatForSession, publish: conversationRegistry.publish, read: readChat, readRevision: readChatRevision, write: rawWriteChat },
     native: {
       wait: sessionId => waitForWritableSession({ registry: agentRegistry, sessions: sessionStore, sessionId, sleep }),
-      ensurePrefix: (session, text) => ensureSessionStablePrefix(session, text, stablePrefixStorage),
+      ensurePrefix: (session, text) => ensureSessionStablePrefix(session, text, stablePrefixStorage, 0, session => sessionStore.flush(session)),
       flush: session => sessionStore.flush(session)
     }
   })
@@ -1950,14 +1995,7 @@ export async function apply(ctx) {
     setupAgent: async function (childCtx) {
       await agentPresets.mount(childCtx, 'tavern-background')
     },
-    resolveConversationAlgebra: async function (input) {
-      const foregroundId = str(input.sessionId)
-      if (!foregroundId.startsWith('background-') && algebraEnabled(foregroundId)) {
-        if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用 conversationAlgebra')
-        return { enabled: true }
-      }
-      return { enabled: false }
-    },
+    assertConversationAlgebra: assertAlgebraReady,
     compactAgent: executeBackgroundCompaction,
     flushSession: async function (session) {
       const sessions = ctx.get('sessions')
@@ -2088,15 +2126,10 @@ export async function apply(ctx) {
   }
   async function retireOldForegroundFrames(agent, keepTurn) {
     await algebraReadiness.live(agent.session)
-    if (algebraEnabled(agent.session.id)) {
-      if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用 conversationAlgebra')
-      return retireForegroundWithAlgebra(agent.session, {
-        keepTurn, flush: session => sessionStore.flush(session), operationId: 'retire:' + randomUUID()
-      })
-    }
-    const count = retireForegroundFrames(agent.session, { keepTurn })
-    if (count) await sessionStore.flush(agent.session)
-    return count
+    assertAlgebraReady()
+    return retireForegroundWithAlgebra(agent.session, {
+      keepTurn, flush: session => sessionStore.flush(session), operationId: 'retire:' + randomUUID()
+    })
   }
   autoCompaction = createAutoCompaction({
     readChat: chatForSession, readState: sessionStateForSession, updateChat,
@@ -2192,8 +2225,11 @@ export async function apply(ctx) {
       const engine = await configureAgentCompaction(payload.agent)
       pendingCompactionMessages.set(payload.agent, payload.messages || [])
       try {
-        try { await engine.compactIfNeeded(payload.agent, 'pressure', payload.signal) }
-        catch (error) {
+        let passed = false
+        try {
+          await engine.compactIfNeeded(payload.agent, 'pressure', payload.signal)
+          passed = true
+        } catch (error) {
           payload.signal.throwIfAborted()
           // Match native pressure behavior: warn, then let the request proceed.
           // A provider-confirmed overflow still has its own bounded recovery.
@@ -2203,6 +2239,15 @@ export async function apply(ctx) {
             current.contextCompaction = { ...current.contextCompaction, warning }
             return current
           }, { source: 'compaction.pressure-failed' })
+        }
+        // A passing pressure check supersedes the last failure's warning.
+        if (passed && chat?.contextCompaction?.warning !== undefined) {
+          try {
+            await updateChat(chat.id, current => {
+              if (current.contextCompaction) delete current.contextCompaction.warning
+              return current
+            }, { source: 'compaction.pressure-recovered' })
+          } catch (error) { console.warn('dsh-tavern: 清除压缩提示失败:', error?.message || error) }
         }
         return await next()
       } finally {
@@ -2947,7 +2992,7 @@ export async function apply(ctx) {
       if (mode !== 'story' && mode !== 'script') return 0
       const liveAgent = agentRegistry.get(input.sessionId)
       const liveSession = sessionStore.get(input.sessionId) || (liveAgent && liveAgent.session)
-      return clearFailedTurnSurface({ session: liveSession, turn: input.turn })
+      return await clearFailedTurnSurface({ session: liveSession, turn: input.turn, flush: session => sessionStore.flush(session) })
     },
     logger: console
   })
@@ -2979,11 +3024,7 @@ export async function apply(ctx) {
   // ---------- 重新生成正文（生成即替换，无确认） ----------
   const algebraHistory = {
     ...createConversationHistory({ chats: { update: updateChat }, flush: session => sessionStore.flush(session) }),
-    enabled: sessionId => {
-      if (!algebraEnabled(sessionId)) return false
-      if (!algebraHistoryInstalled) throw new Error('会话历史隔离未就绪，不能回退分支')
-      return true
-    }
+    assertReady: assertAlgebraReady
   }
   const { regenerate: regenBody, replayFailed: replayFailedTurn, recover: recoverRegeneration, rollback: rollbackTurn, undoRollback: undoRollbackTurn, switchVariant: switchVariantTurn } = createRoundHistory({
     algebraHistory,
@@ -2991,8 +3032,12 @@ export async function apply(ctx) {
     chats: { read: readChat, readState: chatPersistence.readSessionState, forSession: chatForSession, readCard: readChatCard,
       readRevision: readChatRevision, write: writeChat, update: updateChat },
     sessions: { get: function (sessionId) { return ctx.get('agents')?.get(sessionId) },
-      getSession: sessionId => sessionStore.get(sessionId),
-      resume: sessionId => agentRegistry.resume({ resumeSessionId: sessionId }),
+      getSession: sessionId => liveSessionForId(sessionId),
+      resume: async sessionId => {
+        const handle = await agentRegistry.resume({ resumeSessionId: sessionId })
+        coldSessions.delete(sessionId)
+        return handle
+      },
       flush: session => sessionStore.flush(session) },
     scripts: { read: readScript, continuity: scriptContinuity,
       dispatchEvent: function (event) { return tavernScriptHostAdapter.dispatchEvent(event) } },
@@ -3004,11 +3049,7 @@ export async function apply(ctx) {
   })
 
   const bodyEditor = createBodyEditor({
-    algebraEnabled: sessionId => {
-      if (!algebraEnabled(sessionId)) return false
-      if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用正文编辑事务')
-      return true
-    },
+    assertAlgebraReady,
     chats: { forSession: chatForSession, update: updateChat },
     sessions: { get: id => ctx.get('agents')?.get(id), flush: session => sessionStore.flush(session) },
     timeline: storyTimeline,
@@ -3077,10 +3118,10 @@ export async function apply(ctx) {
         const sessionId = str(args?.sessionId)
         const session = sessionStore.get(sessionId) || agentRegistry.get(sessionId)?.session
         const events = sessionEvents(session)
-        const transactions = events.map(event => ({ seq: event.seq, tag: (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction })).filter(item => item.tag)
-        const completed = transactions.filter(item => ['commit', 'begin-commit'].includes(item.tag.phase))
+        const completed = events.map(event => ({ seq: event.seq, tag: transactionOf(event) }))
+          .filter(item => ['commit', 'begin-commit'].includes(item.tag?.phase))
         return { conversationAlgebra: {
-          enabled: algebraEnabled(sessionId), scope: 'foreground-retirement,body-edit,rollback', historyReady: algebraHistoryInstalled,
+          historyReady: algebraHistoryInstalled,
           loaded: Boolean(session), committedTransactions: completed.length,
           bodyEditTransactions: completed.filter(item => item.tag.operationId.startsWith('tavern-body-edit:')).length,
           checkoutTransactions: completed.filter(item => item.tag.operationId.startsWith('checkout:')).length,
@@ -3299,7 +3340,8 @@ export async function apply(ctx) {
         const session = sessionStore.get(sessionId) || agentRegistry.get(sessionId)?.session
         const ownerId = background?.parentSessionId || session?.header?.parentSession || sessionId
         const chat = await sessionStateForSession(ownerId)
-        return { record: await modelRequestLog.latestForSession(sessionId, str(args?.knownId), chat?.id) }
+        const record = await modelRequestLog.latestForSession(sessionId, str(args?.knownId), chat?.id)
+        return { record, contextChanged: Boolean(record && session && requestContextStale(sessionEvents(session), record)) }
       }
       case 'listSkills': return { skills: (await tavernSkills.list()).map(({ content, path, ...summary }) => summary) }
       case 'editSkill': return { skill: await tavernSkills.edit(args) }
@@ -3527,11 +3569,6 @@ export async function apply(ctx) {
           throw error
         }
       }
-      case 'getBackgroundSuppressedTurns': {
-        const id = str(args && args.sessionId)
-        if (!id.startsWith('background-')) return { turns: [] }
-        return readBackgroundSuppression(id)
-      }
       case 'applyUpdatedCard': {
         const sessionId = str(args && args.sessionId)
         if (typeof args.digest !== 'string' || !args.digest) throw new Error('请刷新后确认人物卡和世界书更新')
@@ -3547,7 +3584,7 @@ export async function apply(ctx) {
           const patch = await playCardSnapshots.replacement(chat, card, args.digest)
           const prepared = await liveCardUpdate.prepare({...chat,...patch}, card, chat)
           const nativeSession = sessionStore.get(sessionId) || agentRegistry.get(sessionId)?.session
-          if (nativeSession) await prepareTemplateHistory(nativeSession, chat, prepared, algebraEnabled(sessionId))
+          if (nativeSession) await prepareTemplateHistory(nativeSession, chat, prepared)
           prepared.tavernHelperLifecycleRevision = (Number(chat.tavernHelperLifecycleRevision) || 0) + 1
           const extensions = await readCardExtensions(chat.cardPath, prepared)
           await liveCardUpdate.project(prepared, card, {projections:[]}, {charName:card.name,macroState:chat.macroState,regexScripts:extensions.regexScripts})
@@ -3557,7 +3594,7 @@ export async function apply(ctx) {
               if (current._storageRevision !== chat._storageRevision || agentRegistry.get(sessionId)?.phase?.kind === 'running' || ['pending','running','waiting-runtime'].includes(current.settleStatus)) throw conflict
               return prepared
             }, { source: 'card-context.apply-update' })
-            if (nativeSession) await synchronizeTemplateHistory(nativeSession, saved, session => sessionStore.flush(session), algebraEnabled(sessionId))
+            if (nativeSession) await synchronizeTemplateHistory(nativeSession, saved, session => sessionStore.flush(session))
             return { view: await view(saved, card) }
           } catch (error) { if (error !== conflict) throw error }
         }
@@ -3565,6 +3602,7 @@ export async function apply(ctx) {
       }
       case 'getFullTemplateRuntimeInfo': throw new Error('提示词模板已迁移到服务端，请刷新页面');
       case 'getSession': return sessionViews.response(args || {})
+      case 'getStoryFloors': return await storyFloors(args && args.sessionId, args || {})
       case 'hydrateTavernHelperMessages': {
         const chat = await chatForSession(args && args.sessionId)
         if (!chat) throw new Error('请先打开游玩会话')
@@ -3994,20 +4032,18 @@ export async function apply(ctx) {
       }),
       stream: Array.isArray(result.event.data && result.event.data.stream) ? [...result.event.data.stream] : []
     }
-    if (algebraEnabled(session.id)) {
-      if (!algebraHistoryInstalled) throw new Error('会话历史恢复隔离未就绪，不能启用 conversationAlgebra')
-      const adapter = createConversationAlgebraHostAdapter(session, { flush: target => sessionStore.flush(target) })
-      await waitForTransactionReady(adapter)
-      const state = computeFold(sessionEvents(session))
-      await runTransaction(adapter, { expectedHead: state.headSeq, operationId: 'reply-projection:' + randomUUID(), ops: [{
-        kind: 'surface-write',
-        event: { type: 'assistant/message', data: replacement },
-        intent: { surfaceOp: { op: 'replace', start: result.index, end: result.index }, sourceEventSeqs: [result.index] }
-      }] })
-      return
-    }
-    replaceSessionSurface(session, 'assistant/message', replacement,
-      { start: result.index, end: result.index, sourceEventSeqs: [result.index] })
+    assertAlgebraReady()
+    const adapter = createConversationAlgebraHostAdapter(session, { flush: target => sessionStore.flush(target) })
+    await waitForTransactionReady(adapter)
+    const state = computeFold(sessionEvents(session))
+    // A rollback or reroll that ran meanwhile took the node off the surface:
+    // never write projected text over a reply the player no longer has.
+    if (!state.surfaceNodes.includes(result.index)) return
+    await runTransaction(adapter, { expectedHead: state.headSeq, operationId: 'reply-projection:' + randomUUID(), ops: [{
+      kind: 'surface-write',
+      event: { type: 'assistant/message', data: replacement },
+      intent: { surfaceOp: { op: 'replace', start: result.index, end: result.index }, sourceEventSeqs: [result.index] }
+    }] })
   }
 
   async function resolveChatRuntimePreset(chat) {
@@ -4292,7 +4328,7 @@ export async function apply(ctx) {
     const decision = await next()
     if (decision.kind === 'reject') return decision
     const chat = await chatForSession(sessionId)
-    if (chat) await synchronizeTemplateHistory(payload.agent.session, chat, session => sessionStore.flush(session), algebraEnabled(sessionId))
+    if (chat) await synchronizeTemplateHistory(payload.agent.session, chat, session => sessionStore.flush(session))
     if (chat) await synchronizeBodyEdits(payload.agent.session, chat, session => sessionStore.flush(session), persistClearedBodyEdits)
     const prepared = await foregroundStrategies.prepareStep({
       sessionId,
@@ -4307,7 +4343,7 @@ export async function apply(ctx) {
 
   const importContextPreparation = createImportContextPreparation({
     readChat: chatForSession, updateChat,
-    getSession: id => sessionStore.get(id) || agentRegistry.get(id)?.session,
+    getSession: id => sessionForId(id),
     flush: session => sessionStore.flush(session),
     modelInfo: request => ctx.llm.resolveModelInfo(request.provider, request.model, request.signal),
     estimateMessage: message => {
@@ -4440,7 +4476,9 @@ export async function apply(ctx) {
       userContent,
       assistantText: assistant === null ? '' : assistant.text
     })
-    if (saved.reply) replaceAssistantReply(session, assistant, saved.reply.sessionText)
+    // Detached from the turn: a failure here must never reach the host's
+    // unhandled-rejection exit, which takes the whole process down.
+    if (saved.reply) runDetachedWrite(() => replaceAssistantReply(session, assistant, saved.reply.sessionText), { label: '回复文本写回会话' })
   })
 
   ctx.on('agent/error', function (payload) {
@@ -4462,7 +4500,7 @@ export async function apply(ctx) {
     if (agent === undefined || agent.session === undefined) return assembly
     if (backgroundAgentRunner.owns(agent.session.id)) return assembly
     const chat = await chatForSession(agent.session.id)
-    if (chat) await synchronizeTemplateHistory(agent.session, chat, session => sessionStore.flush(session), algebraEnabled(agent.session.id))
+    if (chat) await synchronizeTemplateHistory(agent.session, chat, session => sessionStore.flush(session))
     if (chat) await synchronizeBodyEdits(agent.session, chat, session => sessionStore.flush(session), persistClearedBodyEdits)
     if (chat && chat.requestMode !== 'sillytavern' && ['story', 'script'].includes(await turnOrchestrator.modeFor(agent.session.id))) {
       await ensureNativeSystemPrefix(agent.session, chat)

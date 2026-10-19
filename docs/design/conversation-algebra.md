@@ -59,7 +59,7 @@ reroll = `checkout(锚点)+generate()`；回退 = `checkout`；变体切换（sw
 - G5 大历史（500+ 层）下回退/切变体/回到旧线为 O(1)+缓存命中，零模型费用（重放已记录结果）。
 
 **非目标**
-- 不修改宿主（`runtime/lib/node_modules/@deepseek-ai/*` 只读）。
+- 宿主包文件保持只读（`runtime/lib/node_modules/@deepseek-ai/*`）。修改宿主行为只能经宿主补丁 seam，在固定基线上做补丁，每个补丁都按 SHA 固定并有测试（ADR-0007、ADR-0009）。
 - 不改事件文件格式、宿主 seed 校验、宿主轮次记账。
 - 不解决宿主历史分页性能问题（ADR-0003 已记录为上游问题）。
 
@@ -150,14 +150,14 @@ generate(opts): Step                   // 读当前 fold → 宿主生成循环 
 
 守卫清单与宿主 seed 校验同源：**写入时拒绝取代加载时验尸**，宿主校验退化为重言式。
 
-### 4.3 编译到宿主事件（适配层，宿主只读）
+### 4.3 编译到宿主事件（适配层）
 
 | 原语 | 宿主编码 |
 | --- | --- |
 | appendStep | `session.append`（现状） |
 | editStep | `replaceSessionSurface` 同范围同身份换内容 |
 | dropTagged（及手动清理 purge） | replace 为空内容墓碑（满足 G5）+ fold 空行规则 |
-| checkout 回旧线 | 回指式 replace（rollback 现有机制，从日志取旧内容重写） |
+| checkout（回退、回旧线、切变体、重生成前回锚点） | 一个 `dsh-tavern/surface-select` 事件：按引用给出完整节点列表，并携带分支元数据（ADR-0009）。旧会话里的“回指式 replace”只保留兼容读取 |
 | generate | 宿主 agent 循环；轮次记账差异由合成轮映射吸收（见 §12 残留） |
 
 ---
@@ -182,7 +182,7 @@ generate(opts): Step                   // 读当前 fold → 宿主生成循环 
 ### 5.1 宿主逐事件写入下的恢复协议（2026-09-29 用户批准）
 
 1. 以会话为单位串行提交，提交前重新核验 `expectedHead`。所有计划写入必须先通过 detached 宿主 Session 的完整预检；守卫或宿主拒绝不得产生实际写入。
-2. 第一次写入持久化完整、可重放的事务意图和目标引用；全部写入与分支元数据属于同一 `operationId` 和提交标识。编码须先证明可以合法保存在现有事件 source 中，不能增加宿主不认识的必需事件类型。
+2. 第一次写入持久化完整、可重放的事务意图和目标引用；全部写入与分支元数据属于同一 `operationId` 和提交标识。编码优先放进现有事件的 source；确实需要改变 surface 解释的，使用经 ADR 批准、由宿主补丁提供解析的必需事件（目前只有 ADR-0009 的 `surface-select`）。
 3. 运行期间失败或启动恢复期间，目标会话不开放生成、不发布新视图；通过宿主 Session API 幂等补完或追加恢复事件，核对宿主 surface 与提交 fold 一致后才开放。恢复失败显式报告并继续隔离该会话。
 4. 持久化 flush 失败、各写入截断点、进程重启、重复恢复以及并发冲突必须分别验证。禁止直接写会话文件，禁止把内存假日志的原子性当作宿主能力。
 
@@ -211,12 +211,16 @@ generate(opts): Step                   // 读当前 fold → 宿主生成循环 
 
 状态面板、iframe 采集、正则显示等一律为 fold 之上的投影；显示态不落事实源。
 
+**楼层投影（Floor Projection，ADR-0009）**：`floor-projection.js` 是唯一回答"每层楼显示什么、由哪个原生轮次承载"的只读模块，输入是会话日志、已提交的分支表和 Story Timeline 的楼层，输出每层楼的输入、正文、变体数和原生轮次。显示、回退、重新生成、分叉、交接都读它。已删除的手工同步表：`regeneratedDshTurns`、`suppressedDshTurns`、`Chat.branchRegistry`，以及客户端 localStorage 里的隐藏键；分支表只存在于日志里最近一次分支事务提交的元数据中。
+
+**Story View**：Tavern 通过宿主 `conversation.view` slot 注册自己的「剧情」视图（`getStoryFloors` 按楼层分页，流式回复读宿主的 partial 状态）。宿主原生对话页保留为调试标签，客户端不再按轮次隐藏宿主的对话行。
+
 ---
 
 ## 7. 视图层规则
 
 - 视图 = 过滤 + 装饰，共享同一 fold；**两视图若展示同一事实，答案必须相同**。
-- 合法差异示例：对话页隐藏脚手架行、完整上下文显示。
+- 合法差异示例：剧情视图只显示楼层，完整上下文显示全部行；宿主原生对话页不做任何隐藏，只作调试。
 - 非法差异（=bug）：泡泡 vs 轨迹文本不一致；工具行顺序与请求不一致。
 - 现行客户端 `repairToolCallOwnership` 补丁在 G2 生效后删除。
 
@@ -235,12 +239,14 @@ generate(opts): Step                   // 读当前 fold → 宿主生成循环 
 | 正文编辑 | `editStep(assistant)` + G4 守卫 | 基本持平 |
 | 脚手架注入/退役 | `appendStep(帧)` + `dropTagged(上轮帧)` | 墓碑伪造、source 合法性特判、去重字段保留、LATEST_ONLY/CONTEXT_SYSTEM_FORMS 簿记（角色重写移入视图层） |
 | 技能装载按轮退役 | step 粒度天然携带 | `RETIRABLE/isPureToolCallRow/callNamesOf` |
-| 变体切换（swipes） | 兄弟枚举 + `checkout` | **`swipes[]`、`swipeId`、四字段同步、`replaceLastRound`**（B7 类不可表示） |
+| 变体切换（swipes） | 兄弟枚举 + `checkout`（单个 `select` 事件，不复制内容；MVU 状态与整条消息按分支存进楼层消息的 `variantStates`） | **`swipes[]`、`swipeId`、四字段同步、`replaceLastRound`**（B7 类不可表示） |
 | 开场种子 | `appendStep ×3` | 形状守卫并入 G1 |
 | 历史召回 | `appendStep(tool step)`；冷却=tag 策略 | — |
 | 压缩 | 请求装配层（§6.2） | 陈旧摘要污染类 |
 | 候选采纳 | 候选落后台会话，采纳= `checkout` | splice+字段同步 |
 | 导入/救援 | 单一来源落地后缩为一次性回填 | chat-history-rescue/import 大半 |
+
+**重构后已删除的机制（ADR-0009）**：surface-restore 复制行与 conversation-metadata 簿记行、`replaceSessionSurface` 及各处直接 surface 写入、`regeneratedDshTurns`/`suppressedDshTurns`、`Chat.branchRegistry`、客户端按轮次隐藏宿主行的投影与 MutationObserver、代数白名单与开关。不做：旧档兼容收窄（ticket 15）、移除 Chat 正文镜像（ticket 16）。
 
 ---
 
@@ -292,7 +298,9 @@ ui/        页面（只依赖 fold + 过滤器）
 
 依赖单向向下；禁同层横向、禁向上。MVU 模块不知道"回退"功能存在，只看版本号。
 
-**宿主只读下的落地现实**：algebra 编译为宿主事件（§4.3），机制即现行 rollback 所用，区别是从六处手搓收编为一处带守卫实现；分支注册表为插件元数据；`generate()` 内合成轮映射保留（循环层残留，收在一个模块）。
+**楼层与视图**：`floor-projection`（读日志+分支表）与 `story-floors`（分页）位于 derive 层之上，是视图层唯一的楼层来源；客户端不得自行推断楼层或隐藏宿主行（`architecture-guard.test.mjs` 守卫）。所有 surface 写入经 `writeSurfaceEvent` 或 `runTransaction`，不等待的写入必须经 `runDetachedWrite`（宿主会因未处理的 Promise 拒绝退出整个进程）。
+
+**宿主落地**：algebra 编译为宿主事件（§4.3）。checkout 经 ADR-0009 的 `select` 按引用切换 surface，不再复制内容；分支注册表为插件元数据；`generate()` 内合成轮映射保留（循环层残留，收在一个模块）。
 
 ---
 

@@ -1,18 +1,16 @@
 import { isDeepStrictEqual } from 'node:util'
 import { appendSessionEvent, sessionEvents, sessionEventData, surfaceReplacementRange } from './session-events.js'
 
-/** Commit a replacement against the current surface, never the raw history.
- * Existing callers retain their transaction/flush ownership. Message IDs are
- * retry identities together with source references: the same write is reused,
- * conflicting content for that identity is rejected before touching the surface.
- * Restoring an archived message may legitimately reuse its message ID against
- * a different set of displaced nodes; it is not the same mutation.
- */
-export function replaceSessionSurface(session, type, data, { start, end, sourceEventSeqs }) {
-  return createSessionSurfaceMutator(session).replace(type, data, { start, end, sourceEventSeqs })
-}
-
-/** A synchronous batch owns all its appends. Never retain this index across
+/** Commit replacements against the current surface, never the raw history.
+ * Only the algebra's host adapter may use this: the plugin writes the model
+ * surface through conversation transactions (see surface-transaction.js).
+ * Message IDs are retry identities together with source references: the same
+ * write is reused, conflicting content for that identity is rejected before
+ * touching the surface. Restoring an archived message may legitimately reuse
+ * its message ID against a different set of displaced nodes; it is not the
+ * same mutation.
+ *
+ * A synchronous batch owns all its appends. Never retain this index across
  * awaits or external session mutations; each new batch takes a fresh snapshot.
  */
 export function createSessionSurfaceMutator(session, events = sessionEvents(session)) {
@@ -63,6 +61,20 @@ export function createSessionSurfaceMutator(session, events = sessionEvents(sess
   return { append, replace }
 }
 
+function restorationComparable(data) {
+  const {tavernRestoredSurfaceSeqs: _marker, ...rest} = data || {}
+  const source = rest.message?.source
+  if (!source || !Object.hasOwn(source, 'conversationTransaction')) return rest
+  const {conversationTransaction: _transaction, ...originalSource} = source
+  return {...rest, message: {...rest.message, source: originalSource}}
+}
+
+function inPlaceComparable(data) {
+  const { stream: _stream, ...rest } = restorationComparable(data)
+  const { content: _content, id: _id, ...message } = rest.message || {}
+  return { ...rest, message }
+}
+
 // Accounting and mutation validation live together; the meter only adapts transport.
 export function isTavernSurfaceEdit(session, event, priorNodes, resolvePreset) {
   if (event?.type !== 'assistant/message') return false
@@ -98,17 +110,29 @@ export function isTavernSurfaceEdit(session, event, priorNodes, resolvePreset) {
   // Undo restores exact old event data, including provider usage, while citing
   // both the displaced node and the archived original outside that range.
   // Treat only a verified copy as restoration, never arbitrary provider output.
-  const {tavernRestoredSurfaceSeqs: _marker, ...restoredData} = event.data
+  // The conversation transaction stamps its operation onto every write it
+  // makes; that bookkeeping is not part of the restored message.
+  const restoredData = restorationComparable(event.data)
   const restored = refs.some(seq => {
     if (!Number.isSafeInteger(seq) || seq < 0 || seq >= event.seq || targets.has(seq)) return false
     const original = session.eventAt(seq)
     if (original?.type !== 'assistant/message') return false
-    const {tavernRestoredSurfaceSeqs: _oldMarker, ...originalData} = original.data
-    return isDeepStrictEqual(restoredData, originalData)
+    return isDeepStrictEqual(restoredData, restorationComparable(original.data))
   })
   if (restored && refs.every(seq =>
     Number.isSafeInteger(seq) && seq >= 0 && seq < event.seq &&
     ['user/message', 'assistant/message', 'tool/result', 'system/message'].includes(session.eventAt(seq)?.type))) return true
+  // editStep and tombstones rewrite one step in place: the same single node,
+  // content changed (and, for a tombstone, the id and stream cleared), every
+  // other field - provider usage included - carried over unchanged. A real
+  // provider reply is appended, never a replacement of itself.
+  if (refs.length === 1 && targets.size === 1 && targets.has(refs[0])) {
+    const original = session.eventAt(refs[0])
+    const id = message.id
+    if (original?.type === 'assistant/message' &&
+        (id === original.data?.message?.id || (typeof id === 'string' && id.startsWith('conversation-tombstone:'))) &&
+        isDeepStrictEqual(inPlaceComparable(event.data), inPlaceComparable(original.data))) return true
+  }
   if (event.data.usage !== undefined) return false
   return refs.every(seq => Number.isSafeInteger(seq) && targets.has(seq) && seq < event.seq &&
     ['user/message', 'assistant/message', 'tool/result'].includes(session.eventAt(seq)?.type))

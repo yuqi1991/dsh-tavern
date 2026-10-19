@@ -6,12 +6,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import { prepareExpandedPatch } from '../../tavern-plugin/lib/domain/host-session-patch.js'
-import { createRoundHistory } from '../../tavern-plugin/lib/domain/round-history.js'
-import { createStoryTimeline } from '../../tavern-plugin/lib/domain/story-timeline.js'
-import { createConversationHistory } from '../../tavern-plugin/lib/domain/conversation-algebra-history.js'
-import { computeFold } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
-import { appendSessionEvent } from '../../tavern-plugin/lib/domain/session-events.js'
+import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
+import { createRoundHistory } from '../../lib/domain/round-history.js'
+import { createStoryTimeline } from '../../lib/domain/story-timeline.js'
+import { createConversationHistory } from '../../lib/domain/conversation-algebra-history.js'
+import { computeFold } from '../../lib/domain/conversation-algebra/index.js'
+import { appendSessionEvent } from '../../lib/domain/session-events.js'
 
 const MODEL = { kind: 'model', provider: 'fixture', model: 'fixture' }
 
@@ -61,7 +61,7 @@ function harness({ algebra = true, editedText = null } = {}) {
     read: async () => ({ chunks: ['一'] }), continuity: { transition: () => ({ state: { cursor: 0 } }) }, dispatchEvent: async () => {} },
     queueSettlement: async () => { calls.push('settlement') }, cancelSettlement: async () => {},
     present: async value => structuredClone(value) }
-  options.algebraHistory = { ...createConversationHistory({ chats, flush: options.sessions.flush }), enabled: () => algebra }
+  options.algebraHistory = { ...createConversationHistory({ chats, flush: options.sessions.flush }), assertReady: () => {} }
   return { create: () => createRoundHistory(options), options, calls, session, agent, timeline,
     get chat() { return chat },
     setGeneration(value) { generation = value } }
@@ -138,7 +138,7 @@ test('edited-input reroll keeps nativeCommits userText in sync for future rollba
 })
 
 test('P2-A regen leaves stored swipes mirrors untouched (legacy compat)', async () => {
-  const patch = await import('../../tavern-plugin/lib/domain/host-session-patch.js').then(m => m.prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' }))
+  const patch = await import('../../lib/domain/host-session-patch.js').then(m => m.prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' }))
   try {
     const h = harness()
     // Legacy chat whose last round carries stored swipes.

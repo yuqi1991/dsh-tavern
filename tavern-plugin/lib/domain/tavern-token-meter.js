@@ -1,4 +1,5 @@
 import { isTavernSurfaceEdit } from './session-surface-mutations.js'
+import { SURFACE_SELECT_TYPE, planSurfaceSelection } from './surface-selection.js'
 const installations = new WeakMap()
 
 
@@ -43,8 +44,32 @@ export function installTavernTokenMeter(meter) {
       try { return originalSync.call(this, session, ...args) }
       finally { activeSession = previous }
     }
+    // ADR-0009: price a selection as the referenced nodes. Nodes already on
+    // the meter's surface keep their prices; others are priced by folding a
+    // detached append copy through the native meter.
+    function select(meterThis, session, state, event) {
+      const nodes = planSurfaceSelection(state.surface.map(node => node.seq), event, seq => session.eventAt(seq))
+      const priced = new Map(state.surface.map(node => [node.seq, node]))
+      const next = nodes.map(seq => {
+        if (priced.has(seq)) return priced.get(seq)
+        const target = session.eventAt(seq)
+        const { surfaceOp: _op, sourceEventSeqs: _sources, ...rest } = target
+        const copy = target.type === 'assistant/message'
+          ? { ...rest, type: 'user/message', data: target.data.message, surfaceOp: 'append' }
+          : { ...rest, surfaceOp: 'append' }
+        const scratch = { consumedEvents: 0, header: undefined, surface: [], stepStart: undefined, anchor: undefined }
+        if (compactSignature) original.call(meterThis, scratch, copy)
+        else original.call(meterThis, session, scratch, copy)
+        return scratch.surface[0]
+      })
+      state.surface.splice(0, state.surface.length, ...next)
+    }
     function fold(...args) {
       const [session, state, event] = compactSignature ? [activeSession, ...args] : args
+      if (event?.type === SURFACE_SELECT_TYPE) {
+        if (!session) throw new Error('Tavern token meter: selection needs its session')
+        return select(this, session, state, event)
+      }
       const accountingEvent = session && isTavernSurfaceEdit(session, event, state.surface, () => presetBefore(session, state, event.seq))
         ? { ...event, type: 'user/message', data: event.data.message }
         : event

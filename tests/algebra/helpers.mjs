@@ -1,3 +1,5 @@
+import { committedMetadata } from '../../lib/domain/conversation-algebra/index.js'
+
 export function user(id, text, source = { kind: 'user' }) {
   return { type: 'user/message', data: { id, role: 'user', content: text === null ? [] : [{ type: 'text', text }], source } }
 }
@@ -33,9 +35,7 @@ export function applyWrites(events, writes) {
 
 export function memoryAdapter(initial = []) {
   const events = structuredClone(initial)
-  let metadata = { version: 1, branches: [], activeBranchId: null, activeHeadSeq: null }
   let writes = 0
-  let checkedOut = null
   return {
     events,
     get writes() { return writes },
@@ -45,12 +45,9 @@ export function memoryAdapter(initial = []) {
       events.push({ type, data: structuredClone(data), seq: events.length, time: 1, ...structuredClone(intent) })
       return events.at(-1)
     },
-    async readMetadata() { return structuredClone(metadata) },
-    async writeMetadata(value) { metadata = structuredClone(value) },
-    async preflightCheckout(nodes) { if (!Array.isArray(nodes)) throw new TypeError('target nodes') },
-    async checkout(nodes) { checkedOut = [...nodes] },
-    async planCheckout(nodes) { checkedOut = [...nodes]; return [] },
-    checkedOut() { return checkedOut === null ? null : [...checkedOut] },
-    metadata() { return structuredClone(metadata) }
+    /** Nodes named by the latest surface selection, or null. */
+    checkedOut() { return structuredClone(events.findLast(event => event.type === 'dsh-tavern/surface-select')?.data.nodes ?? null) },
+    /** Branch metadata committed in the log (its only home). */
+    metadata() { return committedMetadata(events) ?? { version: 1, branches: [], activeBranchId: null, activeHeadSeq: null } }
   }
 }

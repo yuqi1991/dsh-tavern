@@ -4,7 +4,7 @@ import {
   GuardError, TransactionConflict, appendStep, branch, checkout, computeFold,
   dropTagged, editStep, guardDropTagged, guardEdit, guardShape,
   guardStepComplete, guardTombstoneSource, runTransaction
-} from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
+} from '../../lib/domain/conversation-algebra/index.js'
 import { appendRaw, assistant, memoryAdapter, toolResult, user } from './helpers.mjs'
 
 test('G1 rejects an invalid assistant source and transaction writes nothing', async () => {
@@ -89,7 +89,9 @@ test('branch and checkout update metadata without model or surface writes', asyn
   const branchId = first.metadata.branches[0].branchId
   const nextState = { ...computeFold(adapter.events), branchRegistry: first.metadata }
   await runTransaction(adapter, { expectedHead: nextState.headSeq, operationId: 'checkout', ops: checkout(nextState, branchId) })
+  // Each transaction is one log-only selection event; no message rows.
   assert.equal(adapter.writes, 2)
+  assert.ok(adapter.events.slice(1).every(event => event.type === 'dsh-tavern/surface-select' && event.surfaceOp === undefined))
   assert.equal(adapter.metadata().activeBranchId, branchId)
   assert.deepEqual(adapter.checkedOut(), [0])
 })

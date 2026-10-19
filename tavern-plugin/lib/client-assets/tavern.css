@@ -1200,6 +1200,7 @@ body.dsh-tavern-shell-active [data-dsh-panel-host] { overflow: clip; }
 .dsh-context-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 18px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .dsh-context-meta time { color: var(--dsw-alias-label-tertiary); }
 .dsh-context-badge { padding: 2px 8px; border-radius: 6px; background: var(--dsw-alias-interactive-bg-hover); }
+.dsh-context-stale { margin: -8px 0 16px; padding: 8px 12px; border-radius: 8px; background: rgba(173,103,38,.1); color: #ad6726; font-size: 12px; }
 .dsh-context-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .dsh-context-toolbar input { flex: 1 1 220px; min-width: 0; box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; background: var(--dsw-alias-bg-base); color: inherit; font: inherit; }
 .dsh-context-toolbar input::placeholder { color: var(--dsw-alias-label-tertiary); }
@@ -1797,3 +1798,21 @@ header .nL4_yW_moreButton { display: none !important; }
 .dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button { width: 30px; padding: 4px 0; text-align: center; border: 1px solid var(--dsw-alias-border-l2); border-radius: 6px; background: var(--dsw-alias-interactive-bg-normal, transparent); color: var(--dsw-alias-label-primary); font-size: 13px; line-height: 1; }
 .dsh-tavern-variant-switcher .dsh-tavern-variant-arrows button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
 .dsh-tavern-variant-index { font-size: 12px; font-weight: 650; color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; user-select: none; min-width: 28px; text-align: center; }
+
+/* Story View: Tavern-owned conversation, scrolled by the shell's conversation scroller. */
+.dsh-tavern-story { box-sizing: border-box; width: 100%; max-width: var(--dsh-chat-content-width, 820px); margin: 0 auto; padding: 16px calc(var(--dsh-composer-side-clearance, 0px) + 16px) 24px; display: flex; flex-direction: column; gap: 20px; }
+.dsh-tavern-story-floor { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dsh-tavern-story-older { display: flex; justify-content: center; }
+.dsh-tavern-story-older button { color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-interactive-bg-hover-solid); cursor: pointer; border: none; border-radius: 14px; padding: 4px 12px; font-size: 12px; }
+.dsh-tavern-story-older button:disabled { cursor: default; opacity: .6; }
+.dsh-tavern-story-hint { margin: 0; color: var(--dsw-alias-label-tertiary); font-size: 13px; }
+.dsh-tavern-story-status { color: var(--dsw-alias-label-tertiary); font-size: 13px; }
+.dsh-tavern-story-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dsh-tavern-story-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; }
+.dsh-tavern-story-icon:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.dsh-tavern-story-images { display: flex; flex-wrap: wrap; gap: 8px; }
+.dsh-tavern-story-images[data-align="end"] { justify-content: flex-end; }
+.dsh-tavern-story-images img { max-width: 240px; max-height: 240px; border-radius: 10px; object-fit: cover; }
+.dsh-tavern-story-error { padding: 10px 12px; border-radius: 10px; background: rgba(208, 62, 62, .08); color: var(--dsw-alias-state-error-primary, #c0392b); font-size: 13px; }
+.dsh-tavern-story-error p { margin: 0 0 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dsh-tavern-story-error-actions { display: flex; gap: 8px; flex-wrap: wrap; }

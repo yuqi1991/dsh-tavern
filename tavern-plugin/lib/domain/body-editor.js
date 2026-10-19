@@ -1,10 +1,10 @@
-import { replaceSessionSurface } from './session-surface-mutations.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { editableReplyParts } from './reply-presentation.js'
 import { locateRegenerationSurface } from './rollback-surface.js'
-import { sessionEvents, appendSessionEvent } from './session-events.js'
-import { computeFold, editStep, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
-import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+import { floorHostTurn, projectChatFloors } from './floor-projection.js'
+import { sessionEvents } from './session-events.js'
+import { computeFold, editStep, operationCommitted, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
+import { createConversationAlgebraHostAdapter, detachedSession } from './conversation-algebra-host-adapter.js'
 
 function latest(chat) {
   const message = chat.messages?.at(-1)
@@ -22,57 +22,27 @@ function token(chat, message) {
 export async function synchronizeBodyEdits(session, chat, flush, persistChat) {
   const adapter = createConversationAlgebraHostAdapter(session, { flush })
   await waitForTransactionReady(adapter)
-  const recorded = new Set(sessionEvents(session).filter(event => event.type === 'assistant/message').map(event => event.data?.message?.id))
   const cleared = []
-  let sessionDirty = false
   for (const message of chat.messages || []) {
     if (!message.bodyEdit) continue
-    const { id, seq, turn } = message.bodyEdit
-    if (message.bodyEdit.algebra === 1) {
-      // Identity is preserved by editStep, so deduplicate by operation rather
-      // than by message id. Keep this recovery route even when writes are off.
-      const committed = sessionEvents(session).some(event => {
-        const tx = event.data?.message?.source?.conversationTransaction
-        return tx?.operationId === id && ['commit', 'begin-commit'].includes(tx.phase)
-      })
-      if (committed) continue
-      const state = computeFold(sessionEvents(session))
-      const ops = editStep(state, seq, message.text)
-      await runTransaction(adapter, { expectedHead: state.headSeq, ops, operationId: id })
-      continue
-    }
-    if (recorded.has(id)) continue
-    let targetSeq = session.surface?.nodes.includes(seq) ? seq : null
-    // Migration renumbers seqs and may fold the body-edit injection onto its
-    // target; Chat markers still hold the pre-migration seq. Recover by turn.
-    if (targetSeq == null && turn != null) {
-      const located = locateRegenerationSurface({ events: sessionEvents(session), nodes: session.surface?.nodes, turn })
-      targetSeq = located?.assistantSeq ?? null
-    }
-    if (targetSeq == null) {
-      // Issue #72: orphaned marker after migration wiped the injection. Chat
-      // already holds the edited text — drop the marker so turns can proceed.
+    const { id, seq } = message.bodyEdit
+    // Identity is preserved by editStep, so deduplicate by operation.
+    if (operationCommitted(sessionEvents(session), id)) continue
+    if (!session.surface?.nodes.includes(seq)) {
+      // The target left the surface; Chat already holds the edited text.
       cleared.push(id)
       delete message.bodyEdit
       continue
     }
-    if (targetSeq !== seq) message.bodyEdit = { id, seq: targetSeq, turn }
-    replaceSessionSurface(session, 'assistant/message', {
-      turn, step: 1,
-      message: { id, role: 'assistant', content: [{ type: 'text', text: message.text }], source: { kind: 'model', provider: 'dsh-tavern', model: 'body-edit' } }
-    }, { start: targetSeq, end: targetSeq, sourceEventSeqs: [targetSeq] })
-    recorded.add(id)
-    sessionDirty = true
+    const state = computeFold(sessionEvents(session))
+    await runTransaction(adapter, { expectedHead: state.headSeq, ops: editStep(state, seq, message.text), operationId: id })
   }
-  if (cleared.length && typeof persistChat === 'function') {
-    await persistChat(chat, cleared)
-  }
-  if (sessionDirty || (chat.messages || []).some(message => message.bodyEdit)) await flush(session)
+  if (cleared.length && typeof persistChat === 'function') await persistChat(chat, cleared)
   return cleared
 }
 
 /** Edit prose only; do not replay macros, scripts or settlement. */
-export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, algebraEnabled = () => false }) {
+export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, assertAlgebraReady }) {
   const pending = new Set()
   function refuseClosedPatch() {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
@@ -101,7 +71,11 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
       }, { source: 'body-edit.stale-clear' })
     })
     const message = latest(chat)
-    const target = locateRegenerationSurface({ events: sessionEvents(agent.session), nodes: agent.session.surface?.nodes, turn: message.turn })
+    // A rerolled floor keeps its chat turn while its body lives on the native
+    // turn that generated it; the floor projection names that turn.
+    const events = sessionEvents(agent.session), nodes = agent.session.surface?.nodes || []
+    const turn = floorHostTurn(projectChatFloors(chat, events, nodes), message.turn)
+    const target = locateRegenerationSurface({ events, nodes, turn })
     if (!target) throw new Error('最后一轮正文已不在当前上下文中，无法编辑')
     const parts = editableReplyParts(source(message))
     if (!parts.some(part => part.kind === 'text' && part.text.trim())) throw new Error('这轮只有 HTML，没有可编辑文本')
@@ -131,13 +105,9 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
         displayText: reply.displayText, displayMode: reply.displayMode,
         bodyEdit: { id: 'tavern-body-edit:' + randomUUID(), seq: target.assistantSeq, turn: target.turn }
       }
-      const useAlgebra = algebraEnabled(sessionId)
-      if (useAlgebra) {
-        // Run G4 before publishing the recoverable Chat intent; do not silently
-        // downgrade a tool-bearing step to the legacy single-row replacement.
-        editStep(computeFold(sessionEvents(agent.session)), target.assistantSeq, reply.sessionText)
-        patch.bodyEdit.algebra = 1
-      }
+      assertAlgebraReady()
+      // Run G4 before publishing the recoverable Chat intent.
+      editStep(computeFold(sessionEvents(agent.session)), target.assistantSeq, reply.sessionText)
       if (Array.isArray(message.swipes)) {
         patch.swipes = structuredClone(message.swipes)
         const swipe = Number(message.swipeId) || 0
@@ -147,13 +117,13 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
       // A rejected host event must never publish an edit that future requests
       // will keep trying (and failing) to synchronize. Accepted writes retain
       // the existing journal-first recovery path for disk/flush failures.
-      const preview = agent.session.constructor.fromRestore(agent.session.id, structuredClone(sessionEvents(agent.session)), structuredClone(agent.session.header), agent.session.inheritedEventCount, 'detached')
+      const preview = detachedSession(agent.session)
       await synchronizeBodyEdits(preview, { messages: [{ ...message, ...patch }] }, async () => {})
       const saved = await chats.update(chat.id, current => {
         idle(current, agent)
         if (token(current, latest(current)) !== input.token) throw new Error('正文或会话已变化，请重新打开编辑')
         if (!agent.session.surface?.nodes.includes(target.assistantSeq)) throw new Error('模型上下文已变化，请重新打开编辑')
-        if (useAlgebra && (sessionEvents(agent.session).at(-1)?.seq ?? -1) !== expectedHead) throw new Error('会话头已变化，请重新打开编辑')
+        if ((sessionEvents(agent.session).at(-1)?.seq ?? -1) !== expectedHead) throw new Error('会话头已变化，请重新打开编辑')
         return timeline.apply({ chat: current, intent: { kind: 'body.edit', turn: message.turn, patch } }).chat
       }, { source: 'foreground.body-edit' })
       await synchronizeBodyEdits(agent.session, saved, sessions.flush)

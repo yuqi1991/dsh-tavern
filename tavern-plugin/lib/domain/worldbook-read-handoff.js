@@ -1,13 +1,15 @@
 import { sessionEvents } from './session-events.js'
+import { floorHostTurn, projectChatFloors } from './floor-projection.js'
 
 /** Project only completed foreground reads for the currently committed story turn. */
 export function foregroundWorldbookReads(chat, session) {
   const latest = (chat?.messages || []).findLast(message => message.role === 'assistant')
   const storyTurn = Number(latest?.turn)
   if (!storyTurn || latest.greeting) return ''
-  const turn = Number(chat.regeneratedDshTurns?.[storyTurn]) || storyTurn
+  const events = sessionEvents(session)
+  const turn = floorHostTurn(projectChatFloors(chat, events, session?.surface?.nodes || []), storyTurn)
   const calls = new Map(), entries = new Map()
-  for (const event of sessionEvents(session)) {
+  for (const event of events) {
     if (Number(event.data?.turn) !== turn) continue
     for (const block of event.data?.message?.content || []) {
       if (block.type === 'tool-call' && block.name === 'worldbook_search') {

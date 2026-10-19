@@ -62,17 +62,25 @@ export function projectTavernHelperMessage(source, messageId, variants = null) {
   const distinct = Array.isArray(variants)
     ? variants.filter((text, position) => text !== activeText && variants.indexOf(text) === position)
     : []
-  const swipes = distinct.length > 0 ? [activeText].concat(distinct) : stored ?? [activeText]
-  const variables = Array.isArray(source.variables) ? clone(source.variables) : []
+  const swipes = distinct.length > 0
+    ? (variants.includes(activeText) ? variants.slice() : variants.concat(activeText))
+    : stored ?? [activeText]
+  const projectedSwipeId = distinct.length > 0 ? Math.max(0, swipes.indexOf(activeText)) : swipeId
+  const storedVariables = Array.isArray(source.variables) ? clone(source.variables) : []
+  // Chat stores variables only for its own body; align that snapshot with the
+  // branch-derived swipe so MVU reads the selected variant's state.
+  const variables = distinct.length > 0
+    ? swipes.map((_, position) => position === projectedSwipeId ? storedVariables[swipeId] ?? {} : {})
+    : storedVariables
   const projected = {
     pluginData: clone(source.tavernPluginData || {}),
     message_id: messageId,
     role: tavernHelperRole(source),
-    message: swipes[swipeId] ?? swipes[0] ?? '',
-    swipe_id: swipeId,
+    message: swipes[projectedSwipeId] ?? swipes[0] ?? '',
+    swipe_id: projectedSwipeId,
     swipes,
     swipes_data: variables,
-    variables: clone(variables[swipeId] || {})
+    variables: clone(variables[projectedSwipeId] || {})
   }
   if (source.role === 'tavern-helper') {
     projected.is_hidden = source.tavernHidden === true
@@ -307,4 +315,10 @@ export function replaceTavernHelperMessages(chat, patches) {
     updated.push({ messageId, swipeId })
   }
   return updated
+}
+
+// True when no message is a cold-window stub (session-view-reader trusts a cached
+// view only when its Helper messages were fully hydrated).
+export function helperMessagesComplete(messages) {
+  return !messages.some(message => message?.stub === true)
 }

@@ -1,5 +1,6 @@
 import { computeFold } from './fold.js'
-import { GuardError, guardShape } from './guards.js'
+import { GuardError, committedOperationIds, guardShape, hasPendingTransaction, transactionOf } from './guards.js'
+import { SURFACE_SELECT_TYPE } from '../surface-selection.js'
 
 const transactionQueues = new WeakMap()
 const quarantined = new WeakSet()
@@ -13,12 +14,8 @@ export async function waitForTransactionReady(adapter) {
     if (!pending) break
     await pending.catch(() => {})
   }
-  if (quarantined.has(key) || pendingIn(snapshot(adapter))) await recoverTransaction(adapter)
+  if (quarantined.has(key) || hasPendingTransaction(snapshot(adapter))) await recoverTransaction(adapter)
   assertTransactionReady(adapter)
-}
-
-function transactionOf(event) {
-  return (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction
 }
 
 function isHostMarker(event) {
@@ -42,7 +39,7 @@ export function assertTransactionReady(adapter) {
   const key = adapter.sessionKey || adapter
   const events = snapshot(adapter)
   const begins = events.filter(event => transactionOf(event)?.phase === 'begin')
-  const commits = new Set(events.filter(event => ['commit', 'begin-commit'].includes(transactionOf(event)?.phase)).map(event => transactionOf(event).operationId))
+  const commits = committedOperationIds(events)
   if (quarantined.has(key) || transactionQueues.has(key) || begins.some(event => !commits.has(transactionOf(event).operationId))) throw new Error('会话事务未恢复，暂不可生成或发布视图')
 }
 
@@ -59,6 +56,8 @@ export function recoverTransaction(adapter) {
         if (!Array.isArray(saved.plan)) throw new Error('旧事务缺少恢复计划，保持隔离')
         const applied = events.filter(event => transactionOf(event)?.operationId === saved.operationId)
         if (applied.length > saved.plan.length) throw new Error('事务记录多于恢复计划')
+        // Only plans written before ADR-0009 carry placeholder positions
+        // (plannedSeq); new transactions never stage them.
         const positions = new Map()
         const mappedIntent = write => {
           const intent = normalizeIntent(write.intent)
@@ -106,11 +105,6 @@ export function recoverTransaction(adapter) {
     await adapter.flush()
     const fold = computeFold(snapshot(adapter))
     if (adapter.surfaceNodes && JSON.stringify(adapter.surfaceNodes()) !== JSON.stringify(fold.surfaceNodes)) throw new Error('宿主 surface 与 fold 不一致')
-    const metadata = committedMetadata(snapshot(adapter))
-    if (metadata !== undefined) {
-      if (typeof adapter.writeMetadata !== 'function') throw new Error('缺少分支注册表投影写入器，保持隔离')
-      await adapter.writeMetadata(structuredClone(metadata))
-    }
     quarantined.delete(key)
     return fold
   })
@@ -140,23 +134,22 @@ function snapshot(adapter) {
   return Array.isArray(events) ? events : []
 }
 
-function messageOfWrite(write) {
+/** The record a staged write carries its transaction tag on. */
+function carrierOfWrite(write) {
+  if (write.event.type === SURFACE_SELECT_TYPE) return write.event.data
   return write.event.type === 'user/message' ? write.event.data : write.event.data.message
 }
 
 function withTransaction(write, operationId, phase) {
   const next = structuredClone(write)
-  const message = messageOfWrite(next)
+  const message = carrierOfWrite(next)
   message.source = { ...message.source, conversationTransaction: { operationId, phase } }
   return next
 }
 
-function pendingIn(events) {
-  const committed = new Set(events.filter(event => ['commit', 'begin-commit'].includes(transactionOf(event)?.phase)).map(event => transactionOf(event).operationId))
-  return events.some(event => transactionOf(event)?.phase === 'begin' && !committed.has(transactionOf(event).operationId))
-}
-
 function normalizeIntent(intent) {
+  // A selection is log-only: it carries no surface intent.
+  if (intent === undefined) return {}
   const surfaceOp = intent?.surfaceOp
   if (surfaceOp === 'append') return { surfaceOp: 'append' }
   if (surfaceOp?.op !== 'replace') throw new GuardError('G1', 'surface intent 无效')
@@ -167,16 +160,18 @@ function normalizeIntent(intent) {
 }
 
 export function committedMetadata(events) {
-  const completed = new Set(events.filter(event => ['commit', 'begin-commit'].includes(transactionOf(event)?.phase)).map(event => transactionOf(event).operationId))
+  const completed = committedOperationIds(events)
   return events.findLast(event => completed.has(transactionOf(event)?.operationId) && transactionOf(event)?.metadata !== undefined)
     ?.data?.source?.conversationTransaction?.metadata
 }
 
-function metadataCarrier(metadata, operationId) {
-  return { kind: 'surface-write', event: { type: 'user/message', data: {
-    id: `conversation-metadata:${operationId}`, role: 'user', content: [],
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'conversation-metadata' }
-  } }, intent: { surfaceOp: 'append' }, metadata }
+/** ADR-0009: a checkout or branch-only transaction is one selection event
+ * naming the complete surface by reference; branch metadata rides on it. */
+function surfaceSelection(nodes) {
+  return { kind: 'select', event: { type: SURFACE_SELECT_TYPE, data: {
+    version: 1, nodes: [...nodes],
+    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select' }
+  } } }
 }
 
 function metadataAfter(current, ops) {
@@ -201,7 +196,7 @@ async function commitTransaction(adapter, { expectedHead, ops = [], operationId,
   if (!adapter || typeof adapter.append !== 'function') throw new TypeError('事务缺少 append adapter')
   if (quarantined.has(adapter.sessionKey || adapter)) throw new Error('会话事务未恢复')
   const before = snapshot(adapter)
-  if (pendingIn(before)) throw new Error('必须先恢复日志中未完成的事务')
+  if (hasPendingTransaction(before)) throw new Error('必须先恢复日志中未完成的事务')
   const current = computeFold(before)
   if (expectedHead !== undefined && expectedHead !== current.headSeq) throw new TransactionConflict(expectedHead, current.headSeq)
   if (ops.some(op => !['surface-write', 'branch', 'checkout'].includes(op?.kind))) throw new GuardError('G1', '未知事务原语')
@@ -211,22 +206,14 @@ async function commitTransaction(adapter, { expectedHead, ops = [], operationId,
   const id = String(operationId || `conversation-${current.headSeq + 1}`)
   if (before.some(event => transactionOf(event)?.operationId === id)) throw new Error('operationId 已使用，请先核对事务结果')
   const changesMetadata = ops.some(op => op.kind === 'branch' || op.kind === 'checkout')
-  const metadata = metadataAfter(committedMetadata(before) ?? (typeof adapter.readMetadata === 'function' ? await adapter.readMetadata() : null), ops)
-  if (changesMetadata && typeof adapter.writeMetadata !== 'function') throw new GuardError('G1', '分支事务缺少元数据投影写入器')
-  if (checkouts.length) {
-    if (typeof adapter.planCheckout !== 'function') throw new GuardError('G1', 'checkout 必须编译为可恢复写入计划')
-    writes.push(...await adapter.planCheckout(checkouts[0].targetNodes))
-  }
-  if (changesMetadata) writes.push(metadataCarrier(metadata, id))
+  const metadata = metadataAfter(committedMetadata(before), ops)
+  if (changesMetadata && writes.length > 0) throw new TypeError('分支元数据只能随 select 写入，不能与 surface 写入混合')
+  if (changesMetadata) writes.push(surfaceSelection(checkouts.length ? checkouts[0].targetNodes : current.surfaceNodes))
   const staged = writes.map((write, index) => withTransaction(write, id,
     writes.length === 1 ? 'begin-commit' : index === 0 ? 'begin' : index === writes.length - 1 ? 'commit' : 'continue'))
-  if (staged.some(write => write.plannedSeq !== undefined)) {
-    let cursor = current.headSeq
-    for (const write of staged) { write.plannedSeq ??= cursor + 1; cursor = write.plannedSeq }
-  }
-  if (changesMetadata) messageOfWrite(staged.at(-1)).source.conversationTransaction.metadata = metadata
+  if (changesMetadata) carrierOfWrite(staged.at(-1)).source.conversationTransaction.metadata = metadata
   if (staged.length > 1) {
-    messageOfWrite(staged[0]).source.conversationTransaction.plan = structuredClone(staged)
+    carrierOfWrite(staged[0]).source.conversationTransaction.plan = structuredClone(staged)
   }
 
   // Preflight the complete transaction against a detached event list. No adapter
@@ -234,11 +221,7 @@ async function commitTransaction(adapter, { expectedHead, ops = [], operationId,
   const preview = before.map(event => structuredClone(event))
   for (const write of staged) {
     guardShape(write.event)
-    const nextSeq = preview.length === 0 ? 0 : Math.max(...preview.map(event => event.seq)) + 1
-    // Detached host compilation includes its automatic compatibility marker.
-    // Preserve these positions so references to newly staged placeholders agree.
-    const seq = write.plannedSeq ?? nextSeq
-    if (!Number.isSafeInteger(seq) || seq < nextSeq || seq > nextSeq + 1) throw new GuardError('G1', '恢复计划事件位置无效')
+    const seq = preview.length === 0 ? 0 : Math.max(...preview.map(event => event.seq)) + 1
     preview.push({ type: write.event.type, data: structuredClone(write.event.data), ...normalizeIntent(write.intent), seq, time: 0 })
   }
   const previewFold = computeFold(preview)
@@ -257,7 +240,6 @@ async function commitTransaction(adapter, { expectedHead, ops = [], operationId,
     if (write === staged[0] && typeof adapter.flush === 'function') await adapter.flush()
   }
   if (typeof adapter.flush === 'function') await adapter.flush()
-  if (changesMetadata) await adapter.writeMetadata(structuredClone(metadata))
   const fold = computeFold(snapshot(adapter), { fromCache: { headSeq: current.headSeq, version: current.version } })
   if (typeof adapter.bump === 'function') await adapter.bump(fold.version)
   if (typeof converge === 'function') await converge(fold)

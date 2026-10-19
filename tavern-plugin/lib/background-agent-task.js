@@ -355,9 +355,8 @@ export function createBackgroundAgentTask(options) {
     state.session = agent.session
     const runtimeInput = state.input
     try {
-      const algebra = typeof options.resolveConversationAlgebra === 'function' ? await options.resolveConversationAlgebra(input) : null
-      await rewindBackgroundSurface(agent.session, input.rewindTo,
-        algebra?.enabled === true ? { enabled: true, flush: session => options.flushSession(session) } : null)
+      await options.assertConversationAlgebra?.()
+      await rewindBackgroundSurface(agent.session, input.rewindTo, { flush: session => options.flushSession(session) })
     }
     catch (error) { throw new Error('后台历史回退失败，本次任务已停止，未基于旧上下文继续执行。', { cause: error }) }
     const progress = createBackgroundProgress({idleMs:options.modelIdleTimeoutMs, onCancel:()=>{state.abandoned=true;agent.cancel?.({kind:'user'})}})
@@ -379,7 +378,7 @@ export function createBackgroundAgentTask(options) {
         const revision = typeof options.resolveStablePrefixRevision === 'function' ? await options.resolveStablePrefixRevision(input) : 0
         const background = existing && revision <= existing.revision ? existing.text : typeof options.resolveStablePrefix === 'function'
           ? await options.resolveStablePrefix(input) : input.backgroundContext
-        const prefix = await ensureSessionStablePrefix(agent.session, background, options.stablePrefixStorage, revision)
+        const prefix = await ensureSessionStablePrefix(agent.session, background, options.stablePrefixStorage, revision, session => options.flushSession(session))
         if (prefix && prefix.event !== existing?.event && typeof options.flushSession === 'function') await options.flushSession(agent.session)
       }
       const worldbook = typeof options.resolveCurrentWorldbook === 'function'

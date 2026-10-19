@@ -53,6 +53,11 @@
   config:
     search: true
     fetch: false
+# 默认 2 秒心跳、连漏 2 次即断线。手机经局域网接收数 MB 的对话分页时，解析和渲染
+# 会让页面几秒读不动连接，被误判断线后重连又会把已加载的历史重置。放宽到 15 秒。
+- id: typert-gateway
+  config:
+    websocketHeartbeatIntervalMs: 15000
 - insert:
     - id: tavern-cordis-inspect
       name: dsh-tavern-plugin/cordis-inspect

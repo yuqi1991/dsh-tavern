@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join, sep } from 'node:path'
+import { SURFACE_SELECT_TYPE, surfaceSelectionSource } from './surface-selection.js'
 
 export async function prepareExpandedPatch(runtime, options = {}) {
   const expectedVersion = options.version ?? '0.1.6-alpha.2'
@@ -55,9 +56,17 @@ export async function prepareExpandedPatch(runtime, options = {}) {
   const pkg = JSON.parse(await readFile(require.resolve('@deepseek-ai/dsh-session/package.json'), 'utf8'))
   assert.equal(pkg.version, expectedVersion)
   const { Session } = await load('@deepseek-ai/dsh-session')
-  const patchedSurface = await compile('@deepseek-ai/dsh-session/surface', text => once(text,
+  // ADR-0009: every host surface fold learns the by-reference selection.
+  function withSurfaceSelection(text) {
+    let next = once(text, 'const surfaceOp = validateSurfaceMetadata(event);',
+      `if (event.type === ${JSON.stringify(SURFACE_SELECT_TYPE)}) return { kind: "select", seq: event.seq, nodes: planSurfaceSelection(state.nodes, event, (seq) => events[seq - baseSeq]) };\n\tconst surfaceOp = validateSurfaceMetadata(event);`)
+    next = once(next, 'function applySurfacePlan(state, plan) {',
+      'function applySurfacePlan(state, plan) {\n\tif (plan?.kind === "select") {\n\t\tstate.nodes.splice(0, state.nodes.length, ...plan.nodes);\n\t\tstate.replaceGeneration += 1;\n\t\treturn;\n\t}')
+    return next + surfaceSelectionSource()
+  }
+  const patchedSurface = await compile('@deepseek-ai/dsh-session/surface', text => withSurfaceSelection(once(text,
     "if (event.type === 'assistant/message' && raw !== undefined) {",
-    `if (event.type === 'assistant/message' && raw !== undefined && !${own}) {`))
+    `if (event.type === 'assistant/message' && raw !== undefined && !${own}) {`)))
   const surfacePrototype = Object.getPrototypeOf(Session.create('patch-prototype-probe').surface)
   const surfaceDescriptors = Object.fromEntries(['validateNext', '_processDelta'].map(key => [key, Object.getOwnPropertyDescriptor(surfacePrototype, key)]))
   // Append admission, coverage validation, and system-head protection stay native.
@@ -81,12 +90,13 @@ export async function prepareExpandedPatch(runtime, options = {}) {
     // Stored-event adoption has another bundled copy of the local validator.
     // Cloned storage modules use this copy; the already-live Session service
     // keeps its original identity and the prototype patch above.
-    const patchedSession = await compile('@deepseek-ai/dsh-session', text => once(text,
+    const patchedSession = await compile('@deepseek-ai/dsh-session', text => withSurfaceSelection(once(text,
       'if (event.type === "assistant/message" && raw !== void 0) throw',
-      `if (event.type === "assistant/message" && raw !== void 0 && !${own}) throw`))
-    // Only the in-memory cloned vocabulary understands this required marker.
+      `if (event.type === "assistant/message" && raw !== void 0 && !${own}) throw`)))
+    // Only the in-memory cloned vocabulary understands these required events.
     // Stock readers refuse the archive instead of treating the edit as a torn tail.
     patchedSession.KNOWN_SESSION_EVENT_TYPES.add(marker)
+    patchedSession.KNOWN_SESSION_EVENT_TYPES.add(SURFACE_SELECT_TYPE)
     // Preserve public class identities: service owners and error consumers
     // imported those classes before this patch. Only validation is replaced.
     facade('@deepseek-ai/dsh-session', ['adoptSessionEvent', 'snapshotSessionEvent', 'foldSurface', 'KNOWN_SESSION_EVENT_TYPES'])

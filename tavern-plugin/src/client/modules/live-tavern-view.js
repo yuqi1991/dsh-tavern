@@ -16,7 +16,7 @@ function createLiveTavernViewModule(options) {
 	function initialState() { return { phase: "idle", view: null, error: "", updatedAt: 0 }; }
 	function recordFor(sessionId) {
 		const id = String(sessionId || "");
-		if (!records.has(id)) records.set(id, { id: id, state: initialState(), listeners: new Set(), paths: dependencyNode(), timer: null, watchdog: null, loading: false, reloadRequested: false, optimisticBusy: false, eviction: null, controller: null });
+		if (!records.has(id)) records.set(id, { id: id, state: initialState(), listeners: new Set(), paths: dependencyNode(), timer: null, watchdog: null, loading: false, reloadRequested: false, optimisticBusy: false, eviction: null, controller: null, generation: 0 });
 		return records.get(id);
 	}
 	function dependencyNode() { return { exact: new Set(), all: new Set(), children: new Map() }; }
@@ -127,6 +127,7 @@ function createLiveTavernViewModule(options) {
 	async function refresh(record) {
 		if (records.get(record.id) !== record || record.listeners.size === 0) return;
 		if (record.loading) { record.reloadRequested = true; return; }
+		const generation = ++record.generation;
 		record.loading = true;
 		if (record.state.view === null) publish(record, Object.assign({}, record.state, { phase: "loading", error: "" }));
 		let deadlineExpired = false;
@@ -151,7 +152,7 @@ function createLiveTavernViewModule(options) {
 			let result = null;
 			try { result = await load; }
 			finally { if (deadlineTimer !== null) cancelTimer(deadlineTimer); }
-			if (records.get(record.id) !== record) return;
+			if (records.get(record.id) !== record || record.generation !== generation) return;
 			let view = result && result.view ? result.view : null;
 			if (pollWhileBusy && record.optimisticBusy && !shouldPoll(view)) {
 				schedule(record, 200);
@@ -162,7 +163,7 @@ function createLiveTavernViewModule(options) {
 			if (view && view.tavernHelper && view.tavernHelper.messagesPending && typeof options.hydrateHelperMessages === "function") {
 				try {
 					view = await options.hydrateHelperMessages(record.id, view) || view;
-					if (records.get(record.id) !== record) return;
+					if (records.get(record.id) !== record || record.generation !== generation) return;
 					publish(record, { phase: "ready", view: view, error: "", updatedAt: Date.now() });
 				} catch (hydrateError) {
 					if (records.get(record.id) !== record) return;
@@ -192,6 +193,7 @@ function createLiveTavernViewModule(options) {
 	function invalidate(sessionId) {
 		const targets = sessionId === undefined || sessionId === null || sessionId === "" ? Array.from(records.values()) : [recordFor(sessionId)];
 		targets.forEach(function (record) {
+			record.generation++;
 			if (record.loading) record.reloadRequested = true;
 			else schedule(record, 0);
 		});
@@ -252,6 +254,8 @@ function createLiveTavernViewModule(options) {
 		getSnapshot: function (sessionId) { return recordFor(sessionId).state; },
 		setView: function (sessionId, view) {
 			const record = recordFor(sessionId);
+			record.generation++;
+			record.reloadRequested = record.loading || record.reloadRequested;
 			record.optimisticBusy = shouldPoll(view);
 			publish(record, { phase: "ready", view: view, error: "", updatedAt: Date.now() });
 			if (pollWhileBusy && shouldPoll(view)) schedule(record, 0);

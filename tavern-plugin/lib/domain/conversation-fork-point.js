@@ -1,6 +1,7 @@
 import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { assistantResultForTurn } from './session-turn-result.js'
 import { sessionEvents } from './session-events.js'
+import { floorHostTurn, projectChatFloors } from './floor-projection.js'
 import { assertConversationForkable } from './conversation-fork.js'
 
 const turnOf = message => Number(message?.turn || (message?.greeting ? 1 : 0))
@@ -38,7 +39,8 @@ export async function conversationStateAtTurn(source, requestedTurn, readRevisio
 
 export function conversationForkBoundary(session, state, turn) {
   const events = sessionEvents(session)
-  const nativeTurn = Number(state.regeneratedDshTurns?.[turn]) || turn
+  // The historical snapshot's floors, against the log as it stood then.
+  const nativeTurn = floorHostTurn(projectChatFloors(state, events, session.surface?.nodes || []), turn)
   const end = events.findLast(event => event.type === 'turn/end' && Number(event.data?.turn) === nativeTurn)
   if (!end || end.data?.reason?.kind !== 'completed') throw new Error('该回合缺少已完成的原生上下文边界')
   const result = assistantResultForTurn(session, turn)

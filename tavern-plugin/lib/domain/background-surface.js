@@ -1,11 +1,9 @@
-import { replaceSessionSurface } from './session-surface-mutations.js'
-import { restoredSurfaceSeqs } from './surface-restoration.js'
-import { sessionEvents, appendSessionEvent, surfaceReplacementRange } from './session-events.js'
+import { sessionEvents } from './session-events.js'
 import { randomUUID } from 'node:crypto'
 import { computeFold, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
 import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
 
-export async function rewindBackgroundSurface(session, boundary, algebra = null) {
+export async function rewindBackgroundSurface(session, boundary, { flush } = {}) {
   if (!Number.isSafeInteger(boundary)) return 0
   const events = sessionEvents(session)
   const nodes = session && session.surface && Array.isArray(session.surface.nodes) ? session.surface.nodes : []
@@ -37,82 +35,17 @@ export async function rewindBackgroundSurface(session, boundary, algebra = null)
     }
   }
   if (source === null) throw new Error('后台 Agent checkpoint 之后存在消息，但找不到可用的模型来源')
-  if (algebra?.enabled === true) {
-    // One transaction owns every group: either the whole rewind is durable or
-    // recovery replays the remainder. Tombstone shape is guarded by the
-    // transaction itself (G1/G5), so only the grouping stays here.
-    const adapter = createConversationAlgebraHostAdapter(session, { flush: algebra.flush })
-    await waitForTransactionReady(adapter)
-    const state = computeFold(sessionEvents(session))
-    const operationId = 'background-rewind:' + randomUUID()
-    await runTransaction(adapter, { expectedHead: state.headSeq, operationId, ops: groups.map(shadowed => ({
-      kind: 'surface-write',
-      event: { type: 'assistant/message', data: { turn, step, stream: [], message: { id: randomUUID(), role: 'assistant', content: [], source } } },
-      intent: { surfaceOp: { op: 'replace', start: shadowed[0], end: shadowed[shadowed.length - 1] }, sourceEventSeqs: shadowed }
-    })) })
-    return groups.reduce((count, group) => count + group.length, 0)
-  }
-  for (const shadowed of groups) replaceSessionSurface(session, 'assistant/message', {
-    turn,
-    step,
-    message: { id: randomUUID(), role: 'assistant', content: [], source }
-  }, { start: shadowed[0], end: shadowed[shadowed.length - 1], sourceEventSeqs: shadowed })
+  // One transaction owns every group: either the whole rewind is durable or
+  // recovery replays the remainder. Tombstone shape is guarded by the
+  // transaction itself (G1/G5), so only the grouping stays here.
+  const adapter = createConversationAlgebraHostAdapter(session, { flush })
+  await waitForTransactionReady(adapter)
+  const state = computeFold(sessionEvents(session))
+  const operationId = 'background-rewind:' + randomUUID()
+  await runTransaction(adapter, { expectedHead: state.headSeq, operationId, ops: groups.map(shadowed => ({
+    kind: 'surface-write',
+    event: { type: 'assistant/message', data: { turn, step, stream: [], message: { id: randomUUID(), role: 'assistant', content: [], source } } },
+    intent: { surfaceOp: { op: 'replace', start: shadowed[0], end: shadowed[shadowed.length - 1] }, sourceEventSeqs: shadowed }
+  })) })
   return groups.reduce((count, group) => count + group.length, 0)
-}
-
-// Rebuild display suppression from durable empty surface replacements, including
-// rollbacks performed before the UI projection existed. Keep raw events intact.
-export function backgroundSuppressedTurns(events) {
-  const ranges = []
-  const restored = restoredSurfaceSeqs(events)
-  for (const event of events) {
-    if (restored.has(event.seq)) continue
-    const op = event.surfaceOp
-    if (event.type !== 'assistant/message' || op?.op !== 'replace' || event.data?.message?.content?.length !== 0) continue
-    const range = surfaceReplacementRange(op)
-    if (Number.isSafeInteger(range.start) && Number.isSafeInteger(range.end) && range.start <= range.end) ranges.push(range)
-  }
-  ranges.sort((a,b) => a.start-b.start)
-  const merged = []
-  for (const range of ranges) {
-    const last = merged[merged.length-1]
-    if (last && range.start <= last.end) last.end = Math.max(last.end,range.end)
-    else merged.push({...range})
-  }
-  const turns = new Set()
-  if (!merged.length) return []
-  for (const event of events) {
-    const seq = event.seq, turn = event.data?.turn
-    if (!Number.isSafeInteger(seq) || !Number.isSafeInteger(turn) || turn <= 0) continue
-    // Binary search also supports imported histories whose seqs are not sorted.
-    let low=0, high=merged.length-1
-    while (low<=high) {
-      const mid=(low+high)>>>1, range=merged[mid]
-      if (seq<range.start) high=mid-1
-      else if (seq>range.end) low=mid+1
-      else { turns.add(turn); break }
-    }
-  }
-  return [...turns].sort((a,b)=>a-b)
-}
-
-/** Read-only display projection. Never acquires or disposes an Agent. */
-export function createBackgroundSuppressionReader(readEvidence, {capacity=64}={}) {
-  const cache = new Map()
-  return function read(sessionId) {
-    if (!String(sessionId).startsWith('background-')) return {turns:[]}
-    const evidence = readEvidence(sessionId)
-    const previous = cache.get(sessionId)
-    if (!evidence.loaded) return {turns:[...(previous?.turns || [])], loaded:false}
-    const events = evidence.events
-    const last = events[events.length-1]
-    // Session events are append-only; a new loaded Session invalidates the entry.
-    const stamp = events.length + ':' + String(last?.seq)
-    if (previous?.session?.deref() === evidence.session && previous.stamp === stamp) return {turns:[...previous.turns], loaded:true}
-    const turns = backgroundSuppressedTurns(events)
-    cache.delete(sessionId)
-    cache.set(sessionId,{session:evidence.session ? new WeakRef(evidence.session) : undefined,stamp,turns})
-    while(cache.size>capacity)cache.delete(cache.keys().next().value)
-    return {turns:[...turns], loaded:true}
-  }
 }

@@ -1,11 +1,8 @@
-import { replaceSessionSurface } from './session-surface-mutations.js'
-import { ensureSessionSystemHead, sessionEvents, appendSessionEvent } from './session-events.js'
+import { ensureSessionSystemHead, sessionEvents } from './session-events.js'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { createDurableFilePromotion } from '../durable-file-promotion.js'
-import { randomUUID } from 'node:crypto'
-import { computeFold, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
-import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+import { writeSurfaceEvent } from './surface-transaction.js'
 
 const EVENT = 'dsh-tavern/stable-prefix'
 const pending = new WeakMap()
@@ -132,13 +129,13 @@ function fixedContextMessage(session, text) {
 }
 
 /** Persist fixed system text in native snapshot metadata; empty content cannot become summary material. */
-export async function ensureSessionStablePrefix(session, text, storage, revision = 0, algebra = null) {
+export async function ensureSessionStablePrefix(session, text, storage, revision = 0, flush) {
   ensureSessionSystemHead(session)
   const existing = readSessionStablePrefix(session)
   if (existing && revision > existing.revision && str(text).trim()) {
     const message = fixedContextMessage(session, str(text).trim())
     message.id += ':revision-' + revision
-    return messageRecord(await writePrefixMessage(session, message, algebra))
+    return messageRecord(await writePrefixMessage(session, message, flush))
   }
   if (existing) {
     const activeLegacy = sessionEvents(session).find(event => messageRecord(event)?.message.content.length && session.surface?.nodes.includes(event.seq))
@@ -148,7 +145,7 @@ export async function ensureSessionStablePrefix(session, text, storage, revision
       // Freeze that same evaluated snapshot once when migrating, never reevaluate per turn.
       const context = needsSnapshot && /<%[\s\S]*?%>/.test(existing.text) && str(text).trim() ? str(text).trim() : existing.text
       const message = { ...fixedContextMessage(session, context), id: 'tavern-session-prefix:' + session.id + ':system-migration' }
-      const event = await writePrefixMessage(session, message, algebra, activeLegacy)
+      const event = await writePrefixMessage(session, message, flush, activeLegacy)
       return messageRecord(event)
     }
     return existing
@@ -161,28 +158,20 @@ export async function ensureSessionStablePrefix(session, text, storage, revision
     if (context === '') return null
     const message = fixedContextMessage(session, context)
     if (revision > 0) message.id += ':revision-' + revision
-    const event = await writePrefixMessage(session, message, algebra)
+    const event = await writePrefixMessage(session, message, flush)
     return messageRecord(event)
   })()
   pending.set(session, operation)
   try { return await operation } finally { pending.delete(session) }
 }
 
-async function writePrefixMessage(session, message, algebra, target = null) {
-  if (algebra?.enabled !== true) return target
-    ? replaceSessionSurface(session, 'user/message', message, { start: target.seq, end: target.seq, sourceEventSeqs: [target.seq] })
-    : appendSessionEvent(session, 'user/message', message, { surfaceOp: 'append' })
-  const adapter = createConversationAlgebraHostAdapter(session, { flush: algebra.flush })
-  await waitForTransactionReady(adapter)
-  const state = computeFold(sessionEvents(session))
-  const operationId = 'prefix:' + randomUUID()
-  await runTransaction(adapter, { expectedHead: state.headSeq, operationId, ops: [{
-    kind: 'surface-write', event: { type: 'user/message', data: message },
+async function writePrefixMessage(session, message, flush, target = null) {
+  return writeSurfaceEvent(session, { operation: 'prefix', flush, plan: () => ({
+    type: 'user/message', data: message,
     intent: target
       ? { surfaceOp: { op: 'replace', start: target.seq, end: target.seq }, sourceEventSeqs: [target.seq] }
       : { surfaceOp: 'append' }
-  }] })
-  return sessionEvents(session).findLast(item => item.type === 'user/message' && item.data?.source?.conversationTransaction?.operationId === operationId)
+  }) })
 }
 
 /** Native system assembly is the only model-visible owner of fixed background. */

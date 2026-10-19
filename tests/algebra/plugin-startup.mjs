@@ -14,7 +14,6 @@ try {
   assert.ok(host.events.has('system-prompt/assemble'))
   assert.notEqual(history.follow,original)
   const status = await host.rpc('getConversationAlgebraStatus', {sessionId:'test-session'})
-  assert.equal(status.conversationAlgebra.enabled, false)
   assert.equal(status.conversationAlgebra.historyReady, true)
   console.log('plugin apply and real history gate installed')
 } finally {await host.dispose()}

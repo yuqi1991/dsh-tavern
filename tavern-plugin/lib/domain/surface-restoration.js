@@ -1,53 +1,43 @@
-import { createSessionSurfaceMutator } from './session-surface-mutations.js'
-import { randomUUID } from 'node:crypto'
-import { sessionEvents } from './session-events.js'
+import { appendSessionEvent, sessionEvents } from './session-events.js'
+import { SURFACE_SELECT_TYPE } from './surface-selection.js'
+import { detachedSession } from './conversation-algebra-host-adapter.js'
 
+/**
+ * Seqs of surface replacements that a later restoration undid. Legacy logs
+ * mark them on the restored copy; since ADR-0009 a selection that brings back
+ * rows a replacement shadowed, without the replacement itself, undoes it.
+ */
 export function restoredSurfaceSeqs(events) {
-  return new Set(events.flatMap(event => Array.isArray(event.data?.tavernRestoredSurfaceSeqs) ? event.data.tavernRestoredSurfaceSeqs : []))
-}
-
-/** Restore a saved surface through new events; never mutate the append-only log. */
-export function restoreSurface(session, targetNodes) {
-  const events = sessionEvents(session)
-  const nodes = [...session.surface.nodes]
-  let prefix = 0
-  while (prefix < nodes.length && prefix < targetNodes.length && nodes[prefix] === targetNodes[prefix]) prefix++
-  // Tool-result replacements must target a tool result. Start at an earlier
-  // user/assistant node when a checkpoint splits a tool interaction.
-  while (prefix > 0 && events[targetNodes[prefix]]?.type === 'tool/result') prefix--
-  const sources = targetNodes.slice(prefix).map(seq => events[seq])
-  if (!sources.length) {
-    if (prefix === nodes.length) return
-    throw new Error('保存的上下文为空，无法撤销回退')
-  }
-  if (sources.some(event => !event || !['user/message', 'assistant/message', 'system/message', 'tool/result'].includes(event.type))) throw new Error('保存的原生上下文已不可用')
-  const markerIndex = sources.findLastIndex(event => event.type !== 'tool/result')
-  const shadowed = nodes.slice(prefix)
-  const mutations = createSessionSurfaceMutator(session, events)
-  for (let i = 0; i < sources.length; i++) {
-    const original = sources[i]
-    const data = structuredClone(original.data)
-    let replaced = i === 0 ? shadowed : []
-    if (!replaced.length) {
-      // Empty append-origin placeholders keep restored copies out of the human
-      // transcript; replacements restore the exact model-visible messages.
-      const placeholder = original.type === 'tool/result' ? structuredClone(original.data) : {
-        turn: Number(original.data.turn) || 0, step: Number(original.data.step) || 1,
-        id: randomUUID(), role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern-surface-restore' }
-      }
-      if (original.type === 'tool/result') placeholder.message.content[0].content = []
-      const placeholderEvent = mutations.append(original.type === 'tool/result' ? original.type : 'user/message', placeholder, { surfaceOp: 'append' })
-      replaced = [typeof placeholderEvent === 'number' ? placeholderEvent : placeholderEvent.seq]
+  const restored = new Set(events.flatMap(event => Array.isArray(event.data?.tavernRestoredSurfaceSeqs) ? event.data.tavernRestoredSurfaceSeqs : []))
+  const replacements = []
+  for (const event of events) {
+    if (event.surfaceOp?.op === 'replace' && Array.isArray(event.sourceEventSeqs)) replacements.push(event)
+    if (event.type !== SURFACE_SELECT_TYPE || !Array.isArray(event.data?.nodes)) continue
+    const selected = new Set(event.data.nodes)
+    for (const replacement of replacements) {
+      if (!selected.has(replacement.seq) && replacement.sourceEventSeqs.some(seq => selected.has(seq))) restored.add(replacement.seq)
     }
-    if (i === markerIndex) data.tavernRestoredSurfaceSeqs = shadowed
-    mutations.replace(original.type, data, { start: replaced[0], end: replaced.at(-1), sourceEventSeqs: [...new Set([...replaced, original.seq])] })
   }
+  return restored
 }
 
-export function preflightSurfaceRestore(session, nodes) {
-  if (typeof session.constructor?.fromRestore !== 'function') return
-  const preview = session.constructor.fromRestore(session.id, structuredClone(sessionEvents(session)), structuredClone(session.header), session.inheritedEventCount, 'detached')
-  restoreSurface(preview, nodes)
+function selection(nodes) {
+  return { version: 1, nodes: [...nodes], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select' } }
+}
+
+/** Check a selection against a detached copy; throws before any write. */
+export function preflightSelectSurface(session, nodes) {
+  const preview = detachedSession(session)
+  appendSessionEvent(preview, SURFACE_SELECT_TYPE, selection(nodes))
+  // An unpatched host would log the selection without applying it.
+  if (JSON.stringify([...preview.surface.nodes]) !== JSON.stringify([...nodes])) throw new Error('宿主会话补丁未生效，不能写入上下文选择')
+}
+
+/** Switch a session's model context to saved nodes by reference (ADR-0009). */
+export function selectSurface(session, nodes) {
+  if (JSON.stringify([...session.surface.nodes]) === JSON.stringify([...nodes])) return
+  preflightSelectSurface(session, nodes)
+  appendSessionEvent(session, SURFACE_SELECT_TYPE, selection(nodes))
 }
 
 /** Resuming a persisted session appends a seed marker, not a context edit. */

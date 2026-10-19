@@ -27,7 +27,7 @@ export function planForegroundRetirement(events, keepTurn) {
   return {state, ops}
 }
 
-/** Stage 1 opt-in entry; not wired to the running installation yet. */
+/** Whitelisted sessions retire request scaffolding through one transaction. */
 export async function retireForegroundWithAlgebra(session, {keepTurn, flush, operationId}) {
   const adapter = createConversationAlgebraHostAdapter(session, {flush})
   await recoverTransaction(adapter)

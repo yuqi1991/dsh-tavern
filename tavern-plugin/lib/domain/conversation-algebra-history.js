@@ -1,10 +1,11 @@
+import { transactionOf } from './conversation-algebra/index.js'
 import { createConversationBranches } from './conversation-algebra-branches.js'
 import { sessionEvents } from './session-events.js'
 
 export async function commitConversationHistoryTransaction(session, current, intent, flush) {
-  const manager = createConversationBranches(session, { flush, writeRegistry: async registry => { current.branchRegistry = registry } })
+  const manager = createConversationBranches(session, { flush })
   const events = sessionEvents(session)
-  const started = events.some(event => (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction?.operationId === intent.operationId)
+  const started = events.some(event => transactionOf(event)?.operationId === intent.operationId)
   const transaction = structuredClone(intent)
   if (!started) {
     const tail = events.filter(event => event.seq > transaction.expectedHead)
@@ -18,9 +19,7 @@ export async function commitConversationHistoryTransaction(session, current, int
  * intent precedes any native writes; the same intent completes on reopening. */
 export function createConversationHistory({ chats, flush }) {
   function branches(session, current) {
-    return createConversationBranches(session, { flush, writeRegistry: async registry => {
-      current.branchRegistry = registry
-    } })
+    return createConversationBranches(session, { flush })
   }
   async function prepare(session, current, anchor, meta = null) {
     return branches(session, structuredClone(current)).plan(anchor, undefined, meta)
@@ -30,7 +29,7 @@ export function createConversationHistory({ chats, flush }) {
     return branches(session, structuredClone(current)).move(ref)
   }
 
-  /** Commit a prepared intent immediately, updating the Chat row's registry. */
+  /** Commit a prepared intent immediately. */
   async function commit(session, current, intent) {
     return await commitConversationHistoryTransaction(session, structuredClone(current), structuredClone(intent), flush)
   }

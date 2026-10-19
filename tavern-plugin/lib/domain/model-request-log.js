@@ -44,6 +44,22 @@ function evidenceRecord(record, result) {
   }
 }
 
+/**
+ * Whether the model context changed after a logged request: a selection or a
+ * surface replacement (rollback, edit, reroll) appended later means the next
+ * request will differ. The reply to the request itself only appends.
+ * Request ids begin with their base-36 creation time.
+ */
+export function requestContextStale(events, record) {
+  const createdAt = Number(record?.createdAt) || parseInt(String(record?.id || '').split('-')[0], 36)
+  if (!Number.isFinite(createdAt) || !Array.isArray(events)) return false
+  for (let index = events.length - 1; index >= 0 && events[index].time > createdAt; index--) {
+    const event = events[index]
+    if (event.type === 'dsh-tavern/surface-select' || event.surfaceOp?.op === 'replace') return true
+  }
+  return false
+}
+
 export function createModelRequestLog(options = {}) {
   const readJson = options.readJson
   const writeJson = options.writeJson

@@ -1,8 +1,7 @@
-import { replaceSessionSurface } from './session-surface-mutations.js'
 import { randomUUID } from 'node:crypto'
 import { sessionEvents } from './session-events.js'
-import { computeFold, editStep, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
-import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+import { computeFold, editStep, operationCommitted, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
+import { createConversationAlgebraHostAdapter, detachedSession } from './conversation-algebra-host-adapter.js'
 
 const body = message => String(message?.text ?? '')
 const textOf = message => (message?.content || []).filter(block => block.type === 'text').map(block => block.text).join('\n')
@@ -27,9 +26,9 @@ function templateEdit(state, seq, text) {
 }
 
 /** Journal a template rewrite against its exact existing native message; never edit old events. */
-export async function prepareTemplateHistory(session, before, after, algebraEnabled = false) {
+export async function prepareTemplateHistory(session, before, after) {
   const events = sessionEvents(session), bySeq = new Map(events.map(event => [event.seq, event]))
-  const fold = algebraEnabled ? computeFold(events) : null
+  const fold = computeFold(events)
   let preview, previewAdapter
   const nodes = (session.surface?.nodes || []).map(seq => bySeq.get(seq)).filter(Boolean)
   // Index each active message once. Archived/unmatched chat rows must not
@@ -71,52 +70,30 @@ export async function prepareTemplateHistory(session, before, after, algebraEnab
     if (at < 0) continue
     const target = nodes[at]
     const id = 'tavern-template-edit:' + randomUUID()
-    if (algebraEnabled) {
-      const ops = templateEdit(fold, target.seq, body(next))
-      // Check the exact transaction, including its source metadata, before
-      // publishing the recoverable Chat intent.
-      if (!preview) {
-        preview = session.constructor.fromRestore(session.id, structuredClone(events), structuredClone(session.header), session.inheritedEventCount, 'detached')
-        previewAdapter = createConversationAlgebraHostAdapter(preview, { flush: async () => {} })
-      }
-      await runTransaction(previewAdapter, { expectedHead: sessionEvents(preview).at(-1)?.seq ?? -1,
-        ops, operationId: 'preflight:' + id })
+    const ops = templateEdit(fold, target.seq, body(next))
+    // Check the exact transaction, including its source metadata, before
+    // publishing the recoverable Chat intent.
+    if (!preview) {
+      preview = detachedSession(session)
+      previewAdapter = createConversationAlgebraHostAdapter(preview, { flush: async () => {} })
     }
-    next.templateHistoryEdit = { id, seq: target.seq, role: old.role,
-      turn: target.data.turn || next.turn || 1, ...(algebraEnabled ? { algebra: 1 } : {}) }
+    await runTransaction(previewAdapter, { expectedHead: sessionEvents(preview).at(-1)?.seq ?? -1,
+      ops, operationId: 'preflight:' + id })
+    next.templateHistoryEdit = { id, seq: target.seq, role: old.role, turn: target.data.turn || next.turn || 1 }
   }
   return after
 }
 
-export async function synchronizeTemplateHistory(session, chat, flush, algebraEnabled = false) {
-  await prepareTemplateHistory(session, chat, chat, algebraEnabled)
-  const events = sessionEvents(session)
-  const ids = new Set(events.map(event => event.type === 'assistant/message' ? event.data.message?.id : event.data?.id))
-  const hasAlgebraEdit = (chat.messages || []).some(message => message.templateHistoryEdit?.algebra === 1)
-  const adapter = hasAlgebraEdit ? createConversationAlgebraHostAdapter(session, { flush }) : null
-  if (adapter) await waitForTransactionReady(adapter)
-  let changed = false
-  for (const message of chat.messages || []) {
-    const edit = message.templateHistoryEdit
-    if (!edit) continue
-    if (edit.algebra === 1) {
-      const committed = sessionEvents(session).some(event => {
-        const tx = (event.type === 'user/message' ? event.data : event.data?.message)?.source?.conversationTransaction
-        return tx?.operationId === edit.id && ['commit', 'begin-commit'].includes(tx.phase)
-      })
-      if (committed || !session.surface?.nodes.includes(edit.seq)) continue
-      const state = computeFold(sessionEvents(session))
-      await runTransaction(adapter, { expectedHead: state.headSeq,
-        ops: templateEdit(state, edit.seq, body(message)), operationId: edit.id })
-      continue
-    }
-    if (ids.has(edit.id) || !session.surface?.nodes.includes(edit.seq)) continue
-    const target = events.find(event => event.seq === edit.seq)
-    const original = target.type === 'assistant/message' ? target.data.message : target.data
-    const replacement = { ...original, id: edit.id, content: editedContent(original, body(message)) }
-    replaceSessionSurface(session, edit.role + '/message', edit.role === 'assistant' ? { turn: edit.turn, step: 1, message: replacement } : replacement,
-      { start: edit.seq, end: edit.seq, sourceEventSeqs: [edit.seq] })
-    changed = true
+export async function synchronizeTemplateHistory(session, chat, flush) {
+  await prepareTemplateHistory(session, chat, chat)
+  const edits = (chat.messages || []).map(message => [message, message.templateHistoryEdit]).filter(([, edit]) => edit)
+  if (!edits.length) return
+  const adapter = createConversationAlgebraHostAdapter(session, { flush })
+  await waitForTransactionReady(adapter)
+  for (const [message, edit] of edits) {
+    if (operationCommitted(sessionEvents(session), edit.id) || !session.surface?.nodes.includes(edit.seq)) continue
+    const state = computeFold(sessionEvents(session))
+    await runTransaction(adapter, { expectedHead: state.headSeq,
+      ops: templateEdit(state, edit.seq, body(message)), operationId: edit.id })
   }
-  if (changed) await flush(session)
 }

@@ -1,3 +1,26 @@
+// ADR-0009: the host Trajectory has no Definition for surface selections, so
+// they build no node and leave no fold evidence. This Definition gives each
+// selection a node carrying its seq list; the fold below hides the node itself.
+const TAVERN_SURFACE_SELECT = "dsh-tavern/surface-select";
+function tavernSurfaceSelectTrajectoryDefinition() {
+			return {
+				kind: "tavern-surface-select",
+				target: "trajectory",
+				match: function (event) { return event.type === TAVERN_SURFACE_SELECT ? { id: String(event.seq), role: "start" } : null; },
+				start: function (_context, match) {
+					const event = match.event;
+					return { kind: "context", seq: event.seq, time: event.time, content: [],
+						source: { kind: "plugin", plugin: "dsh-tavern", form: "surface-select" }, provenance: { role: "inject", label: "dsh-tavern" }, form: null };
+				},
+				update: function (context) { return context.state; },
+				buildViewNode: function (context) {
+					if (context.state === undefined) return null;
+					return { key: context.key, kind: context.kind, id: context.id, target: "trajectory", anchorSeq: context.state.seq,
+						location: (context.start && context.start.location) || { kind: "unresolved" }, data: { kind: "node", node: context.state } };
+				}
+			};
+		}
+
 function installTavernTrajectorySurfaceView(require) {
 			let conversation;
 			try { conversation = require("@deepseek-ai/dsh-client-ui-conversation/client"); }
@@ -5,6 +28,16 @@ function installTavernTrajectorySurfaceView(require) {
 			const proto = conversation && conversation.ConversationNodeAssembler && conversation.ConversationNodeAssembler.prototype;
 			if (!proto || typeof proto.buildNode !== "function" || typeof proto.replaceView !== "function" || proto.__dshTavernTrajectorySurface) return;
 			const ELIGIBLE = { "system/message": 1, "user/message": 1, "assistant/message": 1, "tool/result": 1 };
+			// Cheap content identity: verbatim copies of one message share it.
+			function contentKey(event) {
+				if (!ELIGIBLE[event.type] || !event.data) return undefined;
+				const message = event.type === "user/message" ? event.data : event.data.message;
+				const text = JSON.stringify(message && message.content);
+				if (typeof text !== "string") return undefined;
+				let hash = 5381;
+				for (let index = 0; index < text.length; index++) hash = ((hash << 5) + hash + text.charCodeAt(index)) | 0;
+				return text.length + ":" + hash;
+			}
 			const buildNode = proto.buildNode;
 			const replaceView = proto.replaceView;
 			const prepend = proto.prepend;
@@ -27,7 +60,10 @@ function installTavernTrajectorySurfaceView(require) {
 					const event = match && match.event;
 					if (!event || typeof event.seq !== "number") continue;
 					const source = event.type === "user/message" && event.data && event.data.source;
-					matches.push({ seq: event.seq, type: String(event.type || ""), surfaceOp: event.surfaceOp === undefined ? null : event.surfaceOp,
+					const selected = event.type === TAVERN_SURFACE_SELECT && event.data && Array.isArray(event.data.nodes) ? { nodes: event.data.nodes.slice() } : {};
+					const key = contentKey(event);
+					matches.push({ seq: event.seq, type: String(event.type || ""), surfaceOp: event.surfaceOp === undefined ? null : event.surfaceOp, ...selected,
+						...(key === undefined ? {} : { contentKey: key }),
 						...(event.data && Number.isSafeInteger(event.data.turn) ? { turn: event.data.turn } : {}),
 						...(event.data && Number.isSafeInteger(event.data.step) ? { step: event.data.step } : {}),
 						...(source && typeof source === "object" ? { source: { kind: String(source.kind || ""), plugin: String(source.plugin || "") } } : {}) });
@@ -67,9 +103,13 @@ function installTavernTrajectorySurfaceView(require) {
 				// 状态不明的行保守保留（最坏情况是多显示，不会丢内容）。
 				function liveSurfaceSeqsAndDead() {
 					const metas = [...evidence.values()].sort(function (left, right) { return left.seq - right.seq; });
-					const live = [];
+					let live = [];
 					const dead = new Set();
+					let selected = false;
 					for (const meta of metas) {
+						// A selection names the complete surface, so the fold is exact
+						// from here on even when earlier rows are outside the window.
+						if (meta.type === TAVERN_SURFACE_SELECT && Array.isArray(meta.nodes)) { live = meta.nodes.slice(); selected = true; continue; }
 						if (!ELIGIBLE[meta.type]) continue;
 						const op = meta.surfaceOp;
 						if (op === null || op === "append" || op === undefined) { live.push(meta.seq); continue; }
@@ -81,6 +121,11 @@ function installTavernTrajectorySurfaceView(require) {
 								live.splice(start, end - start + 1, meta.seq);
 							} else live.push(meta.seq);
 						}
+					}
+					if (selected) {
+						const kept = new Set(live);
+						dead.clear();
+						for (const meta of metas) if (ELIGIBLE[meta.type] && !kept.has(meta.seq)) dead.add(meta.seq);
 					}
 					return { live, dead };
 				}
@@ -98,11 +143,22 @@ function installTavernTrajectorySurfaceView(require) {
 				// contributions / eventLocations 索引，工具调用行会被分到错误的轮次
 				// 而显示到对话顶部。折叠依据（evidence）与节点存储都只增不减，
 				// 因此每次隐藏都是可逆的呈现层过滤。
+				// 宿主按 turn:step（工具按 callId）只建一个节点、显示最新那条事件。旧日志里
+				// 的原样恢复副本与原文同键，于是节点可能显示一条已不在上下文里的副本，
+				// 而上下文里那条内容相同。内容一致时这一行就是上下文的真实内容，保留。
+				function sharesLiveCopy(seq, meta, dead) {
+					if (meta.contentKey === undefined) return false;
+					const node = nodeForSeq(seq);
+					return Boolean(node && node.tavernMatches.some(function (other) {
+						return other.seq !== meta.seq && other.type === meta.type && other.contentKey === meta.contentKey && !dead.has(other.seq);
+					}));
+				}
 				function rowIsHidden(entry, dead) {
 					if (!entry || !Number.isFinite(entry.seq)) return false;
 					const meta = evidence.get(entry.seq);
+					if (meta && meta.type === TAVERN_SURFACE_SELECT) return true; // 选择只改上下文，本身不是消息
 					if (!meta || !ELIGIBLE[meta.type]) return false; // 审计行（轮次轨、请求）保留
-					if (dead.has(meta.seq)) return true; // 窗口内可验证的已折叠死行
+					if (dead.has(meta.seq)) return !sharesLiveCopy(entry.seq, meta, dead); // 窗口内可验证的已折叠死行
 					if (Array.isArray(entry.content) && entry.content.length === 0) return true; // 空墓碑行
 					return rowIsEmpty(nodeForSeq(entry.seq));
 				}
