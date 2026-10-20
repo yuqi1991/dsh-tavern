@@ -1,0 +1,384 @@
+f06726e6 09-27 perf: preserve incremental MVU dispatch across append and view refresh
+0c18f25e 09-27 perf: keep Helper iframe appends incremental
+ffbdb60b 09-27 perf: bound template formatting DOM while preserving history data
+9396a617 09-27 perf: scope foreground preparation writes to chat metadata
+080003ca 09-27 perf: coalesce concurrent session view initialization
+997534a5 09-27 feat: prototype current state and immutable paged history storage
+98a880a7 09-27 feat: map legacy chats into verified paged history shadows
+0707440e 09-27 feat: add paged conversation foreground and settlement transactions
+1ced445f 09-27 feat: calculate and persist conversation variable changes incrementally
+4d5fa0e7 09-27 feat: preserve legacy saves through compatible storage migration and restore
+c9c4292d 09-27 feat: connect new gameplay saves to native paged conversation storage
+5c232f4d 09-27 perf: batch native record writes and avoid hydrating history for scoped reads
+e3f4f1bb 09-27 perf: read Helper contexts directly from native message pages
+c6ed518d 09-27 perf: avoid full native archive reads for cold point writes and view probes
+c3495e28 09-27 perf: project native opening views from bounded history windows
+431da10c 09-27 perf: load Helper history on demand and bound initialization reads
+ce7cd83d 09-27 perf: load native template history on demand and accept windowed MVU baselines
+a170162c 09-27 perf: avoid full history reads for settlement checkpoints and metadata
+e4310586 09-27 perf: start settlement with revision-checked metadata patches
+88f8af37 09-27 perf: bound settlement retry and worldbook history reads
+0bdf197c 09-28 perf: bound prepared variable-retry settlement inputs
+f148f7fe 09-28 perf(mvu): load transaction history on demand from pinned native snapshots
+8a0cfcb1 09-28 perf(scene): index image status reads without scanning chat history
+3f2f5450 09-28 perf(session): avoid quadratic host projection cold replay
+6a8c54db 09-28 perf(session): read opening metadata without scanning history
+cce1e238 09-28 feat(storage): migrate legacy saves to verified native pages
+4e732390 09-28 feat(ui): migrate old saves from tavern status panel
+0784d9a7 09-28 perf: defer full card and worldbook payloads when opening conversations
+40fc4fb4 09-28 perf: avoid full chat writes for candidate task progress
+cf557a95 09-28 perf: reduce candidate preparation and result publication latency
+bdeea984 09-28 perf: reuse template and storage projections during candidate startup
+ce6e0d80 09-28 perf: reduce candidate dispatch storage and template overhead
+07406d92 09-28 perf: prepare candidate worldbook context before task submission
+87c4b25a 09-30 feat: apply character designs to game-local keyword worldbook entries
+8c851fdb 09-30 feat: link current game card and worldbook details from status panel
+31ac319d 09-30 ui: move preference and card links below Guide heading
+6fa005c6 09-30 ui: rename Guide to temporary guidance and clarify usage
+548915d5 09-30 ui: refine gameplay action menu typography and theme colors
+fb697527 09-30 ui: default all theme transparency controls to zero
+87619f70 09-30 feat: restore compatibility entry as silly mode
+c1baacaf 09-30 feat: gate silly mode entry behind opt-in global setting
+3244fcac 09-30 refactor: remove unused tavern UI and helper functions
+9855563b 09-30 refactor: isolate global settings and exercise registered editors
+800eaea0 09-30 refactor: centralize frame mounting and opening sender lifetimes
+ccb77863 09-30 refactor: centralize guide validation and current-state mutations
+ca1450d4 09-30 ui: compact single status panel toolbar and shorten card update confirm
+1308e727 09-30 ui: quiet secondary controls and reserve accent for primary actions
+5452b608 09-30 ui: regroup global settings into consistent cards and rows
+917a5271 09-30 ui: unify right-panel pages under one visual system
+e7bb68f5 09-30 feat: let the memory panel view and edit card memory from any conversation
+6c857736 09-30 ui: hide preference dimensions and raw answers in long-term preference
+9dedc0ec 09-30 refactor: split client entry into feature and runtime files
+7c270f7c 09-30 refactor: extract server tools hooks routes and compatibility compiler
+5a1bbbdf 09-30 feat: apply DSH Tavern logo to sidebar, landing and tab icon
+912cdc58 09-30 feat: use full DSH Tavern lockup as sidebar brand
+899df72d 09-30 feat: show DSH Tavern lockup on hero and landing, enlarge sidebar brand
+dffd51fe 09-30 feat: rename browser tab title to DSH Tavern
+1fd586ed 09-30 perf: stop full session list refresh after each settled turn
+53e485e9 09-30 perf: skip refetching a subagent catalog that just loaded
+5c5cac2d 09-30 feat: replace host sidebar whale with DSH Tavern logo
+93315f46 10-01 feat: add global worldbook selection
+ac15d0d3 10-01 feat: show breathing DSH Tavern logo while sessions load
+e5799d01 10-01 feat: add worldbook search and reduce sorting to newest/oldest
+f78a2dd1 10-01 feat: explain worldbook recall as a step-by-step guide
+9c0791ef 10-01 feat: inject foreground variable directory once per session
+44895105 10-01 feat: add a shared stall-aware download module
+ed053f8c 10-01 refactor: route installer downloads through the shared module
+b4963a4d 10-01 feat: use the Windows system proxy for installer downloads
+b7a48102 10-01 refactor(windows): run pnpm with Desktop's Electron instead of a downloaded Node
+cb9b85e9 10-01 feat: inject long-term preferences into card agent system context
+3755e293 10-01 perf: mount worldbook entry forms only when expanded
+1ce77655 10-01 perf: mount preset entry editors only when expanded
+843cc037 10-01 perf: re-project turn history only when chat rows change
+5420ce9f 10-01 perf: stop rebuilding card rows and collapsed card extensions
+b58d52ea 10-01 perf: skip sidebar re-render when update status is unchanged
+ddce9397 10-01 perf: cache worldbook catalog rows by file revision
+7cb321c6 10-01 perf: serve card thumbnails without embedded card data and with ETag
+664de98d 10-01 perf: mount request context sections lazily and defer search
+700692dc 10-01 perf: defer hidden library tab refreshes until shown
+67b1a5c7 10-01 perf: mount character design details only when expanded
+4c20ba01 10-01 feat: give card-bound card Agents the card and constant worldbook as system reference
+891ebcaa 10-01 feat: retire the edit-card persona experiment for new sessions
+f274e141 10-02 perf(frame): skip font remeasurement for text-only updates
+a087be28 10-02 refactor(frame): stop rewriting card font sizes inside iframes
+b754116b 10-02 perf(frame): skip height scans for text-only and paint-only mutations
+3ba39f0b 10-02 perf: share one DSH theme observer across message frames and fragments
+970d90e7 10-02 perf(frame): measure content height in one top-down pass
+5390fffd 10-02 feat: add a default model for new card workbench conversations
+0e437272 10-03 feat: rename 剧情指导 to Guide and inject guides into MVU variable settlement
+ba65bd02 10-03 feat: 删除人物卡时询问是否一并删除游玩记录
+8eea9164 10-03 feat: 批量删卡时按卡列出游玩记录数
+8925d037 10-04 feat: complete bounded Tavern Helper API bridges
+05b1e548 10-04 feat: emulate helper generation rendering and events
+e23ea4df 10-04 feat: 模型拒绝或内容审核拦截时说明不是酒馆故障
+a3b5943a 10-04 feat(mvu): 脚本型原状态栏走协议适配，原视图不再被迫删除
+8d91cd1d 10-04 feat(script): 受信任卡片脚本可改写正文显示（retrieveDisplayedMessage + 消息渲染事件）
+04a0f34b 10-05 feat(image): NovelAI 正面提示词、官方预设、段落顺序与权重、固定种子和提示词预设
+5d2ffacf 10-05 feat(image): NovelAI 多接入点、画师串库、采样参数，并在账号忙时自动重试
+7307d2f3 10-05 feat(image): NovelAI 画师串库支持预览图，改为带缩略图的卡片点选
+974f53a8 10-05 feat(mvu): 每轮回复前把上一轮变化的变量最新值追加给前台
+b8ea82f6 10-05 feat: 卡片工作台新增「新建人物卡」问答任务与 HTML 草图预览
+5a8471f3 10-05 feat(settings): 变量回灌前台做成开关，默认开启
+ccceeaf0 10-05 feat: 支持原地 MVU，新建卡直接启用 MVU，不再生成底卡+副本两张卡
+c6a927d8 10-05 feat: 原地 MVU 卡以文件为准，去掉指纹
+ee728107 10-05 refactor: MVU 改卡改为直接编辑 + 格式校验，移除草稿/定义/指纹体系
+60af1b39 10-05 feat(image): 画最值得画的一幕，按构图自动横竖图，按画面追加负面词
+19e5554a 10-05 feat(status): 状态面板加「放大」按钮，工具按钮移到面板上方不再遮挡卡片
+b7ec6816 10-05 perf(model): 模型请求日志只保留最近 30 轮原文，且不再阻塞模型请求
+ba0a14f1 10-05 perf(model): 世界书召回日志关联不再阻塞模型请求
+a2af0323 10-05 perf(preset): 预设列表按文件内容缓存解析摘要
+4a2c615e 10-05 perf(display): 状态栏运行诊断合并写入，不再每秒改写对话存档
+e6fcb341 10-05 feat(ledger): 恢复游玩台账，改为玩家手动整理的备忘录
+0c8fd3c6 10-05 feat(ledger): 台账标题旁常驻「更新游玩台账」按钮，收起时也能手动更新
+f9295704 10-05 refactor(card): 卡片工作台不再预置「你是工作台助手」的三条假对话
+9f775b19 10-05 refactor(card): 卡片工作台不再发送开场欢迎语
+cbf461a1 10-05 refactor(card): 去掉「挂载」概念，卡片工作台像改代码一样按路径改任意卡
+f3945537 10-05 refactor(compaction): 删除前端早已不用的旧压缩协调器
+7b5c2d28 10-05 refactor(compaction): 压缩请求的投影与剧情提示词合并为一个钩子
+d54395d9 10-05 feat(prompt): 前台压缩默认提示词改为八段结构化摘要
+87b94a5b 10-05 feat(compaction): 前台压缩保留最近 10 轮原文，附在摘要之后
+8d303f2b 10-05 refactor(preset): 预设前段改为原生系统提示段落进入轨迹，压缩可复用前缀缓存
+225a6f0e 10-05 feat(debug): 请求上下文继续标出系统消息中的预设前段
+021fcbbd 10-06 feat(worldbook): 筛选模型排除的条目冷却 10 轮，期间不再询问模型
+de1a6241 10-06 perf(mvu): 结算任务把不变的变量结构与更新规则排在当轮变量快照之前
+9e11fe8a 10-06 perf(background): 共享后台会话各任务使用同一 system 与工具列表，筛选复用结算缓存
+8bb7fc3a 10-06 perf(worldbook): 世界书筛选改为回复结束后预筛，发送时不再等待模型
+31c6c361 10-06 perf(client): 卡片 iframe 只内联近期楼层且不带模板展示产物；主题观察器每帧最多读一次样式
+98975329 10-06 perf(chat): 正文提交与世界书召回改为增量写入，不再随存档变大而变慢
+be4143e1 10-06 perf(client): 长历史远楼换成同高占位；卡片按实测高度占位并保持阅读位置
+4ec718bd 10-06 perf(chat): 导入检查、前台交接与固定前缀只读表头
+6712edba 10-06 perf(settlement): 普通结算按需读取最近楼层，不再整档读取
+3b4285d4 10-06 perf(chat): 正文准备与世界书预筛按扫描深度读取最近楼层
+854acae9 10-06 perf(chat): 每步请求钩子只读最近楼层与本进程内变动过的楼层
+8067c4f4 10-06 perf(template): 模板存档版本过期时只合并相关楼层，不再整档合并
+2a41a763 10-06 perf(history): 浏览旧楼层按页扩展历史窗口，不再切换为完整历史
+ee21201e 10-06 perf(edit): 编辑正文只读最近楼层并局部写入最后一楼
+4ed8b7ad 10-06 perf(rollback): 回退与撤销回退只读最近楼层，按检查点版本恢复改动过的楼层
+7f487577 10-06 perf(regen): 重新生成只读最近楼层，临时回退与最终提交改为局部写入
+f6c1c6b6 10-06 perf(rollback): 回退的脚本通知只发最近楼层；尾部截断不再重建整个楼层索引
+762b2991 10-06 perf(view): 会话视图不再重复携带 tavernStatusView（与 tavernStatusViews[0] 相同）
+551275ba 10-06 perf(client): 预设与素材面板等对话视图读完再读，切换会话只下载一次完整视图
+960bf65a 10-06 feat(skills): Skill 库支持导入 SKILL.md 或 Skill 文件夹压缩包
+c8fc90bc 10-07 feat(mobile-import): 下载目录导入显示缩略图、列出全部文件，支持多选、排序与筛选
+44c916b2 10-07 feat(games): 单局数据清单；删除游戏时一并清理日志、诊断、生图记录与原生会话
+e1ad06fc 10-07 feat(games): 导出存档（含回退历史、原生会话、人物卡与配图）
+851a0f09 10-07 feat(games): 导入存档，作为一局新游戏继续玩
+228d7047 10-07 feat(guides): Guide 库可删除整个方案
+be159cb8 10-07 feat(regex): 正则库导入原版酒馆正则，存放不生效，由卡片 Agent 写入人物卡或预设
+65a57be2 10-07 feat(character-design): 本局设计的人物在下一轮正文强制注入一次，之后按关键词召回
+15cf1643 10-07 feat(plugin-api): 宿主侧 tavern 服务——轮次通知、读正文与设定、挂媒体、正文提示词段落、删局通知
+dff59197 10-07 feat(plugin-api): 浏览器侧 tavernUi 服务——插件媒体显示在锚点段落之后、正文标记、消息与输入框按钮�
+75c91782 10-07 feat(scene-images): 内置生图的图片显示在所画那一幕的段落之后
+b7413553 10-07 perf(plugin-api): 重复读取同一正文版本不再读写媒体记录；文档说明读取只读单轮
+b22f073b 10-08 feat(settings): 默认隐藏上下文注入和思考过程
+e6849812 10-08 feat(settings): 默认模型各行补充用途说明
+a0267d1d 10-08 feat(cards): 人物卡列表按近期导入和游戏局数排序
+439a00ac 10-08 feat(script): 重做剧本进度面板
+5a433958 10-08 feat(script): 剧本进度每页 7 块，前后各 3 块
+b37b0d1a 10-08 feat(settings): 隐藏插件、Agent 预设和侧边卡片设置页
+a72857b5 10-08 feat(candidates): 精简候选面板
+7092523c 10-08 feat(candidates): 点选候选即追加到输入框
+5cb096ab 10-08 feat(candidates): 再次点击已追加的候选取消高亮并从输入框移除
+2f77cac7 10-08 feat(candidates): 候选默认发送后才收起，可连续点选多项
+583503d3 10-08 feat(export): 导出存档合并为一个选项，始终包含配图
+95f87f68 10-08 refactor(preset): 删除已退役方案库的无调用接口
+7f4a7484 10-08 refactor(preset): 移除已退役的破限方案模块与预设配置方案
+2b6e0805 10-08 feat(export): 故事正文改为 Markdown，配图以相对链接插在对应正文后
+fc472779 10-08 feat(scene-image): 文生图对话页可撤销最近一轮对话
+292e4059 10-08 feat(cards): 卡片 Agent 创作或修改的人物卡在创作者备注署名 DSH Tavern
+d97c2efd 10-08 feat(scene-image): 可为之前的轮次补画插图
+3100d223 10-08 feat(scene-image): 较早轮次生图失败后可在插图位置重试
+2ae1f809 10-08 feat(settings): 场景生图配置移到单独的设置页
+06e7a1a4 10-08 feat(scene-image): 生图设置页可测试生图，按已保存配置出一张测试图
+83986c93 10-09 feat(scene-image): 生图、重试与重新生图统一放到每轮操作栏图标，去掉输入框上方的生图按钮
+a5361803 10-09 feat(scene-image): 去掉场景生图开关，生图图标常驻，未配置渠道时点击提示先配置
+7793bd6a 10-09 feat(scene-image): NovelAI 接入点可选对话生图协议，支持 STA1N 等 Nai2API 中转
+6e542469 10-09 feat(scene-image): 不再提供 Gemini 中转站渠道，已在用的配置保持可用
+76f0665d 10-09 perf(scene-image): 生图 Agent 沿用对话模型但用最低推理强度，免得整理画面前长时间思考
+a7384bb1 10-09 feat(scene-image): 新登记人物直接用名字作编号，同局同名的第二人用 名字#2
+2cb18d43 10-09 feat(scene-image): 生图 Agent 模型可在全局默认和本局设置中单独选择，默认跟随前台
+dc1f7ffd 10-09 feat(scene-image): 画面选动作进行中的顶点、构图按分镜写并排在提示词最前；新增默认的「自动」画风�
+90373467 10-09 feat(scene-image): 重画分为「重新构思画面」与「同方案重画」，重新构思用干净的 Agent 替换本轮方案；�
+b5387d40 10-09 feat(scene-image): 大图「画面方案」可手改提示词重画（不经文字模型）；设置页工作流等按钮不再被插�
+9d92ea0e 10-09 feat(scene-image): 设置页新增「历史图片」：按游戏分组浏览全部插图（含已删除游戏），大图可左右翻�
+c4f304ed 10-09 feat(scene-image): 画面方案显示这张图用的画风，自动时注明本局是否已定
+7ff96648 10-09 feat(scene-image): 重新构思画面改由本局共用的生图 Agent 处理，附带「旧方案已被否决」的要求，不再每�
+855c82a7 10-09 feat(scene-image): 画风去掉固定预设，只留「自动」与「锁定画风」；自动时每张图由 Agent 写画风，并以�
+b757e3dc 10-09 feat(scene-image): 自动画风的参考改为本局最近一次画的那张，不再按剧情线找前一张
+4781c947 10-09 feat(scene-image): 历史图片移出设置页，改为对话区「画廊」标签页：默认看本局插图，可切到全部游戏�
+0fa8d534 10-09 feat(play): 重新生成正文从输入框上方的按钮改为最新一轮操作栏里的图标，生成中图标旋转；被中断的
+7dcd2ca5 10-09 feat(scene-image): 画廊只看本局，按轮次从小到大每轮一行，悬停可删单张，「批量删除」勾选后一起删
+adce2481 10-09 revert: 重新生成正文改回输入框上方的按钮（图标太小，不够显眼）
+70c0c51e 10-09 feat(character-design): 人物设计档案可逐条删除，同时移除本局世界书里为该人物生成的条目（手动改过的
+d7ed9577 10-09 feat(play): 重新生成正文时自动填入本局上次用过的指导意见
+b97b4e31 10-09 feat(plugin-api): 插件接口第 2 版，开放层新增 turnSection、worldbookSource、settlementSection、settlementTool
+dcb3b7fc 10-09 feat(plugin-api): 插件存档数据与剧情线通知（开放层第 1 批）
+11ed8170 10-09 feat(plugin-api): 本局插件面板与第一个替换类接口 replaceSettlement（开放层第 2、3 批）
+ddbde249 10-09 feat(plugin-api): 候选与压缩的添加类接口 candidateSection、compactionSection，浏览器侧插件面板 registerPanel
+d1985cf2 10-09 feat(ledger): 手动整理游玩台账后，下一轮正文参考一次台账（同一轮重试沿用，之后不再提供）
+6fb2d78c 10-09 feat(import): 「导入存档」改为菜单，区分 DSH Tavern 存档与 SillyTavern 聊天记录
+c756affe 10-10 feat(scene-image): 恢复「开启场景生图」全局开关，默认关闭，保存完整配置后才能打开；关闭时不显示�
+67a4048c 10-10 feat(plugin-api): 插件为某局游戏建的子 Agent，请求自动记入该局请求记录，「完整上下文」可查看
+3438e3cb 10-10 feat(plugin-api): 结算替换可被玩家停止（settle 收到 signal），插件结算时后台等待提示显示插件名和模型�
+319a464f 10-10 feat(plugin-api): onTurnSettled 与 getTurn 带上这一轮结算后的只读消息变量（variables），跟着正文版本走
+7fb918ac 10-10 feat(plugins): 插件放进数据目录的 plugins/ 文件夹即可加载，宿主侧与浏览器侧都生效，运行中增删无需�
+eaccd028 10-10 feat(plugin-api): 宿主侧 handle 与浏览器侧 callHost，插件的浏览器侧可调用自己的宿主侧；示例插件改为完�
+0fa19510 10-10 feat(plugin-api): tavernUi.registerStartGroup，插件可在侧栏开始页声明自己的分组（#180）
+39f95d18 10-10 feat(plugin-api): tavern.worldbookEntries，插件条目进入世界书条目池，由 Tavern 召回、冷却、筛选（#179）
+1b109517 10-10 feat(plugin-api): getCard、getHistory、setVariables、editTurn、runTask
+68dff3dd 10-10 feat(settings): 上下文压缩设置可调「压缩后保留最近几轮原文」（0–100，默认 10）
+d2ac7f90 10-11 feat(plugin-api): settlementTask、manualTask、startTask——插件自定义结算任务与手动任务
+b00be5ae 10-11 feat(plugin-api): getTurnState、watchTurnState、setInput/submitInput、openOverlay（#160）
+b06aacc9 10-11 feat(plugin-api): tavernUi.assetUrl——插件文件夹 assets/ 下的图片、地图、音效等静态资源（#160）
+e6f7a9be 10-11 feat(game-save): 导出存档包含插件存档数据与媒体项，导入后按新游戏的正文版本重新绑定
+302445cd 10-12 perf: 卡片 Agent 参考资料不再预载超长常驻世界书（超 8000 字改为按需读取提示）
+3108bd9e 10-12 feat: 卡片工作台新增 tavern_search_card，一次搜遍全卡定位文字
+c06bc7ec 10-12 perf: 人物卡与内置世界书保存结果自动附带格式校验，省去单独校验一步
+08f3ec10 10-12 feat: 卡片工作台新增 tavern_replace_card_text，全卡批量替换并报告剩余处数
+a31230e6 10-12 perf: 新版文件工具存在时不再给模型旧版 str_replace_editor
+4f5fddc9 10-12 perf: 卡片 Agent 的任务专用工具随对应 Skill 加载后才出现
+6bc85233 10-12 perf: 读世界书只返回正文原文与已设置字段，读 raw 改为紧凑 JSON
+23b58748 10-12 perf: 卡片 Agent 参考资料中超长的人物卡设定和系统提示也改为按需读取
+a2596cf4 10-12 feat(生图): 同一轮正文可新增插图，另选不同场景，可附一句描述（#195）
+0613814b 10-12 feat(生图): 导出对话带上每轮新增的插图，各自放在对应句子之后
+70930eda 10-12 feat(生图): 插图下直接提供「改提示词」，自己写的提示词原样发给渠道
+f6d899f3 10-12 refactor(turn): 「哪条消息是本轮输入」只在 session-turn-input 定义一次
+17db75c4 10-12 feat(turn): 存档与模型上下文对账器——核对、自动修复可证明的不一致，其余记录在日志
+a568213e 10-13 refactor(turn): 每轮记录原生锚点，回退、模板同步、提交记录按记录定位，不再按顺序或文字猜
+739f072a 10-13 feat(生图): 场景生图设置新增「每轮自动生图」开关，默认关闭（#195）
+1b324271 10-14 feat(profile): CLI 个人 Profile 可用 dshTavern.cliPocket 选回 Pocket
+023ce505 10-14 feat(存档): 空闲时自动整理存档，删掉不影响游玩和导出的数据
+14abd223 10-14 feat(存档): 按规则瘦身新存档：生图世界书按条目去重、召回明细精简、版本索引随整理删除
+88ef3f21 10-14 feat(存档): 整理时重写含已删记录的记录包
+b609a1c6 10-14 feat(存档): 所有存档块写入块包，整理时把零散小块并入包（存档格式 2）
+1b320639 10-14 feat(存档): 分叉历史只保留最近 50 轮
+798a0b5b 10-14 feat(存档): 生图世界书快照只保留最近 50 轮
+0d086d2e 10-14 feat(MVU): 服务端运行卡脚本默认开启
+1f76adf5 10-15 feat(MVU): 页面在前台时由页面执行卡脚本，切后台、关页或手机访问时由服务端接手
+c622c608 10-15 feat(插件接口): 新增 getCardImage，读取这局人物卡的图片地址
+6108567a 10-15 feat(转 MVU): 新增 tavern_mvu_overview 与 tavern_apply_mvu，模型做设计、程序做装配
+b3752075 10-15 feat(转 MVU): 写入时可一并清理旧状态协议；概览给出开场结尾与文件结构
+00e37c7d 10-16 feat(卡片工作台): tavern_validate_card 支持校验预设和世界书，直接改文件后必须校验（#210）
+f05d5dfa 10-16 feat(适配): cordis patch 与 presets 迁移到 DSH 0.2.0-rc.2 的 preset 声明模型
+e5b8e624 10-16 feat(适配): 依赖清单与 pnpm-lock 对齐 DSH 0.2.0-rc.2
+834c39eb 10-16 feat(适配): pnpm 补丁随依赖版本重建（better-sidebar 0.26.0 / pocket 2.11.0 / web-mobile 3.1.0）
+ffa8ceec 10-16 feat(适配): CLI 独立运行时 pins 与 lock 升级到 0.2.0-rc.2
+272881cb 10-16 feat(适配): 兼容清单与安装文档指向新的 DSH 下载页
+967d9320 10-16 feat(桌面): 新增 dsh-tavern-launcher，把启动按钮注册进 Better Sidebar
+c5d85140 10-16 feat(launcher): 侧栏 Tavern 面板去掉内嵌视图，只保留启动 / 停止 / 打开 Web
+0d57e7c0 10-16 feat(酒馆状态): 人物设计档案、游玩台账、人物姿势默认隐藏，可在全局设置中打开
+10582ce0 10-16 feat(本局设置): 酒馆状态三个可选区块可按局单独显示或隐藏
+531a8ed5 10-17 feat(存档): 原生会话修复原语——保留与对话记录一致的最长前缀，只重写坏掉的尾部
+e903576c 10-17 feat(存档): 存档核对发现模型上下文与存档不一致时，按存档自动修复原生会话尾部
+51b77093 10-17 feat(存档): 回退、重新生成、编辑正文、撤销回退改为存档优先，原生上下文对不上时修复而不是拒绝
+ce30412f 10-17 refactor(设置): 本局设置做减法——8 个分区并为游玩、模型、功能、高级 4 个
+781a74e9 10-17 refactor(酒馆状态): 人物设计档案、游玩台账、人物姿势直接显示，去掉全局显示开关
+929eb978 10-17 refactor(酒馆状态): 人物姿势不再显示，只作为前台上下文
+d4d004cc 10-17 revert(仓库): 安装与更新入口指向 flizzywine 上游
+89911f3b 10-16 feat(正文): 正文走工具调用移植到 2.7.0（submit_story）
+adb92132 10-17 refactor(正文): 正文走工具调用改为全局设置
+f1ec4877 10-17 feat(插件接口): registerCardListView——插件可替换人物卡库与开始游玩窗口的卡片列表显示（#218）
+33e7cb08 10-17 feat(完整上下文): 每一节显示大约多少 tokens
+c48d12cb 10-17 feat(演出): 对话头像——后台结算顺带标注台词的说话人和情绪，台词显示成带头像的一行
+6f30b065 10-17 feat(演出): 舞台——右侧小舞台可展开全屏，角色素材支持导入 ST 立绘包
+be469ab5 10-17 feat(插件接口): registerCardListView 增加 mention(path)，插件视图也能「@ 在对话中引用」（#218）
+97c1509d 10-17 feat(人物卡列表): 内置宫格视图——人物卡库与开始游玩窗口可切到封面宫格
+28832044 10-17 refactor(后台): 结算项注册表——台词标注与插件的结算工具、说明合成一个接缝
+abb5a248 10-17 refactor(后台): 去掉结算里已不可达的人物设计分支
+6b9b5196 10-17 refactor(后台): 姿势成为结算项——提示词拆成「要求」与「协议」，普通结算按结算项拼请求
+2b3e1554 10-17 refactor(后台): 主结算的引擎选择抽成 runSettlementEngine
+6c20d507 10-17 feat(生图): 画面按人物朝向只写看得见的外貌；负面词不压人物本身特征
+b5f4b052 10-17 refactor(后台): 一轮后台按阶段表运行——前置任务、主结算、后置任务
+f42c1b0e 10-17 feat(游玩): 失败或中止的最新一轮可以「撤回这条输入」，恢复到这一轮开始前
+5509757f 10-17 refactor(后台): 人物设计、游玩台账作为手动触发的结算项
+140133b3 10-17 feat(插件接口): 人物卡库读写、插件工具可见范围、Skill 读写——工作台类插件不用再直接改 Tavern 文�
+c5f8349f 10-17 feat(插件接口): 人物设计档案可读可写——生图插件与正文共用同一份人物设定
+8d236c8b 10-17 feat(宿主): 适配 DSH Desktop 0.2.1-rc.2
+f8222828 10-17 feat(存档): 统一 DSH 0.2.1 升级并保留历史引用
+becef249 10-17 feat(桌面): 安装与 Windows 打包切换官方 DeepSeek Harness
+c8ac06db 10-17 feat(插件): 开放演出接口：台词标注、角色素材与舞台画面
+ce5472c0 10-17 feat(示例): 导演舞台插件，演示只用插件接口做 Galgame 式演出
+12db96e4 10-17 feat(配音): 台词按人物声音朗读，渠道可由插件添加
+c3828d1c 10-17 feat(人物卡): 导入 CCv3/CHARX 带的立绘和背景，导出 CHARX
+77c045b7 10-17 feat(测试版): 发布官方桌面 0.2.1 独立安装与更新渠道
+5a4b0ed7 10-17 feat(迁移): 继承跨目录用户数据并保留可恢复备份
+6d136543 10-17 feat(人物卡): 导入 DSH 人物卡（.dshcard），素材包按内容存储
+d4303fd2 10-17 feat(人物卡): 卡内插件——随 DSH 人物卡分发，确认后加载，只在本卡生效
+02e17e2c 10-17 feat(插件): 结算说明段落拿到正在结算的这一轮正文
+f4d00cfb 10-17 feat(示例): 大肥鱼 DSH 人物卡——卡内插件导演 Galgame 式舞台
+650fb034 10-17 feat(人物卡): 卡内插件随卡启用，导入时不再弹确认
+f8fe4e8f 10-17 feat(profile): 增加退出后安全切换的桌面配置桥接插件
+2faf0a0f 10-18 feat(install): 开放 DSH 0.2.1 测试版命令行安装
+ad21a0f5 10-18 feat(install): 桌面安装自动桥接独立 tavern 并保留原版配置
+68e79e6c 10-18 feat(人物卡库): 宫格视图完整吸收 dsh-tavern-card-grid
+89bb8f83 10-18 feat(舞台): 带卡内插件的人物卡开局就有舞台，不必先开「对话头像」
+9945cedd 10-18 feat(人物卡): DSH 人物卡可以带推荐预设和开局设置
+7ea84a46 10-18 feat(示例): 大肥鱼带上推荐预设和开局设置，导入即可玩
+142b49c4 10-18 feat(侧栏): 新增「进入游戏时打开酒馆状态」开关，默认打开
+cc860a64 10-18 feat(舞台): 带自己舞台的卡，进入游戏时右侧直接显示舞台
+0ec09437 10-18 feat(舞台): 去掉顶栏「舞台」按钮，有舞台的局进入时自动打开
+735a950f 10-18 feat(舞台): 舞台放进酒馆状态面板顶部，不再单独一个页签
+6409e070 10-18 feat(舞台): 背景音乐由 Tavern 播放，舞台上方加音乐开关，离开这一局就停
+285db8ab 10-18 feat(配音): 配音设置独立成一页，与场景生图同样的排版
+b4a739e9 10-18 feat(舞台): 舞台按人物卡开关，普通人物卡默认没有舞台
+dd2542fb 10-18 feat(卡内插件): 卡内插件是这一局的一部分，不在本局插件面板里开关
+3a53ef25 10-18 feat(大肥鱼): 舞台用全身立绘，按素材包的配方拼出分层立绘
+50079c2a 10-18 feat(插件接口): 插件可以往本局设置里加配置项
+d304d18b 10-18 feat(舞台): 开了配音，舞台就默认朗读；「朗读」按钮只用来在这台浏览器上关掉
+4372ad83 10-18 feat(对话头像): 点击头像放大查看
+c901170e 10-17 feat(导入): SillyTavern 聊天记录支持批量导入
+e2de219c 10-18 feat(演出): 正文头像按台词情绪换图；新增 castAssetSource，插件可把人物图片并入角色素材
+225d1046 10-18 feat(大肥鱼): 把当前服装的各表情头像交给 Tavern，正文头像随台词情绪变化
+ae58e0c3 10-18 feat(对话头像): 点开时头像从原位放大，关闭时缩回原位
+a2ecbe30 10-17 feat(人物卡): 导入 DSH 人物卡（.dshcard），素材包按内容存储
+fc1a5074 10-17 feat(人物卡): 卡内插件——随 DSH 人物卡分发，确认后加载，只在本卡生效
+c1470b19 10-17 feat(插件): 结算说明段落拿到正在结算的这一轮正文
+79a5db41 10-17 feat(示例): 大肥鱼 DSH 人物卡——卡内插件导演 Galgame 式舞台
+f1b013a9 10-17 feat(人物卡): 卡内插件随卡启用，导入时不再弹确认
+82aaea42 10-18 feat(示例): 大肥鱼人物卡压缩脚本，分发前把体积降到约一半以下
+bcd1058f 10-18 feat(示例): 压缩大肥鱼人物卡时可去掉 Live2D 模型
+286882d5 10-18 feat(profile 切换): 改名并提供立即重启，切换后自动重新打开
+f0f77660 10-18 feat(卡内插件): 内容相同的插件多张卡共用一份，最后一张放手才删
+49d36eb0 10-18 feat(人物卡): 同一个卡文件再导入，复用卡库里原来那张，不再多出「(1)」
+31001213 10-18 feat(兼容): DSH 版本从锁死改为闸门——已验证放行、未验证提示放行、过低或已知坏版本拦截
+ca81b8eb 10-18 feat(安装): 测试版支持 DSHA，README 区分稳定版与测试版
+54eb4e11 10-18 refactor(兼容): DSH 版本闸门收敛为允许清单，清单外拦截
+b8f077a3 10-18 feat(安装): Windows 测试版双击安装文件
+3bafcb8b 10-18 feat(安装): 桌面版同时支持社区 DSH NEXT / DSH Desktop，官方优先
+7ce5f3b5 10-18 feat(插件接口): 第 3 版——版本失效信号 versionSignal 与并行结算任务
+13785668 10-18 feat(插件接口): publishState / watchState——插件把最新状态推给自己的页面
+83dc45bf 10-18 feat(插件接口): getRequestContext——读这一轮正文请求的本轮上下文
+2d550298 10-18 feat(插件接口): 改卡带版本号——cardRevision、expectedRevision、onCardChanged
+2195dd25 10-18 feat(插件接口): 插件写角色素材与素材包
+4d04aae2 10-18 feat(插件接口): cardImporter——插件导入 Tavern 不认识的人物卡格式
+4d9f41b1 10-18 feat(插件接口): registerStatusSection 与 registerTurnView
+5adae839 10-18 feat(插件接口): 配音渠道收到局与说话人，version 计入缓存
+8f841b2e 10-18 feat(插件接口): skillSource——插件自带只读 Skill
+ff250e26 10-18 feat(配音): 加火山引擎语音渠道（豆包 V3）
+1133ecbd 10-18 feat(正文): 历史正文以工具参数回放，降低续写被拒答
+f2224155 10-18 perf(存档): 批量改写会话时不再每条都复制整份事件日志
+0100a6a8 10-18 feat(系统提示词): 支持多套方案，切换全局生效
+0b5ebe4d 10-18 feat(预设包): 预设、系统提示词方案、长期偏好统一导入导出
+ed406b1b 10-18 feat(预设): 预设、系统提示词、长期偏好合并为一个“预设”标签页
+8bf81b12 10-18 feat(预设): 预设页改版，导出可选择内容，系统提示词方案可删除
+eedd6e92 10-18 feat(存档): 存档包第 2 版按内容去重回退历史，长局存档体积大幅缩小
+68ba19b9 10-19 feat(存档): 导出存档时把场景图片转成 WebP，图片部分约小到四分之一
+88aabe08 10-19 refactor(卡片工作台): 移除旧版 str_replace_editor，只保留新版 read/edit/write
+adbf01f2 10-19 feat(诊断): 导出会话日志结构、抹掉正文，便于报告升级失败
+7c14caa6 10-19 feat(存档): 会话日志升级失败时可在应用里导出诊断文件
+649e8517 10-19 feat(存档): 存档迁移跳过无法升级的后台和回退快照会话
+fe843c79 10-19 perf(对话头像): 每层只在自己的台词标注变化时重渲染
+ffabf965 10-19 feat(显示): 渲染深度——只有最近几轮渲染人物卡的 HTML 界面
+0eb28243 10-19 feat(压缩): 剧情摘要分卷保存，旧卷不再反复重压；摘要提示按轮次回查原文
+e8145dd0 10-19 feat(压缩): 新卷摘要不以简短为目标，保留关键条件、细节和原话
+bad3dd92 10-19 feat(测试工具): 小说转聊天记录，导入后得到可反复测试压缩与记忆的长存档
+e039c2e6 10-19 feat(测试工具): 小说转聊天记录支持 epub，跳过正文前的制作说明，卷名与首章合并
+4e849274 10-19 feat(测试工具): 压缩记忆评测——读会话日志列出各次压缩的分卷与旧卷是否原样保留，按测验题统计�
+65db7a21 10-19 feat(测试工具): 服务端直接导入聊天记录，评测工具可一条命令完成导入、压缩、评测
+5d060841 10-19 feat(顶栏): 顶栏快捷入口可自定义，设置区改为折叠卡片
+5a8178a3 10-19 feat(历史回放): 玩家消息也算历史正文，与其后的模型正文一起变成提交调用
+9ef26981 10-19 feat(重生成): 填了意见时可「按意见改写」，在当前正文基础上改
+57104435 10-19 feat(压缩): 剧情脉络逐条列事件并保留数值轨迹，空字段省略，篇幅约原文十分之一
+0114a2c9 10-19 feat(测试工具): 评测可让模型逐题作答（--ask），统计答对与历史检索；修卡片模板 /send 发不出输入
+ae32591e 10-19 feat(测试工具): 向已有游戏追加小说轮次（--grow），用于测多次压缩
+f1994ac1 10-19 feat(测试工具): DSH_TAVERN_STORY_VOLUME_BUDGET 临时调小旧卷上限，用于在大窗口模型上测试前情总览合并
+21a2087d 10-19 refactor(重生成): 合成一个按钮——不填意见重来一次，填了意见按当前正文改
+0b8206e8 10-19 feat(压缩): 旧卷超预算时只把最老的几卷单独合并成前情总览，压到约一半，较新的卷原样保留
+ccefad2c 10-19 refactor(设置): 「正文走工具调用」与「历史正文也走工具调用」合成一个开关
+2b337649 10-19 feat(世界书): 顶栏世界书按钮改为弹出快捷面板
+87ca7d21 10-19 feat(安卓): 内嵌酒馆窗口去掉顶部工具栏，返回键关闭窗口
+20bfe4b2 10-19 feat(设置): DSH Tavern 配置页底部加上 Discord 交流群链接
+b1a18b5c 10-19 feat(人物卡库): 人物卡可配封面、导出 PNG
+c875aa8e 10-19 refactor(人物卡): 封面改由卡片工作台工具完成，去掉卡库按钮
+42effe3e 10-19 feat(酒馆状态): 增加当前楼层 MVU 变量编辑器
+3256ffca 10-19 feat(世界书): 进行中的游戏默认自动采用库内改动
+9817f082 10-19 feat(切换): 「Profile 切换」改成两边各叫一个名字，一页一个按钮
+dd5ea427 10-19 feat(切换): 切换页可手动添加「DSH 酒馆」桌面快捷方式
+6da4f2bb 10-19 feat(切换): 独立酒馆窗口里加「打开原版 DSH」按钮
+2530d7ae 10-19 feat(card-png): add a browser-safe PNG card writer
+2c2fbe70 10-19 feat(card-library): export a card as PNG with a chosen image
+1f741a6e 10-19 refactor(人物卡库): 导出 PNG 按钮改走服务端现有的封面与导出逻辑
+988e8486 10-19 feat(外观): 外观里加「正文排版」：字号、行间距、字间距
+b1805457 10-19 feat(人物卡库): 三个导出按钮合成一个「导出」，按内容自动选格式
+6c290328 10-19 feat(手机): 顶栏改为最多 3 个快捷入口 + ⋮
