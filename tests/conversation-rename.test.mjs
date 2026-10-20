@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { createTavernConversationRegistry } from '../tavern-plugin/lib/domain/tavern-conversation-registry.js'
 
-const client = readFileSync(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const client = readFileSync(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const server = readFileSync(new URL('../tavern-plugin/lib/index.js', import.meta.url), 'utf8')
 const renameSource = client.match(/renameSession: (async function \(sessionId, title\) \{[\s\S]*?\n\s*\}),/)[1]
 function fixture() {

@@ -45,7 +45,7 @@ test('到期回调重新检查刚开始的脚本任务，不用上次空闲快�
   assert.deepEqual(h.released,['A:scripts'])
 })
 
-const source = readFileSync(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const scopeSource = source.slice(source.indexOf('function createTavernHostArtifactScope(options)'), source.indexOf('const TAVERN_CARD_PHONE_HOST'))
 test('旧会话到期仅清理自己的宿主节点，不能删除新会话或保留页面的容器', () => {
   function root() { return { children: [], append(node) { this.children.push(node); node.parentNode = this }, removeChild(node) { this.children.splice(this.children.indexOf(node),1); node.parentNode = null } } }

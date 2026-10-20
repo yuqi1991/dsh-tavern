@@ -19,7 +19,7 @@ const { rolldown } = await import(pathToFileURL(require.resolve('rolldown')))
 const temporary = await mkdtemp(join(tmpdir(), 'tavern-control-'))
 const gate = createTavernScriptDispatch({ claimTimeoutMs: 1000 })
 const host = await readFile(new URL('../../tavern-plugin/lib/index.js', import.meta.url), 'utf8')
-const client = await readFile(new URL('../../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const client = await readFile(new URL('../../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const rpcStart = client.indexOf('\t\tfunction rpc(method,')
 let service, browser
 const dispatch = (method, args) => {

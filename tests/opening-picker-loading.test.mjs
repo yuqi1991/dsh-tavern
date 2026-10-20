@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-const source = readFileSync(new URL("../tavern-plugin/src/client/main.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../tavern-plugin/lib/client.js", import.meta.url), "utf8");
 const prepare = source.slice(source.indexOf("async function preparePlayConversation(card)"), source.indexOf("async function importCard(file)"));
 const start = source.indexOf('React.useEffect(function () {\n\t\t\t\tif (!openingPicker');
 const effect = source.slice(start, source.indexOf("React.useEffect", start + 20));

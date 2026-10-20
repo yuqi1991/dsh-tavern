@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const source = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const start = source.indexOf('function presetDropHandlers(')
 const code = source.slice(start, source.indexOf('function dropZone(', start))
 function harness(busy = false) {

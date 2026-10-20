@@ -4,7 +4,7 @@ import vm from 'node:vm'
 import { readFile } from 'node:fs/promises'
 
 const executorSource = await readFile(new URL('../tavern-plugin/src/client/full-template-executor.js', import.meta.url), 'utf8')
-const mainSource = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const mainSource = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 
 for (const [name, crypto] of [['HTTP', {}], ['no crypto', undefined], ['HTTPS', { randomUUID: () => 'native-uuid' }]]) {
   test(`chat import creates a reusable operation identity: ${name}`, async () => {

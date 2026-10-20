@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import vm from 'node:vm'
 import { readFile } from 'node:fs/promises'
-const source = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 
 test('本局设置保存本局模型与开关，切换模型丢弃旧档位响应', async () => {
   const states = [], effects = [], calls = [], pending = []

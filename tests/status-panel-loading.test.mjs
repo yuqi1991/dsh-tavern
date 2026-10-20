@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import {readFile} from 'node:fs/promises'
-const source=await readFile(new URL('../tavern-plugin/src/client/main.js',import.meta.url),'utf8')
+const source=await readFile(new URL('../tavern-plugin/lib/client.js',import.meta.url),'utf8')
 const component=source.slice(source.indexOf('function TavernStatusPanel(props)'),source.indexOf('function TavernCardAppDock(props)'))
 function render(state){
  const scope=vm.createContext({React:{useState:value=>[value,()=>{}],useRef:()=>({current:null}),useEffect(){},createElement:(type,props,...children)=>({type,props,children})},useTavernConfirm:()=>()=>{},usePersistentError:()=>['',()=>{}],latestTavernAssistantMessageId:()=>'',useLiveTavernView:()=>state,isMissingTavernCardError:()=>false})

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 
 // Execute the sidebar's real effect and dependencies under summary snapshot churn.
-const source = readFileSync(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const effect = source.match(/React\.useEffect\(function \(\) \{\s*if \(!currentSummary \|\| currentSummary.blank\) return;\s*notifyDataChanged\(\["sessions"\]\);\s*\}, \[[^\]]+\]\);/)[0]
 test('session metadata snapshots do not fan out catalog refreshes; readiness and switching still do', () => {
   let previous, refreshes = 0

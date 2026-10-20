@@ -109,7 +109,7 @@ test('shared replacement routing preserves missing versus undefined and mutable 
 
 for(const count of [20,400,10000])test(`assistant field subscriptions exclude input and debug updates across ${count} floors`,()=>{
  const h=harness()
- const main=fs.readFileSync(new URL('../tavern-plugin/src/client/main.js',import.meta.url),'utf8')
+ const main=fs.readFileSync(new URL('../tavern-plugin/lib/client.js',import.meta.url),'utf8')
  const paths=vm.runInContext(main.slice(main.indexOf('function tavernAssistantViewPaths('),main.indexOf('function TavernInlineStatusRuntime('))+';tavernAssistantViewPaths()',h)
  const live=h.createLiveTavernViewModule({deduplicateViews:true,pollWhileBusy:false,schedule(){},cancel(){},load:async()=>({})})
  let view={mode:'story',replyProjections:[],tavernHelper:{variables:{hp:10}},inputSources:{}}
@@ -179,7 +179,7 @@ for(const count of [20,400,10000])test(`projection edits and newest ownership ro
 })
 
 for(const count of [20,400,10000])test(`Helper value updates only wake the eager floor among ${count} assistant floors`,()=>{
- const h=harness(),main=fs.readFileSync(new URL('../tavern-plugin/src/client/main.js',import.meta.url),'utf8')
+ const h=harness(),main=fs.readFileSync(new URL('../tavern-plugin/lib/client.js',import.meta.url),'utf8')
  const paths=vm.runInContext(main.slice(main.indexOf('function tavernAssistantViewPaths('),main.indexOf('function TavernTurnMvuReceipt('))+';tavernAssistantViewPaths',h)
  const live=h.createLiveTavernViewModule({deduplicateViews:true,pollWhileBusy:false,schedule(){},cancel(){},load:async()=>({})})
  let view={tavernHelper:{version:1},replyProjections:[]}
@@ -208,7 +208,7 @@ test('deferred retained frames read Helper context at activation',()=>{
 })
 
 for(const count of [20,400,10000])test(`busy and settlement ownership avoid ${count} historical body updates`,()=>{
- const h=harness(),main=fs.readFileSync(new URL('../tavern-plugin/src/client/main.js',import.meta.url),'utf8')
+ const h=harness(),main=fs.readFileSync(new URL('../tavern-plugin/lib/client.js',import.meta.url),'utf8')
  const paths=vm.runInContext(main.slice(main.indexOf('function tavernReceiptViewPaths('),main.indexOf('function TavernTurnMvuReceipt('))+';tavernReceiptViewPaths',h)
  const bodyPaths=vm.runInContext(main.slice(main.indexOf('function tavernAssistantViewPaths('),main.indexOf('function tavernReceiptViewPaths('))+';tavernAssistantViewPaths',h)
  const live=h.createLiveTavernViewModule({deduplicateViews:true,pollWhileBusy:false,schedule(){},cancel(){},load:async()=>({})})
@@ -230,7 +230,7 @@ for(const count of [20,400,10000])test(`busy and settlement ownership avoid ${co
 })
 
 test('receipt component renews busy dependencies when ownership and pending status change',()=>{
- const main=fs.readFileSync(new URL('../tavern-plugin/src/client/main.js',import.meta.url),'utf8')
+ const main=fs.readFileSync(new URL('../tavern-plugin/lib/client.js',import.meta.url),'utf8')
  let view={settlementTurn:3,activity:{busy:true}},receipt={status:'updated'},observed
  const h=vm.createContext({liveTavernView:{getSnapshot:()=>({view})},tavernMvuReceiptForTurn:()=>receipt,
   useLiveTavernView:(_session,_revision,paths)=>{observed=paths;return {view}},

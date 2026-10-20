@@ -6,7 +6,7 @@ import vm from 'node:vm'
 const rootManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
 const pluginManifest = JSON.parse(await readFile(new URL('../tavern-plugin/package.json', import.meta.url), 'utf8'))
 const remoteManifest = JSON.parse(await readFile(new URL('../tavern-plugin/packages/dsh-tavern-remote/package.json', import.meta.url), 'utf8'))
-const clientSource = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const clientSource = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const hostSource = await readFile(new URL('../tavern-plugin/lib/index.js', import.meta.url), 'utf8')
 const remoteBundle = await readFile(new URL('../tavern-plugin/packages/dsh-tavern-remote/lib/client.js', import.meta.url), 'utf8')
 

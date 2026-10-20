@@ -23,7 +23,7 @@ test('本局关闭后目录与直接加载均不可用，其他游戏不受影�
 test('全局与本局 Skill 面板分别保存，失败不改变开关显示', async () => {
   const { readFile } = await import('node:fs/promises')
   const vm = await import('node:vm')
-  const source = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
   for (const globalDefaults of [true, false]) {
     let cursor = 0, fail = false
     const states = [], effects = [], calls = []

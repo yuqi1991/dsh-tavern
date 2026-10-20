@@ -4,7 +4,7 @@ import vm from 'node:vm'
 import {readFile} from 'node:fs/promises'
 
 test('HTTP RPC 拒因保留结构化错误码，兼容旧服务端的纯文本错误', async () => {
-  const source = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
   const start = source.indexOf('\t\tfunction rpc(method,')
   let response = { ok: false, error: '事件不匹配', errorCode: 'MVU_SETTLEMENT_EVENT_MISMATCH' }
   const scope = vm.createContext({ window: {}, performance, Date,
@@ -18,7 +18,7 @@ test('HTTP RPC 拒因保留结构化错误码，兼容旧服务端的纯文本�
 })
 
 test('视图 HTTP 请求全部阻塞时，领取、续租和回执仍经独立控制通道完成', async () => {
-  const source = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
   const start = source.indexOf('\t\tfunction rpc(method,')
   const held = [], control = []
   const scope = vm.createContext({

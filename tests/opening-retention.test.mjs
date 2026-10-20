@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import vm from 'node:vm'
 import { readFileSync } from 'node:fs'
 
-const source = readFileSync(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 function fixture() {
   const draft = { card: { path: 'fixture.json' }, preparationId: 'draft', index: 2, userName: '玩家', requestMode: 'dsh' }
   const state = { openingPicker: draft, picking: true, uiMode: 'play', requestMode: 'dsh' }

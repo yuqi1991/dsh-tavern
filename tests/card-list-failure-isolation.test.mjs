@@ -33,7 +33,7 @@ test('one non-JSON card remains visible without hiding healthy cards or modifyin
   assert.equal(recovered.readError, undefined)
 })
 
-const client = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const client = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const sidebar = client.slice(client.indexOf('function TavernSidebar'))
 const refreshSource = sidebar.slice(sidebar.indexOf('function refresh(kinds)'), sidebar.indexOf('\t\t\tReact.useEffect', sidebar.indexOf('function refresh(kinds)')))
 for (const failed of ['listCards', 'listSessions']) {

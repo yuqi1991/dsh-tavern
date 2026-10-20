@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-const source = await readFile(new URL('../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const source = await readFile(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const code = source.slice(source.indexOf('function CandidateQuestion(props)'), source.indexOf('function CandidateGuidePanel(props)'))
 function harness(initial = '', mode = 'after-send') {
   let draft = initial, cursor, running = false

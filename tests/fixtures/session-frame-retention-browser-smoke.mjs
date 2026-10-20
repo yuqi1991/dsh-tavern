@@ -16,7 +16,7 @@ for (let i = 0; i < names.length; i++) {
   bundle += `modules[${JSON.stringify(names[i])}]=(function(){const module={exports:{}},exports=module.exports,require=name=>modules[name];\n${text}\nreturn module.exports;})();\n`
 }
 const source = await readFile(new URL('../../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
-const main = await readFile(new URL('../../tavern-plugin/src/client/main.js', import.meta.url), 'utf8')
+const main = await readFile(new URL('../../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const hook = main.slice(main.indexOf('function useLiveTavernView('), main.indexOf('function useTavernCoordination('))
 const wizard = `<input id="name"><input id="chosen" type="checkbox"><button onclick="window.steps++">下一步</button><script>window.steps=0;window.instance=Math.random();<\/script>`;
 const content = `<script>setTimeout(()=>{document.open();document.write(${JSON.stringify(wizard).replaceAll("<", "\\u003c")});document.close();},0);<\/script>`;

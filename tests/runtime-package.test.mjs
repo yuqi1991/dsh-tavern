@@ -20,7 +20,7 @@ test('安装配置忽略缺失的默认 pnpmfile，避免 Desktop 自带 pnpm 11
 const required = ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'bin/dsh-compatibility.mjs', 'bin/dsh-tavern.mjs', 'bin/launcher-environment.mjs', 'bin/launcher-settings.mjs', 'bin/profile-installation.mjs', 'bin/service-lifecycle.mjs', 'bin/application-update.mjs', 'config/dsh-compatibility.json', ...patches]
 required.push('tavern-plugin/lib/domain/server-template-runtime.js', 'tavern-plugin/lib/domain/server-template-worker.js', 'tavern-plugin/lib/vendor/st-prompt-template/server-artifact/engine.js', 'tavern-plugin/lib/vendor/st-prompt-template/server-artifact/manifest.json')
 required.push('tavern-plugin/lib/domain/tavern-client-assets.js', 'tavern-plugin/lib/client-assets/tavern.css')
-required.push('bin/build-tavern-client.mjs', 'tavern-plugin/src/client/main.js',
+required.push('bin/build-tavern-client.mjs', 'tavern-plugin/lib/client.js',
   ...['runtime-generation-monitor', 'library-refresh', 'live-tavern-view'].map(name => `tavern-plugin/src/client/modules/${name}.js`))
 required.push('bin/bundled-image-plugin.mjs', ...['package.json', 'cordis.patch.yml', 'LICENSE', 'src/index.ts', 'lib/index.js', 'lib/client.js'].map(file => `tavern-plugin/packages/dsh-image-gen/${file}`))
 required.push('tavern-plugin/lib/domain/scene-image-module-settings.js', 'tavern-plugin/lib/domain/image-generation-host.js', 'tavern-plugin/packages/dsh-image-gen/src/module.js', 'tavern-plugin/packages/dsh-image-gen/src/configuration.js',
