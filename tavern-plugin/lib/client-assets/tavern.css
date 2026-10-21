@@ -806,6 +806,7 @@ body.dsh-tavern-shell-active [data-dsh-panel-host] { overflow: clip; }
 .dsh-ledger button { cursor: pointer; color: inherit; }
 .dsh-ledger-toggle { display: flex; justify-content: space-between; width: 100%; padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 600; }
 .dsh-ledger-toggle span { font-size: 12px; font-weight: 400; opacity: .65; }
+.dsh-ledger > .dsh-tavern-character-design-head .dsh-ledger-toggle { flex: 1; width: auto; min-width: 0; margin-right: 8px; }
 .dsh-ledger-tabs { display: flex; gap: 3px; margin: 12px 0; padding: 3px; border-radius: 9px; background: var(--dsw-alias-interactive-bg-hover, rgba(128,128,128,.12)); }
 .dsh-ledger-tabs button { display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-width: 0; border: 0; background: transparent; border-radius: 6px; padding: 6px 8px; font: inherit; color: var(--dsw-alias-label-secondary, inherit); }
 .dsh-ledger-tabs [aria-selected="true"] { color: var(--dsw-alias-label-primary, inherit); background: var(--dsw-specific-sidebar-fill, Canvas); box-shadow: 0 1px 3px rgba(0,0,0,.12); font-weight: 600; }

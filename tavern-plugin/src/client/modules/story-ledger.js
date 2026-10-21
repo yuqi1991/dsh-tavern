@@ -1,14 +1,31 @@
-// Player-only notebook. No prompt construction or model access in this view.
+// Player-only notebook: never sent to the foreground. The model is used only when
+// the player explicitly asks to consolidate the rounds since the last consolidation.
 function TavernLedger(props) {
   const askConfirm = useTavernConfirm(props.sessionId);
   const h = React.createElement;
   const ledger = props.ledger || { items: [], npcs: [], scenes: [], itemLog: [], locationPath: [], updatedTurn: null };
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
+  const task = props.ledgerTask || { status: "idle", consolidatedTurn: 0, pendingRounds: 0 };
+  const consolidating = task.status === "running";
   const [tab, setTab] = React.useState("items");
   const [editing, setEditing] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
-  const blocked = busy || props.busy;
+  const blocked = busy || props.busy || consolidating;
+  React.useEffect(function () {
+    if (!consolidating) return;
+    const timer = setInterval(() => liveTavernView.invalidate(props.sessionId), 2000);
+    return () => clearInterval(timer);
+  }, [props.sessionId, consolidating]);
+  async function consolidate() {
+    if (blocked) return;
+    setBusy(true); setError("");
+    try { await rpc("consolidateLedger", {}, props.sessionId); liveTavernView.invalidate(props.sessionId); }
+    catch (e) { setError(String(e.message || e)); }
+    finally { setBusy(false); }
+  }
+  const progress = consolidating ? "正在更新第 " + (task.from + 1) + "–" + task.through + " 轮…"
+    : (task.consolidatedTurn ? "已更新至第 " + task.consolidatedTurn + " 轮" : "尚未更新") + (task.pendingRounds ? "，还有 " + task.pendingRounds + " 轮未更新。" : "，已是最新。");
   const labels = { name: "名称", qty: "数量", desc: "描述", carried: "随身携带", location: "所在地", gender: "性别", age: "年龄", title: "身份", relation: "与玩家的关系", ties: "与其他角色的关系", personality: "性格", outfit: "当前穿着", condition: "当前状态", important: "主要角色", follow: "随行", path: "地点路径（用 / 分隔）" };
   const fields = { items: ["name", "qty", "desc", "carried", "location"], npcs: ["name", "title", "relation", "ties", "gender", "age", "desc", "personality", "outfit", "condition", "important", "follow", "location"], scenes: ["path", "desc"] };
   function begin(row) {
@@ -85,9 +102,14 @@ function TavernLedger(props) {
     });
   }
   return h("section", { className: "dsh-tavern-status-section dsh-ledger", "aria-label": "游玩台账" },
-    h("button", { type: "button", className: "dsh-ledger-toggle", "aria-expanded": open, onClick: () => setOpen(!open) }, "游玩台账", h("span", null, open ? "收起" : "查看")),
+    // The update button stays reachable while the notebook is collapsed.
+    h("div", { className: "dsh-tavern-character-design-head" },
+      h("button", { type: "button", className: "dsh-ledger-toggle", "aria-expanded": open, onClick: () => setOpen(!open) }, "游玩台账", h("span", null, open ? "收起" : "查看")),
+      h("button", { type: "button", className: "dsh-tavern-btn", disabled: blocked || !task.pendingRounds, onClick: consolidate }, consolidating ? "更新中…" : "更新游玩台账")),
+    h("p", { className: "dsh-tavern-status-empty", role: "status" }, progress),
+    task.status === "failed" && task.error ? h("div", { className: "dsh-card-error", role: "alert" }, task.error) : null,
     open ? h("div", null,
-      h("p", { className: "dsh-tavern-status-empty" }, "玩家备忘录，不发送给前台 AI。" + (ledger.updatedTurn === null ? "暂无后台整理记录，可手动添加。" : "整理至第 " + ledger.updatedTurn + " 轮。")),
+      h("p", { className: "dsh-tavern-status-empty" }, "玩家备忘录。平时不更新；点“更新游玩台账”时才调用后台模型，整理上次之后的新剧情。每次整理后，下一轮正文会参考一次台账，核对物品、人物和地点。"),
       ledger.location ? h("p", null, "当前地点：" + ledger.location) : null,
       h("div", { className: "dsh-ledger-tabs", role: "tablist", "aria-label": "台账分类" }, [["items", "物品"], ["npcs", "角色"], ["scenes", "地点"]].map(function ([id, label]) {
         return h("button", { key: id, type: "button", role: "tab", "aria-selected": tab === id, onClick: () => { setTab(id); setEditing(null); setError(""); } }, label, h("span", { className: "dsh-ledger-count" }, ledger[id].length));

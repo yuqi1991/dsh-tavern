@@ -41,7 +41,7 @@ function backgroundPrompt(messages, turnContext, task, taskProtocol, input = {})
       : (message && message.role === 'assistant' ? '正文' : '用户')
     return '[' + role + ']\n' + messageText(message)
   }).filter(function (text) { return text.trim() !== '' }).join('\n\n')
-  const taskName = task === 'worldbook-filter' ? '世界书筛选' : task === 'image' ? '场景生图' : task === 'settlement' ? '状态结算' : task === 'phone' ? '手机私聊' : task === 'character-design' ? '人物设计' : '候选生成'
+  const taskName = task === 'worldbook-filter' ? '世界书筛选' : task === 'image' ? '场景生图' : task === 'settlement' ? '状态结算' : task === 'phone' ? '手机私聊' : task === 'character-design' ? '人物设计' : task === 'ledger' ? '台账整理' : '候选生成'
   sections.push('【最近剧情与本次任务】\n任务类型：' + taskName + '\n' + recent)
   const protocol = str(taskProtocol).trim()
   if (protocol !== '') sections.push('【DSH 后台任务协议（最终指令）】\n' + protocol)
@@ -203,10 +203,12 @@ export function createBackgroundAgentTask(options) {
           const shared = sharedByName.get(tool.name)
           if (shared && (state.input.task !== 'character-design' || shared.allowDuringCharacterDesign === true)) return state.input.task !== 'worldbook-filter' || shared.allowDuringWorldbookFilter === true
           if (state.input.task === 'character-design') return tool.name.startsWith('character_design_')
+          // The ledger is a player-triggered memo; no other task may submit it.
+          if (state.input.task === 'ledger') return tool.name === 'ledger_submit'
           if (state.input.task === 'worldbook-filter') return tool.name.startsWith('worldbook_')
           if (tool.name.startsWith('worldbook_')) return false
           const tasks = state.input.backgroundTasksSnapshot
-          if (tool.name === 'ledger_submit') return false // Retired, including legacy task snapshots.
+          if (tool.name === 'ledger_submit') return false // Only the manual ledger task, never settlements.
           if (!tasks) return true
           if (tool.name === 'mvu_submit_update') return tasks.variables === true
           if (tool.name === 'posture_submit') return tasks.posture === true
