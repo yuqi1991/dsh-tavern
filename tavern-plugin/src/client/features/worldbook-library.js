@@ -39,6 +39,17 @@
 			const [busy, setBusy] = React.useState(false);
 			const [error, setError] = usePersistentError("世界书编辑");
 			const [query, setQuery] = React.useState("");
+			// Large books (600+ entries) mount ~75 controls per entry; only open entries mount their form.
+			const [openRefs, setOpenRefs] = React.useState(function () { return new Set(); });
+			const deferredQuery = React.useDeferredValue(query);
+			function setEntryOpen(ref, open) {
+				setOpenRefs(function (current) {
+					if (current.has(ref) === open) return current;
+					const next = new Set(current);
+					if (open) next.add(ref); else next.delete(ref);
+					return next;
+				});
+			}
 			React.useEffect(function () { setDraft(JSON.parse(JSON.stringify(initial))); }, [props.record.view]);
 			const h = React.createElement;
 			function updateEntry(index, patch) {
@@ -47,8 +58,10 @@
 				setDraft(Object.assign({}, draft, { entries: entries }));
 			}
 			function addEntry() {
+				const ref = "new:" + Date.now() + ":" + Math.random();
+				setEntryOpen(ref, true);
 				const entries = (draft.entries || []).concat([{
-					ref: "new:" + Date.now() + ":" + Math.random(), comment: "新条目", title: "新条目", content: "", enabled: true,
+					ref: ref, comment: "新条目", title: "新条目", content: "", enabled: true,
 					primaryKeys: [], secondaryKeys: [], constant: false, selective: false, selectiveLogic: 0, order: 100,
 					position: initial.format === "sillytavern-worldbook" ? 0 : "after_char", depth: 4, role: 0,
 					probabilityEnabled: true, probability: 100, caseSensitive: false, matchWholeWords: false,
@@ -100,9 +113,10 @@
 			function parseList(value) { return String(value || "").split(/[,，\n]/).map(function (item) { return item.trim(); }).filter(Boolean); }
 			function numeric(value, fallback) { const number = Number(value); return Number.isFinite(number) ? number : fallback; }
 			function entryRow(entry, index) {
-				return h("details", { key: entry.ref, className: "dsh-tavern-worldbook-entry", defaultOpen: String(entry.ref).startsWith("new:") },
+				const open = openRefs.has(entry.ref);
+				return h("details", { key: entry.ref, className: "dsh-tavern-worldbook-entry" + (entry.enabled === false ? " disabled" : ""), open: open, onToggle: function (event) { setEntryOpen(entry.ref, event.currentTarget.open); } },
 					h("summary", { className: "dsh-tavern-worldbook-entry-head" }, entry.comment || entry.title || "未命名条目"),
-					h("div", { className: "dsh-tavern-worldbook-entry-body" },
+					open ? h("div", { className: "dsh-tavern-worldbook-entry-body" },
 						h("div", { className: "dsh-tavern-worldbook-entry-actions" },
 							h("label", null, h("input", { type: "checkbox", checked: entry.enabled !== false, onChange: function (event) { updateEntry(index, { enabled: event.target.checked }); } }), "启用"),
 
@@ -153,7 +167,7 @@
 						h("div", { className: "dsh-tavern-worldbook-danger-zone" },
 							h("button", { className: "dsh-tavern-worldbook-del", onClick: function () { removeEntry(index); } }, "删除条目")
 						)
-					)
+					) : null
 				);
 			}
 			function entryGroup(label, description, items) {
@@ -162,7 +176,7 @@
 					items.length ? items.map(function (item) { return entryRow(item.entry, item.index); }) : h("div", { className: "dsh-tavern-worldbook-empty" }, "暂无" + label)
 				);
 			}
-			const entryGroups = groupWorldBookEditorEntries(draft.entries, query);
+			const entryGroups = groupWorldBookEditorEntries(draft.entries, deferredQuery);
 			return h("div", { className: "dsh-tavern-library" },
 				h("div", { className: "dsh-tavern-status-head" }, h("button", { className: "dsh-tavern-btn", onClick: props.onBack }, "← 返回世界书库"), h("div", { className: "dsh-tavern-status-title" }, draft.displayName || "未命名世界书"), h("div", { className: "dsh-tavern-question-sub" }, props.record.source.kind === "card" ? "人物卡内置 · " + props.record.source.cardName : "独立世界书"), props.actions),
 				h("div", { className: "dsh-tavern-worldbook-editor" },

@@ -1265,6 +1265,7 @@ body.dsh-tavern-shell-active [data-dsh-panel-host] { overflow: clip; }
 
 /* Worldbook entries put the editable text ahead of occasional configuration. */
 .dsh-tavern-worldbook-entry > .dsh-tavern-worldbook-entry-head { font-size: 14px; font-weight: 700; line-height: 1.6; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+.dsh-tavern-worldbook-entry.disabled > .dsh-tavern-worldbook-entry-head { color: var(--dsw-alias-label-secondary); opacity: .65; }
 .dsh-tavern-worldbook-entry-actions { gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .dsh-tavern-worldbook-entry-actions > label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--dsw-alias-label-secondary); }
 .dsh-tavern-worldbook-entry-actions input { margin: 0; }
