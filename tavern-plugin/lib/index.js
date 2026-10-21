@@ -125,6 +125,8 @@ import {
 import { createLedgerEditor } from './domain/ledger-editor.js'
 import { readLedger, LEDGER_SUBMIT_TOOL } from './domain/story-ledger.js'
 import { createManualLedger } from './domain/manual-ledger.js'
+import { createConversationGuides } from './domain/conversation-guides.js'
+import { createGuideLibrary } from './domain/guide-library.js'
 import { POSTURE_SUBMIT_TOOL, POSTURE_SUBMIT_TOOL_NAME, normalizePostureSubmission } from './domain/posture-submission.js'
 import { TAVERN_COMPATIBILITY_CAPABILITIES, createTavernCompatibilityDiagnosticStore } from './domain/tavern-compatibility-diagnostics.js'
 import { createMvuDiagnosticStore, createMvuDiagnosticExport, sanitizeRuntimeDiagnostics, sanitizeModuleFailure, sanitizeMvuLoadDiagnostic, redactMvuLoadError } from './domain/mvu-diagnostics.js'
@@ -270,6 +272,7 @@ export async function apply(ctx) {
   const cardMemory = createCardMemory({ dataRoot })
   const stablePrefixStorage = createSessionStablePrefixStorage(dataRoot + '/session-prefixes')
   const profileData = createProfileDataStore({ dataRoot })
+  const guideLibrary = createGuideLibrary({ store: profileData })
   const fullTemplateRuntime = createServerTemplateRuntime({ store: profileData,
     rpc: (method, args) => dispatchMethod(method, args, true),
     onDiagnostic: diagnostic => console.warn('dsh-tavern: 服务端模板进程异常:', diagnostic)
@@ -2377,29 +2380,7 @@ export async function apply(ctx) {
   async function listTavernSessions() {
     return await conversationRegistry.list()
   }
-  async function addGuide(sessionId, text) {
-    const chat = await chatForSession(sessionId)
-    if (chat === undefined) throw new Error('当前会话没有绑定人物卡')
-    const guide = str(text).trim().slice(0, 2000)
-    if (guide === '') throw new Error('Guide 内容不能为空')
-    if (!Array.isArray(chat.guides)) chat.guides = []
-    if (chat.guides.length >= 20) throw new Error('Guide 数量已达上限（20 条）')
-    chat.guides.push({ id: uid('guide'), text: guide, createdAt: Date.now() })
-    chat.updatedAt = Date.now()
-    await writeChat(chat, { source: 'guide.add' })
-    return chat.guides
-  }
-  async function deleteGuide(sessionId, index) {
-    const chat = await chatForSession(sessionId)
-    if (chat === undefined) throw new Error('当前会话没有绑定人物卡')
-    if (!Array.isArray(chat.guides)) chat.guides = []
-    const idx = clampInt(index, 0, Math.max(0, chat.guides.length - 1), -1)
-    if (idx < 0) throw new Error('Guide 序号无效')
-    chat.guides.splice(idx, 1)
-    chat.updatedAt = Date.now()
-    await writeChat(chat, { source: 'guide.delete' })
-    return chat.guides
-  }
+  const conversationGuides = createConversationGuides({ chats: { forSession: chatForSession, update: updateChat }, library: guideLibrary, isPlay: chat => groupOfMode(chat.mode) === 'play' })
   async function setPlayerName(sessionId, userName) {
     const chat = await chatForSession(sessionId)
     if (chat === undefined) throw new Error('当前会话没有绑定人物卡')
@@ -2584,6 +2565,7 @@ export async function apply(ctx) {
             storyText: projectAgentMessageText(mvuTarget.message, { charName: card && card.name, macroState: snapshot.macroState }),
             currentVariables: mvuTarget.variables,
             helperContext: collectMvuHelperContext(snapshot.messages, mvuTarget.messageId),
+            guides: Array.isArray(snapshot.guides) ? snapshot.guides : [],
             variableSchema: mvuTarget.variables.schema,
             charName: card && card.name,
             macroState: snapshot.macroState,
@@ -3680,8 +3662,13 @@ export async function apply(ctx) {
         return { document: cardPreparation.present({ card: workspace, as: 'sillytavern-v3', characterBook }) }
       }
       case 'editLedger': { await ledgerEditor(args || {}); return { view: await sessionView(args.sessionId) } }
-      case 'addGuide': return { guides: await addGuide(args && args.sessionId, args && args.text) }
-      case 'deleteGuide': return { guides: await deleteGuide(args && args.sessionId, args && args.index) }
+      case 'listGuideLibrary': return { items: await guideLibrary.list() }
+      case 'saveGuideLibrary': return { item: await conversationGuides.save(args?.sessionId, args?.name) }
+      case 'updateGuideLibrary': return { item: await guideLibrary.update(args) }
+      case 'deleteGuideLibrary': { await guideLibrary.remove(args); return { ok: true } }
+      case 'loadGuideLibrary': return { guides: await conversationGuides.load(args?.sessionId, args?.id) }
+      case 'addGuide': return { guides: await conversationGuides.add(args?.sessionId, args?.text) }
+      case 'deleteGuide': return { guides: await conversationGuides.remove(args?.sessionId, args) }
       case 'getBodyEdit': return { edit: await bodyEditor.read(args && args.sessionId) }
       case 'saveBodyEdit': return { view: await bodyEditor.save(args && args.sessionId, args) }
       case 'regenBody': return { view: await regenBody(args && args.chatId, args && args.guidance, args && args.sessionId, args && args.input) }

@@ -366,6 +366,7 @@ export function createMvuBackgroundTaskFrame(input = {}) {
       updateRules: Array.isArray(input.updateRules) ? input.updateRules.map(str).filter(Boolean) : [],
       backgroundTasks: normalizeBackgroundTasks(input.backgroundTasks),
       helperContext: Array.isArray(input.helperContext) ? input.helperContext.map(str).filter(Boolean) : [],
+      guides: Array.isArray(input.guides) ? input.guides.map(item => str(item?.text ?? item).trim()).filter(Boolean) : [],
       guidance: str(input.guidance).trim(),
       updateOnlyFromStory: true
     },
@@ -395,6 +396,9 @@ export function projectMvuBackgroundRequest(frame) {
       ...(rules.helperContext?.length ? ['【本轮人物卡 Helper 交接】',
         '以下是本轮正文之前人物卡脚本提供的数据与要求。已确认的建角设定和明确的变量初始化要求可用于本轮初始化；其余剧情意图、候选行动仍须以正文已经发生的事实为准。遵守变量只读规则，不重算脚本负责的派生字段。',
         ...rules.helperContext] : []),
+      ...(rules.guides?.length ? ['【玩家 Guide · 持续生效】',
+        '玩家对本局的持续要求。结算时遵循其中关于变量取向、数值尺度和状态变化的要求；不得据此制造正文未发生的事件。',
+        ...rules.guides.map((text, index) => (index + 1) + '. ' + text)] : []),
       ...(rules.guidance ? ['【本次重新结算的指导意见（仅本次有效）】', str(rules.guidance)] : []),
       '【变量结构】',
       JSON.stringify(state.variableSchema || {}),

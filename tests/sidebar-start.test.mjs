@@ -19,3 +19,18 @@ test('开始页注册到原生 guide chain 并通过当前标签导航', async (
  assert.equal(navigation[0],'dsh-tavern:cards')
  assert.equal(navigation[1].replaceTab,true)
 })
+
+test('Guide 库显示在偏好分组，点击打开独立库标签', async () => {
+ const source=await readFile(new URL('../tavern-plugin/src/client/modules/sidebar-start.js',import.meta.url),'utf8')
+ const React={createElement:(type,props,...children)=>({type,props,children})}
+ const context={React}
+ vm.runInNewContext(source+'\nthis.render=TavernStartCards',context)
+ let opened
+ const tree=context.render({newTabOptions:[{id:'dsh-tavern:guide-library',label:'Guide 库'}],onNewTab:id=>opened=id})
+ const sections=tree.children.flat(Infinity).filter(node=>node?.type==='section')
+ assert.equal(sections.length,1)
+ assert.equal(sections[0].props['aria-label'],'偏好')
+ function visit(node){if(!node||typeof node!=='object')return; if(node.type==='button')node.props.onClick(); for(const child of (node.children||[]).flat(Infinity))visit(child)}
+ visit(tree)
+ assert.equal(opened,'dsh-tavern:guide-library')
+})
