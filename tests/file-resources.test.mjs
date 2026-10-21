@@ -513,3 +513,27 @@ for (const kind of ['worldbook', 'json', 'png']) {
     assert.deepEqual(await store.metadata(again.path), fallback)
   })
 }
+
+
+test('全局世界书选择持久化，重命名跟随、删除清理并保留人物卡绑定', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'tavern-global-books-'))
+  try {
+    let store = createFileResourceStore({ dataRoot: root })
+    const book = await store.importWorldBook({ name: '通用.json', originalText: '{"entries":{}}' }, { name: '通用', entries: {} })
+    const card = await store.importCard({ name: '人物.json', text: '{}' }, { name: '人物' })
+    await Promise.all([store.bindWorldBook(card, book), store.setGlobalWorldBook(book, true)])
+    assert.equal((await store.worldBookBindingForCard(card)).path, book)
+    await store.setGlobalWorldBook(book, true)
+    store = createFileResourceStore({ dataRoot: root })
+    assert.deepEqual(await store.globalWorldBookSources(), [{ kind: 'standalone', path: book }])
+    const renamed = (await store.rename(book, '新通用')).path
+    assert.deepEqual(await store.globalWorldBookSources(), [{ kind: 'standalone', path: renamed }])
+    await store.setGlobalWorldBook(renamed, false)
+    assert.equal((await store.worldBookBindingForCard(card)).path, renamed)
+    await store.setGlobalWorldBook(renamed, true)
+    await store.remove(renamed)
+    assert.deepEqual(await store.globalWorldBookSources(), [])
+    await assert.rejects(store.setGlobalWorldBook(renamed, true), /世界书不存在/)
+    await assert.rejects(store.setGlobalWorldBook('../bad', true), /路径/)
+  } finally { await rm(root, { recursive: true, force: true }) }
+})

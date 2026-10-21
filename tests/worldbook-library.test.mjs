@@ -23,6 +23,7 @@ function harness() {
     })]
   ])
   const bindings = new Map()
+  const globals = new Set()
   const removed = []
   function normalize(path, kind) {
     const value = String(path || '')
@@ -32,6 +33,8 @@ function harness() {
   const library = createWorldBookLibrary({
     normalizePath: normalize,
     resources: {
+      async globalSources() { return [...globals].map(path => ({ kind: 'standalone', path })) },
+      async setGlobal(path, enabled) { if (enabled) globals.add(path); else globals.delete(path) },
       async list() { return Array.from(files.keys()) },
       async readText(path) { return files.get(path) },
       async metadata() { return { importedAt: 100, updatedAt: 200 } },
@@ -290,4 +293,50 @@ test('删除独立世界书接受来源对象，拒绝跨类型路径及不存�
   await assert.rejects(run.library.remove({ kind: 'card', cardPath: 'cards/不存在.json' }), /人物卡不存在/)
   await run.library.remove({ kind: 'standalone', path: 'worldbooks/王都.json' })
   assert.equal(run.files.has('worldbooks/王都.json'), false)
+})
+
+
+test('全局世界书覆盖无绑定的新卡、与本地合并并按来源去重，不修改或导出到卡', async () => {
+  const { library, cards } = harness()
+  const source = { kind: 'standalone', path: 'worldbooks/王都.json' }
+  const before = clone([...cards])
+  await library.setGlobal(source, true)
+  assert.equal((await library.get(source)).globalEnabled, true)
+  assert.equal((await library.catalog()).standalone[0].globalEnabled, true)
+  assert.equal((await library.bound('cards/空白.json')).view.entryCount, 1)
+  const { createOpeningPreparation } = await import('../tavern-plugin/lib/domain/opening-preparation.js')
+  const preparation = createOpeningPreparation({ readCard: async path => cards.get(path), worldBooks: library })
+  const opening = await preparation.create('cards/空白.json')
+  assert.equal(opening.worldbook.entries.length, 1)
+  assert.match(JSON.stringify(opening.worldbook), /城门日落关闭/)
+  assert.equal((await library.bound('cards/命运.json')).view.entryCount, 2)
+  assert.equal((await library.characterBookForCard('cards/命运.json')).entries.length, 1)
+  assert.deepEqual([...cards], before)
+  await library.bind('cards/命运.json', source)
+  assert.equal((await library.bound('cards/命运.json')).view.entryCount, 2)
+  await library.setGlobal(source, false)
+  assert.equal(await library.bound('cards/空白.json'), null)
+  assert.equal((await library.bound('cards/命运.json')).view.entryCount, 2)
+  await assert.rejects(library.setGlobal({ kind: 'card', cardPath: 'cards/命运.json' }, true), /独立世界书/)
+  await assert.rejects(library.setGlobal(source, 'true'), /布尔值/)
+})
+
+test('全局开关保留旧对话世界书快照，变更提示和重新加载使用最新合并内容', async () => {
+  const { createPlayCardSnapshots } = await import('../tavern-plugin/lib/domain/play-card-snapshots.js')
+  const { library, cards } = harness()
+  const card = cards.get('cards/命运.json')
+  const api = createPlayCardSnapshots({ worldBooks: library, planner: { plan: async () => ({ text: '前缀' }) }, writeChat: async chat => chat })
+  const chat = { id: 'old', cardPath: 'cards/命运.json', mode: 'story', messages: [] }
+  Object.assign(chat, await api.replacement(chat, card))
+  assert.equal((await api.updateStatus(chat, card)).available, false)
+  await library.setGlobal({ kind: 'standalone', path: 'worldbooks/王都.json' }, true)
+  assert.equal((await library.bound(chat.cardPath, card, chat)).view.entryCount, 1)
+  assert.equal((await api.updateStatus(chat, card)).worldbookChanged, true)
+  const patch = await api.replacement(chat, card)
+  assert.equal(Object.keys(patch.openingWorldbookSnapshot.document.entries).length, 2)
+  Object.assign(chat, patch)
+  assert.equal((await api.updateStatus(chat, card)).available, false)
+  await library.setGlobal({ kind: 'standalone', path: 'worldbooks/王都.json' }, false)
+  assert.equal((await api.updateStatus(chat, card)).worldbookChanged, true)
+  assert.equal((await library.bound(chat.cardPath, card, chat)).view.entryCount, 2)
 })

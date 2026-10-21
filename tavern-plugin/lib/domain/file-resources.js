@@ -362,6 +362,35 @@ export function createFileResourceStore(options = {}) {
     await durableFiles.write(worldBookBindingsPath, JSON.stringify(bindings, null, 2))
   }
 
+  async function globalWorldBookSources() {
+    const bindings = await readWorldBookBindings()
+    return (bindings.$global?.sources || []).map(source => ({ kind: 'standalone', path: normalizeResourcePath(source.path, 'worldbook') }))
+  }
+
+  // Global selections share the binding file with card bindings. Serialize all
+  // public mutations of that file so concurrent toggles cannot erase each other.
+  let worldBookMutationTail = Promise.resolve()
+  function serializeWorldBookMutation(work) {
+    return (...args) => {
+      const operation = worldBookMutationTail.catch(() => {}).then(() => work(...args))
+      worldBookMutationTail = operation
+      return operation
+    }
+  }
+
+  async function setGlobalWorldBook(relative, enabled) {
+    if (typeof enabled !== 'boolean') throw new Error('全局生效开关必须为布尔值')
+    const bookPath = normalizeResourcePath(relative, 'worldbook')
+    if (enabled && !await exists(absolute(bookPath))) throw new Error('世界书不存在: ' + bookPath)
+    const bindings = await readWorldBookBindings()
+    if ((bindings.$global?.sources || []).some(source => source.path === bookPath) === enabled) return enabled
+    const sources = (bindings.$global?.sources || []).filter(source => source.path !== bookPath)
+    if (enabled) sources.push({ kind: 'standalone', path: bookPath })
+    bindings.$global = { version: 2, sources }
+    await writeWorldBookBindings(bindings)
+    return enabled
+  }
+
   async function worldBookBindingForCard(cardPath) {
     const card = normalizeResourcePath(cardPath, 'card')
     const bindings = await readWorldBookBindings()
@@ -1020,5 +1049,5 @@ export function createFileResourceStore(options = {}) {
     return result
   }
 
-  return Object.freeze({ readMvuDraftSession, updateMvuDraftSession, readMvuDraft, updateMvuDraft, readMvuDefinition, saveMvuDefinition, absolute, copyCard, saveMvuCard, inspectMvuDestination, bindMaterial, bindWorldBook, bindWorldBooks, cardsForMaterial, ensure, ensureCardWorkspace, hasCardImage, importCard, importText, importWorldBook, list, metadata, migrateLegacy, readCard, readCardImage, readText, remove, rename: renameResource, replaceScript, restoreCard, scriptBindingsForCards, scriptForCard, unbindMaterial, unbindWorldBook, worldBookBindingForCard, writeWorking })
+  return Object.freeze({ globalWorldBookSources, setGlobalWorldBook: serializeWorldBookMutation(setGlobalWorldBook), readMvuDraftSession, updateMvuDraftSession, readMvuDraft, updateMvuDraft, readMvuDefinition, saveMvuDefinition, absolute, copyCard, saveMvuCard: serializeWorldBookMutation(saveMvuCard), inspectMvuDestination, bindMaterial, bindWorldBook: serializeWorldBookMutation(bindWorldBook), bindWorldBooks: serializeWorldBookMutation(bindWorldBooks), cardsForMaterial, ensure, ensureCardWorkspace, hasCardImage, importCard, importText, importWorldBook, list, metadata, migrateLegacy, readCard, readCardImage, readText, remove: serializeWorldBookMutation(remove), rename: serializeWorldBookMutation(renameResource), replaceScript, restoreCard, scriptBindingsForCards, scriptForCard, unbindMaterial, unbindWorldBook: serializeWorldBookMutation(unbindWorldBook), worldBookBindingForCard, writeWorking })
 }

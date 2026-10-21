@@ -753,6 +753,8 @@ export async function apply(ctx) {
   const worldBooks = createWorldBookLibrary({
     normalizePath: normalizeResourcePath,
     resources: {
+      globalSources: async function () { return await fileResources.globalWorldBookSources() },
+      setGlobal: async function (path, enabled) { return await fileResources.setGlobalWorldBook(path, enabled) },
       list: async function (kind) { return await fileResources.list(kind) },
       readText: async function (path) { return await fileResources.readText(path) },
       metadata: async function (path) { return await fileResources.metadata(path) },
@@ -3227,6 +3229,7 @@ export async function apply(ctx) {
         if (text === undefined) throw new Error('剧本不存在: ' + resourcePath)
         return { path: resourcePath, text }
       }
+      case 'setGlobalWorldBook': return await worldBooks.setGlobal(args && args.source, args && args.enabled)
       case 'listWorldBooks': return await worldBooks.catalog()
       case 'getWorldBook': return await worldBooks.get(args && args.source)
       case 'getWorldBookBinding': return { binding: await worldBooks.binding(args && args.cardPath) }
