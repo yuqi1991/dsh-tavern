@@ -98,7 +98,7 @@ export function presentTavernSettings(document, defaults) {
     defaultForegroundModel: normalizeBackgroundModel(object(document).defaultForegroundModel),
     defaultBackgroundModel: normalizeBackgroundModel(object(document).defaultBackgroundModel),
     contextCompaction: compactionPolicy(object(document).contextCompaction),
-    candidateDismissMode: object(document).candidateDismissMode === 'after-send' ? 'after-send' : 'after-fill',
+    candidateDismissMode: object(document).candidateDismissMode === 'after-fill' ? 'after-fill' : 'after-send',
     defaultStatusPanel: object(document).defaultStatusPanel !== false,
     compatibilityMode: true,
     webSearchEnabled: object(document).webSearchEnabled === true,

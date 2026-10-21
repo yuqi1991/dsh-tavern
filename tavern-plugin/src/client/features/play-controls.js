@@ -1019,7 +1019,12 @@
 			);
 		}
 
+		// 手机布局断点；若之后移植 upstream 的 mobile-layout 模块，此处改为引用该处定义。
+		const TAVERN_MOBILE_QUERY = "(max-width: 1023px)";
+
 		function CandidateQuestion(props) {
+            // 宿主输入器可由 textarea 升级为 contenteditable，两种入口共享聚焦与收起逻辑。
+            const inputSelector = "[data-composer-card] :is(textarea, [contenteditable='true'])";
             const dismissMode = useCandidatePreferences();
 			const panel = useCandidatePanel();
             const draft = props.useInput(snapshot => snapshot.draft);
@@ -1028,15 +1033,25 @@
 			const sessionMode = useTavernSessionMode(props.sessionId);
 			const running = props.useSession(function (snapshot) { return snapshot.running; });
 			const latestMessageId = props.useChat(latestTavernAssistantMessageId);
-			const [selected, setSelected] = React.useState(-1);
+			const [added, setAdded] = React.useState([]);
             const expanded = Boolean(panel && panel.expanded);
             function setExpanded(value) {
                 if (panel) setCandidatePanel(Object.assign({}, panel, { expanded: value }));
             }
             React.useEffect(() => { if (running && panel?.expanded) setExpanded(false); }, [running, panel]);
 			React.useEffect(function () {
-				setSelected(sessionMode === "script" && panel && Array.isArray(panel.choices) && panel.choices.length === 1 ? 0 : -1);
-			}, [panel, sessionMode]);
+				if (typeof document === "undefined" || !panel?.expanded) return;
+				function onComposerFocus(event) {
+					// 手机开始手动输入就收起候选，给键盘上方的正文留出空间；面板编辑器不受影响。
+					if (window.matchMedia(TAVERN_MOBILE_QUERY + ", (pointer: coarse)").matches && event.target?.matches(inputSelector)) setExpanded(false);
+				}
+				document.addEventListener("focusin", onComposerFocus);
+				return function () { document.removeEventListener("focusin", onComposerFocus); };
+			}, [panel]);
+			React.useEffect(function () {
+				setAdded([]);
+			}, [panel?.choices]);
+
 			if (panel && panel.sessionId === props.sessionId && panel.phase === "error") {
 				return React.createElement("div", { className: "dsh-tavern-choice-error dsh-tavern-candidate-error-banner" },
 					"候选项生成失败：" + (panel.error || "未知错误") + "。请点上方“生成候选项”重试。"
@@ -1049,56 +1064,47 @@
 			const count = (panel.choices || []).length;
 			const isScript = sessionMode === "script";
 			const heading = "接下来的行动";
-			const summary = panel.phase === "loading" ? "正在生成…" : (panel.error ? "生成失败" : (isScript ? "1 个候选 · 跟随剧本，只有一个推荐候选项" : count + " 个候选项"));
+			const summary = panel.phase === "loading" ? "正在生成…" : (panel.error ? "生成失败" : (isScript ? "跟随剧本" : count + " 个"));
 			return h("div", { className: "dsh-tavern-question dsh-tavern-candidate-question" + (expanded ? "" : " collapsed") },
-				h("div", { className: "dsh-tavern-question-head", onClick: function () { setExpanded(!expanded); } }, h("span", null, heading), h("span", { className: "dsh-tavern-question-sub" }, summary), h("button", { className: "dsh-tavern-question-close", title: expanded ? "收起" : "展开", onClick: function (event) { event.stopPropagation(); setExpanded(!expanded); } }, expanded ? "⌃" : "⌄")),
+				h("div", { className: "dsh-tavern-question-head", role: "button", tabIndex: 0, "aria-expanded": expanded ? "true" : "false", onClick: function () { setExpanded(!expanded); }, onKeyDown: function (event) { if (event.target === event.currentTarget && !event.isComposing && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setExpanded(!expanded); } } }, h("span", null, heading), h("span", { className: "dsh-tavern-question-sub" }, summary), h("button", { type: "button", className: "dsh-tavern-question-close", title: expanded ? "收起行动列表" : "展开行动列表", "aria-label": expanded ? "收起行动列表" : "展开行动列表", onClick: function (event) { event.stopPropagation(); setExpanded(!expanded); } }, expanded ? "⌃" : "⌄")),
 				expanded && panel.phase === "loading" ? h("div", { className: "dsh-tavern-question-sub" }, "正在生成候选项…") : null,
 				expanded && panel.error ? h("div", { className: "dsh-tavern-choice-error" }, "候选项生成失败，请点回复下方的“生成候选项”重试") : null,
 				expanded ? h("div", { className: "dsh-tavern-question-body" }, (panel.choices || []).map(function (choice, index) {
 					const item = choice !== null && typeof choice === "object" ? choice : { type: "action", text: String(choice) };
-					const label = item.type === "scene" ? "场景变化" : "人物行为";
-					return h("button", { key: index, className: "dsh-tavern-question-option" + (selected === index ? " selected" : ""), onClick: function () { setSelected(index); } },
-						h("span", { className: "dsh-tavern-question-radio" }),
+					// 点选项即追加到输入框，再点一次取消并从输入框移除；发送前仍可修改。
+					const isAdded = added.includes(index);
+					return h("button", { key: index, className: "dsh-tavern-question-option" + (isAdded ? " selected" : ""), "aria-pressed": isAdded, title: isAdded ? "从输入框移除" : "追加到输入框", onClick: function () {
+						const marked = item.type === "scene" ? "【场景变化】" + item.text : item.text;
+						const current = String(draftRef.current || "");
+						let next;
+						if (isAdded) {
+							// 只移除原样追加的那一行；用户改过的文字保留不动。
+							const lines = current.split("\n");
+							const at = lines.lastIndexOf(marked);
+							if (at >= 0) lines.splice(at, 1);
+							next = lines.join("\n").replace(/^\n+|\n+$/g, "");
+						} else next = current + (current && !current.endsWith("\n") ? "\n" : "") + marked;
+						draftRef.current = next;
+						props.inputActions.setDraft(next);
+						if (!isAdded && dismissMode !== "after-send") setCandidatePanel(null);
+						else setAdded(list => isAdded ? list.filter(value => value !== index) : list.concat(index));
+					} },
 						h("span", { className: "dsh-tavern-question-text" },
-							h("span", { className: "dsh-tavern-question-tag dsh-tavern-question-tag-" + item.type }, label),
+							item.type === "scene" ? h("span", { className: "dsh-tavern-question-tag dsh-tavern-question-tag-scene" }, "场景变化") : null,
 							h("span", null, item.text)
 						)
 					);
 				})) : null,
-				expanded && panel.phase === "ready" ? h("button", {
-					className: "dsh-tavern-question-free", onClick: function () {
-					window.requestAnimationFrame(function () {
-						const input = document.querySelector("[data-composer-card] textarea");
-						if (input) input.focus();
-					});
+				expanded && panel.phase === "ready" && panel.traceSessionId ? h("button", {
+					className: "dsh-tavern-question-free", title: panel.traceMode === "continuable" ? "打开持续存在的后台 Agent" : "打开后台候选任务的推理与工具调用记录", onClick: async function () {
+						try {
+							await props.sessions.refreshSubagents(panel.sessionId);
+							props.sessions.openSubagent({ parentSessionId: panel.sessionId, childSessionId: panel.traceSessionId, mode: panel.traceMode });
+						} catch (err) {
+							tavernErrorHub.report("后台 Agent 轨迹", "无法打开后台 Agent 轨迹：" + String(err && err.message || err));
 						}
-					}, "✎ 自由行动（直接在下方输入）") : null,
-					expanded && panel.phase === "ready" && panel.traceSessionId ? h("button", {
-						className: "dsh-tavern-question-free", title: panel.traceMode === "continuable" ? "打开持续存在的后台 Agent" : "打开后台候选任务的推理与工具调用记录", onClick: async function () {
-					try {
-						await props.sessions.refreshSubagents(panel.sessionId);
-						props.sessions.openSubagent({ parentSessionId: panel.sessionId, childSessionId: panel.traceSessionId, mode: panel.traceMode });
-					} catch (err) {
-						tavernErrorHub.report("后台 Agent 轨迹", "无法打开后台 Agent 轨迹：" + String(err && err.message || err));
 					}
-						}
-					}, panel.traceMode === "continuable" ? "查看后台 Agent" : "查看后台候选任务轨迹") : null,
-				expanded && panel.phase === "ready" && panel.choices && panel.choices.length ? h("div", { className: "dsh-tavern-question-foot" },
-					h("button", {
-						className: "dsh-tavern-question-primary", disabled: selected < 0, onClick: function () {
-						if (selected < 0) return;
-						const item = panel.choices[selected];
-						const choice = item !== null && typeof item === "object" ? item : { type: "action", text: String(item) };
-						const marked = choice.type === "scene" ? "【场景变化】" + choice.text : choice.text;
-						const current = String(draftRef.current || "");
-                        const next = current + (current && !current.endsWith("\n") ? "\n" : "") + marked;
-                        draftRef.current = next;
-                        props.inputActions.setDraft(next);
-                        if (dismissMode !== "after-send") setCandidatePanel(null);
-                        setSelected(-1);
-							}
-						}, "追加到输入框")
-				) : null
+				}, panel.traceMode === "continuable" ? "查看后台 Agent" : "查看后台候选任务轨迹") : null
 			);
 		}
 

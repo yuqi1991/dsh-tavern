@@ -319,13 +319,12 @@ try {
   } else if (!process.argv.includes('--card-memory') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
     await step('生成候选项并选择行动，再玩一轮', async () => {
       await page.getByRole('button', { name: '生成候选项', exact: true }).click()
-      await page.getByText('5 个候选项', { exact: true }).waitFor()
+      await page.getByText('5 个', { exact: true }).waitFor()
       assert.deepEqual(inspectSaved(await savedChat()), report.afterReload, '生成候选不能修改正文或金币')
       const candidates = page.locator('.dsh-tavern-candidate-question')
-      if (await candidates.getByTitle('展开', { exact: true }).isVisible()) await candidates.getByTitle('展开', { exact: true }).click()
+      if (await candidates.getByTitle('展开行动列表', { exact: true }).isVisible()) await candidates.getByTitle('展开行动列表', { exact: true }).click()
       await page.getByRole('button', { name: /再次领取奖励/ }).click()
       assert.equal(await candidates.locator('.dsh-tavern-question-option').count(), 5)
-      await page.getByRole('button', { name: '追加到输入框', exact: true }).click()
       const composer = page.getByRole('textbox', { name: /发消息|Message/ })
       assert.equal(await composer.innerText(), '再次领取奖励')
       await composer.press('Enter')

@@ -146,7 +146,7 @@ test('旧 play-mode 覆盖保留在数据中，但不再出现在可用提示词
 test('系统正文提示词默认使用内置内容，并可保存自定义覆盖', function () {
   const defaults = { story: '内置正文提示词' }
   assert.deepEqual(presentTavernSettings({}, defaults), {
-    candidateDismissMode: 'after-fill',
+    candidateDismissMode: 'after-send',
     contextCompaction: { mode: 'manual', rounds: 20, percent: 80, revision: 0 },
     compatibilityMode: true,
     webSearchEnabled: false,
@@ -166,7 +166,7 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
   assert.equal(saved.unknown, 1)
   assert.equal(resolveSystemPrompt(saved, 'story', function () { return '默认' }), '用户正文提示词')
   assert.deepEqual(presentTavernSettings(saved, defaults), {
-    candidateDismissMode: 'after-fill',
+    candidateDismissMode: 'after-send',
     contextCompaction: { mode: 'manual', rounds: 20, percent: 80, revision: 0 },
     compatibilityMode: true,
     webSearchEnabled: false,
@@ -185,14 +185,14 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
 
 test('恢复默认只删除正文覆盖并保留其他设置', function () {
   const saved = applyTavernSettingsPatch({
-    candidateDismissMode: 'after-fill',
+    candidateDismissMode: 'after-send',
     contextCompaction: { mode: 'manual', rounds: 20, percent: 80, revision: 0 },
     compatibilityMode: true,
     promptOverrides: { story: '用户正文提示词', future: '保留' }
   }, { storyPrompt: null })
 
   assert.deepEqual(saved, {
-    candidateDismissMode: 'after-fill',
+    candidateDismissMode: 'after-send',
     contextCompaction: { mode: 'manual', rounds: 20, percent: 80, revision: 0 },
     compatibilityMode: true,
     promptOverrides: { future: '保留' }
@@ -288,14 +288,14 @@ test('全局写作 Skill 逐项保存，恢复开启不改动其他 Skill', () =
   assert.throws(() => applyTavernSettingsPatch(document, { defaultWritingSkill: { name: 'one', enabled: 'false' } }), /无效/)
 })
 
-test('候选项默认填入后隐藏，保存后持久化且不覆盖其他设置', async t => {
+test('候选项默认发送后才隐藏，保存后持久化且不覆盖其他设置', async t => {
   const h = await settingsHarness(t)
-  assert.equal((await h.read()).candidateDismissMode, 'after-fill')
-  await h.update({ systemAppendEnabled: true, candidateDismissMode: 'after-send' })
   assert.equal((await h.read()).candidateDismissMode, 'after-send')
-  await h.update({ candidateDismissMode: 'after-fill' })
+  await h.update({ systemAppendEnabled: true, candidateDismissMode: 'after-fill' })
   assert.equal((await h.read()).candidateDismissMode, 'after-fill')
+  await h.update({ candidateDismissMode: 'after-send' })
+  assert.equal((await h.read()).candidateDismissMode, 'after-send')
   assert.equal((await h.read()).systemAppendEnabled, true)
   await assert.rejects(h.update({ candidateDismissMode: 'invalid' }), /无效的候选项/)
-  assert.equal((await h.read()).candidateDismissMode, 'after-fill')
+  assert.equal((await h.read()).candidateDismissMode, 'after-send')
 })
