@@ -56,6 +56,18 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
   目录缓存（ddce9397）、筛选排除后 10 轮冷却（021fcbbd）。完整测试新增失败 0，e2e 与基线一致。
 - **世界书里暂缓的**：顶栏快捷面板（2b337649，依赖"顶栏快捷入口可自定义"5d060841 与 features/play-controls.js 的新结构，随顶栏/设置批次取）；
   回复结束后预筛（8bb7fc3a，依赖上游按需读楼层，属存储核心）；进行中游戏自动采用库内改动（3256ffca，依赖 tavern-script-host-adapter 合并）。
+- **批 1 · 状态面板一族 完成**（2026-10-21）：
+  - 候选面板（a72857b5 等 4 个）：点选追加到输入框、再点移除，`candidateDismissMode` 默认改 after-send；保留我们的“查看后台 Agent”按钮（上游 dbf59ef6 删了）；
+    `TAVERN_MOBILE_QUERY` 暂定义在 play-controls.js，移植 mobile-layout 模块后改为引用。
+  - 剧本进度（439a00ac/5a433958/1d413050）：新面板每页 7 块；`tests/script-navigation-ui.test.mjs` 按新界面重写（上游把它删了）。
+  - 手动台账（e6fcb341/0c8fd3c6/d1985cf2）：整理按钮 + 进度 + 下一轮正文参考一次；未带入 CHARACTER_DESIGN_REUSE_TOOL 与插件上下文测试。
+  - Guide（2a5aea0d…228d7047、0e437272 的 MVU 注入）：按最终状态移植 guide-library / conversation-guides / guide-content，Guide 库标签、保存到库、按 id 删除；
+    状态面板保持我们的布局，仅加两个按钮；仪表盘样式（b34dd02d）未取。
+  - 完整测试：失败 119 条，全部在基线内（基线 124）；e2e 在候选与 Guide 步骤通过，死在 ticket-19 的“金币：40”（与基线一致）。
+- **批 1 · 被依赖阻塞，未移植**：
+  - 人物设计档案逐条删除（70c0c51e）：依赖“人物设计 → 本局世界书条目”整条链（87c4b25a、83a4ff6b、a0cf6179，约 440 行，且与 5509757f 结算项重构相关）。建议作为独立功能评估。
+  - 人物卡格式（CHARX/封面/导出 PNG/宫格/同文件复用）：建立在 cast-assets、card-archive、zip-file、`lib/http/routes.js` 与插件界面层（plugin-extensions）上，属于已暂缓的演出/插件层；随该层一起评估。
+  - 结算项重构 5509757f、状态面板仪表盘 b34dd02d：按计划暂缓。
 
 ## 摘取流程（每个提交）
 1. `git cherry-pick -x --no-commit <hash>`；2. `lib/client.js` 冲突不手合，`node bin/build-tavern-client.mjs` 重建；
