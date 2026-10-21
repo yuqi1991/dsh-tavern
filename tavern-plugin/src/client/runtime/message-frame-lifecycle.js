@@ -109,9 +109,9 @@
 			const configuredSlashExecutor = options && options.executeSlash;
 			const invalidate = options && options.invalidate || function (sessionId) { liveTavernView.invalidate(sessionId); };
 			const channels = new Map();
-			const touchRelay = createTavernTouchRelay(hostWindow);
+            const touchRelay = createTavernTouchRelay(hostWindow);
 			const frameSizeObservers = new Map();
-			const frameVisibility = new Map();
+            const frameVisibility = new Map();
 			let props = initial;
 			let frozenHelperContext = initial.helperContext;
 			let helperContext = frozenHelperContext;
@@ -148,54 +148,54 @@
 				const channel = createTavernFrameContextChannel(document);
 				// Stable callback identity preserves the per-document delta baseline.
 				document.ref = function (node) {
-					const stopVisibility = frameVisibility.get(document.token);
-					if (stopVisibility) { stopVisibility(); frameVisibility.delete(document.token); }
-					const previous = frameSizeObservers.get(document.token);
-					if (previous) { previous.disconnect(); frameSizeObservers.delete(document.token); }
+                    const stopVisibility = frameVisibility.get(document.token);
+                    if (stopVisibility) { stopVisibility(); frameVisibility.delete(document.token); }
+                    const previous = frameSizeObservers.get(document.token);
+                    if (previous) { previous.disconnect(); frameSizeObservers.delete(document.token); }
 					touchRelay.stop();
-					if (node) node.__dshTavernSessionId = document.sessionId;
-					channel.attach(node);
-					if (node && typeof hostWindow.IntersectionObserver === "function") {
-						let nearby = true;
-						const sync = () => node.contentWindow?.postMessage({
-							type: "dsh-tavern-frame-measure-active", token: document.token,
-							active: nearby && hostWindow.document.visibilityState !== "hidden"
-						}, "*");
-						const observer = new hostWindow.IntersectionObserver(entries => {
-							nearby = entries[entries.length - 1]?.isIntersecting === true;
-							sync();
-						}, { rootMargin: "240px 0px" });
-						observer.observe(node);
-						node.addEventListener("load", sync);
-						hostWindow.document.addEventListener("visibilitychange", sync);
-						const stop = () => {
-							observer.disconnect();
-							node.removeEventListener("load", sync);
-							hostWindow.document.removeEventListener("visibilitychange", sync);
-						};
-						stop.sync = sync;
-						frameVisibility.set(document.token, stop);
-					}
-					// Trusted cards may replace their document and lose our reporter,
-					// then resize frameElement directly. Observe outside that document.
-					if (node && document.trustedCardMode && typeof hostWindow.MutationObserver === "function") {
-						const observer = new hostWindow.MutationObserver(function () {
-							if (channel.element() !== node || frameSizeObservers.get(document.token) !== observer) return;
-							const raw = String(node.style && node.style.height || "");
-							if (!/^\d+(?:\.\d+)?px$/.test(raw)) return;
-							const value = clampTavernFrameHeight(parseFloat(raw));
-							if (document.height === value && (document !== visible || height === value)) return;
-							document.height = value;
-							if (document === visible) { rememberHeight(document, value); publish(); }
-						});
-						frameSizeObservers.set(document.token, observer);
-						observer.observe(node, { attributes: true, attributeFilter: ["style"] });
-					}
+                    if (node) node.__dshTavernSessionId = document.sessionId;
+                    channel.attach(node);
+                    if (node && typeof hostWindow.IntersectionObserver === "function") {
+                        let nearby = true;
+                        const sync = () => node.contentWindow?.postMessage({
+                        	type: "dsh-tavern-frame-measure-active", token: document.token,
+                        	active: nearby && hostWindow.document.visibilityState !== "hidden"
+                        }, "*");
+                        const observer = new hostWindow.IntersectionObserver(entries => {
+                            nearby = entries[entries.length - 1]?.isIntersecting === true;
+                            sync();
+                        }, { rootMargin: "240px 0px" });
+                        observer.observe(node);
+                        node.addEventListener("load", sync);
+                        hostWindow.document.addEventListener("visibilitychange", sync);
+                        const stop = () => {
+                            observer.disconnect();
+                            node.removeEventListener("load", sync);
+                            hostWindow.document.removeEventListener("visibilitychange", sync);
+                        };
+                        stop.sync = sync;
+                        frameVisibility.set(document.token, stop);
+                    }
+                    // Trusted cards may replace their document and lose our reporter,
+                    // then resize frameElement directly. Observe outside that document.
+                    if (node && document.trustedCardMode && typeof hostWindow.MutationObserver === "function") {
+                        const observer = new hostWindow.MutationObserver(function () {
+                            if (channel.element() !== node || frameSizeObservers.get(document.token) !== observer) return;
+                            const raw = String(node.style && node.style.height || "");
+                            if (!/^\d+(?:\.\d+)?px$/.test(raw)) return;
+                            const value = clampTavernFrameHeight(parseFloat(raw));
+                            if (document.height === value && (document !== visible || height === value)) return;
+                            document.height = value;
+                            if (document === visible) { rememberHeight(document, value); publish(); }
+                        });
+                        frameSizeObservers.set(document.token, observer);
+                        observer.observe(node, { attributes: true, attributeFilter: ["style"] });
+                    }
 					if (node) channels.set(document.token, channel);
 					else channels.delete(document.token);
 				};
 				return document;
-			}
+            }
 			function snapshot() { return { visibleDocument: visible, pendingDocument: pending, height: height }; }
 			function publish() { if (listener) listener(snapshot()); }
 			function cancelRuntimeReport() {
@@ -213,8 +213,8 @@
 				const value = parseFloat(hostWindow.getComputedStyle(body).getPropertyValue("--dsh-content-font-size"));
 				const fontSize = props.followContentFont !== false && Number.isFinite(value) && value >= 8 && value <= 48 ? value : 14;
 				const textColorOverrides = tavernTextColorOverrides(hostWindow);
-				if (!document && fontSize === lastFontSize && textColorOverrides.quote === lastTextAccent) return;
-				lastTextAccent = textColorOverrides.quote;
+                if (!document && fontSize === lastFontSize && textColorOverrides.quote === lastTextAccent) return;
+                lastTextAccent = textColorOverrides.quote;
 				lastFontSize = fontSize;
 				channels.forEach(function (channel, token) {
 					if (document && token !== document.token) return;
@@ -258,7 +258,7 @@
 			function rememberHeight(document, value) {
 				height = value;
 				try { hostWindow.sessionStorage.setItem(document.heightKey, value); } catch (_) { }
-			}
+            }
 			function receive(event) {
 				const data = event && event.data;
 				const channel = data && channels.get(data.token);
@@ -276,7 +276,7 @@
 					return;
 				}
 				if (data.type === "dsh-tavern-frame-ready") {
-					frameVisibility.get(data.token)?.sync();
+                    frameVisibility.get(data.token)?.sync();
 					sendFontSize(sourceDocument);
 					sendContext(sourceDocument, "ready");
 					if (sourceDocument === pending && pending.key === desired.key) {
@@ -286,7 +286,7 @@
 						publish();
 					}
 				} else if (data.type === "dsh-tavern-frame-touch-start" || data.type === "dsh-tavern-frame-scroll") {
-					if (sourceDocument === visible && channel.element()) touchRelay.receive(channel.element(), data.token, data);
+                    if (sourceDocument === visible && channel.element()) touchRelay.receive(channel.element(), data.token, data);
 				} else if (data.type === "dsh-tavern-frame-height") {
 					sourceDocument.height = clampTavernFrameHeight(data.height);
 					if (sourceDocument === visible) { rememberHeight(visible, sourceDocument.height); publish(); }
@@ -305,23 +305,23 @@
 					}, 1000);
 				} else if ((data.type === "dsh-tavern-opening-worldbook" || data.type === "dsh-tavern-opening-save" || data.type === "dsh-tavern-opening-read") && !props.sessionId && props.openingPreview) {
 					void (async function () {
-						try {
-							if (sourceDocument.key !== desired.key) throw new Error("开场预览已失效");
-							const preview = props.openingPreview;
-							let result;
-							if (data.type === "dsh-tavern-opening-read") {
-								result = await invoke("getOpeningPreparation", { id: preview.preparationId });
-							} else if (data.type === "dsh-tavern-opening-worldbook") {
-								if (!preview.preparationId) throw new Error("开局草稿不存在");
-								result = await invoke("replaceOpeningWorldbook", { id: preview.preparationId, entries: data.entries, expectedEntries: data.expectedEntries });
-							} else {
-								openingPreviewSelection(preview, data.swipeId);
-								result = preview.preparationId ? await invoke("saveOpeningSelection", { id: preview.preparationId, openingId: openingPreviewSelection(preview, data.swipeId) }) : { saved: true };
-							}
-							event.source.postMessage({ type: "dsh-tavern-opening-response", token: data.token, requestId: data.requestId, ok: true, result }, "*");
-						} catch (error) {
-							event.source.postMessage({ type: "dsh-tavern-opening-response", token: data.token, requestId: data.requestId, ok: false, error: String(error.message || error) }, "*");
+					try {
+						if (sourceDocument.key !== desired.key) throw new Error("开场预览已失效");
+						const preview = props.openingPreview;
+						let result;
+						if (data.type === "dsh-tavern-opening-read") {
+							result = await invoke("getOpeningPreparation", { id: preview.preparationId });
+						} else if (data.type === "dsh-tavern-opening-worldbook") {
+							if (!preview.preparationId) throw new Error("开局草稿不存在");
+							result = await invoke("replaceOpeningWorldbook", { id: preview.preparationId, entries: data.entries, expectedEntries: data.expectedEntries });
+						} else {
+							openingPreviewSelection(preview, data.swipeId);
+							result = preview.preparationId ? await invoke("saveOpeningSelection", { id: preview.preparationId, openingId: openingPreviewSelection(preview, data.swipeId) }) : { saved: true };
 						}
+						event.source.postMessage({ type: "dsh-tavern-opening-response", token: data.token, requestId: data.requestId, ok: true, result }, "*");
+					} catch (error) {
+						event.source.postMessage({ type: "dsh-tavern-opening-response", token: data.token, requestId: data.requestId, ok: false, error: String(error.message || error) }, "*");
+					}
 					})();
 				} else if (data.type === "dsh-tavern-opening-select" && !props.sessionId && props.openingPreview) {
 					try {
@@ -401,31 +401,31 @@
 						? createTavernHostArtifactScope({ document: hostWindow.document }) : null;
 					hostWindow.addEventListener("message", receive);
 					let openingSubmitted = false;
-					const releaseComposer = props.trustedCardMode && hostWindow.document
-						? installFrameHostComposer(hostWindow.document, function (node) {
-							const channel = channels.get(visible.token);
-							return Boolean(listener && visible.key === desired.key && node && channel && channel.element() === node);
-						}, function (text) {
-							if (!listener || visible.key !== desired.key) throw new Error("卡片已失效，请重新打开");
-							if (props.openingPreview) {
-								if (openingSubmitted) return;
-								if (typeof props.onSubmitOpening !== "function") throw new Error("开场预览已失效，请重新打开");
-								return Promise.resolve(props.onSubmitOpening(text)).then(function (result) { openingSubmitted = true; return result; });
-							}
-							const executeSlash = configuredSlashExecutor || props.executeSlash;
-							if (!props.sessionId || typeof executeSlash !== "function") throw new Error("当前界面无法触发生成，请刷新页面后重试");
-							return executeSlash("/send " + text + "|/trigger", props.sessionId);
+                    const releaseComposer = props.trustedCardMode && hostWindow.document
+                        ? installFrameHostComposer(hostWindow.document, function (node) {
+                            const channel = channels.get(visible.token);
+                            return Boolean(listener && visible.key === desired.key && node && channel && channel.element() === node);
+                        }, function (text) {
+                            if (!listener || visible.key !== desired.key) throw new Error("卡片已失效，请重新打开");
+                            if (props.openingPreview) {
+                            	if (openingSubmitted) return;
+                            	if (typeof props.onSubmitOpening !== "function") throw new Error("开场预览已失效，请重新打开");
+                            	return Promise.resolve(props.onSubmitOpening(text)).then(function (result) { openingSubmitted = true; return result; });
+                            }
+                            const executeSlash = configuredSlashExecutor || props.executeSlash;
+                            if (!props.sessionId || typeof executeSlash !== "function") throw new Error("当前界面无法触发生成，请刷新页面后重试");
+                            return executeSlash("/send " + text + "|/trigger", props.sessionId);
 						}, function (error) { tavernErrorHub.report("开始旅程", error); }) : function () { };
 
 					let fontObserver = null;
 					if (hostWindow.document && typeof hostWindow.MutationObserver === "function") {
 						fontObserver = new hostWindow.MutationObserver(function () { sendFontSize(); });
-						// Theme token overrides are emitted as stylesheets, not only root attributes.
-						fontObserver.observe(hostWindow.document.head, { subtree: true, childList: true, characterData: true });
+                        // Theme token overrides are emitted as stylesheets, not only root attributes.
+                        fontObserver.observe(hostWindow.document.head, { subtree: true, childList: true, characterData: true });
 						[hostWindow.document.documentElement, hostWindow.document.body].filter(Boolean).forEach(function (node) { fontObserver.observe(node, { attributes: true, attributeFilter: ["style", "class", "data-ds-dark-theme"] }); });
 					}
 					return function () {
-						touchRelay.stop();
+                        touchRelay.stop();
 						releaseComposer();
 						if (openingArtifacts) {
 							for (const channel of channels.values()) {
@@ -435,10 +435,10 @@
 							openingArtifacts.dispose();
 						}
 						if (fontObserver) fontObserver.disconnect();
-						frameSizeObservers.forEach(function (observer) { observer.disconnect(); });
-						frameSizeObservers.clear();
-						frameVisibility.forEach(stop => stop());
-						frameVisibility.clear();
+                        frameSizeObservers.forEach(function (observer) { observer.disconnect(); });
+                        frameSizeObservers.clear();
+                        frameVisibility.forEach(stop => stop());
+                        frameVisibility.clear();
 						listener = null; lifetime++;
 						hostWindow.removeEventListener("message", receive);
 						cancelRuntimeReport();

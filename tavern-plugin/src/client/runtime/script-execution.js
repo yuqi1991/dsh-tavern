@@ -12,12 +12,12 @@
 			let runtime = null;
 			let lease = null;
 			let workStop = null;
-			let heartbeatTimer = null;
-			let claimRetryTimer = null;
+				let heartbeatTimer = null;
+				let claimRetryTimer = null;
 			let releaseBarrier = Promise.resolve();
 			let releasesPending = 0;
 			let claimBusy = null;
-			let delivery = null;
+            let delivery = null;
 			let claimRequested = false;
 			let claimRetryCount = 0;
 			let active = false;
@@ -49,14 +49,14 @@
 			function dispose() {
 				const previousLease = lease;
 				lease = null;
-				delivery = null;
+                delivery = null;
 				input = null;
 				active = false;
 				ownershipKnown = false;
-				claimRequested = false;
-				claimRetryCount = 0;
-				if (claimRetryTimer !== null) hostWindow.clearTimeout(claimRetryTimer);
-				claimRetryTimer = null;
+					claimRequested = false;
+					claimRetryCount = 0;
+					if (claimRetryTimer !== null) hostWindow.clearTimeout(claimRetryTimer);
+					claimRetryTimer = null;
 				if (workStop) workStop();
 				workStop = null;
 				if (heartbeatTimer !== null) stopHeartbeat(heartbeatTimer);
@@ -91,12 +91,12 @@
 				}
 				return runtime;
 			}
-			function invokeWithDeadline(method, currentLease, inspection, extra) {
+				function invokeWithDeadline(method, currentLease, inspection, extra) {
 				const Controller = hostWindow.AbortController;
 				const controller = typeof Controller === "function" ? new Controller() : null;
 				let deadlineTimer = null;
 				const request = Promise.resolve().then(function () {
-					return invoke(method, Object.assign({ runtimeId: currentLease.id, ready: tavernScriptRuntimeReady(inspection), ...(inspection.initializationError ? { initializationError: inspection.initializationError } : {}) }, extra || {}), currentLease.sessionId, controller ? { signal: controller.signal } : undefined);
+						return invoke(method, Object.assign({ runtimeId: currentLease.id, ready: tavernScriptRuntimeReady(inspection), ...(inspection.initializationError ? { initializationError: inspection.initializationError } : {}) }, extra || {}), currentLease.sessionId, controller ? { signal: controller.signal } : undefined);
 				});
 				const deadline = new Promise(function (_resolve, reject) {
 					deadlineTimer = hostWindow.setTimeout(function () {
@@ -107,75 +107,75 @@
 				return Promise.race([request, deadline]).finally(function () {
 					if (deadlineTimer !== null) hostWindow.clearTimeout(deadlineTimer);
 				});
-			}
-			function scheduleClaimRetry(currentLease) {
-				if (lease !== currentLease || claimRetryTimer !== null) return;
-				const delay = Math.min(2000, 250 * Math.pow(2, Math.min(3, claimRetryCount++)));
-				claimRetryTimer = hostWindow.setTimeout(function () {
-					claimRetryTimer = null;
-					if (lease === currentLease) void claimWork();
-				}, delay);
-			}
-			function recoverExecution(work) {
-				if (delivery !== work || lease !== work.lease) return;
-				const next = input;
-				dispose();
-				if (next) sync(next.sessionId, next.view);
-			}
-			async function deliverWork(work) {
-				if (delivery !== work || lease !== work.lease || work.busy) return;
-				work.busy = true;
-				const identity = { eventId: work.event.id, leaseToken: work.token };
-				try {
-					if (work.query || (work.phase === "executing" && !work.receipt)) {
-						const state = await invokeWithDeadline("getTavernScriptWorkState", work.lease, work.runtime.inspect(), Object.assign({}, identity, {
-							keepAlive: Boolean(work.receipt || (work.runtime.eventResponsive && work.runtime.eventResponsive(work.event.id)))
-						}));
-						if (delivery !== work) return;
-						work.query = false;
-						if (state && state.phase === "completed") { delivery = null; scheduleClaimRetry(work.lease); return; }
-						if (!state || state.phase === "unknown") { recoverExecution(work); return; }
-					}
-					if (work.phase === "starting") {
-						const started = await invokeWithDeadline("startTavernScriptWork", work.lease, work.runtime.inspect(), identity);
-						if (delivery !== work) return;
-						if (!started || !started.started) { recoverExecution(work); return; }
-						work.phase = "executing";
-						Promise.resolve().then(function () {
-							return work.runtime.emit(work.event.name, work.event.args, work.event.context, work.diagnostics, work.event.id);
-						}).then(function (args) {
-							work.receipt = Object.assign({}, identity, { args: args, diagnostics: work.diagnostics });
-						}, function (error) {
-							if (error && error.code === "TAVERN_SCRIPT_RUNTIME_UNREACHABLE") { recoverExecution(work); return; }
-							work.receipt = Object.assign({}, identity, { args: work.event.args, error: String(error && error.message || error), diagnostics: work.diagnostics });
-						}).then(function () { if (delivery === work) void deliverWork(work); });
-					}
-					if (work.receipt && delivery === work) {
-						work.phase = "receipt";
-						// Retry this exact outcome. A lost HTTP response is not a script failure.
-						work.query = true;
-						const result = await invokeWithDeadline("completeTavernHelperEvent", work.lease, work.runtime.inspect(), work.receipt);
-						if (delivery !== work) return;
-						if (result && result.completed === true) { delivery = null; scheduleClaimRetry(work.lease); }
-						else if (result && result.completed === false) recoverExecution(work);
-					}
-				} catch (error) {
-					if (delivery === work) console.warn("Tavern Script 回执待确认，将查询同一任务", error);
-				} finally {
-					work.busy = false;
-					if (delivery === work) scheduleClaimRetry(work.lease);
-					else if (options && options.onIdle) options.onIdle();
 				}
-			}
-			async function claimWork() {
+				function scheduleClaimRetry(currentLease) {
+					if (lease !== currentLease || claimRetryTimer !== null) return;
+					const delay = Math.min(2000, 250 * Math.pow(2, Math.min(3, claimRetryCount++)));
+					claimRetryTimer = hostWindow.setTimeout(function () {
+						claimRetryTimer = null;
+						if (lease === currentLease) void claimWork();
+					}, delay);
+				}
+            function recoverExecution(work) {
+                if (delivery !== work || lease !== work.lease) return;
+                const next = input;
+                dispose();
+                if (next) sync(next.sessionId, next.view);
+            }
+            async function deliverWork(work) {
+                if (delivery !== work || lease !== work.lease || work.busy) return;
+                work.busy = true;
+                const identity = { eventId: work.event.id, leaseToken: work.token };
+                try {
+                    if (work.query || (work.phase === "executing" && !work.receipt)) {
+                        const state = await invokeWithDeadline("getTavernScriptWorkState", work.lease, work.runtime.inspect(), Object.assign({}, identity, {
+                            keepAlive: Boolean(work.receipt || (work.runtime.eventResponsive && work.runtime.eventResponsive(work.event.id)))
+                        }));
+                        if (delivery !== work) return;
+                        work.query = false;
+                        if (state && state.phase === "completed") { delivery = null; scheduleClaimRetry(work.lease); return; }
+                        if (!state || state.phase === "unknown") { recoverExecution(work); return; }
+                    }
+                    if (work.phase === "starting") {
+                        const started = await invokeWithDeadline("startTavernScriptWork", work.lease, work.runtime.inspect(), identity);
+                        if (delivery !== work) return;
+                        if (!started || !started.started) { recoverExecution(work); return; }
+                        work.phase = "executing";
+                        Promise.resolve().then(function () {
+                            return work.runtime.emit(work.event.name, work.event.args, work.event.context, work.diagnostics, work.event.id);
+                        }).then(function (args) {
+                            work.receipt = Object.assign({}, identity, { args: args, diagnostics: work.diagnostics });
+                        }, function (error) {
+                            if (error && error.code === "TAVERN_SCRIPT_RUNTIME_UNREACHABLE") { recoverExecution(work); return; }
+                            work.receipt = Object.assign({}, identity, { args: work.event.args, error: String(error && error.message || error), diagnostics: work.diagnostics });
+                        }).then(function () { if (delivery === work) void deliverWork(work); });
+                    }
+                    if (work.receipt && delivery === work) {
+                        work.phase = "receipt";
+                        // Retry this exact outcome. A lost HTTP response is not a script failure.
+                        work.query = true;
+                        const result = await invokeWithDeadline("completeTavernHelperEvent", work.lease, work.runtime.inspect(), work.receipt);
+                        if (delivery !== work) return;
+                        if (result && result.completed === true) { delivery = null; scheduleClaimRetry(work.lease); }
+                        else if (result && result.completed === false) recoverExecution(work);
+                    }
+                } catch (error) {
+                    if (delivery === work) console.warn("Tavern Script 回执待确认，将查询同一任务", error);
+                } finally {
+                    work.busy = false;
+                    if (delivery === work) scheduleClaimRetry(work.lease);
+                    else if (options && options.onIdle) options.onIdle();
+                }
+            }
+				async function claimWork() {
 				if (!lease || !runtime || !input || !input.sessionId || !hasScriptRuntime(input.view)) return;
 				const currentLease = lease;
 				const currentRuntime = runtime;
-				if (delivery && delivery.lease === currentLease) { void deliverWork(delivery); return; }
+                if (delivery && delivery.lease === currentLease) { void deliverWork(delivery); return; }
 				if (claimBusy === currentLease) { claimRequested = true; return; }
 				claimBusy = currentLease;
-				let currentEvent = null;
-				let leaseToken = "";
+					let currentEvent = null;
+					let leaseToken = "";
 				const diagnostics = [];
 				try {
 					if (releasesPending > 0) await releaseBarrier;
@@ -195,21 +195,21 @@
 						active = Boolean(result && result.active);
 						currentRuntime.sync(input.sessionId, runtimeView(input.view));
 					}
-					currentEvent = result && result.event;
-					leaseToken = String(result && result.leaseToken || "");
-					if (active && currentEvent) {
-						delivery = { lease: currentLease, runtime: currentRuntime, event: currentEvent, token: leaseToken, diagnostics: diagnostics, phase: "starting", busy: false };
-						void deliverWork(delivery);
-					}
+						currentEvent = result && result.event;
+						leaseToken = String(result && result.leaseToken || "");
+                        if (active && currentEvent) {
+                            delivery = { lease: currentLease, runtime: currentRuntime, event: currentEvent, token: leaseToken, diagnostics: diagnostics, phase: "starting", busy: false };
+                            void deliverWork(delivery);
+                        }
 				} catch (error) {
 					if (lease !== currentLease) return;
 					console.warn("Tavern Helper 生命周期同步失败", error);
 
-					scheduleClaimRetry(currentLease);
+						scheduleClaimRetry(currentLease);
 				} finally {
 					if (claimBusy === currentLease) claimBusy = null;
 					if (lease === currentLease && claimRequested) { claimRequested = false; void claimWork(); }
-					else if (options && options.onIdle) options.onIdle();
+                        else if (options && options.onIdle) options.onIdle();
 				}
 			}
 			function sync(sessionId, view) {
@@ -225,7 +225,7 @@
 			}
 			return Object.freeze({
 				sync: sync, dispose: dispose,
-				setForeground: function (value) { foreground = value; if (runtime && runtime.setForeground) runtime.setForeground(value); },
+                setForeground: function (value) { foreground = value; if (runtime && runtime.setForeground) runtime.setForeground(value); },
 				retryMvuLoad: function () { return Boolean(runtime && active && runtime.retryMvuLoad()); },
 				triggerButton: function (scriptId, name) {
 					if (!runtime || !ownershipKnown) return Promise.reject(new Error("人物卡脚本尚未加载完成"));
@@ -288,15 +288,15 @@
 				record.templatePanel.dispose();
 			}
 			function retire(record) {
-				if (records.get(record.sessionId) !== record) return;
-				retention.busy(record.sessionId, function () {
-					const state = record.viewState, view = state && state.view || {}, activity = view.activity || {};
-					return !record.fresh || !state || (state.phase !== "ready" && state.phase !== "unavailable")
-						|| sessions.list.getSnapshot().byId?.[record.sessionId]?.running === true
-						|| activity.busy || activity.phase === "pending" || activity.phase === "running"
-						|| view.settleStatus === "running" || record.execution.inspect().busy;
-				});
-			}
+                if (records.get(record.sessionId) !== record) return;
+                retention.busy(record.sessionId, function () {
+                    const state = record.viewState, view = state && state.view || {}, activity = view.activity || {};
+                    return !record.fresh || !state || (state.phase !== "ready" && state.phase !== "unavailable")
+                        || sessions.list.getSnapshot().byId?.[record.sessionId]?.running === true
+                        || activity.busy || activity.phase === "pending" || activity.phase === "running"
+                        || view.settleStatus === "running" || record.execution.inspect().busy;
+                });
+            }
 			function syncView(record) {
 				if (records.get(record.sessionId) !== record) return;
 				if (current === record && transition.getSnapshot()) return;
@@ -346,8 +346,8 @@
 				});
 				if ((current ? current.sessionId : "") === sessionId) return;
 				const previous = current;
-				if (previous) previous.templatePanel.close();
-				if (previous && previous.execution.setForeground) previous.execution.setForeground(false);
+                if (previous) previous.templatePanel.close();
+                if (previous && previous.execution.setForeground) previous.execution.setForeground(false);
 				retention.select(sessionId);
 				hostWindow.__dshTavernSelectedSessionId = sessionId;
 				current = sessionId ? records.get(sessionId) || createRecord(sessionId) : null;

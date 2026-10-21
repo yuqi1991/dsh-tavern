@@ -1,30 +1,30 @@
 		function createResourcesLibraryFeatureModule() {
 			function TavernResourcesTab(props) {
-				const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
+            const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
 				const [resources, setResources] = React.useState({ resources: [] });
 				const [cards, setCards] = React.useState([]);
 				const [selectedCardPaths, setSelectedCardPaths] = React.useState({});
 				const [view, setView] = React.useState(null);
 				const [openedScript, setOpenedScript] = React.useState(null);
 				const [error, setError] = usePersistentError("剧本与素材库");
-				const [busy, setBusy] = React.useState(false);
-				const [bindingPath, setBindingPath] = React.useState("");
-				const sourceInput = React.useRef(null);
-				function refresh() {
+			const [busy, setBusy] = React.useState(false);
+			const [bindingPath, setBindingPath] = React.useState("");
+			const sourceInput = React.useRef(null);
+			function refresh() {
 					return Promise.all([rpc("listResources", {}, props.sessionId), rpc("getSession", { sessionId: props.sessionId }, props.sessionId)]).then(function (all) {
 						setResources(all[0] || { resources: [] });
 						setView(all[1] && all[1].view ? all[1].view : null);
 						setCards(all[0] && all[0].cards || []);
-						setError("");
-					}, function (err) { setError(String(err && err.message || err)); });
-				}
-				async function importSourceResource(file) {
-					if (!file) return;
-					setBusy(true); setError("");
-					try { await rpc("importSource", { payload: await parseTextResourceFile(file) }, props.sessionId); await refresh(); notifyTavernDataChanged(["scripts"], "resources"); }
-					catch (err) { setError(String(err && err.message || err)); }
-					finally { setBusy(false); }
-				}
+					setError("");
+				}, function (err) { setError(String(err && err.message || err)); });
+			}
+			async function importSourceResource(file) {
+				if (!file) return;
+				setBusy(true); setError("");
+				try { await rpc("importSource", { payload: await parseTextResourceFile(file) }, props.sessionId); await refresh(); notifyTavernDataChanged(["scripts"], "resources"); }
+				catch (err) { setError(String(err && err.message || err)); }
+				finally { setBusy(false); }
+			}
 				async function openScript(item) {
 					setBusy(true); setError("");
 					try {
@@ -33,32 +33,32 @@
 					} catch (err) { setError(String(err && err.message || err)); }
 					finally { setBusy(false); }
 				}
-				React.useEffect(function () {
-					refresh();
-					function onData(event) { if (tavernDataChangeAffects(event, ["scripts", "cards", "sessions"], "resources")) refresh(); }
-					window.addEventListener("dsh-tavern-data-changed", onData);
-					return function () { window.removeEventListener("dsh-tavern-data-changed", onData); };
-				}, [props.sessionId]);
-				const h = React.createElement;
+			React.useEffect(function () {
+				refresh();
+				function onData(event) { if (tavernDataChangeAffects(event, ["scripts", "cards", "sessions"], "resources")) refresh(); }
+				window.addEventListener("dsh-tavern-data-changed", onData);
+				return function () { window.removeEventListener("dsh-tavern-data-changed", onData); };
+			}, [props.sessionId]);
+			const h = React.createElement;
 				const readOnly = !view || view.mode !== "card";
-				const mounted = view && view.workspace && Array.isArray(view.workspace.mountedResources) ? view.workspace.mountedResources : [];
-				function isMounted(kind, path) {
-					return mounted.some(function (item) { return item && item.kind === kind && item.path === path; });
-				}
-				async function renameResource(item, label) {
-					const current = item.path.split("/").pop();
-					const name = await askTavernText({ title: "重命名文件", initialValue: current, maxLength: 120 });
-					if (name === null || name === current) return;
-					setBusy(true); setError("");
-					try { await rpc("renameResource", { path: item.path, name: name }, props.sessionId); await refresh(); notifyTavernDataChanged(["scripts", "cards", "sessions"], "resources"); }
-					catch (err) { setError(String(err && err.message || err)); }
-					finally { setBusy(false); }
-				}
+			const mounted = view && view.workspace && Array.isArray(view.workspace.mountedResources) ? view.workspace.mountedResources : [];
+			function isMounted(kind, path) {
+				return mounted.some(function (item) { return item && item.kind === kind && item.path === path; });
+			}
+			async function renameResource(item, label) {
+				const current = item.path.split("/").pop();
+				const name = await askTavernText({ title: "重命名文件", initialValue: current, maxLength: 120 });
+				if (name === null || name === current) return;
+				setBusy(true); setError("");
+				try { await rpc("renameResource", { path: item.path, name: name }, props.sessionId); await refresh(); notifyTavernDataChanged(["scripts", "cards", "sessions"], "resources"); }
+				catch (err) { setError(String(err && err.message || err)); }
+				finally { setBusy(false); }
+			}
 				async function deleteResource(item) {
 					if (!await askConfirm("删除剧本或素材“" + item.title + "”吗？\n工作版和原版都会删除。")) return;
-					setBusy(true); setError("");
-					try { await rpc("deleteResource", { path: item.path }, props.sessionId); await refresh(); notifyTavernDataChanged(["scripts", "cards", "sessions"], "resources"); }
-					catch (err) { setError(String(err && err.message || err)); }
+				setBusy(true); setError("");
+				try { await rpc("deleteResource", { path: item.path }, props.sessionId); await refresh(); notifyTavernDataChanged(["scripts", "cards", "sessions"], "resources"); }
+				catch (err) { setError(String(err && err.message || err)); }
 					finally { setBusy(false); }
 				}
 				async function bindScriptToCard(item) {
@@ -139,38 +139,38 @@
 						binding
 					);
 				}
-				function group(title, kind, items, actions) {
-					return h("section", { className: "dsh-tavern-resource-group" },
-						h("div", { className: "dsh-tavern-resource-group-title" }, h("span", null, title + " · " + items.length), actions || null),
-						items.length ? items.map(function (item) { return row(kind, item); }) : h("div", { className: "dsh-tavern-status-empty" }, "暂无")
-					);
-				}
+			function group(title, kind, items, actions) {
+				return h("section", { className: "dsh-tavern-resource-group" },
+					h("div", { className: "dsh-tavern-resource-group-title" }, h("span", null, title + " · " + items.length), actions || null),
+					items.length ? items.map(function (item) { return row(kind, item); }) : h("div", { className: "dsh-tavern-status-empty" }, "暂无")
+				);
+			}
 				if (openedScript) return h("div", { className: "dsh-tavern-resources" },
 					h("div", { className: "dsh-tavern-status-head" }, h("button", { className: "dsh-tavern-btn", onClick: function () { setOpenedScript(null); } }, "← 返回剧本与素材库"), h("div", { className: "dsh-tavern-status-title" }, openedScript.title)),
 					error ? h("div", { className: "dsh-tavern-dock-error" }, error) : h("pre", { className: "dsh-tavern-resource-body dsh-tavern-script-preview" }, openedScript.text)
 				);
 				const sourceActions = h("div", { className: "dsh-tavern-resource-actions" }, h("button", { className: "dsh-tavern-resource-import", disabled: busy, onClick: function () { sourceInput.current && sourceInput.current.click(); } }, "导入剧本或素材"), h("input", { ref: sourceInput, type: "file", accept: ".txt,.md,.json,.epub,text/plain,text/markdown,application/json,application/epub+zip", style: { display: "none" }, onChange: function (event) { const file = event.target.files && event.target.files[0]; importSourceResource(file); event.target.value = ""; } }));
 				return h("div", { className: "dsh-tavern-resources" },
-					h("div", { className: "dsh-tavern-status-head" }, h("div", { className: "dsh-tavern-status-title" }, "剧本与素材库"), h("div", { className: "dsh-tavern-question-sub" }, readOnly ? "点击名称查看内容；导入、引用和管理请前往卡片工作台。" : "导入后按需引用；引用教学素材并提出要求，可在卡片工作台编写写作 Skill")),
+						h("div", { className: "dsh-tavern-status-head" }, h("div", { className: "dsh-tavern-status-title" }, "剧本与素材库"), h("div", { className: "dsh-tavern-question-sub" }, readOnly ? "点击名称查看内容；导入、引用和管理请前往卡片工作台。" : "导入后按需引用；引用教学素材并提出要求，可在卡片工作台编写写作 Skill")),
 					h("div", { className: "dsh-tavern-resource-body" }, error ? h("div", { className: "dsh-tavern-dock-error" }, error) : null, group("剧本与素材", "source", resources.resources || [], readOnly ? null : sourceActions))
-				);
-			}
-			function register(input) {
-				const ctx = input.ctx;
-				const appendMention = input.appendMention;
-				return ctx.effect(() => ctx.betterSidebar.registerTab({
-					id: "dsh-tavern:resources",
+			);
+		}
+		function register(input) {
+			const ctx = input.ctx;
+			const appendMention = input.appendMention;
+			return ctx.effect(() => ctx.betterSidebar.registerTab({
+				id: "dsh-tavern:resources",
 					title: "剧本与素材库",
-					order: 7,
-					single: true,
-					component: function (props) {
-						return React.createElement(TavernResourcesTab, {
-							sessionId: props.scope.sessionId,
-							appendMention: function (kind, path, label) { appendMention(props.scope.sessionId, kind, path, label); },
-						});
-					}
-				}), "dsh-tavern: Better Sidebar resources tab");
-			}
-			return Object.freeze({ register: register });
+				order: 7,
+				single: true,
+				component: function (props) {
+					return React.createElement(TavernResourcesTab, {
+						sessionId: props.scope.sessionId,
+						appendMention: function (kind, path, label) { appendMention(props.scope.sessionId, kind, path, label); },
+					});
+				}
+			}), "dsh-tavern: Better Sidebar resources tab");
+		}
+		return Object.freeze({ register: register });
 		}
 		const resourcesLibraryFeature = createResourcesLibraryFeatureModule();

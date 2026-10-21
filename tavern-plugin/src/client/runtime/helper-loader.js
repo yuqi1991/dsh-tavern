@@ -155,13 +155,13 @@
 			const methods = new Map();
 			scope = new Proxy(host, {
 				get(target, key) {
-					if (["parent", "top", "window", "self", "globalThis"].includes(key)) return scope;
-					const value = Reflect.get(target, key, target);
-					if (["addEventListener", "removeEventListener", "dispatchEvent", "postMessage", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "fetch"].includes(key) && typeof value === "function") {
-						if (!methods.has(key)) methods.set(key, value.bind(target));
-						return methods.get(key);
-					}
-					return value;
+				if (["parent", "top", "window", "self", "globalThis"].includes(key)) return scope;
+				const value = Reflect.get(target, key, target);
+				if (["addEventListener", "removeEventListener", "dispatchEvent", "postMessage", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "setTimeout", "clearTimeout", "setInterval", "clearInterval", "fetch"].includes(key) && typeof value === "function") {
+					if (!methods.has(key)) methods.set(key, value.bind(target));
+					return methods.get(key);
+				}
+				return value;
 				}, set(target, key, value) { return Reflect.set(target, key, value, target); }
 			});
 			return scope;
@@ -227,13 +227,13 @@
 				// Wait before attaching; never replay a module that has started.
 				const mountDeadline = Date.now() + 30000;
 				function mount() {
-					if (settled) return;
-					if (!document.body) {
-						if (Date.now() >= mountDeadline) { finish(new Error("开局文档尚未生成 body，脚本无法启动")); return; }
-						mountTimer = window.setTimeout(mount, 10);
-						return;
-					}
-					try { document.body.appendChild(element); } catch (error) { finish(error); }
+                    if (settled) return;
+                    if (!document.body) {
+                    	if (Date.now() >= mountDeadline) { finish(new Error("开局文档尚未生成 body，脚本无法启动")); return; }
+                    	mountTimer = window.setTimeout(mount, 10);
+                    	return;
+                    }
+                    try { document.body.appendChild(element); } catch (error) { finish(error); }
 				}
 				mount();
 			});

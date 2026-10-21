@@ -1,107 +1,107 @@
-		function installTavernImmersiveMode(button) {
-			const header = button?.closest("header");
-			if (!header) return { enter() { }, dispose() { } };
-			const restore = header.ownerDocument.createElement("button");
-			restore.type = "button";
-			restore.className = "dsh-tavern-restore-header";
-			restore.textContent = "⌄ 显示顶部栏";
-			restore.setAttribute("aria-label", "退出沉浸模式，显示顶部栏");
-			restore.hidden = true;
-			header.before(restore);
-			function leave() {
-				header.classList.remove("dsh-tavern-immersive-header");
-				restore.hidden = true;
-				button.focus();
-			}
-			restore.addEventListener("click", leave);
-			return {
-				enter() {
-					header.classList.add("dsh-tavern-immersive-header");
-					restore.hidden = false;
-					restore.focus();
-				},
-				dispose() {
-					header.classList.remove("dsh-tavern-immersive-header");
-					restore.removeEventListener("click", leave);
-					restore.remove();
-				}
-			};
-		}
-		function TavernImmersiveAction() {
-			const button = React.useRef(null), controller = React.useRef(null);
-			React.useEffect(() => {
-				controller.current = installTavernImmersiveMode(button.current);
-				return () => { controller.current.dispose(); controller.current = null; };
-			}, []);
-			return React.createElement("button", { ref: button, type: "button", className: "dsh-tavern-btn", title: "隐藏顶部标题和标签栏，可随时恢复", onClick: () => controller.current?.enter() }, "沉浸模式");
-		}
+        function installTavernImmersiveMode(button) {
+            const header = button?.closest("header");
+            if (!header) return { enter() { }, dispose() { } };
+            const restore = header.ownerDocument.createElement("button");
+            restore.type = "button";
+            restore.className = "dsh-tavern-restore-header";
+            restore.textContent = "⌄ 显示顶部栏";
+            restore.setAttribute("aria-label", "退出沉浸模式，显示顶部栏");
+            restore.hidden = true;
+            header.before(restore);
+            function leave() {
+                header.classList.remove("dsh-tavern-immersive-header");
+                restore.hidden = true;
+                button.focus();
+            }
+            restore.addEventListener("click", leave);
+            return {
+                enter() {
+                    header.classList.add("dsh-tavern-immersive-header");
+                    restore.hidden = false;
+                    restore.focus();
+                },
+                dispose() {
+                    header.classList.remove("dsh-tavern-immersive-header");
+                    restore.removeEventListener("click", leave);
+                    restore.remove();
+                }
+            };
+        }
+        function TavernImmersiveAction() {
+            const button = React.useRef(null), controller = React.useRef(null);
+            React.useEffect(() => {
+                controller.current = installTavernImmersiveMode(button.current);
+                return () => { controller.current.dispose(); controller.current = null; };
+            }, []);
+            return React.createElement("button", { ref: button, type: "button", className: "dsh-tavern-btn", title: "隐藏顶部标题和标签栏，可随时恢复", onClick: () => controller.current?.enter() }, "沉浸模式");
+        }
 
 		async function expandTavernFrame(root) {
-			const frame = root?.querySelector('iframe:not([aria-hidden="true"])');
-			try {
-				if (!frame) throw new Error("面板尚未加载，请稍后重试。");
-				try {
-					if (typeof frame.requestFullscreen === "function") {
-						await frame.requestFullscreen();
-						return;
-					}
-				} catch (_) { /* Embedded hosts may deny native fullscreen. */ }
-				if (!frame.isConnected) return;
-				openTavernPageFullscreen(frame);
-			} catch (error) { tavernErrorHub.report("展开大屏", error); }
-		}
+            const frame = root?.querySelector('iframe:not([aria-hidden="true"])');
+            try {
+                if (!frame) throw new Error("面板尚未加载，请稍后重试。");
+                try {
+                    if (typeof frame.requestFullscreen === "function") {
+                        await frame.requestFullscreen();
+                        return;
+                    }
+                } catch (_) { /* Embedded hosts may deny native fullscreen. */ }
+                if (!frame.isConnected) return;
+                openTavernPageFullscreen(frame);
+            } catch (error) { tavernErrorHub.report("展开大屏", error); }
+        }
 
-		let closeTavernPageFullscreen = null;
-		function openTavernPageFullscreen(frame) {
-			closeTavernPageFullscreen?.();
-			const doc = frame.ownerDocument;
-			const previousStyle = frame.getAttribute("style");
-			const previousPopover = frame.getAttribute("popover");
-			const previousFocus = doc.activeElement;
-			const close = doc.createElement("button");
-			close.type = "button";
-			close.className = "dsh-tavern-btn";
-			close.textContent = "退出大屏";
-			close.style.cssText = "position:fixed;inset:16px 16px auto auto;margin:0;padding:10px 16px;z-index:2147483647;";
-			let observer;
-			const restore = () => {
-				observer?.disconnect();
-				if (typeof frame.hidePopover === "function" && frame.matches(":popover-open")) frame.hidePopover();
-				if (previousPopover === null) frame.removeAttribute("popover");
-				else frame.setAttribute("popover", previousPopover);
-				if (previousStyle === null) frame.removeAttribute("style");
-				else frame.setAttribute("style", previousStyle);
-				close.remove();
-				doc.removeEventListener("keydown", onKey);
-				if (closeTavernPageFullscreen === restore) closeTavernPageFullscreen = null;
-				if (previousFocus?.isConnected) previousFocus.focus();
-			};
-			const onKey = event => { if (event.key === "Escape") { event.preventDefault(); restore(); } };
-			closeTavernPageFullscreen = restore;
-			close.addEventListener("click", restore);
-			doc.addEventListener("keydown", onKey);
-			try {
-				// Keep the live iframe in place: reparenting would reload card scripts.
-				frame.style.cssText += ";position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;box-sizing:border-box!important;border:0!important;z-index:2147483646!important;";
-				if (typeof frame.showPopover === "function") {
-					frame.setAttribute("popover", "manual");
-					frame.showPopover();
-					close.setAttribute("popover", "manual");
-				}
-				doc.body.append(close);
-				if (close.hasAttribute("popover")) close.showPopover();
-				close.focus();
-				observer = new doc.defaultView.MutationObserver(() => {
-					if (!frame.isConnected || frame.getAttribute("aria-hidden") === "true") restore();
-				});
-				observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden"] });
-			} catch (error) { restore(); throw error; }
-		}
+        let closeTavernPageFullscreen = null;
+        function openTavernPageFullscreen(frame) {
+            closeTavernPageFullscreen?.();
+            const doc = frame.ownerDocument;
+            const previousStyle = frame.getAttribute("style");
+            const previousPopover = frame.getAttribute("popover");
+            const previousFocus = doc.activeElement;
+            const close = doc.createElement("button");
+            close.type = "button";
+            close.className = "dsh-tavern-btn";
+            close.textContent = "退出大屏";
+            close.style.cssText = "position:fixed;inset:16px 16px auto auto;margin:0;padding:10px 16px;z-index:2147483647;";
+            let observer;
+            const restore = () => {
+                observer?.disconnect();
+                if (typeof frame.hidePopover === "function" && frame.matches(":popover-open")) frame.hidePopover();
+                if (previousPopover === null) frame.removeAttribute("popover");
+                else frame.setAttribute("popover", previousPopover);
+                if (previousStyle === null) frame.removeAttribute("style");
+                else frame.setAttribute("style", previousStyle);
+                close.remove();
+                doc.removeEventListener("keydown", onKey);
+                if (closeTavernPageFullscreen === restore) closeTavernPageFullscreen = null;
+                if (previousFocus?.isConnected) previousFocus.focus();
+            };
+            const onKey = event => { if (event.key === "Escape") { event.preventDefault(); restore(); } };
+            closeTavernPageFullscreen = restore;
+            close.addEventListener("click", restore);
+            doc.addEventListener("keydown", onKey);
+            try {
+                // Keep the live iframe in place: reparenting would reload card scripts.
+                frame.style.cssText += ";position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;box-sizing:border-box!important;border:0!important;z-index:2147483646!important;";
+                if (typeof frame.showPopover === "function") {
+                    frame.setAttribute("popover", "manual");
+                    frame.showPopover();
+                    close.setAttribute("popover", "manual");
+                }
+                doc.body.append(close);
+                if (close.hasAttribute("popover")) close.showPopover();
+                close.focus();
+                observer = new doc.defaultView.MutationObserver(() => {
+                    if (!frame.isConnected || frame.getAttribute("aria-hidden") === "true") restore();
+                });
+                observer.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden"] });
+            } catch (error) { restore(); throw error; }
+        }
 
 		function TavernMessageFrame(props) {
-			if (props.sessionId && window.document?.body && typeof window.document.body.moveBefore === "function") {
-				return React.createElement(TavernRetainedMessageFrame, props);
-			}
+            if (props.sessionId && window.document?.body && typeof window.document.body.moveBefore === "function") {
+                return React.createElement(TavernRetainedMessageFrame, props);
+            }
 			const homeRef = React.useRef(null);
 			const panelKey = React.useRef(null);
 			if (!panelKey.current) panelKey.current = "manual-" + Math.random().toString(36).slice(2);
@@ -176,8 +176,8 @@
 			return React.createElement("div", null,
 				movable ? React.createElement("button", {
 					type: "button", className: "dsh-tavern-btn", onClick: function () {
-						try { setActivated(true); tavernPanelRegistry.pin(panelKey.current, !pinned); }
-						catch (error) { tavernErrorHub.report("固定面板", error); }
+					try { setActivated(true); tavernPanelRegistry.pin(panelKey.current, !pinned); }
+					catch (error) { tavernErrorHub.report("固定面板", error); }
 					}
 				}, pinned ? "返回原消息" : "固定到右侧") : null,
 				React.createElement("div", { ref: homeRef },
@@ -239,15 +239,15 @@
 					receipt.summary ? h("div", { className: "dsh-tavern-mvu-receipt-reason" }, "原因：" + String(receipt.summary)) : null,
 					changes.map(function (change, index) {
 						return h("div", { key: "change:" + index, className: "dsh-tavern-mvu-change" },
-							h("div", { className: "dsh-tavern-mvu-change-path" }, (operationLabels[change.operation] || "更新") + " " + String(change.path || "/")),
-							h("div", { className: "dsh-tavern-mvu-change-values" }, String(change.before) + " → " + String(change.after))
+						h("div", { className: "dsh-tavern-mvu-change-path" }, (operationLabels[change.operation] || "更新") + " " + String(change.path || "/")),
+						h("div", { className: "dsh-tavern-mvu-change-values" }, String(change.before) + " → " + String(change.after))
 						);
 					}),
 					sideEffects.length > 0 ? h("div", { className: "dsh-tavern-mvu-side-effect-title" }, "人物卡脚本联动") : null,
 					sideEffects.map(function (change, index) {
 						return h("div", { key: "side-effect:" + index, className: "dsh-tavern-mvu-change", "data-origin": "card-script" },
-							h("div", { className: "dsh-tavern-mvu-change-path" }, (operationLabels[change.operation] || "更新") + " " + String(change.path || "/")),
-							h("div", { className: "dsh-tavern-mvu-change-values" }, String(change.before) + " → " + String(change.after))
+						h("div", { className: "dsh-tavern-mvu-change-path" }, (operationLabels[change.operation] || "更新") + " " + String(change.path || "/")),
+						h("div", { className: "dsh-tavern-mvu-change-values" }, String(change.before) + " → " + String(change.after))
 						);
 					}),
 					failures.map(function (failure, index) {

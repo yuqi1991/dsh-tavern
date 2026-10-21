@@ -51,7 +51,7 @@
 			});
 		}
 
-		// @include modules/remote-document-loader.js
+        // @include modules/remote-document-loader.js
 
 		function tavernStaticAssetShim() {
 			return '<script data-dsh-tavern-static-cache>(function(){function proxy(value){var source=String(value||"");return /^https:\\/\\//i.test(source)?"/api/dsh-tavern/static-assets?url="+encodeURIComponent(source):source;}function css(value){return String(value||"").replace(/url\\(\\s*(["\\\']?)(https:\\/\\/[^"\\\')\\s]+)\\1\\s*\\)/gi,function(_,quote,url){return "url("+quote+proxy(url)+quote+")";});}window.__dshTavernStaticAssetUrl=proxy;var nativeSet=Element.prototype.setAttribute;Element.prototype.setAttribute=function(name,value){var key=String(name||"").toLowerCase(),tag=String(this.tagName||"").toLowerCase();if(!(key==="src"&&/^(video|audio|source)$/.test(tag))&&(key==="src"||key==="poster"||(key==="href"&&tag==="link"))&&/^https:\\/\\//i.test(String(value||"")))value=proxy(value);else if(key==="style")value=css(value);return nativeSet.call(this,name,value);};[["HTMLImageElement","src"],["HTMLScriptElement","src"],["HTMLVideoElement","poster"],["HTMLIFrameElement","src"],["HTMLLinkElement","href"]].forEach(function(row){var Type=window[row[0]],descriptor=Type&&Object.getOwnPropertyDescriptor(Type.prototype,row[1]);if(!descriptor||!descriptor.set||!descriptor.get)return;try{Object.defineProperty(Type.prototype,row[1],{configurable:descriptor.configurable,enumerable:descriptor.enumerable,get:descriptor.get,set:function(value){return descriptor.set.call(this,proxy(value));}});}catch(e){}});if(window.CSSStyleDeclaration&&CSSStyleDeclaration.prototype.setProperty){var nativeProperty=CSSStyleDeclaration.prototype.setProperty;CSSStyleDeclaration.prototype.setProperty=function(name,value,priority){return nativeProperty.call(this,name,css(value),priority);};}new MutationObserver(function(records){records.forEach(function(record){var node=record.target;if(!node||node.nodeType!==1)return;["src","poster"].forEach(function(name){if(name==="src"&&/^(video|audio|source)$/i.test(node.tagName))return;var value=node.getAttribute&&node.getAttribute(name);if(/^https:\\/\\//i.test(String(value||"")))nativeSet.call(node,name,proxy(value));});if(String(node.tagName||"").toLowerCase()==="link"){var href=node.getAttribute("href");if(/^https:\\/\\//i.test(String(href||"")))nativeSet.call(node,"href",proxy(href));}var style=node.getAttribute&&node.getAttribute("style");if(style&&/https:\\/\\//i.test(style))nativeSet.call(node,"style",css(style));});}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:["src","href","poster","style"]});})();<\/script>';
@@ -85,24 +85,24 @@
 			const nativeSet = descriptor.set;
 			const bridgedSet = function (value) { return nativeSet.call(this, bundledTavernStylesheetHref(value)); };
 			Object.defineProperty(prototype, "href", Object.assign({}, descriptor, { set: bridgedSet }));
-			// Trusted scripts use host jQuery to mount UI, while their own document
-			// remains an iframe. Its icon stylesheet cannot style those host nodes.
-			const hostDocument = hostWindow.document;
-			let icons = null;
-			if (hostDocument && hostDocument.head && hostDocument.createElement) {
-				icons = hostDocument.createElement("link");
-				icons.rel = "stylesheet";
-				icons.setAttribute("data-dsh-tavern-host-icons", "");
-				icons.href = "/api/dsh-tavern/vendor/runtime-assets/fontawesome/css/all.min.css";
-				hostDocument.head.appendChild(icons);
-			}
+            // Trusted scripts use host jQuery to mount UI, while their own document
+            // remains an iframe. Its icon stylesheet cannot style those host nodes.
+            const hostDocument = hostWindow.document;
+            let icons = null;
+            if (hostDocument && hostDocument.head && hostDocument.createElement) {
+                icons = hostDocument.createElement("link");
+                icons.rel = "stylesheet";
+                icons.setAttribute("data-dsh-tavern-host-icons", "");
+                icons.href = "/api/dsh-tavern/vendor/runtime-assets/fontawesome/css/all.min.css";
+                hostDocument.head.appendChild(icons);
+            }
 			entry = { prototype: prototype, descriptor: descriptor, bridgedSet: bridgedSet, references: 1, icons: icons };
 			tavernHostStylesheetBridges.set(hostWindow, entry);
 			function release() {
 				if (!entry || entry.references <= 0) return;
 				entry.references -= 1;
 				if (entry.references > 0) return;
-				if (entry.icons) entry.icons.remove();
+                if (entry.icons) entry.icons.remove();
 				const current = Object.getOwnPropertyDescriptor(entry.prototype, "href");
 				if (current && current.set === entry.bridgedSet) Object.defineProperty(entry.prototype, "href", entry.descriptor);
 				tavernHostStylesheetBridges.delete(hostWindow);
@@ -111,115 +111,115 @@
 		}
 
 		function createTavernHostArtifactScope(options) {
-			const hostDocument = options && options.document;
-			const roots = [hostDocument && hostDocument.head, hostDocument && hostDocument.body].filter(Boolean);
-			const owned = new Map();
-			const owners = hostDocument.__dshTavernArtifactOwners || (hostDocument.__dshTavernArtifactOwners = new WeakMap());
-			const identity = {};
-			const host = hostDocument.defaultView;
-			let observer = null;
-			function park() {
-				if (visible || disposed) return;
-				for (const [node, previous] of owned) if (node.parentNode === previous.root) {
-					previous.nextSibling = node.nextSibling;
-					previous.root.removeChild(node);
-					previous.parked = true;
-				}
-			}
-			function remember(node, root) {
-				// Prose highlights belong to the host renderer, even if React mounts
-				// them while a card frame is being initialized.
-				if (owned.has(node) || owners.has(node) || node.hasAttribute?.("data-tavern-retained-frames")
-					|| node.hasAttribute?.("data-dsh-tavern-text-colors")) return;
-				owners.set(node, identity);
-				owned.set(node, {
-					hidden: node.hidden, disabled: node.disabled, body: root === hostDocument.body,
-					root: root, nextSibling: node.nextSibling, parked: false
-				});
-			}
-			let baselines, disposed = false, visible = true;
-			function baseline() { baselines = roots.map(root => ({ root: root, nodes: new Set(Array.from(root.childNodes || root.children || [])) })); }
-			function capture() {
-				for (const entry of baselines) for (const node of Array.from(entry.root.childNodes || entry.root.children || [])) {
-					if (!entry.nodes.has(node)) remember(node, entry.root);
-				}
+            const hostDocument = options && options.document;
+            const roots = [hostDocument && hostDocument.head, hostDocument && hostDocument.body].filter(Boolean);
+            const owned = new Map();
+            const owners = hostDocument.__dshTavernArtifactOwners || (hostDocument.__dshTavernArtifactOwners = new WeakMap());
+            const identity = {};
+            const host = hostDocument.defaultView;
+            let observer = null;
+            function park() {
+                if (visible || disposed) return;
+                for (const [node, previous] of owned) if (node.parentNode === previous.root) {
+                	previous.nextSibling = node.nextSibling;
+                	previous.root.removeChild(node);
+                	previous.parked = true;
+                }
+            }
+            function remember(node, root) {
+                // Prose highlights belong to the host renderer, even if React mounts
+                // them while a card frame is being initialized.
+                if (owned.has(node) || owners.has(node) || node.hasAttribute?.("data-tavern-retained-frames")
+                    || node.hasAttribute?.("data-dsh-tavern-text-colors")) return;
+                owners.set(node, identity);
+                owned.set(node, {
+                	hidden: node.hidden, disabled: node.disabled, body: root === hostDocument.body,
+                	root: root, nextSibling: node.nextSibling, parked: false
+                });
+            }
+            let baselines, disposed = false, visible = true;
+            function baseline() { baselines = roots.map(root => ({ root: root, nodes: new Set(Array.from(root.childNodes || root.children || [])) })); }
+            function capture() {
+            	for (const entry of baselines) for (const node of Array.from(entry.root.childNodes || entry.root.children || [])) {
+            		if (!entry.nodes.has(node)) remember(node, entry.root);
+            }
 			}
 			baseline();
-			if (host && host.MutationObserver) {
-				observer = new host.MutationObserver(park);
-				for (const root of roots) observer.observe(root, { childList: true });
-			}
-			return Object.freeze({
-				// Scope the mounting operation, not the whole asynchronous import.
-				// Other conversations and the app can render while that import waits.
-				bindJQuery: function (jquery) {
-					const wrappers = new WeakMap();
-					const mutations = new Set(["append", "prepend", "before", "after", "appendTo", "prependTo", "insertBefore", "insertAfter", "replaceWith", "replaceAll", "html"]);
-					function wrap(value) {
-						if (!value || !value.jquery) return value;
-						if (wrappers.has(value)) return wrappers.get(value);
-						const proxy = new Proxy(value, {
-							get(target, key) {
-								const method = target[key];
-								if (typeof method !== "function" || key === "constructor") return method;
-								return function () {
-									const before = mutations.has(key) ? roots.map(root => ({ root, nodes: new Set(root.childNodes) })) : null;
-									let result;
-									try { result = method.apply(target, arguments); }
-									finally {
-										if (before) for (const entry of before) for (const node of Array.from(entry.root.childNodes)) {
-											if (!entry.nodes.has(node)) { if (disposed) node.remove(); else remember(node, entry.root); }
-										}
-									}
-									return wrap(result);
-								};
+            if (host && host.MutationObserver) {
+            	observer = new host.MutationObserver(park);
+                for (const root of roots) observer.observe(root, { childList: true });
+            }
+            return Object.freeze({
+                // Scope the mounting operation, not the whole asynchronous import.
+                // Other conversations and the app can render while that import waits.
+                bindJQuery: function (jquery) {
+                    const wrappers = new WeakMap();
+                    const mutations = new Set(["append", "prepend", "before", "after", "appendTo", "prependTo", "insertBefore", "insertAfter", "replaceWith", "replaceAll", "html"]);
+                    function wrap(value) {
+                        if (!value || !value.jquery) return value;
+                        if (wrappers.has(value)) return wrappers.get(value);
+                        const proxy = new Proxy(value, {
+                        	get(target, key) {
+                            const method = target[key];
+                            if (typeof method !== "function" || key === "constructor") return method;
+                            return function () {
+                                const before = mutations.has(key) ? roots.map(root => ({ root, nodes: new Set(root.childNodes) })) : null;
+                                let result;
+                                try { result = method.apply(target, arguments); }
+                                finally {
+                                    if (before) for (const entry of before) for (const node of Array.from(entry.root.childNodes)) {
+                                        if (!entry.nodes.has(node)) { if (disposed) node.remove(); else remember(node, entry.root); }
+                                    }
+                                }
+                                return wrap(result);
+                            };
 							}
 						});
-						wrappers.set(value, proxy); wrappers.set(proxy, proxy);
-						return proxy;
-					}
-					return new Proxy(jquery, { apply(target, receiver, args) { return wrap(Reflect.apply(target, receiver, args)); } });
-				},
-				setVisible: function (next) {
-					if (disposed || visible === next) return;
-					if (visible) capture();
-					visible = next;
-					for (const [node, previous] of owned) {
-						// Hidden nodes still match the fixed IDs used by card scripts
-						// to detect an existing panel. Remove inactive artifacts from
-						// the shared document so another conversation can initialize.
-						// Use native DOM removal: jQuery.remove() discards handlers.
-						if (!next && node.parentNode === previous.root) {
-							previous.nextSibling = node.nextSibling;
-							previous.root.removeChild(node);
-							previous.parked = true;
-						}
-						if (previous.body) node.hidden = next ? previous.hidden : true;
-						else if (node.tagName === "STYLE" || node.tagName === "LINK") node.disabled = next ? previous.disabled : true;
-					}
-					if (next) for (const [node, previous] of Array.from(owned).reverse()) {
-						if (!previous.parked) continue;
-						previous.parked = false;
-						if (node.parentNode) continue;
-						if (previous.nextSibling && previous.nextSibling.parentNode === previous.root) {
-							previous.root.insertBefore(node, previous.nextSibling);
-						} else previous.root.append(node);
-					}
-					if (next) baseline();
-				},
-				dispose: function () {
-					if (disposed) return;
-					if (visible) capture();
-					disposed = true;
-					if (observer) observer.disconnect();
-					for (const node of owned.keys()) {
-						if (typeof node.remove === "function") node.remove();
-						else if (node.parentNode && typeof node.parentNode.removeChild === "function") node.parentNode.removeChild(node);
-					}
-					owned.clear();
-				}
-			});
-		}
+                        wrappers.set(value, proxy); wrappers.set(proxy, proxy);
+                        return proxy;
+                    }
+                    return new Proxy(jquery, { apply(target, receiver, args) { return wrap(Reflect.apply(target, receiver, args)); } });
+                },
+                setVisible: function (next) {
+                    if (disposed || visible === next) return;
+                    if (visible) capture();
+                    visible = next;
+                    for (const [node, previous] of owned) {
+                        // Hidden nodes still match the fixed IDs used by card scripts
+                        // to detect an existing panel. Remove inactive artifacts from
+                        // the shared document so another conversation can initialize.
+                        // Use native DOM removal: jQuery.remove() discards handlers.
+                        if (!next && node.parentNode === previous.root) {
+                        	previous.nextSibling = node.nextSibling;
+                        	previous.root.removeChild(node);
+                        	previous.parked = true;
+                        }
+                        if (previous.body) node.hidden = next ? previous.hidden : true;
+                        else if (node.tagName === "STYLE" || node.tagName === "LINK") node.disabled = next ? previous.disabled : true;
+                    }
+                    if (next) for (const [node, previous] of Array.from(owned).reverse()) {
+                        if (!previous.parked) continue;
+                        previous.parked = false;
+                        if (node.parentNode) continue;
+                        if (previous.nextSibling && previous.nextSibling.parentNode === previous.root) {
+                            previous.root.insertBefore(node, previous.nextSibling);
+                        } else previous.root.append(node);
+                    }
+                    if (next) baseline();
+                },
+                dispose: function () {
+                    if (disposed) return;
+                    if (visible) capture();
+                    disposed = true;
+                    if (observer) observer.disconnect();
+                    for (const node of owned.keys()) {
+                        if (typeof node.remove === "function") node.remove();
+                        else if (node.parentNode && typeof node.parentNode.removeChild === "function") node.parentNode.removeChild(node);
+                    }
+                    owned.clear();
+                }
+            });
+        }
 
 		const TAVERN_CARD_PHONE_HOST = '[id^="improved-phone-shadow-host-"]';
 		const TAVERN_CARD_PHONE_BUTTON = '[id^="improved-phone-floating-button-"]';

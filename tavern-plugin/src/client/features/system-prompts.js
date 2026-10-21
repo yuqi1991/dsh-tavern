@@ -1,5 +1,5 @@
 		function SystemPromptSidebarTab() {
-			const askConfirm = useTavernConfirm();
+            const askConfirm = useTavernConfirm();
 			const h = React.createElement;
 			const [state, setState] = React.useState({ loading: true, busy: false, prompts: [], systemAppendEnabled: false, drafts: {}, error: "", notice: "" });
 			const importInput = React.useRef(null);

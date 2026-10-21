@@ -4,9 +4,9 @@ window.__ModuleLoader__.load({
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
-		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
-		let React = require("react");
-		let DshUi = require("@deepseek-ai/dsh-client-ui-primitives");
+			Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+			let React = require("react");
+			let DshUi = require("@deepseek-ai/dsh-client-ui-primitives");
 
 		// @include stylesheet.js
 		if (typeof document !== "undefined") installTavernStylesheet(document, __TAVERN_BUNDLED_CSS__);
@@ -140,7 +140,7 @@ window.__ModuleLoader__.load({
 			if (response.status === 403) throw failure("请求被拒绝，请检查访问地址和权限", false);
 			if (!response.ok) throw failure("服务请求失败（HTTP " + response.status + "），请稍后重试", [404, 408, 429, 502, 503, 504].includes(response.status));
 			const body = await response.text();
-			if (onBody) onBody(body);
+            if (onBody) onBody(body);
 			if (!body.trim()) throw failure("服务返回空响应，可能仍在启动或重启，请稍后重试", true);
 			try { return JSON.parse(body); }
 			catch (_error) { throw failure("服务返回非 JSON 或不完整的响应，请稍后重试", true); }
@@ -180,10 +180,10 @@ window.__ModuleLoader__.load({
 			const runtimeControl = ["claimTavernScriptWork", "startTavernScriptWork", "getTavernScriptWorkState", "heartbeatTavernScriptRuntime", "completeTavernHelperEvent", "releaseTavernHelperRuntime"].includes(method);
 			const controlChannel = runtimeControl && typeof tavernSessionSignals !== "undefined" && typeof tavernSessionSignals.control === "function" ? tavernSessionSignals : null;
 			const started = Date.now();
-			const clockStart = performance.now();
-			const traced = ["getSession", "syncSession", "getCardOpenings", "initializeOpeningTemplate", "preparePlayStart", "startChat"].includes(method);
-			const trace = traced ? { id: window.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const n = Math.floor(Math.random() * 16); return (c === "x" ? n : (n & 3) | 8).toString(16); }), method, sentAt: started, active: ++performanceActiveRequests } : null;
-			const payload = Object.assign({}, args || {});
+            const clockStart = performance.now();
+            const traced = ["getSession", "syncSession", "getCardOpenings", "initializeOpeningTemplate", "preparePlayStart", "startChat"].includes(method);
+            const trace = traced ? { id: window.crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const n = Math.floor(Math.random() * 16); return (c === "x" ? n : (n & 3) | 8).toString(16); }), method, sentAt: started, active: ++performanceActiveRequests } : null;
+            const payload = Object.assign({}, args || {});
 			if (!runtimeControl && (started - performanceReportAt >= 60000 || /diagnostic|export/i.test(method))) {
 				pagePerformance.observedMs = started - pagePerformanceStarted;
 				payload._performance = Object.assign({}, pagePerformance, { requests: performanceRequests.slice(), openingRequests: typeof openingPerformance !== "undefined" ? openingPerformance.requests() : [], openings: typeof openingPerformance !== "undefined" ? openingPerformance.read() : [] });
@@ -209,18 +209,18 @@ window.__ModuleLoader__.load({
 			const responsePromise = controlChannel
 				? Promise.resolve().then(() => controlChannel.control(method, JSON.parse(requestBody), requestOptions && requestOptions.signal))
 				: fetch("/api/dsh-tavern/" + method, request).then(async function (response) {
-					if (trace) trace.headersMs = Math.round(performance.now() - clockStart);
-					const result = await readTavernJsonResponse(response, trace ? body => { trace.bodyChars = body.length; } : undefined);
-					if (trace) {
-						trace.parsedMs = Math.round(performance.now() - clockStart);
-						try {
-							const header = response.headers && typeof response.headers.get === "function" ? response.headers.get("content-length") : null;
-							if (header) trace.responseBytes = Number(header);
-							// bodyChars measures the decoded body without serializing the large result again.
+                if (trace) trace.headersMs = Math.round(performance.now() - clockStart);
+                const result = await readTavernJsonResponse(response, trace ? body => { trace.bodyChars = body.length; } : undefined);
+                if (trace) {
+					trace.parsedMs = Math.round(performance.now() - clockStart);
+					try {
+						const header = response.headers && typeof response.headers.get === "function" ? response.headers.get("content-length") : null;
+						if (header) trace.responseBytes = Number(header);
+						// bodyChars measures the decoded body without serializing the large result again.
 						} catch (_error) { }
-					}
-					return result;
-				});
+				}
+                return result;
+            });
 			return responsePromise.then(function (result) {
 				tavernRuntimeGenerationMonitor.observe(result && result.runtimeGeneration);
 				if (!result || !result.ok) {
@@ -230,19 +230,19 @@ window.__ModuleLoader__.load({
 				}
 				return viewRead ? viewRead.accept(result) : result;
 			}).catch(function (error) {
-				if (trace) trace.failed = true;
+                if (trace) trace.failed = true;
 				if (method === "generateSceneImage") recordImageInteraction(payload.sessionId, payload.turn, payload.requestId, "failed", "rpc-error");
 				throw error;
 			}).finally(function () {
 				const elapsed = Date.now() - started;
-				if (trace) {
-					performanceActiveRequests--;
-					trace.durationMs = Math.round(performance.now() - clockStart);
-					performanceRequests.push(trace);
-					if (!["getSession", "syncSession"].includes(method) && typeof openingPerformance !== "undefined") openingPerformance.recordRequest(trace);
-					if (performanceRequests.length > 60) performanceRequests.shift();
-				}
-				if (elapsed >= 1000) { pagePerformance.slowRpcCount++; pagePerformance.slowRpcMaxMs = Math.max(pagePerformance.slowRpcMaxMs, elapsed); }
+                if (trace) {
+                    performanceActiveRequests--;
+                    trace.durationMs = Math.round(performance.now() - clockStart);
+                    performanceRequests.push(trace);
+                    if (!["getSession", "syncSession"].includes(method) && typeof openingPerformance !== "undefined") openingPerformance.recordRequest(trace);
+                    if (performanceRequests.length > 60) performanceRequests.shift();
+                }
+                if (elapsed >= 1000) { pagePerformance.slowRpcCount++; pagePerformance.slowRpcMaxMs = Math.max(pagePerformance.slowRpcMaxMs, elapsed); }
 			});
 		}
 
@@ -280,26 +280,26 @@ window.__ModuleLoader__.load({
 
 		// @include modules/library-refresh.js
 
-		const tavernSidebarOpens = new Map();
-		function openTavernSidebarTab(ctx, seed, scope) {
-			const key = JSON.stringify([scope.sessionId, seed]);
-			if (tavernSidebarOpens.has(key)) return tavernSidebarOpens.get(key);
-			const operation = (async function () {
-				const deadline = Date.now() + 10000;
-				for (; ;) {
-					try { ctx.betterSidebar.openTab(seed, scope); return; }
-					catch (error) {
-						// The session list can restore before DSH mounts its native
-						// sidebar seat. Retry this specific readiness error only.
-						if (!/sidebarRight: no session surface is mounted/.test(String(error.message || error)) || Date.now() >= deadline) throw error;
-						await new Promise(resolve => window.setTimeout(resolve, 100));
-						if (ctx.sessions.list.getSnapshot().current !== scope.sessionId) return;
-					}
-				}
-			})().catch(error => tavernErrorHub.report("打开酒馆侧栏", error)).finally(() => tavernSidebarOpens.delete(key));
-			tavernSidebarOpens.set(key, operation);
-			return operation;
-		}
+        const tavernSidebarOpens = new Map();
+        function openTavernSidebarTab(ctx, seed, scope) {
+            const key = JSON.stringify([scope.sessionId, seed]);
+            if (tavernSidebarOpens.has(key)) return tavernSidebarOpens.get(key);
+            const operation = (async function () {
+                const deadline = Date.now() + 10000;
+                for (; ;) {
+                    try { ctx.betterSidebar.openTab(seed, scope); return; }
+                    catch (error) {
+                        // The session list can restore before DSH mounts its native
+                        // sidebar seat. Retry this specific readiness error only.
+                        if (!/sidebarRight: no session surface is mounted/.test(String(error.message || error)) || Date.now() >= deadline) throw error;
+                        await new Promise(resolve => window.setTimeout(resolve, 100));
+                        if (ctx.sessions.list.getSnapshot().current !== scope.sessionId) return;
+                    }
+                }
+            })().catch(error => tavernErrorHub.report("打开酒馆侧栏", error)).finally(() => tavernSidebarOpens.delete(key));
+            tavernSidebarOpens.set(key, operation);
+            return operation;
+        }
 
 		function openPlayChatDebugWorkspace(sourceSessionId, turn) {
 			return new Promise(function (resolve, reject) {
@@ -317,10 +317,10 @@ window.__ModuleLoader__.load({
 				}
 				window.dispatchEvent(new CustomEvent("dsh-tavern-debug-play-chat", {
 					detail: {
-						sourceSessionId: sourceSessionId,
-						turn: Number(turn),
-						resolve: function (value) { finish(resolve, value); },
-						reject: function (error) { finish(reject, error); }
+					sourceSessionId: sourceSessionId,
+					turn: Number(turn),
+					resolve: function (value) { finish(resolve, value); },
+					reject: function (error) { finish(reject, error); }
 					}
 				}));
 			});
@@ -330,7 +330,7 @@ window.__ModuleLoader__.load({
 
 		function isMissingTavernCardError(value) {
 			return /^人物卡不存在:\s*/.test(String(value && value.message || value || ""));
-		}
+        }
 
 		function applyTavernHelperMessageHydration(view, payload) {
 			if (!view || !view.tavernHelper || !Array.isArray(view.tavernHelper.messages) || !payload || !Array.isArray(payload.messages)) return view;
@@ -534,7 +534,7 @@ window.__ModuleLoader__.load({
 
 // @include runtime/helper-facade.js
 
-		// Bounded, value-free timings shared by every card's initialization.
+        // Bounded, value-free timings shared by every card's initialization.
 // @include runtime/helper-bootstrap.js
 
 		// Only downloading is repeatable. Once evaluation starts, its effects are unknown.
@@ -598,7 +598,7 @@ window.__ModuleLoader__.load({
 
 // @include features/resources-library.js
 
-		// @include card-memory.js
+        // @include card-memory.js
 
 // @include features/skills.js
 
@@ -717,10 +717,10 @@ window.__ModuleLoader__.load({
 			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;
 			if (slots === undefined) return;
-			ctx.effect(() => slots.inject("conversation.view", () => slots.register({
-				name: "conversation.view", id: "dsh-tavern:full-context", order: 11,
-				label: "完整上下文", inject: sessionId => ({ contextSessionId: sessionId })
-			}, FullRequestContextView)), "dsh-tavern: full request context");
+            ctx.effect(() => slots.inject("conversation.view", () => slots.register({
+                name: "conversation.view", id: "dsh-tavern:full-context", order: 11,
+                label: "完整上下文", inject: sessionId => ({ contextSessionId: sessionId })
+            }, FullRequestContextView)), "dsh-tavern: full request context");
 			const signals = ctx.tavernSessionSignals;
 			if (!signals || typeof signals.subscribe !== "function") throw new Error("DSH Tavern Remote 状态流不可用");
 			tavernSessionSignals = signals;
@@ -845,19 +845,19 @@ window.__ModuleLoader__.load({
 			ctx.effect(function () {
 				return slots.inject("conversation.input.right", function () {
 					return slots.register({
-						name: "conversation.input.right",
-						id: "dsh-tavern-background-model",
-						order: 100
+					name: "conversation.input.right",
+					id: "dsh-tavern-background-model",
+					order: 100
 					}, function (props) { return React.createElement(TavernBackgroundModelLabel, Object.assign({}, props, { sessions: ctx.sessions })); });
 				});
 			}, "dsh-tavern: background model label");
 			ctx.effect(function () {
 				return slots.inject("settings.section", function () {
 					return slots.register({
-						name: "settings.section",
-						id: "dsh-tavern",
-						order: 110,
-						label: function () { return "DSH Tavern"; }
+					name: "settings.section",
+					id: "dsh-tavern",
+					order: 110,
+					label: function () { return "DSH Tavern"; }
 					}, TavernSettingsSection);
 				});
 			}, "dsh-tavern: settings section");
@@ -870,7 +870,7 @@ window.__ModuleLoader__.load({
 			presetLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			resourcesLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			ctx.effect(() => ctx.betterSidebar.registerTab({ id: "dsh-tavern:skills", title: "Skill 库", order: 8, single: true, component: props => React.createElement(TavernSkillsTab, { sessionId: props.scope.sessionId }) }), "dsh-tavern: Skill library");
-			ctx.effect(() => ctx.betterSidebar.registerTab({ id: "dsh-tavern:card-memory", title: "改卡记忆", order: 9, single: true, component: props => React.createElement(TavernCardMemoryTab, { sessionId: props.scope.sessionId }) }), "dsh-tavern: card memory");
+            ctx.effect(() => ctx.betterSidebar.registerTab({ id: "dsh-tavern:card-memory", title: "改卡记忆", order: 9, single: true, component: props => React.createElement(TavernCardMemoryTab, { sessionId: props.scope.sessionId }) }), "dsh-tavern: card memory");
 			worldBookLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			cardLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			ctx.effect(function () {
@@ -896,9 +896,9 @@ window.__ModuleLoader__.load({
 		exports.createMvuBundleLoader = createMvuBundleLoader;
 		exports.TavernMvuLoadRecovery = TavernMvuLoadRecovery;
 		exports.findTavernQuoteRanges = findTavernQuoteRanges;
-		exports.installTavernTextColors = installTavernTextColors;
-		exports.TavernColoredMarkdown = TavernColoredMarkdown;
-		exports.apply = apply;
+        exports.installTavernTextColors = installTavernTextColors;
+        exports.TavernColoredMarkdown = TavernColoredMarkdown;
+        exports.apply = apply;
 		exports.inject = inject;
 		exports.buildOpeningPreviewDocument = buildOpeningPreviewDocument;
 		exports.buildTavernFrameDocument = buildTavernFrameDocument;
@@ -940,11 +940,11 @@ window.__ModuleLoader__.load({
 		exports.createPlayWorkspaceResolver = createPlayWorkspaceResolver;
 		exports.createSessionListRecoveryModule = createSessionListRecoveryModule;
 		exports.installOpeningHostComposer = installOpeningHostComposer;
-		exports.installFrameHostComposer = installFrameHostComposer;
+        exports.installFrameHostComposer = installFrameHostComposer;
 		exports.createConversationLifecycleModule = createConversationLifecycleModule;
 		exports.createConversationHostAdapter = createConversationHostAdapter;
 		exports.createConversationPrewarmModule = createConversationPrewarmModule;
-		exports.createConversationAttemptStore = createConversationAttemptStore;
+        exports.createConversationAttemptStore = createConversationAttemptStore;
 		exports.resolveConversationChatBinding = resolveConversationChatBinding;
 		exports.createResourcesLibraryFeatureModule = createResourcesLibraryFeatureModule;
 		exports.createPresetLibraryFeatureModule = createExternalPresetAndBypassPlanFeatureModule;

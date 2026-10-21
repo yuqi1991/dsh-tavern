@@ -1,55 +1,55 @@
-		function createTavernInitializationTiming(options = {}) {
-			const now = options.now || Date.now;
-			const schedule = options.schedule || setTimeout;
-			const cancel = options.cancel || clearTimeout;
-			const report = options.report || function () { };
-			const startedAt = now(), groups = new Map(), active = new Map();
-			let nextId = 0, timer = null, closed = false, dirty = false, dropped = 0;
-			function snapshot() {
-				const at = now();
-				return {
-					elapsedMs: Math.max(0, at - startedAt), dropped,
-					entries: Array.from(groups.values()).map(function (row) {
-						const starts = Array.from(active.values()).filter(item => item.key === row.key).map(item => item.at);
-						const { key, ...value } = row;
-						return { ...value, pending: starts.length, oldestPendingMs: starts.length ? Math.max(0, at - Math.min(...starts)) : 0 };
+        function createTavernInitializationTiming(options = {}) {
+            const now = options.now || Date.now;
+            const schedule = options.schedule || setTimeout;
+            const cancel = options.cancel || clearTimeout;
+            const report = options.report || function () { };
+            const startedAt = now(), groups = new Map(), active = new Map();
+            let nextId = 0, timer = null, closed = false, dirty = false, dropped = 0;
+            function snapshot() {
+                const at = now();
+                return {
+                	elapsedMs: Math.max(0, at - startedAt), dropped,
+                    entries: Array.from(groups.values()).map(function (row) {
+                        const starts = Array.from(active.values()).filter(item => item.key === row.key).map(item => item.at);
+                        const { key, ...value } = row;
+                        return { ...value, pending: starts.length, oldestPendingMs: starts.length ? Math.max(0, at - Math.min(...starts)) : 0 };
 					})
 				};
-			}
-			function flush() {
-				timer = null;
-				if (dirty || active.size) { dirty = false; try { report(snapshot()); } catch (_) { } }
-				if (closed) return;
-				if (now() - startedAt >= 180000) { closed = true; return; }
-				if (active.size || dirty) arm();
-			}
-			function arm() { timer = schedule(flush, 5000); if (timer && typeof timer.unref === "function") timer.unref(); }
-			async function wait(stage, promise, scriptId = '') {
-				if (closed) return await promise;
-				const key = stage + '\n' + scriptId;
-				if (!groups.has(key)) {
-					if (groups.size >= 32) { dropped++; return await promise; }
-					groups.set(key, { key, stage, scriptId, count: 0, failures: 0, totalMs: 0, maxMs: 0 });
-				}
-				const row = groups.get(key), id = ++nextId, at = now();
-				active.set(id, { key, at }); dirty = true;
-				if (!timer) arm();
-				try { return await promise; }
-				catch (error) { row.failures++; throw error; }
-				finally {
-					const duration = Math.max(0, now() - at);
-					active.delete(id); row.count++; row.totalMs += duration; row.maxMs = Math.max(row.maxMs, duration); dirty = true;
-					if (!closed && !timer) arm();
-				}
-			}
-			function dispose() { if (timer) cancel(timer); timer = null; closed = true; flush(); }
-			return { wait, snapshot, dispose };
-		}
+            }
+            function flush() {
+                timer = null;
+                if (dirty || active.size) { dirty = false; try { report(snapshot()); } catch (_) { } }
+                if (closed) return;
+                if (now() - startedAt >= 180000) { closed = true; return; }
+                if (active.size || dirty) arm();
+            }
+            function arm() { timer = schedule(flush, 5000); if (timer && typeof timer.unref === "function") timer.unref(); }
+            async function wait(stage, promise, scriptId = '') {
+                if (closed) return await promise;
+                const key = stage + '\n' + scriptId;
+                if (!groups.has(key)) {
+                    if (groups.size >= 32) { dropped++; return await promise; }
+                    groups.set(key, { key, stage, scriptId, count: 0, failures: 0, totalMs: 0, maxMs: 0 });
+                }
+                const row = groups.get(key), id = ++nextId, at = now();
+                active.set(id, { key, at }); dirty = true;
+                if (!timer) arm();
+                try { return await promise; }
+                catch (error) { row.failures++; throw error; }
+                finally {
+                    const duration = Math.max(0, now() - at);
+                    active.delete(id); row.count++; row.totalMs += duration; row.maxMs = Math.max(row.maxMs, duration); dirty = true;
+                    if (!closed && !timer) arm();
+                }
+            }
+            function dispose() { if (timer) cancel(timer); timer = null; closed = true; flush(); }
+            return { wait, snapshot, dispose };
+        }
 
 		function tavernHelperScriptBootstrap(metadata, initialContext, modules) {
-			const initializationTiming = modules.createInitializationTiming({ report: function (timings) { parent.postMessage({ type: "dsh-tavern-mvu-load-diagnostic", token: metadata.token, diagnostic: { phase: "initialization-timing", timings: timings } }, "*"); } });
-			window.__dshTavernInitializationTiming = initializationTiming;
-			window.addEventListener("pagehide", initializationTiming.dispose, { once: true });
+            const initializationTiming = modules.createInitializationTiming({ report: function (timings) { parent.postMessage({ type: "dsh-tavern-mvu-load-diagnostic", token: metadata.token, diagnostic: { phase: "initialization-timing", timings: timings } }, "*"); } });
+            window.__dshTavernInitializationTiming = initializationTiming;
+            window.addEventListener("pagehide", initializationTiming.dispose, { once: true });
 			try { void window.localStorage; }
 			catch (_) {
 				let values = Object.create(null);
@@ -90,7 +90,7 @@
 			const MVU_WORK_EVENT_STICKY_MS = 3000;
 			let synchronousScriptId = "";
 			let hostEventTail = Promise.resolve();
-			const hostEvents = new Map();
+            const hostEvents = new Map();
 			let facade;
 			const transport = modules.createTransport({
 				parent: parent, token: token, copy: copy,
@@ -101,53 +101,53 @@
 				},
 				listen: function (receive) { addEventListener("message", receive); },
 				onContext: async function (result, method) {
-					if (result.contextDelta) {
-						const next = modules.applyVariableReceipt(state, result.contextDelta);
-						if (next === null) await transport.request("getTavernHelperContext", {});
-						else if (next !== state) { state = next; if (facade) facade.sync(state, result.contextDelta); }
-						return;
-					}
+                    if (result.contextDelta) {
+                        const next = modules.applyVariableReceipt(state, result.contextDelta);
+                        if (next === null) await transport.request("getTavernHelperContext", {});
+                        else if (next !== state) { state = next; if (facade) facade.sync(state, result.contextDelta); }
+                        return;
+                    }
 					const incoming = result.context;
 					// An old RPC reply must not restore a context that the host has left.
 					if (method && incoming && ((incoming.chatId && state.chatId && incoming.chatId !== state.chatId)
 						|| Number(incoming.lifecycleRevision || 0) < Number(state.lifecycleRevision || 0)
-						|| (Number(incoming.lifecycleRevision || 0) === Number(state.lifecycleRevision || 0)
-							&& Number(incoming.stateRevision || 0) < Number(state.stateRevision || 0)))) return;
+                        || (Number(incoming.lifecycleRevision || 0) === Number(state.lifecycleRevision || 0)
+                            && Number(incoming.stateRevision || 0) < Number(state.stateRevision || 0)))) return;
 					if (incoming) state = Object.assign({}, state, copy(incoming));
 					if (result.worldbook) state.worldbook = copy(result.worldbook);
 					// Chat-data saves acknowledge their own submitted snapshot separately.
 					if (incoming && facade && method !== "saveTavernChatData") facade.sync(state);
 				},
 				onEvent: function (data) {
-					const eventId = String(data.eventId || "");
-					const known = hostEvents.get(eventId);
-					if (data.type === "dsh-tavern-helper-event-ack") {
-						if (known && known.receipt) { known.receipt = null; known.phase = "acknowledged"; }
-						return;
-					}
-					function status() { parent.postMessage({ type: "dsh-tavern-helper-event-state", token: token, eventId: eventId, phase: hostEvents.get(eventId).phase }, "*"); }
-					if (known) {
-						status();
-						if (known.receipt) parent.postMessage(known.receipt, "*");
-						return;
-					}
-					if (data.type === "dsh-tavern-helper-event-query") {
-						parent.postMessage({ type: "dsh-tavern-helper-event-state", token: token, eventId: eventId, phase: "unknown" }, "*");
-						return;
-					}
-					const entry = { phase: "queued", receipt: null };
-					hostEvents.set(eventId, entry);
-					status();
-					function complete(receipt) {
-						entry.phase = "completed";
-						entry.receipt = Object.assign({ type: "dsh-tavern-helper-event-complete", token: token, eventId: eventId }, receipt);
-						parent.postMessage(entry.receipt, "*");
-					}
+                    const eventId = String(data.eventId || "");
+                    const known = hostEvents.get(eventId);
+                    if (data.type === "dsh-tavern-helper-event-ack") {
+                        if (known && known.receipt) { known.receipt = null; known.phase = "acknowledged"; }
+                        return;
+                    }
+                    function status() { parent.postMessage({ type: "dsh-tavern-helper-event-state", token: token, eventId: eventId, phase: hostEvents.get(eventId).phase }, "*"); }
+                    if (known) {
+                        status();
+                        if (known.receipt) parent.postMessage(known.receipt, "*");
+                        return;
+                    }
+                    if (data.type === "dsh-tavern-helper-event-query") {
+                        parent.postMessage({ type: "dsh-tavern-helper-event-state", token: token, eventId: eventId, phase: "unknown" }, "*");
+                        return;
+                    }
+                    const entry = { phase: "queued", receipt: null };
+                    hostEvents.set(eventId, entry);
+                    status();
+                    function complete(receipt) {
+                        entry.phase = "completed";
+                        entry.receipt = Object.assign({ type: "dsh-tavern-helper-event-complete", token: token, eventId: eventId }, receipt);
+                        parent.postMessage(entry.receipt, "*");
+                    }
 					diagnosticCount = 0;
 					const suppliedArgs = copy(data.args || []);
 					const task = hostEventTail.catch(function () { }).then(async function () {
 						entry.phase = "executing";
-						const previousEventId = activeHostEventId;
+                        const previousEventId = activeHostEventId;
 						activeHostEventId = String(data.eventId || "");
 						try {
 							if (data.name === "mag_variable_update_ended" && suppliedArgs.length === 0) {
@@ -184,13 +184,13 @@
 			const call = function (method, args) {
 				if (method === "updateTavernHelperVariables") args = Object.assign({}, args, {
 					contextBaseline: {
-						chatId: state.chatId, stateRevision: state.stateRevision, lifecycleRevision: Number(state.lifecycleRevision) || 0
+                    chatId: state.chatId, stateRevision: state.stateRevision, lifecycleRevision: Number(state.lifecycleRevision) || 0
 					}
 				});
-				const stage = { getTavernHelperWorldbook: "worldbook-read", loadTavernWorldInfo: "worldbook-read", updateTavernHelperPrompts: "prompt-write", updateTavernHelperMessages: "message-write", updateTavernHelperVariables: "variable-write" }[method];
-				const pending = transport.request(method, args);
-				return stage ? initializationTiming.wait(stage, pending, currentScript().id) : pending;
-			};
+                const stage = { getTavernHelperWorldbook: "worldbook-read", loadTavernWorldInfo: "worldbook-read", updateTavernHelperPrompts: "prompt-write", updateTavernHelperMessages: "message-write", updateTavernHelperVariables: "variable-write" }[method];
+                const pending = transport.request(method, args);
+                return stage ? initializationTiming.wait(stage, pending, currentScript().id) : pending;
+            };
 			// Persistence receipts belong to the script that issued the write. A
 			// different script's event must not drain this entire shared sandbox.
 			const promptWritesByScript = new Map();
@@ -257,28 +257,28 @@
 				currentScriptId = String(scriptId || previous || "");
 				const ownerId = currentScript().id;
 				try {
-					let pending;
-					const previousSync = synchronousScriptId;
-					synchronousScriptId = ownerId;
-					try { pending = factory(); } finally { synchronousScriptId = previousSync; }
-					const result = await initializationTiming.wait("script-callback", pending, ownerId); if (facade) await facade.flushVariables(ownerId); await initializationTiming.wait("prompt-drain", drainPromptWrites(ownerId), ownerId); return result;
+                    let pending;
+                    const previousSync = synchronousScriptId;
+                    synchronousScriptId = ownerId;
+                    try { pending = factory(); } finally { synchronousScriptId = previousSync; }
+                    const result = await initializationTiming.wait("script-callback", pending, ownerId); if (facade) await facade.flushVariables(ownerId); await initializationTiming.wait("prompt-drain", drainPromptWrites(ownerId), ownerId); return result;
 				}
-				catch (error) {
-					// Keep the innermost owner, including failures after await and
-					// primitive/frozen rejections that cannot carry metadata.
-					if (error && error.dshTavernScriptId) throw error;
-					let failure = error;
-					try {
-						if (failure && typeof failure === "object") failure.dshTavernScriptId = ownerId;
+                catch (error) {
+                    // Keep the innermost owner, including failures after await and
+                    // primitive/frozen rejections that cannot carry metadata.
+                    if (error && error.dshTavernScriptId) throw error;
+                    let failure = error;
+                    try {
+                        if (failure && typeof failure === "object") failure.dshTavernScriptId = ownerId;
 					} catch (_) { }
-					if (!failure || failure.dshTavernScriptId !== ownerId) {
-						failure = new Error(String(error && error.message || error));
-						failure.cause = error;
-						if (error && error.stack) failure.stack = error.stack;
-						failure.dshTavernScriptId = ownerId;
-					}
-					throw failure;
-				}
+                    if (!failure || failure.dshTavernScriptId !== ownerId) {
+                        failure = new Error(String(error && error.message || error));
+                        failure.cause = error;
+                        if (error && error.stack) failure.stack = error.stack;
+                        failure.dshTavernScriptId = ownerId;
+                    }
+                    throw failure;
+                }
 				finally { currentScriptId = previous; }
 			}
 			function stringHash(value, seed) {
@@ -791,11 +791,11 @@
 				} catch (_) { return false; }
 			};
 			function errorScriptId(error, filename) {
-				if (error && error.dshTavernScriptId) return error.dshTavernScriptId;
-				const match = String(filename || error && error.stack || "").match(/dsh-tavern-script:([^\s):]+)/);
-				if (!match) return "";
-				try { return decodeURIComponent(match[1]); } catch (_) { return ""; }
-			}
+                if (error && error.dshTavernScriptId) return error.dshTavernScriptId;
+                const match = String(filename || error && error.stack || "").match(/dsh-tavern-script:([^\s):]+)/);
+                if (!match) return "";
+                try { return decodeURIComponent(match[1]); } catch (_) { return ""; }
+            }
 			// MVU reports some rejected operations through warn/toastr without throwing.
 			let diagnosticCount = 0;
 			for (const level of ["warn", "error"]) {

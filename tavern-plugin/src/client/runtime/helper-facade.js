@@ -23,11 +23,11 @@
 				if (!task) return;
 				delete pending[data.requestId];
 				if (data.ok) {
-					// A variable receipt may need a read-only resync before the
-					// caller can safely read its synchronous compatibility state.
-					try { Promise.resolve(onContext(data.result || {}, task.method)).then(function () { task.resolve(data.result); }, task.reject); }
-					catch (error) { task.reject(error); }
-				}
+                    // A variable receipt may need a read-only resync before the
+                    // caller can safely read its synchronous compatibility state.
+                    try { Promise.resolve(onContext(data.result || {}, task.method)).then(function () { task.resolve(data.result); }, task.reject); }
+                    catch (error) { task.reject(error); }
+                }
 				else {
 					const error = new Error(String(data.error || "Helper 调用失败"));
 					if (typeof data.errorCode === "string" && data.errorCode) error.code = data.errorCode;
@@ -69,8 +69,8 @@
 				// Remove before calling so recursive emits cannot invoke a once-listener twice.
 				if (entry.once) removeEventEntry(name, entry);
 				const pending = withScript(entry.scriptId, function () { return entry.handler.apply(null, args); });
-				return name === "mag_variable_initialized" && options.initializationTiming
-					? await options.initializationTiming.wait("variable-initialized", pending, entry.scriptId) : await pending;
+                return name === "mag_variable_initialized" && options.initializationTiming
+                    ? await options.initializationTiming.wait("variable-initialized", pending, entry.scriptId) : await pending;
 			}
 			async function eventEmit(name) {
 				name = eventName(name);
@@ -227,14 +227,14 @@
 				chatId = String(value.chatId || ""); lifecycleRevision = Number(value.lifecycleRevision || 0);
 				// Do not conceal an unsupported local splice/reorder with a host refresh.
 				if (!layoutMatches()) return;
-				const variablesOnly = variableDelta && !acknowledged && revision === variableDelta.stateRevision
-					&& lastRevision === variableDelta.baseRevision && rows.length === (value.messages || []).length;
-				const nextRows = (value.messages || []).map(function (message, index) {
-					if (variablesOnly && index !== variableDelta.messageId) {
-						const row = rows[index];
-						if (same(pluginData(row.view), row.base)) row.revision = revision;
-						return row;
-					}
+                const variablesOnly = variableDelta && !acknowledged && revision === variableDelta.stateRevision
+                	&& lastRevision === variableDelta.baseRevision && rows.length === (value.messages || []).length;
+                const nextRows = (value.messages || []).map(function (message, index) {
+                	if (variablesOnly && index !== variableDelta.messageId) {
+                		const row = rows[index];
+                		if (same(pluginData(row.view), row.base)) row.revision = revision;
+                		return row;
+                	}
 					const core = coreOf(message), remote = copy(message.pluginData || {});
 					let row = rows[index];
 					if (!row || !same(identity(row.core), identity(core))) {
@@ -291,8 +291,8 @@
 				if (reset) reconcile(metadata, values);
 				else for (const key of Object.keys(values)) set(metadata, key, values[key]);
 			}
-			sync(options.context());
-			return { sync: sync, save: save, updateMetadata: updateMetadata, chat: () => chat, metadata: () => metadata };
+            sync(options.context());
+            return { sync: sync, save: save, updateMetadata: updateMetadata, chat: () => chat, metadata: () => metadata };
 		}
 
 		function installTavernCompatibilityDiagnostics(options) {
@@ -331,7 +331,7 @@
 		}
 
 		// @include local-variables.js
-		// @include variable-receipts.js
+        // @include variable-receipts.js
 
 		function installTavernHelperFacade(options) {
 			const nativeWorldInfoSnapshots = new WeakMap();
@@ -339,13 +339,13 @@
 			const functionTools = new Map();
 			const { window, copy, context, request: call, Popup: HelperPopup } = options;
 			const chatData = options.createChatData({ copy: copy, context: context, request: call });
-			const localVariables = options.createLocalVariables({ context, request: call, copy, currentScript: options.currentScript, reportError: error => console.error(error) });
-			async function saveChatData() {
-				const chatId = context().chatId, revision = context().lifecycleRevision;
-				await localVariables.flush();
-				if (context().chatId !== chatId || context().lifecycleRevision !== revision) throw new Error("聊天已切换或历史版本已变化，插件数据未保存");
-				return chatData.save();
-			}
+            const localVariables = options.createLocalVariables({ context, request: call, copy, currentScript: options.currentScript, reportError: error => console.error(error) });
+            async function saveChatData() {
+                const chatId = context().chatId, revision = context().lifecycleRevision;
+                await localVariables.flush();
+                if (context().chatId !== chatId || context().lifecycleRevision !== revision) throw new Error("聊天已切换或历史版本已变化，插件数据未保存");
+                return chatData.save();
+            }
 			const extensionSettings = Object.assign(Object.create(null), copy(context().extensionSettings || {}));
 			// Tavern applies enabled card regexes without ST's per-avatar opt-in.
 			// Project that host-owned permission without persisting a fabricated setting.
@@ -408,7 +408,7 @@
 			const eventSource = { on: window.eventOn, once: window.eventOnce, off: window.eventOff, removeListener: window.eventOff, makeFirst: window.eventMakeFirst, makeLast: window.eventMakeLast, emit: window.eventEmit };
 			const sillyTavern = {
 				TavernHelper: helper,
-				variables: Object.freeze({ local: localVariables.api }),
+                variables: Object.freeze({ local: localVariables.api }),
 				substituteParams: function (value) { return window.substitudeMacros(value); },
 				getContext: function () { return sillyTavern; },
 				eventSource: eventSource,

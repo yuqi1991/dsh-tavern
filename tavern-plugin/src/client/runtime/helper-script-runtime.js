@@ -1,5 +1,5 @@
 		function createTavernHelperScriptRuntime(options) {
-			let foreground = !options || options.foreground !== false;
+            let foreground = !options || options.foreground !== false;
 			const hostWindow = options && options.window || window;
 			const hostDocument = options && options.document || document;
 			const releaseHostStylesheetBridge = createTavernHostStylesheetBridge({ window: hostWindow });
@@ -156,7 +156,7 @@
 			}
 			function post(record, message) {
 				if (records.get(record.id) !== record || !record.loaded || !record.frame.contentWindow) return;
-				record.frame.contentWindow.postMessage(Object.assign({ token: record.token }, message), "*");
+                record.frame.contentWindow.postMessage(Object.assign({ token: record.token }, message), "*");
 			}
 			function snapshot(context) {
 				const messages = Array.isArray(context && context.messages) ? context.messages : [];
@@ -236,12 +236,12 @@
 				const core = record && record.scripts.get("__dsh_official_mvu__");
 				return core && core.initializationFailed ? "MVU 模块加载失败：" + (core.initializationError || "初始化未完成") + "\n请刷新页面或重启酒馆后重试。" : record && record.mvuDataError || "";
 			}
-			function mvuDataReady(record) {
-				return (Array.isArray(record.context && record.context.messages) ? record.context.messages : []).some(function (message) {
-					const value = message && message.variables;
-					return value && typeof value === "object" && !Array.isArray(value) && value.stat_data !== undefined && value.schema !== undefined;
-				});
-			}
+            function mvuDataReady(record) {
+            	return (Array.isArray(record.context && record.context.messages) ? record.context.messages : []).some(function (message) {
+            		const value = message && message.variables;
+            		return value && typeof value === "object" && !Array.isArray(value) && value.stat_data !== undefined && value.schema !== undefined;
+            	});
+            }
 			function syncMvuDataReadiness(record) {
 				const core = record.scripts.get("__dsh_official_mvu__");
 				if (!core || core.initializationFailed || !record.subscriptionsReady) return;
@@ -280,38 +280,38 @@
 				if (diagnostics) diagnostics.push({ kind: "dispatch", name: name, ready: record.subscriptionsReady, initializationFailed: record.initializationFailed, subscribed: record.subscriptions.has(String(name)) });
 				if (!record.loaded || !record.subscriptionsReady || record.initializationFailed) return Promise.resolve(args);
 				if (context && typeof context === "object") {
-					record.context = decorateHelperContext(context, record.context);
-					post(record, { type: "dsh-tavern-helper-context", context: record.context });
+                        record.context = decorateHelperContext(context, record.context);
+                        post(record, { type: "dsh-tavern-helper-context", context: record.context });
 				}
 				if (!record.subscriptions.has(String(name))) return Promise.resolve(args);
 				const eventId = String(hostEventId || "") || "host-event-" + (++eventSequence);
 				const startedAt = now();
 				return new Promise(function (resolve, reject) {
-					const envelope = { type: "dsh-tavern-helper-event", eventId: eventId, name: name, args: clone(args) };
-					const probeIntervalMs = Math.min(1000, eventTimeoutMs / 3);
-					const timer = hostWindow.setTimeout(function check() {
-						const pending = pendingEvents.get(eventId);
-						if (!pending) return;
-						// A responsive sandbox may execute indefinitely. Probe the same
-						// identity: a lost completion replays its receipt, never its handler.
-						if (now() - pending.contactAt >= eventTimeoutMs) {
-							pendingEvents.delete(eventId);
-							closeEventId(eventId);
-							const script = record.scripts.get(String(pending.activeScriptId || ""));
-							const source = script ? "人物卡脚本「" + script.name + "」" : "共享脚本沙箱";
-							const error = new Error(source + "处理事件「" + String(name) + "」时沙箱失联，状态尚未确认");
-							error.code = "TAVERN_SCRIPT_RUNTIME_UNREACHABLE";
-							if (pending.writeError) { error.cause = pending.writeError; error.message += "；此前宿主调用失败：" + pending.writeError.message; }
-							if (diagnostics && diagnostics.length < 50) diagnostics.push({ kind: "runtime-unreachable", name: String(name), causeCode: String(pending.writeError?.code || ""), elapsedMs: now() - startedAt });
-							reportError(script ? source : "人物卡共享脚本沙箱", error);
-							reject(error);
-							return;
-						}
-						post(record, { type: "dsh-tavern-helper-event-query", eventId: eventId });
-						pending.timer = hostWindow.setTimeout(check, probeIntervalMs);
-					}, probeIntervalMs);
-					pendingEvents.set(eventId, { record: record, resolve: resolve, reject: reject, timer: timer, envelope: envelope, contactAt: startedAt, name: String(name), activeScriptId: "", diagnostics: diagnostics });
-					post(record, envelope);
+                    const envelope = { type: "dsh-tavern-helper-event", eventId: eventId, name: name, args: clone(args) };
+                    const probeIntervalMs = Math.min(1000, eventTimeoutMs / 3);
+                    const timer = hostWindow.setTimeout(function check() {
+                        const pending = pendingEvents.get(eventId);
+                        if (!pending) return;
+                        // A responsive sandbox may execute indefinitely. Probe the same
+                        // identity: a lost completion replays its receipt, never its handler.
+                        if (now() - pending.contactAt >= eventTimeoutMs) {
+                            pendingEvents.delete(eventId);
+                            closeEventId(eventId);
+                            const script = record.scripts.get(String(pending.activeScriptId || ""));
+                            const source = script ? "人物卡脚本「" + script.name + "」" : "共享脚本沙箱";
+                            const error = new Error(source + "处理事件「" + String(name) + "」时沙箱失联，状态尚未确认");
+                            error.code = "TAVERN_SCRIPT_RUNTIME_UNREACHABLE";
+                            if (pending.writeError) { error.cause = pending.writeError; error.message += "；此前宿主调用失败：" + pending.writeError.message; }
+                            if (diagnostics && diagnostics.length < 50) diagnostics.push({ kind: "runtime-unreachable", name: String(name), causeCode: String(pending.writeError?.code || ""), elapsedMs: now() - startedAt });
+                            reportError(script ? source : "人物卡共享脚本沙箱", error);
+                            reject(error);
+                            return;
+                        }
+                        post(record, { type: "dsh-tavern-helper-event-query", eventId: eventId });
+                        pending.timer = hostWindow.setTimeout(check, probeIntervalMs);
+                    }, probeIntervalMs);
+                    pendingEvents.set(eventId, { record: record, resolve: resolve, reject: reject, timer: timer, envelope: envelope, contactAt: startedAt, name: String(name), activeScriptId: "", diagnostics: diagnostics });
+                    post(record, envelope);
 				});
 			}
 			async function emit(name, args, context, diagnostics, hostEventId) {
@@ -375,7 +375,7 @@
 					scripts: new Map(scripts.map(function (script) { return [String(script.id), { id: String(script.id), name: String(script.name || script.id), loaded: false, subscriptionsReady: false, initializationFailed: false }]; }))
 				};
 				frame.__dshTavernSessionId = sessionId;
-				frame.__dshTavernHostArtifacts = record.hostArtifacts;
+                frame.__dshTavernHostArtifacts = record.hostArtifacts;
 				frame.title = "人物卡共享脚本沙箱";
 				if (!trustedCardMode) frame.sandbox = "allow-scripts";
 				frame.referrerPolicy = "no-referrer";
@@ -394,7 +394,7 @@
 				});
 				container.appendChild(frame);
 				records.set(record.id, record);
-				if (record.hostArtifacts) record.hostArtifacts.setVisible(foreground);
+                if (record.hostArtifacts) record.hostArtifacts.setVisible(foreground);
 				return record;
 			}
 			function scriptsForView(view) {
@@ -516,14 +516,14 @@
 					syncMvuDataReadiness(record);
 					return;
 				}
-				if (data.type === "dsh-tavern-helper-event-state") {
-					const pending = pendingEvents.get(String(data.eventId || ""));
-					if (pending && pending.record === record) {
-						pending.contactAt = now();
-						if (data.phase === "unknown") post(record, pending.envelope);
-					}
-					return;
-				}
+                if (data.type === "dsh-tavern-helper-event-state") {
+                    const pending = pendingEvents.get(String(data.eventId || ""));
+                    if (pending && pending.record === record) {
+                        pending.contactAt = now();
+                        if (data.phase === "unknown") post(record, pending.envelope);
+                    }
+                    return;
+                }
 				if (data.type === "dsh-tavern-helper-event-progress") {
 					const pending = pendingEvents.get(String(data.eventId || ""));
 					if (pending && pending.record === record) { pending.contactAt = now(); pending.activeScriptId = data.phase === "completed" ? "" : String(data.scriptId || ""); }
@@ -533,10 +533,10 @@
 					const eventId = String(data.eventId || "");
 					const pending = pendingEvents.get(eventId);
 					if (!pending || pending.record !== record || pending.finishing) {
-						if (closedEventIds.has(eventId)) post(record, { type: "dsh-tavern-helper-event-ack", eventId: eventId });
-						return;
-					}
-					pending.contactAt = now();
+                        if (closedEventIds.has(eventId)) post(record, { type: "dsh-tavern-helper-event-ack", eventId: eventId });
+                        return;
+                    }
+                    pending.contactAt = now();
 					pending.completeData = data;
 					pending.completedAt = now();
 					const finish = function () {
@@ -547,7 +547,7 @@
 						pendingEvents.delete(eventId);
 						closeEventId(eventId);
 						hostWindow.clearTimeout(pending.timer);
-						post(record, { type: "dsh-tavern-helper-event-ack", eventId: eventId });
+                        post(record, { type: "dsh-tavern-helper-event-ack", eventId: eventId });
 						const completeData = pending.completeData || data;
 						if (completeData.error) {
 							const script = record.scripts.get(String(completeData.scriptId || pending.activeScriptId || ""));
@@ -614,19 +614,19 @@
 						if (data.moduleFailure && data.moduleFailure.phase === "module-load") error.dshTavernModuleFailure = sanitizeTavernModuleFailure(data.moduleFailure);
 						reportError(source, error);
 					}
-					return;
-				}
+                    return;
+                }
 				if (data.type !== "dsh-tavern-helper-call" || !allowedMethods.has(data.method)) return;
 				if (data.eventId && (closedEventIds.has(String(data.eventId)) || pendingEvents.get(String(data.eventId))?.finishing)) {
 					post(record, { type: "dsh-tavern-helper-response", requestId: data.requestId, ok: false, error: "事件已经结束，已拒绝迟到写入", errorCode: "TAVERN_SCRIPT_EVENT_CLOSED" });
 					return;
 				}
-				let mutationArgs = Object.assign({}, data.args || {}, { apiCallOrigin: { scriptId: String(data.scriptId || ""), scriptName: String(record.scripts.get(String(data.scriptId || ""))?.name || ""), eventId: String(data.eventId || ""), requestId: String(data.requestId || "") } });
-				if (data.method === "updateTavernHelperPrompts" || data.method === "updateTavernHelperVariables" || data.method === "updateTavernHelperMessages" || data.method === "createTavernHelperMessages") {
-					mutationArgs = Object.assign({}, mutationArgs, {
-						eventId: String(data.eventId || ""),
-						expectedLifecycleRevision: Math.max(0, Number(data.lifecycleRevision !== undefined ? data.lifecycleRevision : record.context && record.context.lifecycleRevision) || 0)
-					});
+					let mutationArgs = Object.assign({}, data.args || {}, { apiCallOrigin: { scriptId: String(data.scriptId || ""), scriptName: String(record.scripts.get(String(data.scriptId || ""))?.name || ""), eventId: String(data.eventId || ""), requestId: String(data.requestId || "") } });
+					if (data.method === "updateTavernHelperPrompts" || data.method === "updateTavernHelperVariables" || data.method === "updateTavernHelperMessages" || data.method === "createTavernHelperMessages") {
+						mutationArgs = Object.assign({}, mutationArgs, {
+							eventId: String(data.eventId || ""),
+							expectedLifecycleRevision: Math.max(0, Number(data.lifecycleRevision !== undefined ? data.lifecycleRevision : record.context && record.context.lifecycleRevision) || 0)
+						});
 				}
 				const promptOperation = data.method === "updateTavernHelperPrompts" && mutationArgs.operation;
 				const batchKey = JSON.stringify([data.scriptId, data.eventId, mutationArgs.expectedLifecycleRevision]);
@@ -645,16 +645,16 @@
 						if (records.get(record.id) !== record) throw new Error("脚本运行时已失效");
 						if (data.eventId && closedEventIds.has(String(data.eventId))) throw Object.assign(new Error("事件已经结束，已拒绝迟到写入"), { code: "TAVERN_SCRIPT_EVENT_CLOSED" });
 						return Promise.resolve(invoke(data.method, mutationArgs, record.sessionId)).then(async function (result) {
-							if (!result || !result.contextDelta || records.get(record.id) !== record) return result;
-							const next = applyTavernVariableReceipt(record.context, result.contextDelta);
-							if (next === null) {
-								const snapshot = await invoke("getTavernHelperContext", {}, record.sessionId);
-								return Object.assign({}, result, { contextDelta: undefined, context: snapshot.context });
-							}
-							record.context = next;
-							syncMvuDataReadiness(record);
-							return result;
-						});
+                            if (!result || !result.contextDelta || records.get(record.id) !== record) return result;
+                            const next = applyTavernVariableReceipt(record.context, result.contextDelta);
+                            if (next === null) {
+                            	const snapshot = await invoke("getTavernHelperContext", {}, record.sessionId);
+                                return Object.assign({}, result, { contextDelta: undefined, context: snapshot.context });
+                            }
+                            record.context = next;
+                            syncMvuDataReadiness(record);
+                            return result;
+                        });
 					});
 					record.rpcTail = rpcTask;
 					if (batch) { batch.task = rpcTask; record.queuedPromptBatch = batch; }
@@ -695,7 +695,7 @@
 			hostWindow.addEventListener("message", receive);
 			return Object.freeze({
 				sync: sync,
-				setForeground: function (value) { foreground = value; for (const record of records.values()) if (record.hostArtifacts) record.hostArtifacts.setVisible(value); },
+                setForeground: function (value) { foreground = value; for (const record of records.values()) if (record.hostArtifacts) record.hostArtifacts.setVisible(value); },
 				emit: emit,
 				retryMvuLoad: function () {
 					const record = records.get("shared");
@@ -711,7 +711,7 @@
 					if (!record || !record.scripts.has(String(scriptId))) return Promise.reject(new Error("人物卡脚本尚未运行"));
 					return emitToRecord(record, buttonEvent(scriptId, name), [], record.context);
 				},
-				eventResponsive: function (eventId) { const pending = pendingEvents.get(eventId); return Boolean(pending && now() - pending.contactAt < eventTimeoutMs); },
+                eventResponsive: function (eventId) { const pending = pendingEvents.get(eventId); return Boolean(pending && now() - pending.contactAt < eventTimeoutMs); },
 				dispose: function () { hostWindow.removeEventListener("message", receive); clear(); releaseHostStylesheetBridge(); },
 				inspect: function () {
 					const record = records.get("shared");

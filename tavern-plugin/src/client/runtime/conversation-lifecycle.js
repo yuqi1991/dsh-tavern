@@ -126,116 +126,116 @@
 			});
 		}
 
-		function createConversationAttemptStore(storage) {
-			const memory = new Map();
-			const prefix = "dsh-tavern-pending-start:";
-			return {
-				get(key) {
-					if (memory.has(key)) return memory.get(key);
-					try {
-						const value = JSON.parse(storage.getItem(prefix + key) || "null");
-						if (value && typeof value.sessionId === "string" && value.sessionId) return value;
+        function createConversationAttemptStore(storage) {
+            const memory = new Map();
+            const prefix = "dsh-tavern-pending-start:";
+            return {
+                get(key) {
+                    if (memory.has(key)) return memory.get(key);
+                    try {
+                        const value = JSON.parse(storage.getItem(prefix + key) || "null");
+                        if (value && typeof value.sessionId === "string" && value.sessionId) return value;
 					} catch (_) { }
-				},
-				set(key, value) {
-					memory.set(key, value);
-					storage.setItem(prefix + key, JSON.stringify(value));
-				},
-				delete(key) { memory.delete(key); storage.removeItem(prefix + key); },
-				complete(sessionId) {
-					const keys = new Set(memory.keys());
-					for (let index = 0; index < storage.length; index++) {
-						const key = storage.key(index);
-						if (key && key.startsWith(prefix)) keys.add(key.slice(prefix.length));
-					}
-					for (const key of keys) if (this.get(key)?.sessionId === sessionId) this.delete(key);
-				}
-			};
-		}
+                },
+                set(key, value) {
+                    memory.set(key, value);
+                    storage.setItem(prefix + key, JSON.stringify(value));
+                },
+                delete(key) { memory.delete(key); storage.removeItem(prefix + key); },
+                complete(sessionId) {
+                    const keys = new Set(memory.keys());
+                    for (let index = 0; index < storage.length; index++) {
+                        const key = storage.key(index);
+                        if (key && key.startsWith(prefix)) keys.add(key.slice(prefix.length));
+                    }
+                    for (const key of keys) if (this.get(key)?.sessionId === sessionId) this.delete(key);
+                }
+            };
+        }
 
-		function createConversationLifecycleModule(options) {
-			for (const method of ["archiveCurrent", "resolveWorkspace", "connectWorkspace", "waitForSession", "ensurePreset", "createChat", "rememberPending", "finishOpen"]) {
-				if (!options || typeof options[method] !== "function") throw new Error("Conversation Lifecycle 缺少 " + method + " adapter");
-			}
-			const attempts = options.attempts || new Map();
-			const running = new Map();
-			function start(request) {
-				// Preview tokens are ephemeral; retries after re-opening the picker
-				// must still find the Session belonging to the same user choice.
-				const key = JSON.stringify([request.kind, request.targetMode, request.card && request.card.path,
-				request.openingId, request.userName, request.requestMode, request.task, request.pending]);
-				if (running.has(key)) return running.get(key);
-				const work = run(request, key).finally(() => running.delete(key));
-				running.set(key, work);
-				return work;
-			}
-			async function run(request, key) {
-				let phase = "清理当前空白对话";
-				let attempt = attempts.get(key);
-				const timing = options.trace ? options.trace("startGame") : null;
-				const step = (name, work) => timing ? timing.measure(name, work) : work();
-				let successful = false;
-				try {
-					const existingId = attempt && attempt.sessionId || request.preparedSessionId || "";
-					await step("archiveCurrent", () => options.archiveCurrent(existingId));
-					if (!attempt) {
-						let sessionId = existingId;
-						if (!sessionId) {
-							phase = request.kind === "card" ? "准备卡片工作区" : "准备游玩工作区";
-							const workspaceId = request.preparedWorkspaceId || await step("resolveWorkspace", () => options.resolveWorkspace(request));
-							phase = "创建 DSH Session";
-							sessionId = await step("connectWorkspace", () => options.connectWorkspace(workspaceId));
-						}
-						attempt = { sessionId, initialized: false };
-						attempts.set(key, attempt);
-					}
-					const sessionId = attempt.sessionId;
-					phase = "等待 DSH Session 就绪";
-					await step("waitForSession", () => options.waitForSession(sessionId));
-					if (!attempt.initialized) {
-						phase = "切换到酒馆模式";
-						await step("ensurePreset", () => options.ensurePreset(sessionId, request));
-						phase = request.kind === "card" ? "创建卡片工作台对话" : "写入人物卡开场白";
-						await step("createChat", () => options.createChat(request, sessionId));
-						attempt = { sessionId, initialized: true };
-						attempts.set(key, attempt);
-					}
-					phase = "同步并打开 DSH Session";
-					const pending = Object.assign({}, request.pending || {}, { sessionId, targetMode: request.targetMode });
-					options.rememberPending(pending);
-					await step("finishOpen", () => options.finishOpen(pending));
-					attempts.delete(key);
-					successful = true;
-					return { sessionId, pending };
-				} catch (error) {
-					const failure = error instanceof Error ? error : new Error(String(error || "创建对话失败"));
-					failure.phase = phase;
-					failure.sessionId = attempt && attempt.sessionId;
-					// Phantom Session ids (create returned an id the DSH list never
-					// shows — e.g. failed Windows persistence) must not be reused on
-					// the next click, or waitForSession keeps timing out on the same id.
-					if (attempt && !attempt.initialized && /列表同步超时/.test(failure.message)) attempts.delete(key);
-					throw failure;
-				} finally { if (timing) timing.finish(successful); }
-			}
-			return { start };
-		}
+        function createConversationLifecycleModule(options) {
+            for (const method of ["archiveCurrent", "resolveWorkspace", "connectWorkspace", "waitForSession", "ensurePreset", "createChat", "rememberPending", "finishOpen"]) {
+                if (!options || typeof options[method] !== "function") throw new Error("Conversation Lifecycle 缺少 " + method + " adapter");
+            }
+            const attempts = options.attempts || new Map();
+            const running = new Map();
+            function start(request) {
+                // Preview tokens are ephemeral; retries after re-opening the picker
+                // must still find the Session belonging to the same user choice.
+                const key = JSON.stringify([request.kind, request.targetMode, request.card && request.card.path,
+                    request.openingId, request.userName, request.requestMode, request.task, request.pending]);
+                if (running.has(key)) return running.get(key);
+                const work = run(request, key).finally(() => running.delete(key));
+                running.set(key, work);
+                return work;
+            }
+            async function run(request, key) {
+                let phase = "清理当前空白对话";
+                let attempt = attempts.get(key);
+                const timing = options.trace ? options.trace("startGame") : null;
+                const step = (name, work) => timing ? timing.measure(name, work) : work();
+                let successful = false;
+                try {
+                    const existingId = attempt && attempt.sessionId || request.preparedSessionId || "";
+                    await step("archiveCurrent", () => options.archiveCurrent(existingId));
+                    if (!attempt) {
+                        let sessionId = existingId;
+                        if (!sessionId) {
+                            phase = request.kind === "card" ? "准备卡片工作区" : "准备游玩工作区";
+                            const workspaceId = request.preparedWorkspaceId || await step("resolveWorkspace", () => options.resolveWorkspace(request));
+                            phase = "创建 DSH Session";
+                            sessionId = await step("connectWorkspace", () => options.connectWorkspace(workspaceId));
+                        }
+                        attempt = { sessionId, initialized: false };
+                        attempts.set(key, attempt);
+                    }
+                    const sessionId = attempt.sessionId;
+                    phase = "等待 DSH Session 就绪";
+                    await step("waitForSession", () => options.waitForSession(sessionId));
+                    if (!attempt.initialized) {
+                        phase = "切换到酒馆模式";
+                        await step("ensurePreset", () => options.ensurePreset(sessionId, request));
+                        phase = request.kind === "card" ? "创建卡片工作台对话" : "写入人物卡开场白";
+                        await step("createChat", () => options.createChat(request, sessionId));
+                        attempt = { sessionId, initialized: true };
+                        attempts.set(key, attempt);
+                    }
+                    phase = "同步并打开 DSH Session";
+                    const pending = Object.assign({}, request.pending || {}, { sessionId, targetMode: request.targetMode });
+                    options.rememberPending(pending);
+                    await step("finishOpen", () => options.finishOpen(pending));
+                    attempts.delete(key);
+                    successful = true;
+                    return { sessionId, pending };
+                } catch (error) {
+                    const failure = error instanceof Error ? error : new Error(String(error || "创建对话失败"));
+                    failure.phase = phase;
+                    failure.sessionId = attempt && attempt.sessionId;
+                    // Phantom Session ids (create returned an id the DSH list never
+                    // shows — e.g. failed Windows persistence) must not be reused on
+                    // the next click, or waitForSession keeps timing out on the same id.
+                    if (attempt && !attempt.initialized && /列表同步超时/.test(failure.message)) attempts.delete(key);
+                    throw failure;
+                } finally { if (timing) timing.finish(successful); }
+            }
+            return { start };
+        }
 
-		// Only workspace preparation is speculative; Sessions belong to confirmed starts.
-		function createConversationPrewarmModule(options) {
-			let active = null;
-			function cancel() { active = null; }
-			function begin(request) {
-				const record = { key: String(request.key || ""), promise: Promise.resolve().then(() => options.resolveWorkspace(request)) };
-				active = record;
-				record.promise.catch(() => { });
-				return record.promise;
-			}
-			async function claim(key) {
-				const record = active;
-				if (!record || record.key !== String(key || "")) return "";
-				active = null;
-				return await record.promise;
-			}
-			return Object.freeze({ begin, claim, cancel });
-		}
+        // Only workspace preparation is speculative; Sessions belong to confirmed starts.
+        function createConversationPrewarmModule(options) {
+            let active = null;
+            function cancel() { active = null; }
+            function begin(request) {
+                const record = { key: String(request.key || ""), promise: Promise.resolve().then(() => options.resolveWorkspace(request)) };
+                active = record;
+                record.promise.catch(() => { });
+                return record.promise;
+            }
+            async function claim(key) {
+                const record = active;
+                if (!record || record.key !== String(key || "")) return "";
+                active = null;
+                return await record.promise;
+            }
+            return Object.freeze({ begin, claim, cancel });
+        }

@@ -25,11 +25,11 @@
 						if (!active || requested !== revision) return;
 						setState(result.illustration);
 						if (result.illustration.reason === "target-unavailable") {
-							if (missingRetries++ < 5) timer = window.setTimeout(refresh, 1500);
-						} else {
-							missingRetries = 0;
-							if (result.illustration.status === "running") timer = window.setTimeout(refresh, 1500);
-						}
+                            if (missingRetries++ < 5) timer = window.setTimeout(refresh, 1500);
+                        } else {
+                            missingRetries = 0;
+                            if (result.illustration.status === "running") timer = window.setTimeout(refresh, 1500);
+                        }
 					} catch (e) {
 						if (active && requested === revision) setState(function (previous) { return Object.assign({}, previous || { status: "unavailable", versions: [] }, { error: String(e.message || e) }); });
 					}
@@ -43,7 +43,7 @@
 			return state;
 		}
 		function SceneImageAction(props) {
-			const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
+            const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
 			const [settings, setSettings] = React.useState(null);
 			const [busy, setBusy] = React.useState(false);
 			const [error, setError] = React.useState("");
@@ -159,7 +159,7 @@
 				function change(event) { const value = event.target.value; setDirty(true); if (["baseURL", "authType", "username"].includes(field)) resetConnection(); if (field === "authType") setKey(""); setForm(function (current) { return Object.assign({}, current, { [field]: value }, field === "authType" ? { hasKey: false } : {}); }); }
 				const control = field === "authType" ? React.createElement("select", { value: form[field], disabled: busy, onChange: change }, [["none", "无需鉴权"], ["basic", "用户名和密码"], ["bearer", "Bearer Token（反向代理）"]].map(function (option) { return React.createElement("option", { key: option[0], value: option[0] }, option[1]); }))
 					: field === "negativePrompt" ? React.createElement("textarea", { value: form[field] || "", rows: 3, maxLength: 4000, placeholder: "留空沿用默认；例如：模糊、水印、多余的手指", disabled: busy, onChange: change })
-						: React.createElement("input", { value: form[field] || "", type: ["steps", "guidance"].includes(field) ? "number" : "text", step: field === "guidance" ? "0.1" : "1", placeholder: ["steps", "guidance"].includes(field) ? "留空沿用默认" : undefined, disabled: busy, onChange: change });
+                    : React.createElement("input", { value: form[field] || "", type: ["steps", "guidance"].includes(field) ? "number" : "text", step: field === "guidance" ? "0.1" : "1", placeholder: ["steps", "guidance"].includes(field) ? "留空沿用默认" : undefined, disabled: busy, onChange: change });
 				return React.createElement("label", { key: field }, labels[field] || field, control);
 			}
 			return React.createElement("div", { className: "dsh-tavern-settings-group" },
@@ -188,15 +188,15 @@
 						React.createElement("p", null, form.workflow ? "工作流：" + (form.workflow.name || "已选择，待保存校验") : "尚未导入工作流"),
 						React.createElement("label", null, "导入工作流", React.createElement("input", { type: "file", accept: ".json,application/json", disabled: busy, onChange: importWorkflow }))) : null,
 					form ? React.createElement("details", null,
-						React.createElement("summary", null, "绘图选项（风格、尺寸）"),
-						selectedChannel && form.provider !== "dsh-image-gen" ? selectedChannel.fields.filter(function (field) { return ["size", "aspectRatio"].includes(field); }).map(channelField) : null,
-						selectedChannel && selectedChannel.fields.some(function (field) { return ["negativePrompt", "steps", "guidance"].includes(field); }) ? React.createElement("details", { open: true },
-							React.createElement("summary", null, "高级绘图设置（负面提示词、步数）"),
-							React.createElement("p", null, "选填，留空沿用默认。步数越高通常越慢，也可能增加费用；不保证画质更好。保存后用于下一次生图和重画。"),
-							form.provider === "comfyui" ? React.createElement("p", null, "显示已映射的参数；更换工作流后，未映射的旧设置需清空。没有选项时请先保存新工作流，或请维护者补充映射。") : null,
-							selectedChannel.fields.filter(function (field) { return ["negativePrompt", "steps", "guidance"].includes(field) && (form.provider !== "comfyui" || form[field] || form.workflow && form.workflow.bindings && form.workflow.bindings[field === "negativePrompt" ? "negative" : field] && form.workflow.bindings[field === "negativePrompt" ? "negative" : field].length); }).map(channelField)) : null,
-						form ? React.createElement("label", null, "风格预设", React.createElement("select", { value: form.style.preset, disabled: busy, onChange: function (e) { const value = e.target.value; setDirty(true); setForm(function (current) { return Object.assign({}, current, { style: Object.assign({}, current.style, { preset: value }) }); }); } }, (form.stylePresets || []).map(function (preset) { return React.createElement("option", { key: preset.id, value: preset.id }, preset.label); }))) : null,
-						form ? React.createElement("label", null, "补充描述／标签（选填）", React.createElement("textarea", { value: form.style.custom, rows: 2, maxLength: 2000, placeholder: "例如：低饱和、柔和光线、胶片质感", disabled: busy, onChange: function (e) { const value = e.target.value; setDirty(true); setForm(function (current) { return Object.assign({}, current, { style: Object.assign({}, current.style, { custom: value }) }); }); } })) : null) : null,
+					React.createElement("summary", null, "绘图选项（风格、尺寸）"),
+					selectedChannel && form.provider !== "dsh-image-gen" ? selectedChannel.fields.filter(function (field) { return ["size", "aspectRatio"].includes(field); }).map(channelField) : null,
+                    selectedChannel && selectedChannel.fields.some(function (field) { return ["negativePrompt", "steps", "guidance"].includes(field); }) ? React.createElement("details", { open: true },
+                        React.createElement("summary", null, "高级绘图设置（负面提示词、步数）"),
+                        React.createElement("p", null, "选填，留空沿用默认。步数越高通常越慢，也可能增加费用；不保证画质更好。保存后用于下一次生图和重画。"),
+                        form.provider === "comfyui" ? React.createElement("p", null, "显示已映射的参数；更换工作流后，未映射的旧设置需清空。没有选项时请先保存新工作流，或请维护者补充映射。") : null,
+                        selectedChannel.fields.filter(function (field) { return ["negativePrompt", "steps", "guidance"].includes(field) && (form.provider !== "comfyui" || form[field] || form.workflow && form.workflow.bindings && form.workflow.bindings[field === "negativePrompt" ? "negative" : field] && form.workflow.bindings[field === "negativePrompt" ? "negative" : field].length); }).map(channelField)) : null,
+					form ? React.createElement("label", null, "风格预设", React.createElement("select", { value: form.style.preset, disabled: busy, onChange: function (e) { const value = e.target.value; setDirty(true); setForm(function (current) { return Object.assign({}, current, { style: Object.assign({}, current.style, { preset: value }) }); }); } }, (form.stylePresets || []).map(function (preset) { return React.createElement("option", { key: preset.id, value: preset.id }, preset.label); }))) : null,
+					form ? React.createElement("label", null, "补充描述／标签（选填）", React.createElement("textarea", { value: form.style.custom, rows: 2, maxLength: 2000, placeholder: "例如：低饱和、柔和光线、胶片质感", disabled: busy, onChange: function (e) { const value = e.target.value; setDirty(true); setForm(function (current) { return Object.assign({}, current, { style: Object.assign({}, current.style, { custom: value }) }); }); } })) : null) : null,
 					React.createElement("button", { type: "button", className: "dsh-tavern-btn", disabled: !form || busy, onClick: function () { return save(); } }, busy && !checking ? "保存中…" : "保存生图 API 配置")
 				),
 				notice ? React.createElement("div", { role: "status", className: "dsh-tavern-settings-desc" }, notice) : null

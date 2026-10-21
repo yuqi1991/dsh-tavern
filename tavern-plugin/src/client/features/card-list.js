@@ -16,7 +16,7 @@
 		// @include card-organization.js
 
 		function useCardBatchDeletion(cards, busy, setBusy, refresh) {
-			const askConfirm = useTavernConfirm();
+            const askConfirm = useTavernConfirm();
 			const [managing, setManaging] = React.useState(false);
 			const [paths, setPaths] = React.useState([]);
 			const [notice, setNotice] = React.useState("");

@@ -3,44 +3,44 @@
 			return function (line, sessionId, options) {
 				if (/^\/ejs(?:-refresh)?(?:\s|$)/.test(String(line))) return rpc("executeFullTemplateCommand", { text: line }, sessionId).then(function (result) { return result.pipe; });
 				const draftMatch = /^\/setinput(?: ([\s\S]*))?$/.exec(String(line || ""));
-				// Preflight before touching the composer: otherwise the greedy
-				// send match silently includes unsupported commands in the draft.
-				const pipes = draftMatch ? [] : Array.from(String(line || "").matchAll(/\|\s*(\/[\w-]+)/g));
-				const unsupported = pipes.find((part, index) => part[1] !== "/trigger" || index !== pipes.length - 1);
-				if (!draftMatch && (/^\/cut(?:\s|$)/.test(String(line)) || unsupported || (pipes.length && !/^\/send\s/.test(String(line))))) {
-					const command = unsupported ? unsupported[1] : /^\/cut(?:\s|$)/.test(String(line)) ? "/cut" : pipes[0][1];
-					const error = new Error("暂不支持人物卡命令管道中的 " + command + "，未发送消息。当前支持 /send … | /trigger；/cut 删除楼层尚未实现。");
-					error.code = "UNSUPPORTED_SLASH_PIPELINE";
-					return Promise.reject(error);
-				}
+                // Preflight before touching the composer: otherwise the greedy
+                // send match silently includes unsupported commands in the draft.
+                const pipes = draftMatch ? [] : Array.from(String(line || "").matchAll(/\|\s*(\/[\w-]+)/g));
+                const unsupported = pipes.find((part, index) => part[1] !== "/trigger" || index !== pipes.length - 1);
+                if (!draftMatch && (/^\/cut(?:\s|$)/.test(String(line)) || unsupported || (pipes.length && !/^\/send\s/.test(String(line))))) {
+                    const command = unsupported ? unsupported[1] : /^\/cut(?:\s|$)/.test(String(line)) ? "/cut" : pipes[0][1];
+                    const error = new Error("暂不支持人物卡命令管道中的 " + command + "，未发送消息。当前支持 /send … | /trigger；/cut 删除楼层尚未实现。");
+                    error.code = "UNSUPPORTED_SLASH_PIPELINE";
+                    return Promise.reject(error);
+                }
 				const match = /^\/send\s+([\s\S]+)\|\s*\/trigger\s*$/.exec(String(line || ""));
 				const triggerOnly = /^\/trigger\s*$/.test(String(line || ""));
 				if (!draftMatch && !triggerOnly && (!match || !match[1].trim())) {
-					if (!ctx.remote?.commands?.execute) return Promise.reject(new Error("当前酒馆没有注册这条命令"));
-					return ctx.remote.commands.execute(sessionId, String(line), []).then(function (execution) {
-						if (!execution) throw new Error("当前酒馆没有注册这条命令");
-						if (execution.result?.kind === "error") throw new Error(execution.result.text || "命令执行失败");
-						return String(execution.result?.text || "");
-					});
-				}
+                    if (!ctx.remote?.commands?.execute) return Promise.reject(new Error("当前酒馆没有注册这条命令"));
+                    return ctx.remote.commands.execute(sessionId, String(line), []).then(function (execution) {
+                        if (!execution) throw new Error("当前酒馆没有注册这条命令");
+                        if (execution.result?.kind === "error") throw new Error(execution.result.text || "命令执行失败");
+                        return String(execution.result?.text || "");
+                    });
+                }
 				const actx = ctx.sessions.scope(sessionId);
 				const conversation = ctx.get("conversation");
 				if (!actx || !conversation) return Promise.reject(new Error("当前对话输入框不可用"));
 				const input = conversation.input.for(actx);
 				if (draftMatch) { input.setDraft(draftMatch[1] || ""); return Promise.resolve({ drafted: true }); }
 				const binding = triggerOnly && ctx.sessions.binding(sessionId);
-				// DSH requires nonempty prompt content. Helper messages are already
-				// persisted; admit a continuation without resending them or touching the draft.
-				const triggerContent = [{ type: "text", text: "继续。" }];
-				// Template execution owns the generation queue; waiting here would deadlock it.
-				if (options?.waitForCompletion === false) {
-					if (triggerOnly) return Promise.resolve(binding.session.prompt(triggerContent, "queue")).then(function (result) {
-						if (!result?.ok) throw new Error(result?.error?.message || "生成提交失败");
-						return { submitted: true };
-					});
-					input.setDraft(match[1]);
-					return Promise.resolve(input.submit("queue")).then(function () { return { submitted: true }; });
-				}
+                // DSH requires nonempty prompt content. Helper messages are already
+                // persisted; admit a continuation without resending them or touching the draft.
+                const triggerContent = [{ type: "text", text: "继续。" }];
+                // Template execution owns the generation queue; waiting here would deadlock it.
+                if (options?.waitForCompletion === false) {
+                	if (triggerOnly) return Promise.resolve(binding.session.prompt(triggerContent, "queue")).then(function (result) {
+                        if (!result?.ok) throw new Error(result?.error?.message || "生成提交失败");
+                        return { submitted: true };
+                    });
+                    input.setDraft(match[1]);
+                    return Promise.resolve(input.submit("queue")).then(function () { return { submitted: true }; });
+                }
 				const sessions = ctx.sessions.list;
 				return new Promise(function (resolve, reject) {
 					let observedRun = false;
@@ -129,11 +129,11 @@
 				close.focus();
 			}
 			function SceneIllustration(props) {
-				const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
+            const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
 				const state = useSceneImageRecord(props.sessionId, props.turn);
 				const [error, setError] = React.useState("");
 				const [selected, setSelected] = React.useState("");
-				const [refreshes, setRefreshes] = React.useState({});
+			const [refreshes, setRefreshes] = React.useState({});
 				const [busy, setBusy] = React.useState(false);
 				const [adjusting, setAdjusting] = React.useState(false);
 				const [instruction, setInstruction] = React.useState("");
@@ -165,9 +165,9 @@
 					finally { setBusy(false); notify(); }
 				}
 				async function generate(kind) {
-					const reusable = requestRef.current && !(state && requestRef.current.id === state.requestId && ["failed", "cancelled", "idle"].includes(state.status));
-					const clickId = reusable && requestRef.current.signature === kind + ":" + (version && version.id) + ":" + instruction ? requestRef.current.id : sceneImageRequestId();
-					recordImageInteraction(props.sessionId, props.turn, clickId, "click");
+				const reusable = requestRef.current && !(state && requestRef.current.id === state.requestId && ["failed", "cancelled", "idle"].includes(state.status));
+				const clickId = reusable && requestRef.current.signature === kind + ":" + (version && version.id) + ":" + instruction ? requestRef.current.id : sceneImageRequestId();
+				recordImageInteraction(props.sessionId, props.turn, clickId, "click");
 					if ((!version && kind !== "generate") || busy || state.status === "running" || state.recovery === "save") { recordImageInteraction(props.sessionId, props.turn, clickId, "blocked", "busy-or-existing"); return; }
 					const confirmNewRequestId = await sceneImagePurchaseConfirmation(state, askConfirm);
 					if (confirmNewRequestId === false) { recordImageInteraction(props.sessionId, props.turn, clickId, "cancelled", "confirmation"); return; }
@@ -260,7 +260,7 @@
 				input.ctx.effect(function () {
 					return input.slots.inject("conversation.session.header.actions", function () {
 						return input.slots.register({
-							name: "conversation.session.header.actions", id: "dsh-tavern-script-runtime", order: -140, label: "人物卡脚本运行时"
+						name: "conversation.session.header.actions", id: "dsh-tavern-script-runtime", order: -140, label: "人物卡脚本运行时"
 						}, function () { return React.createElement(TavernScriptRuntime, { owner: scriptOwner }); });
 					});
 				}, "dsh-tavern: conversation script lifecycle");

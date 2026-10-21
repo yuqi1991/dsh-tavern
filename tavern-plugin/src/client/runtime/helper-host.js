@@ -83,31 +83,31 @@
 				if (previous && !previous.configurable) throw new Error("宿主接口不可替换：" + name);
 				const binding = {
 					name: name, previous: previous, active: true, priority: Number(priority) || 0, frameWindow: frameWindow, frameElement: frameElement, frameDocument: frameDocument, toastr: name === "toastr" ? frameWindow.toastr : undefined, get: function () {
-						function rank(owner) {
-							const sessionId = owner.frameWindow.frameElement && owner.frameWindow.frameElement.__dshTavernSessionId;
-							return owner.priority + (host.__dshTavernSelectedSessionId && sessionId ? (sessionId === host.__dshTavernSelectedSessionId ? 1 : -1) : 0);
-						}
-						// document.open() removes the frame's unload listeners. Do
-						// not rely on those listeners to retire its host APIs.
-						let selected = null, newer = null, descriptor = { get: binding.get };
-						while (descriptor && descriptor.get && descriptor.get.tavernHostBinding) {
-							const owner = descriptor.get.tavernHostBinding;
-							let live = owner.active;
-							try {
-								if (owner.frameElement && owner.frameElement.isConnected === false) live = false;
-								if (owner.frameDocument && owner.frameWindow.document !== owner.frameDocument) live = false;
-							} catch (_) { live = false; }
-							if (live) {
-								if (!selected || rank(owner) > rank(selected)) selected = owner;
-								newer = owner;
-							} else {
-								if (owner.release) owner.release();
-								if (newer) newer.previous = owner.previous;
-							}
-							descriptor = owner.previous;
-						}
-						if (!selected) return descriptor && (descriptor.get ? descriptor.get.call(host) : descriptor.value);
-						return name === "toastr" ? selected.toastr : selected.frameWindow[name];
+                    function rank(owner) {
+                        const sessionId = owner.frameWindow.frameElement && owner.frameWindow.frameElement.__dshTavernSessionId;
+                        return owner.priority + (host.__dshTavernSelectedSessionId && sessionId ? (sessionId === host.__dshTavernSelectedSessionId ? 1 : -1) : 0);
+                    }
+                    // document.open() removes the frame's unload listeners. Do
+                    // not rely on those listeners to retire its host APIs.
+                    let selected = null, newer = null, descriptor = { get: binding.get };
+                    while (descriptor && descriptor.get && descriptor.get.tavernHostBinding) {
+                        const owner = descriptor.get.tavernHostBinding;
+                        let live = owner.active;
+                        try {
+                            if (owner.frameElement && owner.frameElement.isConnected === false) live = false;
+                            if (owner.frameDocument && owner.frameWindow.document !== owner.frameDocument) live = false;
+                        } catch (_) { live = false; }
+                        if (live) {
+                            if (!selected || rank(owner) > rank(selected)) selected = owner;
+                            newer = owner;
+                        } else {
+                            if (owner.release) owner.release();
+                            if (newer) newer.previous = owner.previous;
+                        }
+                        descriptor = owner.previous;
+                    }
+                    if (!selected) return descriptor && (descriptor.get ? descriptor.get.call(host) : descriptor.value);
+                    return name === "toastr" ? selected.toastr : selected.frameWindow[name];
 					}
 				};
 				binding.get.tavernHostBinding = binding;
@@ -175,12 +175,12 @@
 			const bootstrap = '(' + tavernHelperScriptBootstrap.toString() + ')(' + safeMetadata + ',' + safeContext + ',{'
 				+ 'createInitializationTiming:' + createTavernInitializationTiming.toString() + ','
 				+ 'createTransport:' + createTavernHelperTransport.toString() + ','
-				+ 'applyVariableReceipt:' + applyTavernVariableReceipt.toString() + ','
+                + 'applyVariableReceipt:' + applyTavernVariableReceipt.toString() + ','
 				+ 'createEvents:' + createTavernHelperEventBus.toString() + ','
 				+ 'createPopup:' + createTavernHelperPopup.toString() + ','
 				+ 'installCompatibility:' + installTavernCompatibilityDiagnostics.toString() + ','
-				+ 'createChatData:' + createTavernChatDataFacade.toString() + ','
-				+ 'createLocalVariables:' + createTavernLocalVariables.toString() + ','
+                + 'createChatData:' + createTavernChatDataFacade.toString() + ','
+                + 'createLocalVariables:' + createTavernLocalVariables.toString() + ','
 				+ 'installFacade:' + installTavernHelperFacade.toString() + '});';
 			const modules = scripts.map(function (script) {
 				return { id: String(script && script.id || ""), system: String(script && script.system || ""), assetUrl: String(script && script.assetUrl || ""), content: String(script && script.content || "") };
@@ -204,16 +204,16 @@
 			const moduleUrl = "data:text/javascript;base64," + encodeTavernScriptSource(loaderSource);
 			return {
 				head: tavernIconDependencies()
-					+ tavernStaticAssetShim()
-					+ tavernHelperScriptDependencies()
-					+ '<script data-dsh-tavern-helper-script>' + bootstrap + '<\/script>',
+				+ tavernStaticAssetShim()
+				+ tavernHelperScriptDependencies()
+				+ '<script data-dsh-tavern-helper-script>' + bootstrap + '<\/script>',
 				body: '<div id="extensions_settings2" hidden><select id="world_info_sort_order"><option value="13">自定义排序</option></select></div><div id="tavern_helper" hidden></div><script>void import(' + JSON.stringify(moduleUrl) + ');<\/script>'
 			};
-		}
+        }
 
-		function buildTavernHelperScriptDocument(input) {
+        function buildTavernHelperScriptDocument(input) {
 			const parts = buildTavernHelperScriptParts(input);
 			return '<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer">'
 				+ '<meta http-equiv="Content-Security-Policy" content="default-src https: http: data: blob:; script-src \'unsafe-inline\' \'unsafe-eval\' https: http: data: blob:; connect-src https: http: wss: data: blob:; img-src https: http: data: blob:; style-src \'unsafe-inline\' https: http:; object-src \'none\'; base-uri \'none\'; form-action \'none\'">'
 				+ parts.head + '</head><body>' + parts.body + '</body></html>';
-		}
+        }
