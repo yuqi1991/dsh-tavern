@@ -1831,12 +1831,6 @@ header .nL4_yW_moreButton { display: none !important; }
 .dsh-tavern-story-error-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* 世界书召回说明 */
-details.dsh-tavern-recall-guide { margin: 0 0 14px; }
-details.dsh-tavern-recall-guide > summary { gap: 12px; padding: 12px 14px; }
-.dsh-tavern-recall-guide-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--dsh-tavern-accent) 14%, transparent); font-size: 17px; }
-.dsh-tavern-recall-guide-heading { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > strong { color: var(--dsw-alias-label-primary); font-size: 14px; font-weight: 650; }
-details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > span { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
 .dsh-tavern-recall-steps { display: grid; gap: 8px; margin: 2px 14px 0; padding: 12px 0 0; border-top: 1px solid var(--dsw-alias-border-l2); list-style: none; }
 .dsh-tavern-recall-steps > li { display: flex; gap: 12px; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--dsh-tavern-accent) 5%, transparent); }
 .dsh-tavern-recall-step-mark { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--dsw-specific-input-major); box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2); font-size: 14px; }
@@ -1876,3 +1870,23 @@ details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > spa
 .dsh-tavern-user-profile .dsh-tavern-guide-library .dsh-tavern-guide-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
 .dsh-tavern-user-profile .dsh-tavern-guide-library .dsh-tavern-guide-actions > button { flex: none; width: auto; min-height: 0; }
 .dsh-tavern-user-profile .dsh-tavern-guide-library details > summary { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+
+/* ===== Collapsible help and callouts ===== */
+details.dsh-tavern-help { margin: 0 0 12px; padding: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-specific-input-major); color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.7; }
+details.dsh-tavern-help > summary { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; list-style: none; user-select: none; }
+details.dsh-tavern-help > summary::-webkit-details-marker { display: none; }
+details.dsh-tavern-help > summary::after { content: ""; flex: none; width: 12px; height: 12px; margin-left: auto; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238a8880' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5l3 3 3-3'/%3E%3C/svg%3E") no-repeat center; transition: transform 140ms ease; }
+details.dsh-tavern-help[open] > summary::after { transform: rotate(180deg); }
+details.dsh-tavern-help > summary > strong { color: var(--dsw-alias-label-primary); font-size: 13px; font-weight: 600; }
+details.dsh-tavern-help > summary > span { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+details.dsh-tavern-help[open] { padding-bottom: 10px; }
+details.dsh-tavern-help > :not(summary) { margin: 4px 12px 0; }
+details.dsh-tavern-help:not([open]) { padding-bottom: 0; }
+
+/* 世界书召回说明 */
+details.dsh-tavern-recall-guide { margin: 0 0 14px; }
+details.dsh-tavern-recall-guide > summary { gap: 12px; padding: 12px 14px; }
+.dsh-tavern-recall-guide-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--dsh-tavern-accent) 14%, transparent); font-size: 17px; }
+.dsh-tavern-recall-guide-heading { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > strong { color: var(--dsw-alias-label-primary); font-size: 14px; font-weight: 650; }
+details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > span { color: var(--dsw-alias-label-tertiary); font-size: 12px; }

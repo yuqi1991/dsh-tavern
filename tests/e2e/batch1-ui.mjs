@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict'
+import { join } from 'node:path'
+
+// 上游移植批 1 的界面冒烟：台账、Guide 库、世界书库在真实浏览器里能打开、能操作、不报错。
+export async function batch1UiChecks({ page, step, output, errors }) {
+  const shot = name => page.screenshot({ path: join(output, name + '.png'), fullPage: true })
+  const dialog = () => page.getByRole('dialog').filter({ visible: true }).last()
+  await step('状态面板：台账与 Guide 区块', async () => {
+    await page.getByText('酒馆状态', { exact: true }).filter({ visible: true }).first().click()
+    await page.getByText('Guide（注入上下文）').waitFor()
+    await page.getByRole('button', { name: '保存到 Guide 库' }).waitFor()
+    await page.getByRole('button', { name: '打开 Guide 库 ↗' }).waitFor()
+    assert.equal(await page.getByRole('button', { name: '保存到 Guide 库' }).isDisabled(), true, '没有 Guide 时不能保存')
+    await shot('status-before')
+  })
+  await step('添加 Guide 并保存到 Guide 库', async () => {
+    await page.getByLabel('新 Guide 内容').fill('验收用 Guide：多写心理活动')
+    await page.getByRole('button', { name: '添加 Guide', exact: true }).click()
+    await page.getByText('验收用 Guide：多写心理活动', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '保存到 Guide 库' }).click()
+    await dialog().waitFor()
+    await shot('guide-save-dialog')
+    await dialog().getByRole('textbox').fill('验收方案')
+    await dialog().getByRole('button', { name: /确定|保存|确认/ }).click()
+    await page.getByText('已保存到 Guide 库', { exact: false }).waitFor()
+  })
+  await step('Guide 库标签：列出、修改、加载、删除', async () => {
+    await page.getByRole('button', { name: '打开 Guide 库 ↗' }).click()
+    await page.getByRole('heading', { name: '验收方案' }).waitFor()
+    await shot('guide-library')
+    await page.getByRole('button', { name: '修改', exact: true }).click()
+    await page.getByLabel('Guide 1').fill('验收用 Guide：改过的内容')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await page.getByText('已保存到 Guide 库', { exact: false }).waitFor()
+    await page.getByText('查看指导（1 条）').click()
+    await page.getByText('验收用 Guide：改过的内容', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '加载到本局' }).click()
+    await page.getByText('已加载到本局', { exact: false }).waitFor()
+    await page.getByRole('button', { name: '删除方案' }).click()
+    await dialog().getByRole('button', { name: /确定|删除|确认/ }).click()
+    await page.getByText('已从 Guide 库删除该方案', { exact: false }).waitFor()
+    await shot('guide-library-after')
+  })
+  await step('台账区块与更新按钮', async () => {
+    await page.getByText('酒馆状态', { exact: true }).filter({ visible: true }).last().click()
+    await page.locator('.dsh-ledger-toggle').waitFor()
+    const update = page.getByRole('button', { name: '更新游玩台账' })
+    await update.waitFor()
+    await page.getByText(/还有 \d+ 轮未更新/).waitFor()
+    await page.locator('.dsh-ledger-toggle').click()
+    await page.getByText('玩家备忘录', { exact: false }).waitFor()
+    await shot('ledger')
+  })
+  await step('世界书库标签可打开', async () => {
+    await page.getByRole('button', { name: 'New tab', exact: true }).filter({ visible: true }).first().click()
+    await page.locator('.dsh-tavern-start-card').filter({ hasText: '世界书库' }).first().click()
+    await page.getByText('世界书如何召回', { exact: true }).waitFor()
+    await page.getByPlaceholder('搜索世界书或人物卡').waitFor()
+    await shot('worldbooks')
+  })
+  assert.deepEqual(errors, [], '浏览器不得出现未捕获异常')
+}

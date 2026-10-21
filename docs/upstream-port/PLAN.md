@@ -68,6 +68,9 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
   - 人物设计档案逐条删除（70c0c51e）：依赖“人物设计 → 本局世界书条目”整条链（87c4b25a、83a4ff6b、a0cf6179，约 440 行，且与 5509757f 结算项重构相关）。建议作为独立功能评估。
   - 人物卡格式（CHARX/封面/导出 PNG/宫格/同文件复用）：建立在 cast-assets、card-archive、zip-file、`lib/http/routes.js` 与插件界面层（plugin-extensions）上，属于已暂缓的演出/插件层；随该层一起评估。
   - 结算项重构 5509757f、状态面板仪表盘 b34dd02d：按计划暂缓。
+- **批 1 界面冒烟**（2026-10-21，隔离实例 + Chromium，`node tests/e2e/gameplay.mjs --batch1-ui`）：Guide 添加/保存到库/库内修改/加载/删除方案、台账区块与“更新游玩台账”、世界书库标签均通过；
+  由此发现并补上遗漏：世界书“如何召回”折叠卡依赖上游通用 `dsh-tavern-help` 样式（已追加，召回说明规则挪到其后）。
+  注意：e2e 偶发早期失败（变量结算等待超时/iframe 未就绪），同一代码连跑 3 次稳定通过，视为环境偶发。
 
 ## 摘取流程（每个提交）
 1. `git cherry-pick -x --no-commit <hash>`；2. `lib/client.js` 冲突不手合，`node bin/build-tavern-client.mjs` 重建；

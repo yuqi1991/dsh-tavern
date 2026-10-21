@@ -368,7 +368,7 @@
 							h("button", { type: "button", className: "dsh-tavern-btn", disabled: guideBusy || !(view.guides || []).length, onClick: saveGuideLibrary }, "保存到 Guide 库")),
 						guideNotice ? h("p", { role: "status", className: "dsh-tavern-settings-desc" }, guideNotice) : null,
                         h("div", { className: "dsh-tavern-guide-add" },
-                        	h("textarea", { className: "dsh-tavern-regen-input", ref: guideInputRef, rows: 2, value: guideDraft, placeholder: "例如：多用短句，多写心理活动，对话不要超过三句", onChange: function (e) { setGuideDraft(e.target.value); } }),
+                        	h("textarea", { className: "dsh-tavern-regen-input", ref: guideInputRef, rows: 2, maxLength: 2000, "aria-label": "新 Guide 内容", value: guideDraft, placeholder: "例如：多用短句，多写心理活动，对话不要超过三句", onChange: function (e) { setGuideDraft(e.target.value); } }),
 							h("button", { className: "dsh-card-primary", disabled: guideBusy || guideDraft.trim() === "", onClick: addGuide }, guideBusy ? "保存中…" : "添加 Guide")
 						),
 						guideError ? h("div", { className: "dsh-card-error" }, guideError) : null
