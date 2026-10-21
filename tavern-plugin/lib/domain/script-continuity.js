@@ -260,7 +260,7 @@ export function createScriptContinuity() {
     }
 
     if (event.kind === 'manual-focus') {
-      if (state.prepared !== null) throw new Error('当前剧本回合尚未提交，不能调整下一轮游标')
+      if (state.prepared !== null) throw new Error('这一轮还没写完，请稍后再更改起点')
       if (!Number.isSafeInteger(event.cursor) || event.cursor < 1 || event.cursor > chunks.length) throw new Error('请选择有效的剧本块号')
       const next = event.cursor - 1
       const changed = next !== state.cursor || state.sourceOffset !== chunkOffsets(chunks)[next]
@@ -270,7 +270,7 @@ export function createScriptContinuity() {
     }
 
     if (event.kind === 'focus') {
-      if (state.prepared !== null) throw new Error('当前剧本回合尚未提交，不能调整下一轮游标')
+      if (state.prepared !== null) throw new Error('这一轮还没写完，请稍后再更改起点')
       if (chunks.length === 0) return { state, changed: false }
       const raw = Number(event.cursor)
       if (!Number.isFinite(raw) || raw < 1) return { state, changed: false }
@@ -283,7 +283,7 @@ export function createScriptContinuity() {
     }
 
     if (event.kind === 'end') {
-      if (state.prepared !== null) throw new Error('当前剧本回合尚未提交，不能结束剧本游标')
+      if (state.prepared !== null) throw new Error('这一轮还没写完，请稍后再结束剧本')
       const changed = state.cursor !== chunks.length
       state.cursor = chunks.length
       state.sourceOffset = chunkOffsets(chunks).at(-1)
@@ -347,10 +347,11 @@ export function createScriptContinuity() {
       const total = chunks.length
       const position = request.position === undefined ? Math.min(total, state.cursor + 1) : request.position
       if (total && (!Number.isSafeInteger(position) || position < 1 || position > total)) throw new Error('请输入有效的剧本块号')
-      const start = Math.max(0, Math.min(position - 5, total - 10))
+      // Seven blocks: three before, the requested one, three after.
+      const start = Math.max(0, Math.min(position - 4, total - 7))
       return { cursor: state.cursor, totalChunks: total, scriptVersion: state.scriptVersion, chunkSize: state.chunkSize || 500, sourceOffset: state.sourceOffset,
-        from: total ? start + 1 : 0, to: Math.min(total, start + 10),
-        chunks: chunks.slice(start, start + 10).map((chunk, i) => ({ number: start + i + 1, text: str(chunk.text) })) }
+        from: total ? start + 1 : 0, to: Math.min(total, start + 7),
+        chunks: chunks.slice(start, start + 7).map((chunk, i) => ({ number: start + i + 1, text: str(chunk.text) })) }
     }
     if (request.kind === 'info') return infoOf(script)
     if (request.kind === 'read') return readWindow(script, request.query, request.offset, request.limit)

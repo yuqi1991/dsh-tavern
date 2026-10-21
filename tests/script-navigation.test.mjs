@@ -13,11 +13,11 @@ function fixture() {
     isBusy: () => busy, exclusive: async (_id, work) => work() })
   return { scripts, script, service, get chat() { return chat }, set busy(v) { busy = v }, set beforeUpdate(fn) { beforeUpdate = fn } }
 }
-test('10-block windows center on cursor or requested block without changing progress', async () => {
+test('7-block windows center on cursor or requested block without changing progress', async () => {
   const h = fixture()
-  for (const [position, from, to] of [[undefined,46,55],[5,1,10],[1,1,10],[998,991,1000]]) {
+  for (const [position, from, to] of [[undefined,47,53],[5,2,8],[1,1,7],[998,994,1000]]) {
     const page = await h.service.browse('session', position)
-    assert.equal(page.from, from); assert.equal(page.to, to); assert.equal(page.chunks.length, 10)
+    assert.equal(page.from, from); assert.equal(page.to, to); assert.equal(page.chunks.length, 7)
   }
   assert.equal(h.chat.scriptState.cursor, 49)
   await assert.rejects(h.service.browse('session', 1001), /有效/)
