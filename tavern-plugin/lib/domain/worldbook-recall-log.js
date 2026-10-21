@@ -5,7 +5,7 @@ const segment = value => {
 export function compactRecallDiagnostics(entries = []) {
   return entries.map(({ ref, reason, stage, limit }) => ({ ref, reason, ...(stage ? { stage } : {}), ...(limit ? { limit } : {}) }))
 }
-const labels = { semantic: '筛选原型未保留', selected: '已选中', keywords: '关键词条件不满足', cooldown: '十轮冷却中', group: '包含组竞争未入选', budget: '超过 token 预算', limit: '旧版本条目数量上限', 'recursion-delay': '尚未到递归等级', 'recursion-excluded': '禁止递归触发', disabled: '已禁用', empty: '正文为空', 'mvu-update': '由 MVU 规则链处理' }
+const labels = { semantic: '筛选原型未保留', selected: '已选中', keywords: '关键词条件不满足', cooldown: '十轮冷却中', 'screened-cooldown': '筛选排除后十轮冷却中', group: '包含组竞争未入选', budget: '超过 token 预算', limit: '旧版本条目数量上限', 'recursion-delay': '尚未到递归等级', 'recursion-excluded': '禁止递归触发', disabled: '已禁用', empty: '正文为空', 'mvu-update': '由 MVU 规则链处理' }
 export function describeRecallEntries(entries) { return entries.map(entry => ({ ...entry, reasonLabel: labels[entry.reason] || entry.reason })) }
 
 /** Independent per-operation records. Neither prompt text nor chat snapshots carry the full audit. */

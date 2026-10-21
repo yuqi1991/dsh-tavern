@@ -2,7 +2,7 @@ import { worldbookRandomState, hasWorldbookRandom } from './worldbook-random.js'
 import { estimateWorldBookTokens } from './worldbook-activation.js'
 import { compactRecallDiagnostics, describeRecallEntries } from './worldbook-recall-log.js'
 import { isMvuUpdateEntry } from './worldbook-recall.js'
-import { prepareTemplateWorldbook, prepareWorldBookRecall, projectWorldBookTemplates } from './worldbook-recall.js'
+import { prepareTemplateWorldbook, prepareWorldBookRecall, projectWorldBookTemplates, recordScreenedExclusions } from './worldbook-recall.js'
 
 /** One request uses one bound-book snapshot for both selection and rendering. */
 export function createForegroundWorldbook({ bound, runtime, globalVariables, scanText = () => '', filterCandidates }) {
@@ -69,8 +69,11 @@ export function createForegroundWorldbook({ bound, runtime, globalVariables, sca
       const renderedRefs = new Set(projected.refs)
       const accepted = recalled.refs.filter(ref => renderedRefs.has(ref))
       const recorded = recalled.recordReads(chat.worldBookReads)
-      const nextReads = { ...chat.worldBookReads }
+      let nextReads = { ...chat.worldBookReads }
       for (const ref of accepted) nextReads[ref] = recorded[ref]
+      // BM25 drops are cheap to recompute; only a model verdict is worth remembering.
+      const screenedOut = new Set((screening?.decisions || []).filter(item => item.reason === '模型未选择保留').map(item => item.ref))
+      if (screenedOut.size) nextReads = recordScreenedExclusions(nextReads, (worldBook?.view?.entries || []).filter(entry => screenedOut.has(entry.ref)), turn)
       const evaluatedRefs = new Set((recalled.diagnostics || []).map(entry => entry.ref))
       const excluded = (worldBook?.view?.entries || []).filter(entry => !evaluatedRefs.has(entry.ref) && (entry.enabled === false || !String(entry.content || '').trim() || isMvuUpdateEntry(entry)))
         .map(entry => ({ ref: entry.ref, title: entry.title || entry.comment, reason: entry.enabled === false ? 'disabled' : !String(entry.content || '').trim() ? 'empty' : 'mvu-update' }))

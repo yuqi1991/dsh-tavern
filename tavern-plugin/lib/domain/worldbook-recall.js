@@ -100,7 +100,8 @@ function isCoolingDown(chat, entry, turn) {
   const currentTurn = Number(turn)
   if (!Number.isSafeInteger(readTurn) || !Number.isSafeInteger(currentTurn)) return false
   const elapsed = currentTurn - readTurn
-  return elapsed > 0 && elapsed <= READ_COOLDOWN_TURNS
+  if (!(elapsed > 0 && elapsed <= READ_COOLDOWN_TURNS)) return false
+  return record.kind === 'screened' ? 'screened' : 'read'
 }
 
 function readRecorder(entries, turn) {
@@ -111,6 +112,13 @@ function readRecorder(entries, turn) {
     }
     return next
   }
+}
+
+/** Entries the filter model excluded share the read cooldown, so one verdict covers the next ten turns. */
+export function recordScreenedExclusions(existing, entries, turn) {
+  const next = clone(existing !== null && typeof existing === 'object' && !Array.isArray(existing) ? existing : {})
+  for (const entry of entries) next[str(entry.ref)] = { turn: Number(turn) || 0, fingerprint: fingerprint(entry.content), kind: 'screened' }
+  return next
 }
 
 /** Snapshot constant content; request projection partitions mixed positions separately. */

@@ -214,7 +214,11 @@ export function activateWorldBook(input) {
       if (rejected.has(entry.ref) || activated.some(item => item.ref === entry.ref)) continue
       const requests = (input.activationRequests || []).filter(request => request.ref === entry.ref)
       if (requests.length) reject(entry, 'requested', { activationRequests: requests })
-      if (!entry.constant && input.isCoolingDown(entry)) { reject(entry, 'cooldown', { cooldown: { readTurn: input.chat?.worldBookReads?.[entry.ref]?.turn, currentTurn: input.turn, duration: 10 } }); continue }
+      const cooling = !entry.constant && input.isCoolingDown(entry)
+      // A screened-out entry comes back as soon as the player names it in this turn's input.
+      const playerNamed = cooling === 'screened' && !input.userTextInHistory && str(input.userText).trim() &&
+        keywordEvaluation(entry, str(input.userText), [{ text: str(input.userText), source: 'current-input' }]).matched
+      if (cooling && !playerNamed) { reject(entry, cooling === 'screened' ? 'screened-cooldown' : 'cooldown', { cooldown: { readTurn: input.chat?.worldBookReads?.[entry.ref]?.turn, currentTurn: input.turn, duration: 10 } }); continue }
       const delay = integer(entry.delayUntilRecursion, 0)
       if (delay && (!iteration || delay > level)) { reject(entry, 'recursion-delay'); continue }
       if (iteration && entry.excludeRecursion) { reject(entry, 'recursion-excluded'); continue }
