@@ -53,7 +53,7 @@ test('世界书库刷新进行中时把多次通知合并为一次补充刷新',
   assert.equal(loads, 2)
 })
 
-test('世界书库可按最新、最旧、最近更新和名称正倒序稳定排序', async () => {
+test('世界书库只按导入时间最新、最旧排序，旧排序方式回落为最新', async () => {
   const order = (await loadClient()).orderWorldBookCatalogItems
   const items = [
     { name: '白塔', path: 'worldbooks/b.json', importedAt: 30, updatedAt: 10 },
@@ -63,9 +63,21 @@ test('世界书库可按最新、最旧、最近更新和名称正倒序稳定�
 
   assert.deepEqual(Array.from(order(items, 'newest'), function (item) { return item.name }), ['白塔', '王都', '阿芙拉'])
   assert.deepEqual(Array.from(order(items, 'oldest'), function (item) { return item.name }), ['阿芙拉', '王都', '白塔'])
-  assert.deepEqual(Array.from(order(items, 'recent'), function (item) { return item.name }), ['阿芙拉', '王都', '白塔'])
-  assert.deepEqual(Array.from(order(items, 'az'), function (item) { return item.name }), ['阿芙拉', '白塔', '王都'])
-  assert.deepEqual(Array.from(order(items, 'za'), function (item) { return item.name }), ['王都', '白塔', '阿芙拉'])
-  assert.deepEqual(Array.from(order(items, 'imported'), function (item) { return item.name }), ['白塔', '王都', '阿芙拉'])
+  for (const retired of ['recent', 'az', 'za', 'imported', undefined]) {
+    assert.deepEqual(Array.from(order(items, retired), function (item) { return item.name }), ['白塔', '王都', '阿芙拉'])
+  }
   assert.deepEqual(items.map(function (item) { return item.name }), ['白塔', '阿芙拉', '王都'])
+})
+
+test('世界书库搜索按书名或所属人物卡忽略大小写匹配', async () => {
+  const filter = (await loadClient()).filterWorldBookCatalogItems
+  const items = [
+    { name: 'Dragon Lore', path: 'a.json' },
+    { name: '王都', cardPath: 'cards/x.png', cardName: '骑士团长' },
+    { name: '白塔', path: 'b.json' }
+  ]
+  assert.deepEqual(Array.from(filter(items, 'dragon'), function (item) { return item.name }), ['Dragon Lore'])
+  assert.deepEqual(Array.from(filter(items, ' 骑士 '), function (item) { return item.name }), ['王都'])
+  assert.equal(filter(items, '').length, 3)
+  assert.equal(filter(items, '不存在').length, 0)
 })

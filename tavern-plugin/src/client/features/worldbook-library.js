@@ -10,25 +10,24 @@
 
 		const WORLD_BOOK_SORT_STORAGE_KEY = "dsh-tavern-worldbook-sort";
 		function normalizeWorldBookSort(value) {
-			const legacy = { imported: "newest", updated: "recent", name: "az" };
-			const normalized = legacy[value] || value;
-			return ["newest", "oldest", "recent", "az", "za"].includes(normalized) ? normalized : "newest";
+			// Retired modes (A-Z, Z-A, recently updated) fall back to the default.
+			return value === "oldest" ? "oldest" : "newest";
 		}
 		function orderWorldBookCatalogItems(items, mode) {
-			const selected = normalizeWorldBookSort(mode);
+			const direction = normalizeWorldBookSort(mode) === "oldest" ? 1 : -1;
 			return (items || []).slice().sort(function (left, right) {
-				if (["newest", "oldest", "recent"].includes(selected)) {
-					const field = selected === "recent" ? "updatedAt" : "importedAt";
-					const direction = selected === "oldest" ? 1 : -1;
-					const byTime = ((Number(left && left[field]) || 0) - (Number(right && right[field]) || 0)) * direction;
-					if (byTime !== 0) return byTime;
-				}
+				const byTime = ((Number(left && left.importedAt) || 0) - (Number(right && right.importedAt) || 0)) * direction;
+				if (byTime !== 0) return byTime;
 				const byName = String(left && left.name || "").localeCompare(String(right && right.name || ""), "zh-CN");
-				if (byName !== 0) return selected === "za" ? -byName : byName;
-				const leftPath = String(left && (left.path || left.cardPath) || "");
-				const rightPath = String(right && (right.path || right.cardPath) || "");
-				const byPath = leftPath.localeCompare(rightPath, "zh-CN");
-				return selected === "za" ? -byPath : byPath;
+				if (byName !== 0) return byName;
+				return String(left && (left.path || left.cardPath) || "").localeCompare(String(right && (right.path || right.cardPath) || ""), "zh-CN");
+			});
+		}
+		function filterWorldBookCatalogItems(items, query) {
+			const needle = String(query || "").trim().toLocaleLowerCase();
+			if (!needle) return items || [];
+			return (items || []).filter(function (item) {
+				return [item && item.name, item && item.cardName].some(function (value) { return String(value || "").toLocaleLowerCase().includes(needle); });
 			});
 		}
 
@@ -192,6 +191,7 @@
 			const [recordLoading, setRecordLoading] = React.useState(false);
 			const [busy, setBusy] = React.useState(false);
 			const [bindingBusy, setBindingBusy] = React.useState(false);
+			const [searchQuery, setSearchQuery] = React.useState("");
 			const [sortMode, setSortMode] = React.useState(function () {
 				try { return normalizeWorldBookSort(window.localStorage.getItem(WORLD_BOOK_SORT_STORAGE_KEY)); }
 				catch (_) { return "newest"; }
@@ -327,25 +327,23 @@
                     bindingPanel()), onSaved: function (result) { setRecord(result); refresh(); } });
 			}
 			function row(item) { const source = item.kind === "card" ? { kind: "card", cardPath: item.cardPath } : { kind: "standalone", path: item.path }; const resourcePath = item.kind === "card" ? item.cardPath : item.path; return h("div", { key: resourcePath, className: "dsh-tavern-card-pick-wrap" }, h("button", { className: "dsh-tavern-library-card", disabled: busy, onClick: function () { load(source); } }, h("b", null, item.name), h("span", null, (item.globalEnabled ? "全局生效 · " : "") + item.entryCount + " 条 · " + item.enabledCount + " 条启用" + (item.diagnostics ? " · " + item.diagnostics + " 个诊断" : "")), item.cardName ? h("span", null, "来自人物卡：" + item.cardName) : null), sessionMode === "card" ? h("button", { className: "dsh-tavern-resource-at", title: "在对话中引用", onClick: function () { props.appendMention("worldbook", resourcePath, item.name); } }, "在对话中引用") : null); }
-			function group(title, items) { return h("section", { className: "dsh-tavern-resource-group" }, h("div", { className: "dsh-tavern-resource-group-title" }, h("span", null, title + " · " + items.length)), items.length ? items.map(row) : h("div", { className: "dsh-tavern-status-empty" }, "暂无")); }
-			return h("div", { className: "dsh-tavern-library" }, h("div", { className: "dsh-tavern-status-head" }, h("div", { className: "dsh-tavern-status-title" }, "世界书库"), h("div", { className: "dsh-tavern-question-sub" }, "独立世界书与人物卡内置世界书共用编辑界面"), h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: function () { importInput.current && importInput.current.click(); } }, "导入世界书"), h("input", { ref: importInput, type: "file", accept: ".json,application/json", style: { display: "none" }, onChange: function (event) { const file = event.target.files && event.target.files[0]; importFile(file); event.target.value = ""; } })), h("div", { className: "dsh-tavern-resource-body" },
-				h("div", { className: "dsh-tavern-worldbook-note" }, "非常驻条目按作者关键词和优先级匹配，使用可配置的估算 Token 软预算，实际注入后冷却 10 个剧情回合。常驻条目不计入该预算；混合位置随本轮共同编排。尚未支持的酒馆字段仍会原样保留。"),
-				h("label", { className: "dsh-tavern-worldbook-sort" },
-					h("span", { className: "dsh-tavern-worldbook-sort-icon", "aria-hidden": "true" }, "↕"),
-					h("span", { className: "dsh-tavern-worldbook-sort-label" }, "排序"),
-					h("span", { className: "dsh-tavern-worldbook-sort-control" },
-						h("select", { value: sortMode, "aria-label": "世界书排序方式", onChange: function (event) { changeSortMode(event.target.value); } },
-							h("option", { value: "az" }, "A-Z"),
-							h("option", { value: "za" }, "Z-A"),
-							h("option", { value: "newest" }, "最新"),
-							h("option", { value: "oldest" }, "最旧"),
-							h("option", { value: "recent" }, "最近")),
-						h("span", { className: "dsh-tavern-worldbook-sort-chevron", "aria-hidden": "true" }, "⌄"))),
+			function group(title, items) { return h("section", { className: "dsh-tavern-resource-group" }, h("div", { className: "dsh-tavern-resource-group-title" }, h("span", null, title + " · " + items.length)), items.length ? items.map(row) : h("div", { className: "dsh-tavern-status-empty" }, searchQuery.trim() ? "没有匹配的世界书" : "暂无")); }
+			return h("div", { className: "dsh-tavern-library" }, h("div", { className: "dsh-tavern-status-head" }, h("div", { className: "dsh-tavern-status-title" }, "世界书库"), h("div", { className: "dsh-tavern-question-sub" }, "独立世界书与人物卡内置世界书共用编辑界面"), h("button", { className: "dsh-tavern-btn primary", disabled: busy, onClick: function () { importInput.current && importInput.current.click(); } }, "导入世界书"), h("input", { ref: importInput, type: "file", accept: ".json,application/json", style: { display: "none" }, onChange: function (event) { const file = event.target.files && event.target.files[0]; importFile(file); event.target.value = ""; } })), h("div", { className: "dsh-tavern-resource-body" },
+				h("details", { className: "dsh-tavern-worldbook-note dsh-tavern-help" }, h("summary", null, h("span", null, "世界书如何召回")), "非常驻条目按作者关键词和优先级匹配，使用可配置的估算 Token 软预算，实际注入后冷却 10 个剧情回合。常驻条目不计入该预算；混合位置随本轮共同编排。尚未支持的酒馆字段仍会原样保留。"),
+				h("div", { className: "dsh-tavern-worldbook-toolbar" },
+					h("input", { className: "dsh-tavern-library-search", type: "search", value: searchQuery, placeholder: "搜索世界书或人物卡", "aria-label": "搜索世界书", onChange: function (event) { setSearchQuery(event.target.value); } }),
+					h("label", { className: "dsh-tavern-worldbook-sort" },
+						h("span", { className: "dsh-tavern-worldbook-sort-label" }, "排序"),
+						h("span", { className: "dsh-tavern-worldbook-sort-control" },
+							h("select", { value: sortMode, "aria-label": "世界书排序方式", onChange: function (event) { changeSortMode(event.target.value); } },
+								h("option", { value: "newest" }, "最新"),
+								h("option", { value: "oldest" }, "最旧")),
+							h("span", { className: "dsh-tavern-worldbook-sort-chevron", "aria-hidden": "true" }, "⌄")))),
 				loading && !catalog ? h("div", { className: "dsh-tavern-empty" }, "正在读取世界书…") : null,
 				error ? h("div", { className: "dsh-tavern-dock-error" }, error, h("button", { className: "dsh-tavern-btn", onClick: refresh }, "重新读取")) : null,
 				catalogWarning ? h("div", { className: "dsh-tavern-dock-error" }, catalogWarning) : null,
-				catalog ? group("独立世界书", orderWorldBookCatalogItems(catalog.standalone || [], sortMode)) : null,
-				catalog ? group("人物卡内置世界书", orderWorldBookCatalogItems(catalog.embedded || [], sortMode)) : null));
+				catalog ? group("独立世界书", orderWorldBookCatalogItems(filterWorldBookCatalogItems(catalog.standalone, searchQuery), sortMode)) : null,
+				catalog ? group("人物卡内置世界书", orderWorldBookCatalogItems(filterWorldBookCatalogItems(catalog.embedded, searchQuery), sortMode)) : null));
 		}
 		function register(input) {
 			const ctx = input.ctx;

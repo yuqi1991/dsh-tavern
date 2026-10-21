@@ -928,6 +928,7 @@ window.__ModuleLoader__.load({
 		exports.createWorldBookLibraryRefreshModule = createWorldBookLibraryRefreshModule;
 		exports.groupWorldBookEditorEntries = groupWorldBookEditorEntries;
 		exports.orderWorldBookCatalogItems = orderWorldBookCatalogItems;
+		exports.filterWorldBookCatalogItems = filterWorldBookCatalogItems;
 		exports.groupPresetEntriesByPhase = groupPresetEntriesByPhase;
 		exports.createCardLibraryRefreshModule = createCardLibraryRefreshModule;
 		exports.tavernDataChangeAffects = tavernDataChangeAffects;
