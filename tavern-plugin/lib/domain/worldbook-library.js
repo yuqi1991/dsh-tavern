@@ -25,6 +25,8 @@ export function createWorldBookLibrary(options = {}) {
   const cards = options.cards
   const normalizePath = options.normalizePath
   const removeStandalone = options.removeStandalone
+  // Catalog rows are pure functions of one file; the host may memoize them by file revision.
+  const summaries = options.summaries || { standalone: (path, compute) => compute(path), card: (cardPath, compute) => compute(cardPath) }
   const templateRecords = createJsonProjectionCache(), templateSnapshots = new WeakMap()
   const emptyTemplateSnapshot = freezeJsonProjection({ worldName: '', worldbooks: {} })
   if (!resources || !cards || typeof normalizePath !== 'function' || typeof removeStandalone !== 'function') {
@@ -92,18 +94,29 @@ export function createWorldBookLibrary(options = {}) {
     return await get(source)
   }
 
+  async function standaloneSummary(path) {
+    const record = await readRecord({ kind: 'standalone', path })
+    return { path: record.source.path, name: record.view.displayName, entryCount: record.view.entryCount,
+      enabledCount: record.view.enabledCount, diagnostics: record.view.diagnostics.length }
+  }
+  async function cardSummary(cardPath) {
+    const card = await cards.read(cardPath)
+    if (!card || !card.character_book || typeof card.character_book !== 'object') return { hasBook: false }
+    const view = inspectWorldBookDocument(card.character_book, { filename: card.name })
+    return { hasBook: true, cardName: card.name, name: view.displayName, entryCount: view.entryCount,
+      enabledCount: view.enabledCount, diagnostics: view.diagnostics.length }
+  }
   async function catalog() {
     const globals = new Set((await globalSources()).map(source => source.path))
     const standaloneResults = await Promise.all((await resources.list('worldbook')).map(async function (path) {
       try {
-        const [record, metadata] = await Promise.all([
-          readRecord({ kind: 'standalone', path }),
+        const [summary, metadata] = await Promise.all([
+          summaries.standalone(path, standaloneSummary),
           typeof resources.metadata === 'function' ? resources.metadata(path) : null
         ])
         return { row: {
-          kind: 'standalone', path: record.source.path, name: record.view.displayName, globalEnabled: globals.has(record.source.path),
-          entryCount: record.view.entryCount, enabledCount: record.view.enabledCount,
-          diagnostics: record.view.diagnostics.length,
+          kind: 'standalone', path: summary.path, name: summary.name, globalEnabled: globals.has(summary.path),
+          entryCount: summary.entryCount, enabledCount: summary.enabledCount, diagnostics: summary.diagnostics,
           importedAt: Math.max(0, Number(metadata && metadata.importedAt) || 0),
           updatedAt: Math.max(0, Number(metadata && metadata.updatedAt) || 0)
         } }
@@ -113,16 +126,14 @@ export function createWorldBookLibrary(options = {}) {
     }))
     const embeddedResults = await Promise.all((await cards.listPaths()).map(async function (cardPath) {
       try {
-        const [card, metadata] = await Promise.all([
-          cards.read(cardPath),
+        const [summary, metadata] = await Promise.all([
+          summaries.card(cardPath, cardSummary),
           typeof cards.metadata === 'function' ? cards.metadata(cardPath) : null
         ])
-        if (!card || !card.character_book || typeof card.character_book !== 'object') return {}
-        const view = inspectWorldBookDocument(card.character_book, { filename: card.name })
+        if (!summary.hasBook) return {}
         return { row: {
-          kind: 'card', cardPath, cardName: card.name, name: view.displayName,
-          entryCount: view.entryCount, enabledCount: view.enabledCount,
-          diagnostics: view.diagnostics.length,
+          kind: 'card', cardPath, cardName: summary.cardName, name: summary.name,
+          entryCount: summary.entryCount, enabledCount: summary.enabledCount, diagnostics: summary.diagnostics,
           importedAt: Math.max(0, Number(metadata && metadata.importedAt) || 0),
           updatedAt: Math.max(0, Number(metadata && metadata.updatedAt) || 0)
         } }

@@ -750,8 +750,17 @@ export async function apply(ctx) {
   async function deletePreset(resourcePath) {
     return await deleteLibraryResource(resourcePath, 'preset')
   }
+  // The catalog is refetched on every card/worldbook change; reparsing every card each time blocked the server.
+  const worldBookSummaryCaches = {}
+  function cachedWorldBookSummary(kind) {
+    return function (path, compute) {
+      worldBookSummaryCaches[kind] ||= createCardSummaryCache({ absolute: value => fileResources.absolute(value), read: compute })
+      return worldBookSummaryCaches[kind].read(path)
+    }
+  }
   const worldBooks = createWorldBookLibrary({
     normalizePath: normalizeResourcePath,
+    summaries: { standalone: cachedWorldBookSummary('standalone'), card: cachedWorldBookSummary('card') },
     resources: {
       globalSources: async function () { return await fileResources.globalWorldBookSources() },
       setGlobal: async function (path, enabled) { return await fileResources.setGlobalWorldBook(path, enabled) },

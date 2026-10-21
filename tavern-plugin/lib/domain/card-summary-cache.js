@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises'
 
 // Keep only detached catalog summaries, never a mutable card workspace.
+// Each cached value is revalidated against the backing file's stat fingerprint.
 export function createCardSummaryCache({ absolute, read, limit = 512 }) {
   const entries = new Map()
   async function fingerprint(path) {

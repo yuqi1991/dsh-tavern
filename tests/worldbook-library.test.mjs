@@ -5,7 +5,7 @@ import { createWorldBookLibrary } from '../tavern-plugin/lib/domain/worldbook-li
 
 function clone(value) { return JSON.parse(JSON.stringify(value)) }
 
-function harness() {
+function harness(extra = {}) {
   const cards = new Map([
     ['cards/命运.json', {
       name: '命运',
@@ -31,6 +31,7 @@ function harness() {
     return value
   }
   const library = createWorldBookLibrary({
+    ...extra,
     normalizePath: normalize,
     resources: {
       async globalSources() { return [...globals].map(path => ({ kind: 'standalone', path })) },
@@ -339,4 +340,18 @@ test('全局开关保留旧对话世界书快照，变更提示和重新加载�
   await library.setGlobal({ kind: 'standalone', path: 'worldbooks/王都.json' }, false)
   assert.equal((await api.updateStatus(chat, card)).worldbookChanged, true)
   assert.equal((await library.bound(chat.cardPath, card, chat)).view.entryCount, 2)
+})
+
+test('世界书目录行可由宿主按文件版本缓存，结果与直接解析一致', async () => {
+  const computed = []
+  const memo = new Map()
+  const cached = kind => async (path, compute) => {
+    if (!memo.has(kind + path)) { computed.push(path); memo.set(kind + path, await compute(path)) }
+    return memo.get(kind + path)
+  }
+  const run = harness({ summaries: { standalone: cached('standalone'), card: cached('card') } })
+  const first = await run.library.catalog()
+  assert.deepEqual(first, await harness().library.catalog())
+  assert.deepEqual(await run.library.catalog(), first)
+  assert.deepEqual(computed.sort(), ['cards/命运.json', 'cards/空白.json', 'worldbooks/王都.json'])
 })
