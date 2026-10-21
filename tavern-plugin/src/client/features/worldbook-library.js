@@ -31,6 +31,34 @@
 			});
 		}
 
+		const WORLD_BOOK_RECALL_STEPS = [
+			{ icon: "📌", title: "常驻条目始终生效", body: "开启“常驻”的条目不看关键词、不占预算。内容固定的放进稳定前缀以提高缓存命中；含随机、分组或模板的每轮重新渲染。" },
+			{ icon: "🔑", title: "关键词匹配", body: "扫描本轮输入和最近一条 AI 正文（默认 2 条消息，可按世界书或条目调整）。命中任一主关键词即成为候选；开启次关键词时再按“任一 / 不全部 / 全部不 / 全部”判断。默认不区分大小写，支持 /正则/。" },
+			{ icon: "🧠", title: "智能筛选", body: "候选超过 5 条或约 2000 Token 时，后台模型会挑出与当前剧情真正相关的条目；候选特别多（超过 20 条或约 8000 Token）时先用 BM25 词频粗筛。" },
+			{ icon: "⚖️", title: "排序与预算", body: "按条目的“排序”值从大到小入选，共用估算 Token 软预算（默认 8192，中文约每字 1 Token）。预算用完后，本轮不再加入更多条目。" },
+			{ icon: "⏳", title: "10 回合冷却", body: "注入过的非常驻条目，之后 10 个剧情回合内不再自动召回，避免同一设定反复占用上下文；条目正文修改后冷却立即解除。" }
+		];
+		const WORLD_BOOK_RECALL_NOTES = [
+			"人物卡绑定的世界书与全局世界书合并使用，同一本书只加载一次。",
+			"条目的“位置”只用于分组排序，暂不映射到酒馆的精确消息深度。",
+			"酒馆的粘性、延迟、概率字段由冷却机制代替，字段本身原样保留。",
+			"MVU 变量更新规则条目不参与召回。",
+			"正文 Agent 还能主动调用世界书搜索，查阅未被自动召回的条目，不受关键词和冷却限制。"
+		];
+		function WorldBookRecallGuide() {
+			const h = React.createElement;
+			return h("details", { className: "dsh-tavern-help dsh-tavern-recall-guide" },
+				h("summary", null,
+					h("span", { className: "dsh-tavern-recall-guide-icon", "aria-hidden": "true" }, "📖"),
+					h("span", { className: "dsh-tavern-recall-guide-heading" }, h("strong", null, "世界书如何召回"), h("span", null, "每轮自动挑选与剧情相关的条目放进上下文"))),
+				h("ol", { className: "dsh-tavern-recall-steps" }, WORLD_BOOK_RECALL_STEPS.map(function (step, index) {
+					return h("li", { key: step.title },
+						h("span", { className: "dsh-tavern-recall-step-mark", "aria-hidden": "true" }, step.icon),
+						h("div", null, h("b", null, (index + 1) + ". " + step.title), h("p", null, step.body)));
+				})),
+				h("div", { className: "dsh-tavern-recall-notes" }, h("b", null, "补充说明"), h("ul", null, WORLD_BOOK_RECALL_NOTES.map(function (note) { return h("li", { key: note }, note); }))));
+		}
+
 		function createWorldBookLibraryFeatureModule() {
 		function WorldBookEditor(props) {
             const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
@@ -343,7 +371,7 @@
 			function row(item) { const source = item.kind === "card" ? { kind: "card", cardPath: item.cardPath } : { kind: "standalone", path: item.path }; const resourcePath = item.kind === "card" ? item.cardPath : item.path; return h("div", { key: resourcePath, className: "dsh-tavern-card-pick-wrap" }, h("button", { className: "dsh-tavern-library-card", disabled: busy, onClick: function () { load(source); } }, h("b", null, item.name), h("span", null, (item.globalEnabled ? "全局生效 · " : "") + item.entryCount + " 条 · " + item.enabledCount + " 条启用" + (item.diagnostics ? " · " + item.diagnostics + " 个诊断" : "")), item.cardName ? h("span", null, "来自人物卡：" + item.cardName) : null), sessionMode === "card" ? h("button", { className: "dsh-tavern-resource-at", title: "在对话中引用", onClick: function () { props.appendMention("worldbook", resourcePath, item.name); } }, "在对话中引用") : null); }
 			function group(title, items) { return h("section", { className: "dsh-tavern-resource-group" }, h("div", { className: "dsh-tavern-resource-group-title" }, h("span", null, title + " · " + items.length)), items.length ? items.map(row) : h("div", { className: "dsh-tavern-status-empty" }, searchQuery.trim() ? "没有匹配的世界书" : "暂无")); }
 			return h("div", { className: "dsh-tavern-library" }, h("div", { className: "dsh-tavern-status-head" }, h("div", { className: "dsh-tavern-status-title" }, "世界书库"), h("div", { className: "dsh-tavern-question-sub" }, "独立世界书与人物卡内置世界书共用编辑界面"), h("button", { className: "dsh-tavern-btn primary", disabled: busy, onClick: function () { importInput.current && importInput.current.click(); } }, "导入世界书"), h("input", { ref: importInput, type: "file", accept: ".json,application/json", style: { display: "none" }, onChange: function (event) { const file = event.target.files && event.target.files[0]; importFile(file); event.target.value = ""; } })), h("div", { className: "dsh-tavern-resource-body" },
-				h("details", { className: "dsh-tavern-worldbook-note dsh-tavern-help" }, h("summary", null, h("span", null, "世界书如何召回")), "非常驻条目按作者关键词和优先级匹配，使用可配置的估算 Token 软预算，实际注入后冷却 10 个剧情回合。常驻条目不计入该预算；混合位置随本轮共同编排。尚未支持的酒馆字段仍会原样保留。"),
+				h(WorldBookRecallGuide),
 				h("div", { className: "dsh-tavern-worldbook-toolbar" },
 					h("input", { className: "dsh-tavern-library-search", type: "search", value: searchQuery, placeholder: "搜索世界书或人物卡", "aria-label": "搜索世界书", onChange: function (event) { setSearchQuery(event.target.value); } }),
 					h("label", { className: "dsh-tavern-worldbook-sort" },
