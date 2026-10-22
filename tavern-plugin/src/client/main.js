@@ -593,6 +593,8 @@ window.__ModuleLoader__.load({
 			);
 		}
 
+// @include features/text-layout.js
+
 // @include features/user-profile.js
 
 // @include features/system-prompts.js
@@ -701,7 +703,7 @@ window.__ModuleLoader__.load({
 // @include features/request-context.js
 
 
-		const inject = ["slots", "sessions", "workspaces", "layout", "connection", "conversation", "betterSidebar", "remote", "remote.commands", "tavernSessionSignals"];
+		const inject = ["slots", "sessions", "workspaces", "layout", "connection", "conversation", "betterSidebar", "remote", "remote.commands", "tavernSessionSignals", "theme"];
 
 		// The host chat page's row-hiding layer is gone; drop what it left behind.
 		function forgetRetiredHidingKeys(storage) {
@@ -717,6 +719,7 @@ window.__ModuleLoader__.load({
 		function apply(ctx) {
 			forgetRetiredHidingKeys(window.localStorage);
 			ctx.effect(() => tavernInteractionDiagnostics.start(), "dsh-tavern: interaction diagnostics");
+			ctx.effect(function () { return tavernTextLayoutFeature.register(ctx); }, "dsh-tavern: text layout in appearance settings");
 			ctx.effect(() => displayPreferences.start(), "dsh-tavern: global display preferences");
 			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;

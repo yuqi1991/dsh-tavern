@@ -79,7 +79,7 @@ body.dsh-tavern-shell-active .dsh-tavern-landing::before {
 .dsh-tavern-error-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #c45f5f; font-size: 12px; font-weight: 700; }
 .dsh-tavern-error-meta time { margin-left: auto; color: var(--dsw-alias-label-secondary); font-weight: 400; }
 .dsh-tavern-error-message { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.55; }
-.dsh-tavern-assistant { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 28px; }
+.dsh-tavern-assistant { display: flex; flex-direction: column; gap: 16px; color: var(--dsw-alias-label-primary); font-size: calc(16px + var(--dsh-content-font-delta, 0px)); line-height: calc(28px + var(--dsh-content-font-delta, 0px)); }
 .dsh-tavern-illustration { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .dsh-tavern-illustration > a { display: block; max-width: 100%; }
 .dsh-tavern-illustration img { display: block; width: auto; height: auto; max-width: min(100%, 320px); max-height: min(240px, 35svh); object-fit: contain; border-radius: 12px; }
@@ -130,7 +130,7 @@ body.dsh-tavern-shell-active .dsh-tavern-landing::before {
 .dsh-tavern-status-runtime { width: 100%; min-width: 0; margin: 0 0 10px; overflow: hidden; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; background: var(--dsw-alias-bg-base); }
 .dsh-tavern-user-row { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .dsh-tavern-user-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; min-width: 0; max-width: min(525px, 82%); }
-.dsh-tavern-user-bubble { max-width: 100%; padding: 10px 16px; border-radius: 22px; background: var(--dsw-specific-bubble); color: var(--dsw-alias-label-primary); font-size: 16px; line-height: 24px; overflow-wrap: anywhere; }
+.dsh-tavern-user-bubble { max-width: 100%; padding: 10px 16px; border-radius: 22px; background: var(--dsw-specific-bubble); color: var(--dsw-alias-label-primary); font-size: calc(16px + var(--dsh-content-font-delta, 0px)); line-height: calc(24px + var(--dsh-content-font-delta, 0px)); overflow-wrap: anywhere; }
 .dsh-tavern-user-extra { margin-top: 8px; }
 .dsh-tavern-user-actions { display: flex; align-items: center; gap: 7px; min-height: 20px; color: var(--dsw-alias-label-tertiary); font-size: 12px; line-height: 18px; }
 .dsh-tavern-user-copy { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
@@ -1890,3 +1890,16 @@ details.dsh-tavern-recall-guide > summary { gap: 12px; padding: 12px 14px; }
 .dsh-tavern-recall-guide-heading { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > strong { color: var(--dsw-alias-label-primary); font-size: 14px; font-weight: 650; }
 details.dsh-tavern-recall-guide > summary .dsh-tavern-recall-guide-heading > span { color: var(--dsw-alias-label-tertiary); font-size: 12px; }
+/* 外观 → 正文排版：只在调过行距或字距时接管酒馆正文；DSH 的 markdown 用 font 简写定行高，需逐层压过。 */
+html[data-dsh-text-layout] .dsh-tavern-assistant { line-height: var(--dsh-tavern-line-height, calc(28px + var(--dsh-content-font-delta, 0px))) !important; }
+html[data-dsh-text-layout] .dsh-tavern-user-bubble { line-height: var(--dsh-tavern-line-height, calc(24px + var(--dsh-content-font-delta, 0px))) !important; }
+html[data-dsh-text-layout] :is(.dsh-tavern-assistant, .dsh-tavern-user-bubble) { letter-spacing: var(--dsh-tavern-letter-spacing, normal) !important; }
+html[data-dsh-text-layout] :is(.dsh-tavern-assistant, .dsh-tavern-user-bubble) :is([class*="_markdown_"], [class*="_markdown_"] :not(pre, code, pre *)) { line-height: inherit !important; letter-spacing: inherit !important; }
+.dsh-tavern-text-layout { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 12px; }
+.dsh-tavern-text-layout-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dsh-tavern-text-layout-head strong { font-size: 14px; }
+.dsh-tavern-text-layout-field { display: grid; grid-template-columns: 84px minmax(0, 1fr) 64px; align-items: center; gap: 10px; font-size: 13px; }
+.dsh-tavern-text-layout-label small { margin-left: 4px; color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.dsh-tavern-text-layout-field input[type="range"] { width: 100%; accent-color: var(--dsh-tavern-accent); }
+.dsh-tavern-text-layout-value { color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; text-align: right; }
+.dsh-tavern-text-layout-preview { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--dsw-alias-bg-layer-1, rgba(127, 127, 127, .08)); color: var(--dsw-alias-label-primary); }
