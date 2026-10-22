@@ -35,12 +35,12 @@ function tavernFrameViewportFloor() {
 		try { if (!sheet.disabled && (!sheet.media.mediaText || matchMedia(sheet.media.mediaText).matches) && matchesRules(sheet.cssRules)) return viewport; } catch (_) {}
 	}
 	for (var node of document.body.querySelectorAll('*')) {
-		if (!visible(node)) continue;
+		// Check the cheap conditions first; visible() measures layout.
 		var style = getComputedStyle(node);
-		if (viewportHeight(node.style)) return viewport;
 		// Full-page fixed shells have no normal-flow height at all. Floating
 		// buttons or small dialogs must not enlarge the frame.
-		if (style.position === 'fixed' && style.top === '0px' && style.bottom === '0px') return viewport;
+		if (!viewportHeight(node.style) && !(style.position === 'fixed' && style.top === '0px' && style.bottom === '0px')) continue;
+		if (visible(node)) return viewport;
 	}
 	return 0;
 }
