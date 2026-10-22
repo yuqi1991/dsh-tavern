@@ -22,9 +22,18 @@
 			return window.crypto && typeof window.crypto.randomUUID === "function" ? window.crypto.randomUUID() : String(Date.now()) + ":" + String(Math.random());
 		}
 
+		// Each update is compared once per frame; serialize each shared (copy-on-write) object only once.
+		const tavernFrameJson = new WeakMap();
+		function tavernFrameJsonOf(value) {
+			if (!value || typeof value !== "object") return JSON.stringify(value);
+			let json = tavernFrameJson.get(value);
+			if (json === undefined) { json = JSON.stringify(value); tavernFrameJson.set(value, json); }
+			return json;
+		}
+
 		function createTavernHelperContextUpdate(previous, next, previousTurn, nextTurn) {
-			function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
-			function same(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
+			function clone(value) { return value === undefined ? undefined : JSON.parse(tavernFrameJsonOf(value)); }
+			function same(left, right) { return left === right || tavernFrameJsonOf(left) === tavernFrameJsonOf(right); }
 			const target = next && typeof next === "object" ? next : null;
 			if (!target) return null;
 			const turn = Math.max(0, Number(nextTurn) || 0);

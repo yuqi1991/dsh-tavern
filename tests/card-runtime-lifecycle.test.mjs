@@ -41,6 +41,7 @@ test('DSH 字号同步到已就绪 iframe，不替换文档；离开后停止监
   let size = '14px', notify, disconnected = false
   h.window.document = { body: { appendChild() {} }, documentElement: {}, createElement() { return { style: {}, remove() {} } } }
   h.window.getComputedStyle = () => ({ getPropertyValue: () => size })
+  h.window.requestAnimationFrame = work => work()
   h.window.MutationObserver = class {
     constructor(callback) { notify = callback }
     observe() {} disconnect() { disconnected = true }
@@ -77,6 +78,23 @@ test('多个消息 iframe 共用一个宿主主题监听，最后一个离开时
   assert.equal(disconnected, 0)
   stops[0]()
   assert.equal(disconnected, 1)
+})
+
+test('同一帧内的多次主题样式变动只读取一次宿主主题', () => {
+  const h = host(), frames = []
+  let notify, reads = 0
+  h.window.document = { head: {}, body: { appendChild() {} }, documentElement: {}, createElement() { return { style: {}, remove() {} } } }
+  h.window.getComputedStyle = () => ({ color: 'rgb(1, 2, 3)', getPropertyValue: () => { reads++; return '14px' } })
+  h.window.requestAnimationFrame = work => frames.push(work)
+  h.window.MutationObserver = class { constructor(callback) { notify = callback } observe() {} disconnect() {} }
+  const stop = h.client.createTavernMessageFrameLifecycle({ content: '<p>x</p>', eager: true }, { window: h.window }).start(() => {})
+  const baseline = reads
+  for (let i = 0; i < 30; i++) notify()
+  assert.equal(frames.length, 1)
+  assert.equal(reads, baseline, '帧到来前不读取样式')
+  frames.shift()()
+  assert.equal(reads, baseline + 1)
+  stop()
 })
 
 test('正文文档带认证字号通道与原字号恢复逻辑', () => {

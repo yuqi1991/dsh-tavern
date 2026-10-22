@@ -13,11 +13,22 @@ function currentTavernHostTheme(win) {
 function subscribeTavernHostTheme(win, listener) {
     if (!tavernHostThemeObserver) {
         tavernHostTheme = readTavernHostTheme(win);
+        // Mounting card fragments inserts many <style> nodes, each in its own task. Reading
+        // computed style per mutation forced a full-page style recalc every time; read once
+        // per frame instead, when the browser recalculates styles anyway.
+        let queued = false;
+        const schedule = win.requestAnimationFrame ? function (work) { win.requestAnimationFrame(work); } : function (work) { win.setTimeout(work, 16); };
         tavernHostThemeObserver = new win.MutationObserver(function () {
-            const next = readTavernHostTheme(win);
-            if (next.contentFontSize === tavernHostTheme.contentFontSize && next.textColorOverrides.quote === tavernHostTheme.textColorOverrides.quote) return;
-            tavernHostTheme = next;
-            tavernHostThemeListeners.forEach(function (notify) { notify(next); });
+            if (queued) return;
+            queued = true;
+            schedule(function () {
+                queued = false;
+                if (!tavernHostThemeObserver) return;
+                const next = readTavernHostTheme(win);
+                if (next.contentFontSize === tavernHostTheme.contentFontSize && next.textColorOverrides.quote === tavernHostTheme.textColorOverrides.quote) return;
+                tavernHostTheme = next;
+                tavernHostThemeListeners.forEach(function (notify) { notify(next); });
+            });
         });
         // Theme token overrides are emitted as stylesheets, not only root attributes.
         tavernHostThemeObserver.observe(win.document.head, { subtree: true, childList: true, characterData: true });

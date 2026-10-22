@@ -7259,11 +7259,22 @@ function currentTavernHostTheme(win) {
 function subscribeTavernHostTheme(win, listener) {
     if (!tavernHostThemeObserver) {
         tavernHostTheme = readTavernHostTheme(win);
+        // Mounting card fragments inserts many <style> nodes, each in its own task. Reading
+        // computed style per mutation forced a full-page style recalc every time; read once
+        // per frame instead, when the browser recalculates styles anyway.
+        let queued = false;
+        const schedule = win.requestAnimationFrame ? function (work) { win.requestAnimationFrame(work); } : function (work) { win.setTimeout(work, 16); };
         tavernHostThemeObserver = new win.MutationObserver(function () {
-            const next = readTavernHostTheme(win);
-            if (next.contentFontSize === tavernHostTheme.contentFontSize && next.textColorOverrides.quote === tavernHostTheme.textColorOverrides.quote) return;
-            tavernHostTheme = next;
-            tavernHostThemeListeners.forEach(function (notify) { notify(next); });
+            if (queued) return;
+            queued = true;
+            schedule(function () {
+                queued = false;
+                if (!tavernHostThemeObserver) return;
+                const next = readTavernHostTheme(win);
+                if (next.contentFontSize === tavernHostTheme.contentFontSize && next.textColorOverrides.quote === tavernHostTheme.textColorOverrides.quote) return;
+                tavernHostTheme = next;
+                tavernHostThemeListeners.forEach(function (notify) { notify(next); });
+            });
         });
         // Theme token overrides are emitted as stylesheets, not only root attributes.
         tavernHostThemeObserver.observe(win.document.head, { subtree: true, childList: true, characterData: true });
@@ -7304,9 +7315,18 @@ function subscribeTavernHostTheme(win, listener) {
 			return window.crypto && typeof window.crypto.randomUUID === "function" ? window.crypto.randomUUID() : String(Date.now()) + ":" + String(Math.random());
 		}
 
+		// Each update is compared once per frame; serialize each shared (copy-on-write) object only once.
+		const tavernFrameJson = new WeakMap();
+		function tavernFrameJsonOf(value) {
+			if (!value || typeof value !== "object") return JSON.stringify(value);
+			let json = tavernFrameJson.get(value);
+			if (json === undefined) { json = JSON.stringify(value); tavernFrameJson.set(value, json); }
+			return json;
+		}
+
 		function createTavernHelperContextUpdate(previous, next, previousTurn, nextTurn) {
-			function clone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
-			function same(left, right) { return JSON.stringify(left) === JSON.stringify(right); }
+			function clone(value) { return value === undefined ? undefined : JSON.parse(tavernFrameJsonOf(value)); }
+			function same(left, right) { return left === right || tavernFrameJsonOf(left) === tavernFrameJsonOf(right); }
 			const target = next && typeof next === "object" ? next : null;
 			if (!target) return null;
 			const turn = Math.max(0, Number(nextTurn) || 0);
