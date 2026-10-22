@@ -210,9 +210,9 @@
 			function sendFontSize(document) {
 				const body = hostWindow.document && hostWindow.document.body;
 				if (!body || typeof hostWindow.getComputedStyle !== "function") return;
-				const value = parseFloat(hostWindow.getComputedStyle(body).getPropertyValue("--dsh-content-font-size"));
-				const fontSize = props.followContentFont !== false && Number.isFinite(value) && value >= 8 && value <= 48 ? value : 14;
-				const textColorOverrides = tavernTextColorOverrides(hostWindow);
+				const theme = currentTavernHostTheme(hostWindow);
+				const fontSize = props.followContentFont !== false ? theme.contentFontSize : 14;
+				const textColorOverrides = theme.textColorOverrides;
                 if (!document && fontSize === lastFontSize && textColorOverrides.quote === lastTextAccent) return;
                 lastTextAccent = textColorOverrides.quote;
 				lastFontSize = fontSize;
@@ -417,13 +417,8 @@
                             return executeSlash("/send " + text + "|/trigger", props.sessionId);
 						}, function (error) { tavernErrorHub.report("开始旅程", error); }) : function () { };
 
-					let fontObserver = null;
-					if (hostWindow.document && typeof hostWindow.MutationObserver === "function") {
-						fontObserver = new hostWindow.MutationObserver(function () { sendFontSize(); });
-                        // Theme token overrides are emitted as stylesheets, not only root attributes.
-                        fontObserver.observe(hostWindow.document.head, { subtree: true, childList: true, characterData: true });
-						[hostWindow.document.documentElement, hostWindow.document.body].filter(Boolean).forEach(function (node) { fontObserver.observe(node, { attributes: true, attributeFilter: ["style", "class", "data-ds-dark-theme"] }); });
-					}
+					const unsubscribeTheme = hostWindow.document && typeof hostWindow.MutationObserver === "function"
+						? subscribeTavernHostTheme(hostWindow, function () { sendFontSize(); }) : null;
 					return function () {
                         touchRelay.stop();
 						releaseComposer();
@@ -434,7 +429,7 @@
 							}
 							openingArtifacts.dispose();
 						}
-						if (fontObserver) fontObserver.disconnect();
+						if (unsubscribeTheme) unsubscribeTheme();
                         frameSizeObservers.forEach(function (observer) { observer.disconnect(); });
                         frameSizeObservers.clear();
                         frameVisibility.forEach(stop => stop());

@@ -65,6 +65,20 @@ test('DSH 字号同步到已就绪 iframe，不替换文档；离开后停止监
   assert.equal(disconnected, true)
 })
 
+test('多个消息 iframe 共用一个宿主主题监听，最后一个离开时断开', () => {
+  const h = host()
+  let created = 0, disconnected = 0
+  h.window.document = { head: {}, body: { appendChild() {} }, documentElement: {}, createElement() { return { style: {}, remove() {} } } }
+  h.window.getComputedStyle = () => ({ color: 'rgb(1, 2, 3)', getPropertyValue: () => '' })
+  h.window.MutationObserver = class { constructor() { created++ } observe() {} disconnect() { disconnected++ } }
+  const stops = Array.from({ length: 20 }, (_, i) => h.client.createTavernMessageFrameLifecycle({ content: '<p>' + i + '</p>', eager: true }, { window: h.window }).start(() => {}))
+  assert.equal(created, 1)
+  stops.slice(1).forEach(stop => stop())
+  assert.equal(disconnected, 0)
+  stops[0]()
+  assert.equal(disconnected, 1)
+})
+
 test('正文文档带认证字号通道与原字号恢复逻辑', () => {
   const html = host().client.buildTavernFrameDocument({ content: '<p style="font-size:20px">正文</p>', token: 'font-test' })
   assert.match(html, /data-dsh-tavern-font-runtime/)

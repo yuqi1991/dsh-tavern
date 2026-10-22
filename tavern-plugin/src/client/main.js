@@ -550,6 +550,8 @@ window.__ModuleLoader__.load({
 		// A new session (including A -> B -> A) gets a distinct lease identity.
 // @include runtime/script-execution.js
 
+// @include modules/host-theme.js
+
 		// Guard pathological card resize loops without constraining normal long content.
 // @include runtime/message-frame-lifecycle.js
 		const tavernRetainedFrames = createRetainedTavernFrames({

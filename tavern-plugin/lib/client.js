@@ -7244,6 +7244,41 @@ window.__ModuleLoader__.load({
 				state.canRetry ? React.createElement("button", { type: "button", className: "dsh-tavern-btn", onClick: props.retry }, "重新加载 MVU") : null);
 		}
 
+// One observer of DSH theme tokens shared by every message frame.
+// DSH emits preferences as CSS variables and stylesheets, so each head/root style
+// mutation is re-read once here instead of once per mounted card.
+const tavernHostThemeListeners = new Set();
+let tavernHostThemeObserver = null, tavernHostTheme = null;
+function readTavernHostTheme(win) {
+    const value = parseFloat(win.getComputedStyle(win.document.body).getPropertyValue("--dsh-content-font-size"));
+    return { contentFontSize: Number.isFinite(value) && value >= 8 && value <= 48 ? value : 14, textColorOverrides: tavernTextColorOverrides(win) };
+}
+function currentTavernHostTheme(win) {
+    return tavernHostTheme || readTavernHostTheme(win);
+}
+function subscribeTavernHostTheme(win, listener) {
+    if (!tavernHostThemeObserver) {
+        tavernHostTheme = readTavernHostTheme(win);
+        tavernHostThemeObserver = new win.MutationObserver(function () {
+            const next = readTavernHostTheme(win);
+            if (next.contentFontSize === tavernHostTheme.contentFontSize && next.textColorOverrides.quote === tavernHostTheme.textColorOverrides.quote) return;
+            tavernHostTheme = next;
+            tavernHostThemeListeners.forEach(function (notify) { notify(next); });
+        });
+        // Theme token overrides are emitted as stylesheets, not only root attributes.
+        tavernHostThemeObserver.observe(win.document.head, { subtree: true, childList: true, characterData: true });
+        [win.document.documentElement, win.document.body].filter(Boolean).forEach(function (node) { tavernHostThemeObserver.observe(node, { attributes: true, attributeFilter: ["style", "class", "data-ds-dark-theme"] }); });
+    }
+    tavernHostThemeListeners.add(listener);
+    return function () {
+        tavernHostThemeListeners.delete(listener);
+        if (tavernHostThemeListeners.size || !tavernHostThemeObserver) return;
+        tavernHostThemeObserver.disconnect();
+        tavernHostThemeObserver = null;
+        tavernHostTheme = null;
+    };
+}
+
 		// Guard pathological card resize loops without constraining normal long content.
 		const TAVERN_FRAME_MAX_HEIGHT = 32000;
 		function clampTavernFrameHeight(value) {
@@ -7457,9 +7492,9 @@ window.__ModuleLoader__.load({
 			function sendFontSize(document) {
 				const body = hostWindow.document && hostWindow.document.body;
 				if (!body || typeof hostWindow.getComputedStyle !== "function") return;
-				const value = parseFloat(hostWindow.getComputedStyle(body).getPropertyValue("--dsh-content-font-size"));
-				const fontSize = props.followContentFont !== false && Number.isFinite(value) && value >= 8 && value <= 48 ? value : 14;
-				const textColorOverrides = tavernTextColorOverrides(hostWindow);
+				const theme = currentTavernHostTheme(hostWindow);
+				const fontSize = props.followContentFont !== false ? theme.contentFontSize : 14;
+				const textColorOverrides = theme.textColorOverrides;
                 if (!document && fontSize === lastFontSize && textColorOverrides.quote === lastTextAccent) return;
                 lastTextAccent = textColorOverrides.quote;
 				lastFontSize = fontSize;
@@ -7664,13 +7699,8 @@ window.__ModuleLoader__.load({
                             return executeSlash("/send " + text + "|/trigger", props.sessionId);
 						}, function (error) { tavernErrorHub.report("开始旅程", error); }) : function () { };
 
-					let fontObserver = null;
-					if (hostWindow.document && typeof hostWindow.MutationObserver === "function") {
-						fontObserver = new hostWindow.MutationObserver(function () { sendFontSize(); });
-                        // Theme token overrides are emitted as stylesheets, not only root attributes.
-                        fontObserver.observe(hostWindow.document.head, { subtree: true, childList: true, characterData: true });
-						[hostWindow.document.documentElement, hostWindow.document.body].filter(Boolean).forEach(function (node) { fontObserver.observe(node, { attributes: true, attributeFilter: ["style", "class", "data-ds-dark-theme"] }); });
-					}
+					const unsubscribeTheme = hostWindow.document && typeof hostWindow.MutationObserver === "function"
+						? subscribeTavernHostTheme(hostWindow, function () { sendFontSize(); }) : null;
 					return function () {
                         touchRelay.stop();
 						releaseComposer();
@@ -7681,7 +7711,7 @@ window.__ModuleLoader__.load({
 							}
 							openingArtifacts.dispose();
 						}
-						if (fontObserver) fontObserver.disconnect();
+						if (unsubscribeTheme) unsubscribeTheme();
                         frameSizeObservers.forEach(function (observer) { observer.disconnect(); });
                         frameSizeObservers.clear();
                         frameVisibility.forEach(stop => stop());
