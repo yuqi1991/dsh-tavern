@@ -15,6 +15,8 @@ FORK="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STAGE_HOME="${STAGE_HOME:-/home/claw/dsh-stage}"
 PROD_HOME="${PROD_HOME:-/home/claw/workspace/dsh-tarvern}"
 STAGE_PORT="${STAGE_PORT:-3091}"
+STAGE_HOST="${STAGE_HOST:-127.0.0.1}"   # DSH 内核不允许 0.0.0.0；需要对外访问时用 dsh-pocket
+STAGE_POCKET="${STAGE_POCKET:-1}"       # 1=加载 dsh-pocket（默认）；0=不加载
 RUNTIME="${STAGE_RUNTIME:-$STAGE_HOME/runtime}"
 PROFILE="$STAGE_HOME/profiles/tavern"
 DATA="$STAGE_HOME/profile-data/tavern/data"
@@ -98,15 +100,20 @@ prepare() {
   ln -sfn "$FORK/tavern-plugin" "$nm/dsh-tavern-plugin"
   ln -sfn "$FORK/tavern-plugin/packages/dsh-tavern-remote" "$nm/dsh-tavern-remote"
   ln -sfn "$FORK/tavern-plugin/packages/dsh-dream-skin" "$nm/dsh-dream-skin"
-  node - "$PROFILE/package.json" "$FORK" "$DATA" <<'EOF'
+  STAGE_POCKET="$STAGE_POCKET" node - "$PROFILE/package.json" "$FORK" "$DATA" <<'EOF'
 const fs = require('node:fs')
 const [file, fork, data] = process.argv.slice(2)
 const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
 pkg.dependencies['dsh-tavern-plugin'] = `link:${fork}/tavern-plugin`
 pkg.dependencies['dsh-tavern-remote'] = `link:${fork}/tavern-plugin/packages/dsh-tavern-remote`
 pkg.dependencies['dsh-dream-skin'] = `link:${fork}/tavern-plugin/packages/dsh-dream-skin`
-delete pkg.dependencies['dsh-pocket']
-pkg.dsh.profile.bundles = pkg.dsh.profile.bundles.filter(name => name !== 'dsh-pocket')
+const bundles = pkg.dsh.profile.bundles.filter(name => name !== 'dsh-pocket')
+if (process.env.STAGE_POCKET === '0') delete pkg.dependencies['dsh-pocket']
+else {
+  pkg.dependencies['dsh-pocket'] = pkg.dependencies['dsh-pocket'] || '2.10.6'
+  bundles.splice(bundles.indexOf('dsh-tavern-plugin'), 0, 'dsh-pocket')
+}
+pkg.dsh.profile.bundles = bundles
 pkg.dshTavern = { ...pkg.dshTavern, source: fork, dataRoot: data }
 fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
 EOF
@@ -128,7 +135,7 @@ start() {
   for name in $PASS_ENV; do [ -n "${!name:-}" ] && envs+=("$name=${!name}"); done
   mkdir -p "$STAGE_HOME/logs"; : > "$LOG"
   cd "$STAGE_HOME"
-  setsid nohup env -i "${envs[@]}" node "$RUNTIME/bin/dsh" --profile tavern --host 127.0.0.1 --port "$STAGE_PORT" --no-open >> "$LOG" 2>&1 < /dev/null &
+  setsid nohup env -i "${envs[@]}" node "$RUNTIME/bin/dsh" --profile tavern --host "$STAGE_HOST" --port "$STAGE_PORT" --no-open >> "$LOG" 2>&1 < /dev/null &
   echo $! > "$PIDFILE"
   for _ in $(seq 1 90); do
     port_busy "$STAGE_PORT" && break
@@ -137,7 +144,7 @@ start() {
   done
   port_busy "$STAGE_PORT" || die "等待端口超时，见 $LOG"
   sleep 3
-  echo "stage 已启动（$mode 模型）：$(grep -o "http://127.0.0.1:$STAGE_PORT[^ ]*" "$LOG" | head -1)"
+  echo "stage 已启动（$mode 模型）：$(grep -o "http://[^ ]*:$STAGE_PORT/[^ ]*" "$LOG" | head -1)"
   echo "数据目录：$DATA    日志：$LOG"
 }
 
