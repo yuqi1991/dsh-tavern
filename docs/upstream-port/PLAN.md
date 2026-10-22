@@ -71,6 +71,17 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
 - **批 1 界面冒烟**（2026-10-21，隔离实例 + Chromium，`node tests/e2e/gameplay.mjs --batch1-ui`）：Guide 添加/保存到库/库内修改/加载/删除方案、台账区块与“更新游玩台账”、世界书库标签均通过；
   由此发现并补上遗漏：世界书“如何召回”折叠卡依赖上游通用 `dsh-tavern-help` 样式（已追加，召回说明规则挪到其后）。
   注意：e2e 偶发早期失败（变量结算等待超时/iframe 未就绪），同一代码连跑 3 次稳定通过，视为环境偶发。
+- **批 2 · 显示与卡片性能 完成**（2026-10-23）：
+  - 渲染深度（6f8a79c8）：设置里"渲染深度"，默认 3；更早的轮次出「渲染此轮」按钮，点了只渲染该轮。
+  - 正文排版（916b17ee）：外观里字号/行间距/字间距；正文与气泡跟随 DSH 字号（0.1.5 的主题接口是 `setFontSize(px)`，与上游不同，已适配）。
+  - 卡片 iframe 性能（手工移植，cherry-pick 全部冲突）：单次自顶向下测高（970d90e7，a57419c8）；纯文字/纯绘制变动不触发整页测高（b754116b，08c25274，
+    并忽略本树仍有的字号适配器临时 `<style data-dsh-tavern-font-measure>`）；全部消息 frame 共用一个宿主主题监听（3ba39f0b，4c55cfa9，只含消息 frame，我们没有 inline-fragment）；
+    上下文比对缓存序列化 + 主题读取按帧节流（31c6c361 的 F2/F4 部分，94815555）。
+  - **未移植**：31c6c361 的 F1（只内联最近 48 楼、去掉 template_display/template_rendered）——依赖 `historyAccess` 按需读取通道，我们没有；
+    且 helper-facade 的 `saveTemplatePatch` 会写回这些字段，无法在无真实卡片的情况下验证安全。a087be28/f274e141（删除"卡片界面跟随 DSH 字号缩放"）是功能删除，等用户决定。
+  - 批末检查：完整测试失败名全部在基线内（唯一"新"项是 916b17ee 把 text-layout 的 include 放进了 TavernSettingsSection 与 UserPreferenceProfileTab 之间，
+    破坏 conversation-settings-ui 的源码截取；已把 include 前移并给测试补桩，d8e50f83）；负载下偶发 133 帧测试/生图开关测试 30 秒超时，与改动无关。
+    `build-tavern-client --check`、`build-plugin-package --check` 通过；e2e `--batch1-ui`、`--render-depth --display-regression` 通过，普通 e2e 仍只死在 ticket-19 "金币：40"。
 
 ## 摘取流程（每个提交）
 1. `git cherry-pick -x --no-commit <hash>`；2. `lib/client.js` 冲突不手合，`node bin/build-tavern-client.mjs` 重建；
