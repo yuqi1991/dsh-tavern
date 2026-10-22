@@ -132,7 +132,13 @@ function TavernStoryFloor(props) {
 	const floor = props.floor;
 	const view = props.view || {};
 	const SceneIllustration = assistantRendererFeature.SceneIllustration;
+	// Render depth: only the latest rounds run a card's HTML interface (heavy status bars).
+	const displayPrefs = React.useSyncExternalStore(displayPreferences.subscribe, displayPreferences.snapshot, displayPreferences.snapshot);
+	const [renderRound, setRenderRound] = React.useState(false);
+	const renderDepth = displayPrefs && Number.isSafeInteger(displayPrefs.renderDepth) ? displayPrefs.renderDepth : 3;
+	const deferHtml = !renderRound && !props.liveBody && renderDepth > 0 && !floor.greeting && props.latestTurn - floor.turn >= renderDepth ? function () { setRenderRound(true); } : null;
 	const body = props.liveBody || (floor.body ? renderTavernProjection(floor.body, {
+		deferHtml: deferHtml,
 		streaming: false, codeLabels: { copyLabel: "复制", copiedLabel: "已复制" }, sessionId: props.sessionId, turn: floor.turn,
 		helperContext: view.tavernHelper, trustedCardMode: Boolean(view.tavernRuntimePolicy && view.tavernRuntimePolicy.trustedCardMode),
 		eagerFrame: props.latest, executeSlash: props.executeSlash
@@ -287,7 +293,7 @@ function TavernStoryView(props) {
 			const isLatest = floor === latestFloor;
 			const replaced = isLatest && regenerating;
 			return h(TavernStoryFloor, {
-				key: floor.turn, floor: floor, view: view, latest: isLatest, sessionId: sessionId,
+				key: floor.turn, floor: floor, view: view, latest: isLatest, latestTurn: latestFloor.turn, sessionId: sessionId,
 				executeSlash: props.executeSlash, uiConversation: props.uiConversation, hostProps: isLatest ? props : null,
 				liveBody: replaced && liveBody && liveBody.length ? liveBody : null, streaming: replaced && running
 			}, replaced ? generating : null);

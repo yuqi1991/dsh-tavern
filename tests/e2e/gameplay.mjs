@@ -15,6 +15,7 @@ import assert from 'node:assert/strict'
 import { presetSwitch } from './preset-switch.mjs'
 import { playControls } from './play-controls.mjs'
 import { batch1UiChecks } from './batch1-ui.mjs'
+import { renderDepthChecks } from './render-depth.mjs'
 import { mkdtemp, mkdir, writeFile, readFile, symlink, rm, readdir, cp, access } from 'node:fs/promises'
 import { join, resolve, dirname } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
@@ -261,6 +262,8 @@ try {
   })
   if (process.argv.includes('--batch1-ui')) {
     await batch1UiChecks({ page, step, output, errors })
+  } else if (process.argv.includes('--render-depth')) {
+    await renderDepthChecks({ page, step, output, errors })
   } else if (process.argv.includes('--mvu-incremental')) {
     await incrementalMvuChecks({page,step,savedChat,output,report,restartServer})
   } else if (process.argv.includes('--background-lifecycle')) {
@@ -319,7 +322,7 @@ try {
       assert.deepEqual(await readFile(join(directory, 'session.jsonl.zstd.bak-tavern-premigrate')), await readFile(join(output, 'legacy-input.jsonl.zstd')))
     }
     await compactionChecks({ page, step, savedChat, output, report, restartServer, installLegacyFixture, scenario: compactionScenario })
-  } else if (!process.argv.includes('--batch1-ui') && !process.argv.includes('--card-memory') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
+  } else if (!process.argv.includes('--batch1-ui') && !process.argv.includes('--render-depth') && !process.argv.includes('--card-memory') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
     await step('生成候选项并选择行动，再玩一轮', async () => {
       await page.getByRole('button', { name: '生成候选项', exact: true }).click()
       await page.getByText('5 个', { exact: true }).waitFor()

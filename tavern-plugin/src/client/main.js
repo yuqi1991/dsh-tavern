@@ -585,6 +585,7 @@ window.__ModuleLoader__.load({
 				state.notice ? React.createElement("p", { role: "status" }, state.notice) : null,
 				React.createElement(TavernConversationWritingSkills, { globalDefaults: true }),
 				React.createElement(CandidatePreferencesSettings),
+				React.createElement(DisplayPreferencesSettings),
 				React.createElement(PromptTemplateSettingsEntry),
 				React.createElement(ContextCompactionSettings),
 				state.sceneImages ? React.createElement(SceneImageSettings, null) : null,
@@ -716,6 +717,7 @@ window.__ModuleLoader__.load({
 		function apply(ctx) {
 			forgetRetiredHidingKeys(window.localStorage);
 			ctx.effect(() => tavernInteractionDiagnostics.start(), "dsh-tavern: interaction diagnostics");
+			ctx.effect(() => displayPreferences.start(), "dsh-tavern: global display preferences");
 			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;
 			if (slots === undefined) return;
@@ -890,6 +892,7 @@ window.__ModuleLoader__.load({
 		}
 
 		exports.TavernMessageFrame = TavernMessageFrame;
+		exports.renderTavernProjection = renderTavernProjection;
 		exports.TavernPersistentStatusRuntime = TavernPersistentStatusRuntime;
 		exports.createTavernMessageFrameLifecycle = createTavernMessageFrameLifecycle;
 		exports.createTavernScriptExecutionModule = createTavernScriptExecutionModule;

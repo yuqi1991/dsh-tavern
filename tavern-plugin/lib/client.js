@@ -8223,6 +8223,11 @@ window.__ModuleLoader__.load({
 			}
 			return parts.map(function (part, index) {
 				if (part.kind === "markdown") return h(TavernColoredMarkdown, { key: index, text: String(part.text || ""), streaming: options.streaming, labels: { code: options.codeLabels, footnotes: "脚注" }, codeLabels: options.codeLabels, fileMentions: options.mentions });
+				// Rounds past the render depth keep their prose; the card's HTML waits for one click.
+				if (typeof options.deferHtml === "function") {
+					if (parts.findIndex(function (item) { return item.kind === "html"; }) !== index) return null;
+					return h("button", { key: index, type: "button", className: "dsh-tavern-btn dsh-tavern-render-round", title: "超出渲染深度的轮次只显示文字；点击后渲染本轮的卡片界面", onClick: options.deferHtml }, "渲染此轮");
+				}
 				const content = String(part.content !== undefined ? part.content : part.html || "");
 				return h(TavernMessageFrame, { key: index, content: content, sessionId: options.sessionId, turn: options.turn, partIndex: index, frameOwner: options.frameOwner, helperContext: options.helperContext, openingPreview: options.openingPreview, onSelectOpening: options.onSelectOpening, onSubmitOpening: options.onSubmitOpening, trustedCardMode: options.trustedCardMode, eager: options.eagerFrame, executeSlash: options.executeSlash });
 			});
@@ -8248,7 +8253,7 @@ window.__ModuleLoader__.load({
 				if (block.kind === "text") {
 					if (input.projection && projected) continue;
 					const projection = input.projection;
-					if (projection) rendered.push(h(React.Fragment, { key: index }, renderTavernProjection(projection, { streaming: input.streaming, codeLabels: codeLabels, mentions: input.mentions, sessionId: input.sessionId, turn: input.turn, helperContext: input.helperContext, trustedCardMode: input.trustedCardMode, eagerFrame: input.eagerFrame, frameOwner: input.frameOwner, executeSlash: input.executeSlash })));
+					if (projection) rendered.push(h(React.Fragment, { key: index }, renderTavernProjection(projection, { streaming: input.streaming, codeLabels: codeLabels, mentions: input.mentions, sessionId: input.sessionId, turn: input.turn, helperContext: input.helperContext, trustedCardMode: input.trustedCardMode, eagerFrame: input.eagerFrame, deferHtml: input.deferHtml, frameOwner: input.frameOwner, executeSlash: input.executeSlash })));
 					else rendered.push(h(TavernColoredMarkdown, { key: index, text: String(block.text || ""), streaming: input.streaming, labels: { code: codeLabels, footnotes: "脚注" }, codeLabels: codeLabels, fileMentions: input.mentions }));
 					projected = true;
 					continue;
@@ -8267,7 +8272,7 @@ window.__ModuleLoader__.load({
 				if (block.kind !== "tool-call") rendered.push(h(DshUi.JsonBlock, { key: index, label: translate("message.unknownBlock"), payload: block.block || block, truncatedLabel: function (total) { return translate("json.truncated", { total: total }); } }));
 			}
 			if (input.projection && !projected) {
-				rendered.push(h(React.Fragment, { key: "projection" }, renderTavernProjection(input.projection, { streaming: false, codeLabels: codeLabels, mentions: input.mentions, sessionId: input.sessionId, turn: input.turn, helperContext: input.helperContext, trustedCardMode: input.trustedCardMode, eagerFrame: input.eagerFrame, frameOwner: input.frameOwner, executeSlash: input.executeSlash })));
+				rendered.push(h(React.Fragment, { key: "projection" }, renderTavernProjection(input.projection, { streaming: false, codeLabels: codeLabels, mentions: input.mentions, sessionId: input.sessionId, turn: input.turn, helperContext: input.helperContext, trustedCardMode: input.trustedCardMode, eagerFrame: input.eagerFrame, deferHtml: input.deferHtml, frameOwner: input.frameOwner, executeSlash: input.executeSlash })));
 			}
 			if (input.interrupted) rendered.push(h("span", { key: "stopped", className: "dsh-tavern-assistant-stopped" }, translate("message.stopped")));
 			return rendered;
@@ -10245,6 +10250,57 @@ window.__ModuleLoader__.load({
                 error ? h("p", { className: "dsh-tavern-settings-error", role: "alert" }, error) : null);
         }
 
+        const displayPreferences = (() => {
+            let value = null, revision = 0;
+            const listeners = new Set();
+            const key = "dsh-tavern:display-preferences-changed";
+            function apply(settings) {
+                value = { renderDepth: Number.isSafeInteger(settings.renderDepth) ? settings.renderDepth : 3 };
+                listeners.forEach(listener => listener());
+            }
+            async function refresh() {
+                const request = ++revision;
+                try { const result = await rpc("getDisplayPreferences"); if (request === revision) apply(result); } catch (_) {}
+            }
+            return {
+                subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+                snapshot: () => value,
+                async save(patch) {
+                    ++revision;
+                    const result = await rpc("updateTavernSettings", { patch });
+                    ++revision; apply(result.settings);
+                    try { window.localStorage.setItem(key, String(Date.now())); } catch (_) {}
+                },
+                start() {
+                    refresh();
+                    const onStorage = event => { if (event.key === key) refresh(); };
+                    window.addEventListener("focus", refresh);
+                    window.addEventListener("storage", onStorage);
+                    return () => { ++revision; window.removeEventListener("focus", refresh); window.removeEventListener("storage", onStorage); };
+                }
+            };
+        })();
+        function DisplayPreferencesSettings() {
+            const preferences = React.useSyncExternalStore(displayPreferences.subscribe, displayPreferences.snapshot, displayPreferences.snapshot);
+            const [busy, setBusy] = React.useState(false), [notice, setNotice] = React.useState("");
+            async function save(patch) {
+                setBusy(true); setNotice("");
+                try { await displayPreferences.save(patch); setNotice("已保存，对所有对话立即生效"); }
+                catch (error) { setNotice("保存失败：" + String(error.message || error)); }
+                finally { setBusy(false); }
+            }
+            const h = React.createElement;
+            return h("section", { className: "dsh-tavern-settings-group dsh-tavern-display-preferences" },
+                h("label", { className: "dsh-tavern-settings-row dsh-tavern-background-task" },
+                    h("div", { className: "dsh-tavern-settings-copy" }, h("strong", { className: "dsh-tavern-settings-title" }, "渲染深度"),
+                        h("p", { className: "dsh-tavern-settings-desc" }, "只有最近几轮渲染人物卡的 HTML 界面（状态栏、美化面板等），更早的轮次只显示文字，可点「渲染此轮」单独打开。重美化的卡渲染太多轮会很卡。")),
+                    h("select", { className: "dsh-tavern-settings-select", "aria-label": "渲染深度", value: String(preferences?.renderDepth ?? 3), disabled: preferences === null || busy,
+                        onChange: event => save({ renderDepth: Number(event.target.value) }) },
+                        [1, 2, 3, 5, 10, 20].map(depth => h("option", { key: depth, value: String(depth) }, "最近 " + depth + " 轮")),
+                        h("option", { value: "0" }, "不限"))),
+                notice ? h("p", { className: "dsh-tavern-settings-desc", role: "status" }, notice) : null);
+        }
+
         function useCandidatePreferences() {
             const [mode, setMode] = React.useState("after-send");
             React.useEffect(function () {
@@ -10314,6 +10370,7 @@ window.__ModuleLoader__.load({
 				state.notice ? React.createElement("p", { role: "status" }, state.notice) : null,
 				React.createElement(TavernConversationWritingSkills, { globalDefaults: true }),
 				React.createElement(CandidatePreferencesSettings),
+				React.createElement(DisplayPreferencesSettings),
 				React.createElement(PromptTemplateSettingsEntry),
 				React.createElement(ContextCompactionSettings),
 				state.sceneImages ? React.createElement(SceneImageSettings, null) : null,
@@ -13887,7 +13944,13 @@ window.__ModuleLoader__.load({
 				const floor = props.floor;
 				const view = props.view || {};
 				const SceneIllustration = assistantRendererFeature.SceneIllustration;
+				// Render depth: only the latest rounds run a card's HTML interface (heavy status bars).
+				const displayPrefs = React.useSyncExternalStore(displayPreferences.subscribe, displayPreferences.snapshot, displayPreferences.snapshot);
+				const [renderRound, setRenderRound] = React.useState(false);
+				const renderDepth = displayPrefs && Number.isSafeInteger(displayPrefs.renderDepth) ? displayPrefs.renderDepth : 3;
+				const deferHtml = !renderRound && !props.liveBody && renderDepth > 0 && !floor.greeting && props.latestTurn - floor.turn >= renderDepth ? function () { setRenderRound(true); } : null;
 				const body = props.liveBody || (floor.body ? renderTavernProjection(floor.body, {
+					deferHtml: deferHtml,
 					streaming: false, codeLabels: { copyLabel: "复制", copiedLabel: "已复制" }, sessionId: props.sessionId, turn: floor.turn,
 					helperContext: view.tavernHelper, trustedCardMode: Boolean(view.tavernRuntimePolicy && view.tavernRuntimePolicy.trustedCardMode),
 					eagerFrame: props.latest, executeSlash: props.executeSlash
@@ -14042,7 +14105,7 @@ window.__ModuleLoader__.load({
 						const isLatest = floor === latestFloor;
 						const replaced = isLatest && regenerating;
 						return h(TavernStoryFloor, {
-							key: floor.turn, floor: floor, view: view, latest: isLatest, sessionId: sessionId,
+							key: floor.turn, floor: floor, view: view, latest: isLatest, latestTurn: latestFloor.turn, sessionId: sessionId,
 							executeSlash: props.executeSlash, uiConversation: props.uiConversation, hostProps: isLatest ? props : null,
 							liveBody: replaced && liveBody && liveBody.length ? liveBody : null, streaming: replaced && running
 						}, replaced ? generating : null);
@@ -14325,6 +14388,7 @@ window.__ModuleLoader__.load({
 		function apply(ctx) {
 			forgetRetiredHidingKeys(window.localStorage);
 			ctx.effect(() => tavernInteractionDiagnostics.start(), "dsh-tavern: interaction diagnostics");
+			ctx.effect(() => displayPreferences.start(), "dsh-tavern: global display preferences");
 			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;
 			if (slots === undefined) return;
@@ -14499,6 +14563,7 @@ window.__ModuleLoader__.load({
 		}
 
 		exports.TavernMessageFrame = TavernMessageFrame;
+		exports.renderTavernProjection = renderTavernProjection;
 		exports.TavernPersistentStatusRuntime = TavernPersistentStatusRuntime;
 		exports.createTavernMessageFrameLifecycle = createTavernMessageFrameLifecycle;
 		exports.createTavernScriptExecutionModule = createTavernScriptExecutionModule;

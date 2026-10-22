@@ -138,6 +138,57 @@
                 error ? h("p", { className: "dsh-tavern-settings-error", role: "alert" }, error) : null);
         }
 
+        const displayPreferences = (() => {
+            let value = null, revision = 0;
+            const listeners = new Set();
+            const key = "dsh-tavern:display-preferences-changed";
+            function apply(settings) {
+                value = { renderDepth: Number.isSafeInteger(settings.renderDepth) ? settings.renderDepth : 3 };
+                listeners.forEach(listener => listener());
+            }
+            async function refresh() {
+                const request = ++revision;
+                try { const result = await rpc("getDisplayPreferences"); if (request === revision) apply(result); } catch (_) {}
+            }
+            return {
+                subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+                snapshot: () => value,
+                async save(patch) {
+                    ++revision;
+                    const result = await rpc("updateTavernSettings", { patch });
+                    ++revision; apply(result.settings);
+                    try { window.localStorage.setItem(key, String(Date.now())); } catch (_) {}
+                },
+                start() {
+                    refresh();
+                    const onStorage = event => { if (event.key === key) refresh(); };
+                    window.addEventListener("focus", refresh);
+                    window.addEventListener("storage", onStorage);
+                    return () => { ++revision; window.removeEventListener("focus", refresh); window.removeEventListener("storage", onStorage); };
+                }
+            };
+        })();
+        function DisplayPreferencesSettings() {
+            const preferences = React.useSyncExternalStore(displayPreferences.subscribe, displayPreferences.snapshot, displayPreferences.snapshot);
+            const [busy, setBusy] = React.useState(false), [notice, setNotice] = React.useState("");
+            async function save(patch) {
+                setBusy(true); setNotice("");
+                try { await displayPreferences.save(patch); setNotice("已保存，对所有对话立即生效"); }
+                catch (error) { setNotice("保存失败：" + String(error.message || error)); }
+                finally { setBusy(false); }
+            }
+            const h = React.createElement;
+            return h("section", { className: "dsh-tavern-settings-group dsh-tavern-display-preferences" },
+                h("label", { className: "dsh-tavern-settings-row dsh-tavern-background-task" },
+                    h("div", { className: "dsh-tavern-settings-copy" }, h("strong", { className: "dsh-tavern-settings-title" }, "渲染深度"),
+                        h("p", { className: "dsh-tavern-settings-desc" }, "只有最近几轮渲染人物卡的 HTML 界面（状态栏、美化面板等），更早的轮次只显示文字，可点「渲染此轮」单独打开。重美化的卡渲染太多轮会很卡。")),
+                    h("select", { className: "dsh-tavern-settings-select", "aria-label": "渲染深度", value: String(preferences?.renderDepth ?? 3), disabled: preferences === null || busy,
+                        onChange: event => save({ renderDepth: Number(event.target.value) }) },
+                        [1, 2, 3, 5, 10, 20].map(depth => h("option", { key: depth, value: String(depth) }, "最近 " + depth + " 轮")),
+                        h("option", { value: "0" }, "不限"))),
+                notice ? h("p", { className: "dsh-tavern-settings-desc", role: "status" }, notice) : null);
+        }
+
         function useCandidatePreferences() {
             const [mode, setMode] = React.useState("after-send");
             React.useEffect(function () {

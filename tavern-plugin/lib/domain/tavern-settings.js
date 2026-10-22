@@ -15,6 +15,9 @@ export function normalizeBackgroundTasks(value) {
   return { posture: tasks.posture !== false, characterDesign: false, variables: tasks.variables !== false, ledger: false }
 }
 
+export const DEFAULT_RENDER_DEPTH = 3
+function renderDepthOf(value) { return Number.isSafeInteger(value) && value >= 0 && value <= 100 ? value : DEFAULT_RENDER_DEPTH }
+
 export function applyTavernSettingsPatch(current, patch) {
   const next = Object.assign({}, object(current))
   const input = object(patch)
@@ -29,6 +32,10 @@ export function applyTavernSettingsPatch(current, patch) {
     const selection = normalizeBackgroundModel(input[name])
     if (input[name] !== null && !selection) throw new Error('默认模型配置无效')
     next[name] = selection
+  }
+  if (Object.hasOwn(input, 'renderDepth')) {
+    if (!Number.isSafeInteger(input.renderDepth) || input.renderDepth < 0 || input.renderDepth > 100) throw new Error('渲染深度必须是 0 到 100 的整数')
+    next.renderDepth = input.renderDepth
   }
   if (Object.hasOwn(input, 'candidateDismissMode')) {
     if (!['after-fill', 'after-send'].includes(input.candidateDismissMode)) throw new Error('无效的候选项收起方式')
@@ -99,6 +106,8 @@ export function presentTavernSettings(document, defaults) {
     defaultBackgroundModel: normalizeBackgroundModel(object(document).defaultBackgroundModel),
     contextCompaction: compactionPolicy(object(document).contextCompaction),
     candidateDismissMode: object(document).candidateDismissMode === 'after-fill' ? 'after-fill' : 'after-send',
+    // Only the latest floors run a card's HTML interface; 0 renders every floor.
+    renderDepth: renderDepthOf(object(document).renderDepth),
     defaultStatusPanel: object(document).defaultStatusPanel !== false,
     compatibilityMode: true,
     webSearchEnabled: object(document).webSearchEnabled === true,
