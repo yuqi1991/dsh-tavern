@@ -568,6 +568,7 @@ window.__ModuleLoader__.load({
 // @include features/sidebar.js
 
 // @include features/scene-images.js
+// @include features/text-layout.js
 // @include features/settings.js
 				return function () { active = false; };
 			}, []);
@@ -594,8 +595,6 @@ window.__ModuleLoader__.load({
 				state.error ? React.createElement("div", { className: "dsh-tavern-settings-error", role: "alert" }, "保存失败：" + state.error) : null
 			);
 		}
-
-// @include features/text-layout.js
 
 // @include features/user-profile.js
 

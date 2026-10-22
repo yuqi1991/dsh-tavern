@@ -60,7 +60,15 @@ test('时钟换字与 transform 动画不触发整页测高；文字撑高仍会
     await page.evaluate(doc => { window.heights = []; onmessage = e => { if (e.data.type === 'dsh-tavern-frame-height') { heights.push(e.data.height); document.querySelector('iframe').style.height = e.data.height + 'px' } }; document.querySelector('iframe').srcdoc = doc }, doc)
     const frame = page.frames()[1]
     await frame.waitForFunction(() => typeof window.scans === 'number' && document.readyState === 'complete')
-    await page.waitForTimeout(300)
+    // Initial sizing settles over a few frames; under load that outlasts a fixed wait.
+    await frame.evaluate(async () => {
+      let last = -1
+      for (let i = 0; i < 50; i++) {
+        await new Promise(r => setTimeout(r, 100))
+        if (window.scans === last) return
+        last = window.scans
+      }
+    })
     const scans = await frame.evaluate(async () => {
       const before = window.scans
       for (let i = 0; i < 10; i++) {
