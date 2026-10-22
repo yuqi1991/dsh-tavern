@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# Stage 实例：直接从 fork 源码目录运行 dsh-tavern，数据、端口与生产完全隔离。
+# Stage 实例：克隆生产 DSH_HOME 的“配置与资源”（不含聊天记录），再让其中的 dsh-tavern 插件直接链接到 fork 源码运行。
 #
-#   bin/stage.sh start [--mock]   构建客户端后启动（--mock：用 e2e 的固定回复模型，不需要模型密钥）
+#   bin/stage.sh clone [--force]   克隆配置与资源到 stage；--force 会把已有 stage 改名留底后重做
+#   bin/stage.sh start [--mock]    重建客户端并启动；--mock 换成 e2e 的固定回复模型（不调用真实模型）
 #   bin/stage.sh stop | status | logs
-#   bin/stage.sh seed [--full]    从生产复制数据到 stage（默认只复制人物卡/资源/设置；--full 连会话一起复制）
-#   bin/stage.sh reset            清空 stage 数据（不动生产）
 #
-# 隔离保证：stage 有自己的 DSH_HOME、profile、数据根、端口；它只“读”生产的运行时与依赖包，从不写生产。
-# 插件三个包直接链接到 fork 目录，改完代码后 `stage.sh start` 重启即可，无需备份/复制。
+# 克隆内容：profile（含 settings.yaml）、运行时与依赖包、人物卡/资源/预设/世界书/技能/工具、各项设置。
+# 不克隆：聊天与会话、模型请求日志、诊断、召回记录、草稿与索引、备份、日志、dsh-pocket（对外隧道，默认盯生产端口）。
+# 隔离保证：stage 有自己的家目录、数据、运行时副本和端口(3091)；克隆只读生产，之后从不写生产。
+# 克隆里指回生产路径的符号链接和配置会改写成 stage 路径。改完 fork 代码后 `stop` 再 `start` 即可，无需备份/复制。
 set -euo pipefail
 
 FORK="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STAGE_HOME="${STAGE_HOME:-/home/claw/dsh-stage}"
 PROD_HOME="${PROD_HOME:-/home/claw/workspace/dsh-tarvern}"
 STAGE_PORT="${STAGE_PORT:-3091}"
-RUNTIME="${STAGE_RUNTIME:-$PROD_HOME/runtime}"
+RUNTIME="${STAGE_RUNTIME:-$STAGE_HOME/runtime}"
 PROFILE="$STAGE_HOME/profiles/tavern"
 DATA="$STAGE_HOME/profile-data/tavern/data"
 PIDFILE="$STAGE_HOME/stage.pid"
@@ -22,74 +23,110 @@ LOG="$STAGE_HOME/logs/stage.log"
 # 只按名字转发调用者 shell 里已有的模型密钥变量；脚本不读取、不保存它们的值。
 PASS_ENV="${STAGE_PASS_ENV:-CPA_API_KEY DEEPSEEK_API_KEY}"
 
+# 聊天与运行产生的内容，不进 stage。
+EXCLUDES=(
+  /logs/'*' /dsh-pocket /attachments
+  /profile-data/tavern/sessions /profile-data/tavern/storages '/profile-data/tavern/backups*'
+  /profile-data/tavern/data/chats /profile-data/tavern/data/model-requests /profile-data/tavern/data/model-request-sessions
+  /profile-data/tavern/data/diagnostics /profile-data/tavern/data/worldbook-recalls /profile-data/tavern/data/cache
+  /profile-data/tavern/data/mvu-drafts /profile-data/tavern/data/mvu-draft-sessions /profile-data/tavern/data/template-work
+  /profile-data/tavern/data/scene-images /profile-data/tavern/data/legacy-id-storage /profile-data/tavern/data/diffs
+  /profile-data/tavern/data/card-memory
+  /profile-data/tavern/data/index.json /profile-data/tavern/data/sessions.json /profile-data/tavern/data/card-projection-revisions.json
+  /profile-data/tavern/data/background-session-retirement.json /profile-data/tavern/data/prompt-template-variables.json
+  '/profile-data/tavern/data/update-*'
+)
+
 die() { echo "stage: $*" >&2; exit 1; }
 
 guard() {
-  [ "$(realpath -m "$STAGE_HOME")" != "$(realpath -m "$PROD_HOME")" ] || die "STAGE_HOME 不能等于生产目录"
-  case "$(realpath -m "$STAGE_HOME")/" in "$(realpath -m "$PROD_HOME")"/*) die "STAGE_HOME 不能放在生产目录里面";; esac
+  local stage prod; stage="$(realpath -m "$STAGE_HOME")"; prod="$(realpath -m "$PROD_HOME")"
+  [ "$stage" != "$prod" ] || die "STAGE_HOME 不能等于生产目录"
+  case "$stage/" in "$prod"/*) die "STAGE_HOME 不能放在生产目录里面";; esac
+  case "$prod/" in "$stage"/*) die "生产目录不能在 STAGE_HOME 里面";; esac
   [ "$STAGE_PORT" != 3081 ] && [ "$STAGE_PORT" != 3082 ] || die "端口 $STAGE_PORT 属于生产实例"
-  [ -f "$RUNTIME/bin/dsh" ] || die "找不到 DSH runtime: $RUNTIME/bin/dsh"
 }
 
 running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
 port_busy() { ss -ltn 2>/dev/null | grep -q "[:.]$1 "; }
 
-setup() {
+clone() {
   guard
-  mkdir -p "$PROFILE/node_modules" "$DATA" "$STAGE_HOME/logs" "$STAGE_HOME/profile-data/tavern/sessions"
-  local nm="$PROFILE/node_modules" prod_nm="$PROD_HOME/profiles/tavern/node_modules"
-  # 依赖包：除下面几个要指向 fork 的，其余全部链接到生产已安装的同名包（只读共享，含已打补丁的侧栏/Pocket）。
-  local own="dsh-tavern-plugin dsh-tavern-remote dsh-dream-skin dsh-tavern-enter-swap"
-  for entry in "$prod_nm"/* "$prod_nm"/.bin; do
-    local name; name="$(basename "$entry")"
-    case " $own " in *" $name "*) continue;; esac
-    ln -sfn "$(realpath "$entry")" "$nm/$name"
-  done
+  [ -d "$PROD_HOME/profiles/tavern" ] || die "生产家目录不对：$PROD_HOME"
+  running && die "stage 正在运行，先 stop"
+  if [ -e "$STAGE_HOME" ]; then
+    [ "${1:-}" = "--force" ] || die "$STAGE_HOME 已存在；确要重做请加 --force（旧的会改名留底）"
+    mv "$STAGE_HOME" "$STAGE_HOME.old-$(date +%Y%m%d-%H%M%S)"
+  fi
+  echo "克隆配置与资源 $PROD_HOME → $STAGE_HOME （只读生产，不含聊天记录）……"
+  mkdir -p "$STAGE_HOME"
+  local args=(); for pattern in "${EXCLUDES[@]}"; do args+=(--exclude="$pattern"); done
+  rsync -a "${args[@]}" "$PROD_HOME/" "$STAGE_HOME/"
+  mkdir -p "$STAGE_HOME/logs" "$DATA" "$STAGE_HOME/profile-data/tavern/sessions" "$STAGE_HOME/profile-data/tavern/storages"
+  python3 - "$PROD_HOME" "$STAGE_HOME" <<'EOF'
+import os, sys
+prod, stage = sys.argv[1].rstrip('/'), sys.argv[2].rstrip('/')
+relinked = 0
+for root, dirs, files in os.walk(stage, followlinks=False):
+    for name in dirs + files:
+        path = os.path.join(root, name)
+        if os.path.islink(path):
+            target = os.readlink(path)
+            if target == prod or target.startswith(prod + '/'):
+                os.unlink(path); os.symlink(stage + target[len(prod):], path); relinked += 1
+texts = ['profiles/tavern/package.json', 'profiles/tavern/pnpm-lock.yaml', '.dsh-tavern-install-root', 'apps/dsh-tavern/.dsh-tavern-local.json']
+changed = 0
+for rel in texts:
+    path = os.path.join(stage, rel)
+    if os.path.isfile(path):
+        text = open(path, encoding='utf-8').read()
+        if prod in text:
+            open(path, 'w', encoding='utf-8').write(text.replace(prod, stage)); changed += 1
+print(f'改写符号链接 {relinked} 个、配置文件 {changed} 个')
+EOF
+  cp "$PROFILE/cordis.patch.yml" "$PROFILE/cordis.patch.yml.real"
+  echo "克隆完成，大小：$(du -sh "$STAGE_HOME" | cut -f1)。仍引用生产路径的文本文件（应只剩文档类）："
+  grep -rIl --exclude-dir=node_modules --exclude-dir=docs --exclude='*.md' --exclude='*.backup.*' "$PROD_HOME" "$STAGE_HOME" 2>/dev/null | head -10 || true
+}
+
+# 每次启动前重新确认：插件三个包指向 fork、不加载 pocket、数据根在 stage 内。
+prepare() {
+  guard
+  [ -d "$PROFILE" ] || die "stage 还没克隆，先运行 clone"
+  [ -f "$RUNTIME/bin/dsh" ] || die "找不到 stage 的 DSH runtime：$RUNTIME/bin/dsh"
+  local nm="$PROFILE/node_modules"
   ln -sfn "$FORK/tavern-plugin" "$nm/dsh-tavern-plugin"
   ln -sfn "$FORK/tavern-plugin/packages/dsh-tavern-remote" "$nm/dsh-tavern-remote"
   ln -sfn "$FORK/tavern-plugin/packages/dsh-dream-skin" "$nm/dsh-dream-skin"
-  # enter-swap 小插件：复制一份进 stage 自己的数据目录，不去引用生产数据。
-  if [ ! -d "$DATA/tools/enter-swap" ] && [ -d "$PROD_HOME/profile-data/tavern/data/tools/enter-swap" ]; then
-    mkdir -p "$DATA/tools"; cp -a "$PROD_HOME/profile-data/tavern/data/tools/enter-swap" "$DATA/tools/enter-swap"
-  fi
-  [ -d "$DATA/tools/enter-swap" ] && ln -sfn "$DATA/tools/enter-swap" "$nm/dsh-tavern-enter-swap"
-  cp "$PROD_HOME/profiles/tavern/cordis.yml" "$PROFILE/cordis.yml"
-  node - "$PROD_HOME/profiles/tavern/package.json" "$PROFILE/package.json" "$FORK" "$DATA" "$STAGE_HOME" <<'EOF'
+  node - "$PROFILE/package.json" "$FORK" "$DATA" <<'EOF'
 const fs = require('node:fs')
-const [src, dst, fork, data, home] = process.argv.slice(2)
-const pkg = JSON.parse(fs.readFileSync(src, 'utf8'))
-for (const key of ['dsh-tavern-plugin', 'dsh-tavern-remote', 'dsh-dream-skin']) delete pkg.dependencies[key]
-// Pocket 是对外隧道/代理插件，默认盯着生产端口 3081；stage 不需要它，去掉以免误连生产。
-delete pkg.dependencies['dsh-pocket']
-pkg.dsh.profile.bundles = pkg.dsh.profile.bundles.filter(name => name !== 'dsh-pocket')
-pkg.name = 'dsh-profile-tavern-stage'
+const [file, fork, data] = process.argv.slice(2)
+const pkg = JSON.parse(fs.readFileSync(file, 'utf8'))
 pkg.dependencies['dsh-tavern-plugin'] = `link:${fork}/tavern-plugin`
 pkg.dependencies['dsh-tavern-remote'] = `link:${fork}/tavern-plugin/packages/dsh-tavern-remote`
 pkg.dependencies['dsh-dream-skin'] = `link:${fork}/tavern-plugin/packages/dsh-dream-skin`
+delete pkg.dependencies['dsh-pocket']
+pkg.dsh.profile.bundles = pkg.dsh.profile.bundles.filter(name => name !== 'dsh-pocket')
 pkg.dshTavern = { ...pkg.dshTavern, source: fork, dataRoot: data }
-fs.writeFileSync(dst, JSON.stringify(pkg, null, 2) + '\n')
+fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
 EOF
-}
-
-write_patch() {
   if [ "$1" = mock ]; then
     printf -- '- id: agent-default-model\n  config:\n    provider: tavern-e2e\n    model: fixed\n- insert:\n    - id: tavern-e2e-model\n      name: %s\n' "\"$FORK/tests/e2e/model.mjs\"" > "$PROFILE/cordis.patch.yml"
   else
-    cp "$PROD_HOME/profiles/tavern/cordis.patch.yml" "$PROFILE/cordis.patch.yml"
+    cp "$PROFILE/cordis.patch.yml.real" "$PROFILE/cordis.patch.yml"
   fi
 }
 
 start() {
   local mode=real; [ "${1:-}" = "--mock" ] && mode=mock
-  setup
   running && die "stage 已在运行（pid $(cat "$PIDFILE")），先 stop"
+  prepare "$mode"
   port_busy "$STAGE_PORT" && die "端口 $STAGE_PORT 已被占用"
   (cd "$FORK" && node bin/build-tavern-client.mjs >/dev/null && node bin/build-tavern-client.mjs --check >/dev/null)
-  write_patch "$mode"
   local envs=(DSH_HOME="$STAGE_HOME" DSH_TAVERN_CLI_HOME="$STAGE_HOME" DSH_TAVERN_RUNTIME_HOST=cli PATH="$PATH" HOME="$HOME" LANG="${LANG:-C.UTF-8}")
   [ "$mode" = mock ] && envs+=(TAVERN_E2E_LLM_MODULE="$RUNTIME/lib/node_modules/@deepseek-ai/dsh-llm/lib/index.js" TAVERN_E2E_REQUEST_AUDIT="$STAGE_HOME/logs/model-requests.jsonl")
   for name in $PASS_ENV; do [ -n "${!name:-}" ] && envs+=("$name=${!name}"); done
-  : > "$LOG"
+  mkdir -p "$STAGE_HOME/logs"; : > "$LOG"
   cd "$STAGE_HOME"
   setsid nohup env -i "${envs[@]}" node "$RUNTIME/bin/dsh" --profile tavern --host 127.0.0.1 --port "$STAGE_PORT" --no-open >> "$LOG" 2>&1 < /dev/null &
   echo $! > "$PIDFILE"
@@ -114,40 +151,11 @@ status() {
   echo "代码：$FORK @ $(git -C "$FORK" rev-parse --short HEAD)$(git -C "$FORK" diff --quiet HEAD -- tavern-plugin || echo ' (有未提交改动)')"
 }
 
-seed() {
-  guard
-  running && die "先 stop 再 seed"
-  local src="$PROD_HOME/profile-data/tavern"
-  mkdir -p "$DATA"
-  if [ "${1:-}" = "--full" ]; then
-    echo "完整复制生产数据（含会话），只读取生产，按生产当前快照复制……"
-    for part in data sessions storages; do
-      mkdir -p "$STAGE_HOME/profile-data/tavern/$part"
-      cp -a --reflink=auto "$src/$part/." "$STAGE_HOME/profile-data/tavern/$part/"
-    done
-  else
-    for part in cards resources scripts tools; do
-      [ -d "$src/data/$part" ] && { mkdir -p "$DATA/$part"; cp -a --reflink=auto "$src/data/$part/." "$DATA/$part/"; }
-    done
-    for file in "$src"/data/*settings*.json; do [ -f "$file" ] && cp -a "$file" "$DATA/"; done
-  fi
-  echo "已复制到 $STAGE_HOME/profile-data/tavern"
-}
-
-reset() {
-  guard
-  running && stop
-  rm -rf "$STAGE_HOME/profile-data"
-  echo "stage 数据已清空（生产未动）"
-}
-
 case "${1:-}" in
+  clone) shift; clone "$@" ;;
   start) shift; start "$@" ;;
   stop) stop ;;
   status) status ;;
   logs) tail -n "${2:-80}" -f "$LOG" ;;
-  seed) shift; seed "$@" ;;
-  reset) reset ;;
-  setup) setup; echo "stage 目录已就绪：$STAGE_HOME" ;;
-  *) sed -n '2,10p' "$0"; exit 2 ;;
+  *) sed -n '2,12p' "$0"; exit 2 ;;
 esac
