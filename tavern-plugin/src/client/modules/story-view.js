@@ -146,15 +146,22 @@ function TavernStoryFloor(props) {
 	const settled = !props.liveBody && floor.body;
 	const receipt = settled && floor.receipt ? floor.receipt.receipt || null : null;
 	const sceneImages = settled && !floor.greeting && view.releaseCapabilities && view.releaseCapabilities.sceneImages;
+	// One read serves the picture, the extra pictures of this turn and the "add" button.
+	const sceneRecord = useSceneImageRecord(sceneImages ? props.sessionId : null, floor.turn);
+	const sceneExtras = sceneImages && sceneRecord && sceneRecord.extras || [];
+	const canAddPicture = Boolean(sceneRecord && sceneRecord.maxPictures && sceneExtras.length + 1 < sceneRecord.maxPictures);
 	return h("article", { className: "dsh-tavern-story-floor", "data-story-turn": floor.turn },
 		floor.input ? h(TavernStoryInput, { input: floor.input, turn: floor.turn, sessionId: props.sessionId, uiConversation: props.uiConversation }) : null,
 		body ? h("div", { className: "dsh-tavern-assistant", "data-streaming": props.streaming || undefined }, body,
-			sceneImages ? h(SceneIllustration, { key: props.sessionId + ":" + floor.turn, sessionId: props.sessionId, turn: floor.turn }) : null,
+			sceneImages ? h(SceneIllustration, { key: props.sessionId + ":" + floor.turn, sessionId: props.sessionId, turn: floor.turn, record: sceneRecord, canAdd: canAddPicture }) : null,
+			// Added pictures follow the text, in the order they were made.
+			sceneExtras.map(function (extra) { return h(SceneIllustration, { key: props.sessionId + ":" + floor.turn + ":slot:" + extra.slot, sessionId: props.sessionId, turn: floor.turn, record: extra, canAdd: canAddPicture }); }),
 			receipt ? h(TavernMvuReceipt, { receipt: receipt, sessionId: props.sessionId, turn: floor.turn, latest: floor.turn === view.settlementTurn, busy: Boolean(view.activity && view.activity.busy) }) : null,
 			settled && props.latest && view.statusBarPlacement === "body" ? h(TavernPersistentStatusRuntime, { sessionId: props.sessionId, view: view, executeSlash: props.executeSlash }) : null) : null,
 		settled ? h("div", { className: "dsh-tavern-story-actions" },
 			h(TavernStoryCopy, { text: floor.body.text }),
 			!floor.greeting ? h(TavernStoryForkAction, { sessionId: props.sessionId, turn: floor.turn }) : null,
+			sceneImages ? h(SceneImageAction, { key: props.sessionId + ":" + floor.turn, sessionId: props.sessionId, turn: floor.turn }) : null,
 			props.latest && props.hostProps ? h(TavernVariantSwitcher, props.hostProps) : null) : null,
 		props.children);
 }

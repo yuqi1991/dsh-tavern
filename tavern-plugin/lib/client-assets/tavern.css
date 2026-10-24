@@ -1903,3 +1903,108 @@ html[data-dsh-text-layout] :is(.dsh-tavern-assistant, .dsh-tavern-user-bubble) :
 .dsh-tavern-text-layout-field input[type="range"] { width: 100%; accent-color: var(--dsh-tavern-accent); }
 .dsh-tavern-text-layout-value { color: var(--dsw-alias-label-secondary); font-variant-numeric: tabular-nums; text-align: right; }
 .dsh-tavern-text-layout-preview { margin: 0; padding: 12px 14px; border-radius: 10px; background: var(--dsw-alias-bg-layer-1, rgba(127, 127, 127, .08)); color: var(--dsw-alias-label-primary); }
+
+/* ---- 场景生图界面（移植自上游：待机占位、重画面板、画廊、设置页分区） ---- */
+/* Earlier turns without a picture: a quiet entry that appears when the turn is hovered. */
+/* 生成中：在图片将出现的位置放一个微光占位框，下面一行显示阶段、用时和取消。 */
+.dsh-tavern-image-pending { display: grid; gap: 8px; width: min(100%, 320px); }
+.dsh-tavern-image-pending-frame { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; background: linear-gradient(100deg, var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04)) 30%, var(--dsw-alias-bg-layer-3, rgba(0,0,0,.08)) 50%, var(--dsw-alias-bg-layer-2, rgba(0,0,0,.04)) 70%); background-size: 300% 100%; animation: dsh-tavern-image-shimmer 1.8s ease-in-out infinite; }
+@keyframes dsh-tavern-image-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.dsh-tavern-image-pending-line { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.dsh-tavern-image-pending-time { color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+.dsh-tavern-image-pending-spinner { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--dsw-alias-border-l2); border-top-color: var(--dsw-alias-label-secondary); animation: dsh-tavern-image-spin .8s linear infinite; flex: none; }
+@keyframes dsh-tavern-image-spin { to { transform: rotate(360deg); } }
+.dsh-tavern-image-pending-cancel { margin-left: auto; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-tertiary); font: inherit; font-size: 12px; cursor: pointer; }
+.dsh-tavern-image-pending-cancel:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.dsh-tavern-image-pending-cancel:disabled { opacity: .5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .dsh-tavern-image-pending-frame, .dsh-tavern-image-pending-spinner { animation: none; } }
+/* 插图按正文栏宽显示，最大约 640px、七成屏高（参考 weixinlll/dsh-tavern-image：原来 320×240 的预览太小，插件作者只能用 !important 放大）。
+   不用 min() 里套 svh：部分手机 WebView 不认，整条声明会失效。 */
+.dsh-tavern-illustration img { display: block; width: auto; height: auto; max-width: min(100%, 640px); max-height: 70vh; object-fit: contain; border-radius: 12px; }
+/* 重画：一个输入框加右下角的取消/提交，没有标题和外框。 */
+.dsh-tavern-image-plan { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(92vw, 720px); max-height: 40vh; overflow: auto; box-sizing: border-box; padding: 10px 14px; border-radius: 10px; background: rgba(20,20,20,.82); color: #eee; font-size: 12px; line-height: 1.6; }
+.dsh-tavern-image-plan summary { cursor: pointer; font-weight: 600; }
+.dsh-tavern-image-plan dt { margin-top: 8px; color: #aaa; }
+.dsh-tavern-image-plan dd { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.dsh-tavern-image-preview .dsh-tavern-image-preview-page { top: 50%; right: auto; transform: translateY(-50%); padding: 6px 14px; font-size: 28px; line-height: 1; }
+.dsh-tavern-image-preview .dsh-tavern-image-preview-page[data-side="prev"] { left: max(16px, env(safe-area-inset-left)); }
+.dsh-tavern-image-preview .dsh-tavern-image-preview-page[data-side="next"] { right: max(16px, env(safe-area-inset-right)); }
+.dsh-tavern-image-preview .dsh-tavern-image-preview-page:disabled { opacity: .3; cursor: default; }
+.dsh-tavern-image-preview-counter { position: absolute; top: max(20px, env(safe-area-inset-top)); left: max(20px, env(safe-area-inset-left)); color: #fff; font-size: 13px; opacity: .85; }
+.dsh-tavern-image-preview .dsh-tavern-image-plan-edit { position: static; display: block; margin: 10px 0 2px auto; min-height: 0; padding: 4px 12px; font-size: 12px; }
+.dsh-tavern-image-repaint { display: flex; flex-direction: column; gap: 8px; padding: 0; border: 0; }
+.dsh-tavern-image-adjust.dsh-tavern-image-repaint textarea { min-height: 64px; margin: 0; padding: 10px 12px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-specific-input-major); color: inherit; font: inherit; font-size: 14px; line-height: 1.6; resize: vertical; transition: border-color .15s, box-shadow .15s; }
+.dsh-tavern-image-repaint textarea::placeholder { color: var(--dsw-alias-label-tertiary); }
+.dsh-tavern-image-repaint textarea:focus { outline: none; border-color: var(--dsh-tavern-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsh-tavern-accent) 18%, transparent); }
+.dsh-tavern-image-repaint-actions { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+.dsh-tavern-image-repaint-cancel { padding: 6px 10px; border: 0; border-radius: var(--dsh-tavern-radius-md); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; cursor: pointer; }
+.dsh-tavern-image-repaint-cancel:hover:not(:disabled) { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.dsh-tavern-image-repaint-cancel:disabled { opacity: .45; cursor: default; }
+.dsh-tavern-btn.dsh-tavern-image-repaint-submit { background: var(--dsh-tavern-accent-active); color: #fff; font-weight: 600; }
+.dsh-tavern-btn.dsh-tavern-image-repaint-submit:hover:not(:disabled) { background: color-mix(in srgb, var(--dsh-tavern-accent-active) 88%, #000); }
+/* An avatar floats over the page as it is: no dark cover, just the picture with a shadow. */
+.dsh-tavern-image-preview.is-compact { display: grid; place-items: center; background: transparent; }
+.dsh-tavern-image-preview.is-compact::backdrop { background: transparent; }
+.dsh-tavern-image-preview.is-compact img { width: auto; height: auto; max-width: min(360px, 90vw); max-height: min(360px, 70dvh); border-radius: 16px; background: #f4f2ee; box-shadow: 0 12px 40px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.06); }
+/* Gallery tab: this game's pictures, one row per turn. */
+.dsh-tavern-full-context button.danger { color: var(--dsw-alias-state-error-primary); }
+.dsh-tavern-gallery-turn + .dsh-tavern-gallery-turn { margin-top: 20px; }
+.dsh-tavern-gallery-turn h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+.dsh-tavern-gallery-turn h4 span { font-size: 12px; font-weight: 400; color: var(--dsw-alias-label-tertiary); }
+.dsh-tavern-gallery-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.dsh-tavern-gallery-shot { position: relative; flex: none; margin: 0; }
+.dsh-tavern-gallery-shot a { display: block; border-radius: 10px; overflow: hidden; outline-offset: 2px; }
+.dsh-tavern-gallery-shot img { display: block; height: 160px; width: auto; max-width: 300px; object-fit: cover; background: var(--dsw-alias-interactive-bg-hover); cursor: zoom-in; }
+.dsh-tavern-gallery.is-picking .dsh-tavern-gallery-shot img { cursor: pointer; }
+.dsh-tavern-gallery-shot.is-picked a { box-shadow: inset 0 0 0 3px var(--dsw-alias-state-business-primary); }
+.dsh-tavern-gallery-shot.is-picked img { opacity: .85; }
+.dsh-tavern-gallery-pick { position: absolute; top: 6px; left: 6px; display: flex; padding: 4px; border-radius: 6px; background: rgba(0, 0, 0, .35); cursor: pointer; }
+.dsh-tavern-gallery-pick input { margin: 0; cursor: pointer; }
+.dsh-tavern-full-context .dsh-tavern-gallery-delete { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: rgba(0, 0, 0, .5); color: #fff; }
+.dsh-tavern-full-context .dsh-tavern-gallery-delete:hover:not(:disabled) { background: var(--dsw-alias-state-error-primary); color: #fff; }
+@media (hover: hover) {
+  .dsh-tavern-gallery-shot:not(:hover, :focus-within) .dsh-tavern-gallery-delete { opacity: 0; }
+}
+@media (max-width: 600px) { .dsh-tavern-gallery-shot img { height: 120px; max-width: 220px; } }
+/* Scene image API card. */
+.dsh-tavern-global-settings .dsh-tavern-image-settings { gap: 12px; padding: 4px 0 16px; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings label { font-size: 13px; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings :is(input, select, textarea) { height: 34px; border-radius: 8px; background: var(--dsw-alias-bg-base); font-size: 13px; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings textarea { height: auto; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings .dsh-tavern-btn { align-self: flex-start; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings > .dsh-tavern-settings-intro { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
+/* Image settings: titled sections, two-column rows that collapse on narrow screens. */
+.dsh-tavern-image-section { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 16px 0 0; border-top: 1px solid var(--dsw-alias-border-l2); }
+.dsh-tavern-image-section > h4, .dsh-tavern-image-section > summary { margin: 0; font-size: 13px; font-weight: 650; color: var(--dsw-alias-label-primary); }
+details.dsh-tavern-image-section > summary { cursor: pointer; }
+details.dsh-tavern-image-section { display: block; }
+details.dsh-tavern-image-section[open] > summary { margin-bottom: 12px; }
+.dsh-tavern-image-section-body { display: flex; flex-direction: column; gap: 12px; }
+.dsh-tavern-image-hint { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
+.dsh-tavern-image-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.dsh-tavern-image-row > * { min-width: 0; }
+.dsh-tavern-image-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+.dsh-tavern-image-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 34px; }
+.dsh-tavern-image-actions > [role="status"] { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.dsh-tavern-image-inline { display: flex; align-items: flex-end; gap: 8px; }
+.dsh-tavern-image-inline > label { flex: 1 1 auto; min-width: 0; }
+.dsh-tavern-image-inline > .dsh-tavern-btn { flex: 0 0 auto; height: 34px; }
+.dsh-tavern-image-settings .dsh-tavern-file-btn { display: inline-flex; flex-direction: row; align-items: center; gap: 0; }
+.dsh-tavern-image-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 16px; border-top: 1px solid var(--dsw-alias-border-l2); font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.dsh-tavern-image-trial { margin: 8px 0 0; display: grid; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.dsh-tavern-image-trial img { max-width: min(100%, 320px); border-radius: 8px; }
+.dsh-tavern-artist-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings .dsh-tavern-artist-card { display: inline-flex; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 6px; width: 96px; height: auto; padding: 6px; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings .dsh-tavern-artist-card[aria-pressed="true"] { border-color: var(--dsh-tavern-accent); background: var(--dsh-tavern-accent-soft); color: var(--dsh-tavern-accent-active); }
+.dsh-tavern-global-settings .dsh-tavern-image-settings .dsh-tavern-artist-add { border-style: dashed; color: var(--dsw-alias-label-secondary); }
+.dsh-tavern-artist-thumb { display: flex; align-items: center; justify-content: center; width: 82px; height: 82px; overflow: hidden; border-radius: 6px; background: var(--dsw-alias-border-l2); color: var(--dsw-alias-label-tertiary); font-size: 12px; font-weight: 400; }
+.dsh-tavern-artist-add .dsh-tavern-artist-thumb { background: transparent; font-size: 24px; font-weight: 300; }
+.dsh-tavern-artist-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dsh-tavern-artist-name { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.dsh-tavern-artist-editor { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: var(--dsw-alias-bg-base); }
+.dsh-tavern-image-settings-title { margin: 0; padding: 16px 20px 0; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings-title { padding: 14px 0 0; font-size: 13px; font-weight: 650; }
+.dsh-tavern-global-settings .dsh-tavern-image-settings > p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-tertiary); }
+.dsh-tavern-global-settings .dsh-tavern-image-settings > details > summary { font-size: 13px; cursor: pointer; }
+.dsh-tavern-story-actions .dsh-tavern-message-illustrate { color: var(--dsw-alias-label-tertiary); }
+.dsh-tavern-story-actions .dsh-tavern-message-illustrate:hover:not(:disabled) { color: var(--dsw-alias-label-primary); }

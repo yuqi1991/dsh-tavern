@@ -591,7 +591,6 @@ window.__ModuleLoader__.load({
 				React.createElement(DisplayPreferencesSettings),
 				React.createElement(PromptTemplateSettingsEntry),
 				React.createElement(ContextCompactionSettings),
-				state.sceneImages ? React.createElement(SceneImageSettings, null) : null,
 				state.error ? React.createElement("div", { className: "dsh-tavern-settings-error", role: "alert" }, "保存失败：" + state.error) : null
 			);
 		}
@@ -729,6 +728,10 @@ window.__ModuleLoader__.load({
                 name: "conversation.view", id: "dsh-tavern:full-context", order: 11,
                 label: "完整上下文", inject: sessionId => ({ contextSessionId: sessionId })
             }, FullRequestContextView)), "dsh-tavern: full request context");
+            ctx.effect(() => slots.inject("conversation.view", () => slots.register({
+                name: "conversation.view", id: "dsh-tavern:gallery", order: 12,
+                label: "画廊", inject: sessionId => ({ gallerySessionId: sessionId })
+            }, SceneImageGallery)), "dsh-tavern: picture gallery");
 			const signals = ctx.tavernSessionSignals;
 			if (!signals || typeof signals.subscribe !== "function") throw new Error("DSH Tavern Remote 状态流不可用");
 			tavernSessionSignals = signals;
@@ -869,6 +872,20 @@ window.__ModuleLoader__.load({
 					}, TavernSettingsSection);
 				});
 			}, "dsh-tavern: settings section");
+			ctx.effect(function () {
+				let dispose = null, active = true;
+				// Releases without scene images get no page at all.
+				rpc("getTavernSettings").then(function (result) {
+					if (!active || !(result.releaseCapabilities && result.releaseCapabilities.sceneImages)) return;
+					dispose = slots.inject("settings.section", function () { return slots.register({
+						name: "settings.section",
+						id: "dsh-tavern-scene-images",
+						order: 111,
+						label: function () { return "场景生图"; }
+					}, function () { return React.createElement("div", { className: "dsh-tavern-settings-section dsh-tavern-global-settings" }, React.createElement(SceneImageSettings, null)); }); });
+				}, function () {});
+				return function () { active = false; if (typeof dispose === "function") dispose(); };
+			}, "dsh-tavern: scene image settings section");
 
 			ctx.effect(function () {
 				const dispose = ctx.betterSidebar.registerTab({ id: "dsh-tavern:system-prompts", title: "系统提示词", order: 5, single: true, component: SystemPromptSidebarTab });
