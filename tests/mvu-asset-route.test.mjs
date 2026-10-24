@@ -141,10 +141,10 @@ test('RPC keeps malformed JSON rejection and scene-image byte limits before disp
   })
   assert.equal(malformed.status, 400)
   const large = await request(handler, { method: 'POST', url: '/api/dsh-tavern/generateSceneImage', headers: {},
-    async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify({ text: '中'.repeat(6000) })) }
+    async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify({ text: '中'.repeat(100000) })) }
   })
   assert.equal(JSON.parse(large.body).ok, false)
-  assert.match(JSON.parse(large.body).error, /生图请求数据超过当前 16 KB/)
+  assert.match(JSON.parse(large.body).error, /生图请求数据超过 256 KB/)
   assert.equal(calls, 0)
 })
 

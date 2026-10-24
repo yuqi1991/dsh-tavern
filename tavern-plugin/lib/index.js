@@ -297,11 +297,11 @@ export async function apply(ctx) {
   const sceneWorldbooks = TAVERN_RELEASE_CAPABILITIES.sceneImages ? createSceneWorldbooks({ store: profileData }) : null
   const imageHostDiagnostic = createSceneImageHostLogger(ctx.logger)
   const sceneDiagnostics = TAVERN_RELEASE_CAPABILITIES.sceneImages ? createSceneImageDiagnostics(profileData, { onDiagnostic: imageHostDiagnostic }) : null
-  async function captureSceneWorldbook(chat, card, preparedBook) {
+  async function captureSceneWorldbook(chat, card, preparedBook, turn) {
     if (sceneWorldbooks === null) return null
     try {
       const worldBook = preparedBook === undefined ? await worldBooks.bound(chat.cardPath, card, chat) : preparedBook
-      return await sceneWorldbooks.capture({ worldBook, chat, card })
+      return await sceneWorldbooks.capture({ worldBook, chat, card, turn })
     } catch (_error) {
       console.warn('dsh-tavern: 场景世界书快照保存失败，正文继续；不会用后来的世界书补历史。')
       return null
@@ -390,7 +390,7 @@ export async function apply(ctx) {
   }
   async function updateTavernSettings(patch) {
     if (patch && (Object.hasOwn(patch, 'backgroundModel') || Object.hasOwn(patch, 'backgroundTasks') || Object.hasOwn(patch, 'webSearchEnabled'))) throw new Error('后台配置已移至顶栏的本局设置')
-    for (const name of ['defaultForegroundModel', 'defaultBackgroundModel']) {
+    for (const name of ['defaultForegroundModel', 'defaultBackgroundModel', 'defaultImageModel']) {
       if (patch?.[name] != null) await llm.resolveCallConfig(patch[name])
     }
     tavernSettingsDocument = await profileData.updateJson(settingsPath, function (current) {
@@ -577,6 +577,21 @@ export async function apply(ctx) {
   }
   function backgroundModelSelection(chat) {
     return resolveChatBackgroundModel(chat, modelSelection(chat && chat.sessionId))
+  }
+  // Turning a passage into drawing tags needs little deliberation: following the
+  // foreground, the scene image Agent keeps its model but thinks at the lightest level.
+  // The story model's high effort spent over a minute before the first tool call.
+  async function sceneImageSelection(sessionId) {
+    // A model chosen for this game (inherited from the global default) is used as set.
+    const chosen = normalizeBackgroundModel((await backgroundConfigForSession(sessionId))?.imageModelSelection)
+    if (chosen) return chosen
+    const selection = modelSelection(sessionId)
+    if (!selection) return selection
+    try {
+      const reasoning = await readBackgroundModelReasoning(llm, selection)
+      if ((reasoning?.efforts || []).some(effort => effort?.id === 'low')) return { ...selection, reasoningEffort: 'low' }
+    } catch { /* Unknown capabilities keep the conversation's own setting. */ }
+    return selection
   }
   async function tavernModelCatalog() {
     const providers = llm.listProviders()
@@ -1196,6 +1211,7 @@ export async function apply(ctx) {
     await stopChatForDeletion(chatId)
     const result = await conversationRegistry.remove(chatId)
     deletedChatIds.add(chatId)
+    await sceneWorldbooks?.forgetChat(chatId).catch(() => {})
     return result
   }
   async function exportConversation(chatId, sessionId, title) {
@@ -1962,6 +1978,7 @@ export async function apply(ctx) {
     fork.forkedFrom = { ...fork.forkedFrom, chatId: source.id, sessionId: source.sessionId, storageRevision: source._storageRevision,
       stateChatId: state.id, stateRevision: state._storageRevision, turn, atSeq }
     await conversationRegistry.publish(fork)
+    await sceneWorldbooks?.copyRefs(state.id, fork.id, turn).catch(() => {})
     return conversationForkReceipt(fork, { lastTurn: turn, messageCount: fork.messages.length })
   }
 
@@ -2080,7 +2097,7 @@ export async function apply(ctx) {
     prompt: runtimePrompt,
     onDiagnostic: imageHostDiagnostic,
     readLegacyConfiguration: legacyImageConfigurationReader(ctx.get('settings')?.documentPath),
-    store: profileData, diagnostics: sceneDiagnostics, chatForSession, backgroundConfigForSession, sceneStateForSession: sessionChats.readSceneImageState, selection: modelSelection,
+    store: profileData, diagnostics: sceneDiagnostics, chatForSession, chatSummaries: async () => (await readIndex()).chats || [], backgroundConfigForSession, sceneStateForSession: sessionChats.readSceneImageState, selection: sceneImageSelection,
     worldbookAtTarget: async (chat, target) => {
       try { return await sceneWorldbooks.read(sceneWorldbookBinding(chat, target)) }
       catch (_error) { return { unavailable: '历史世界书快照读取失败，未读取当前世界书。' } }
@@ -2770,7 +2787,10 @@ export async function apply(ctx) {
   async function onSettlementSettled(chatId, signal) {
     try {
       const latest = await readChat(chatId)
-      if (!signal.aborted && latest) void mvuSettlementReconciler.wake(latest.sessionId)
+      if (!signal.aborted && latest) {
+        void mvuSettlementReconciler.wake(latest.sessionId)
+        void sceneIllustrations?.autoGenerate(latest.sessionId).catch(error => console.warn('dsh-tavern: 自动生图未执行:', str(error?.message || error)))
+      }
     } catch {
       if (!signal.aborted) void mvuSettlementReconciler.scan()
     }
@@ -3373,23 +3393,26 @@ export async function apply(ctx) {
       case 'getConversationBackgroundConfig': {
         const chat = await backgroundConfigForSession(str(args?.sessionId))
         if (!chat || groupOfMode(chat.mode) !== 'play') throw new Error('请先打开游玩会话')
-        return { backgroundModel: chat.backgroundModelSelection || null, backgroundTasks: normalizeBackgroundTasks(chat.backgroundTasks), webSearchEnabled: chat.webSearchEnabled === true, sceneImagesEnabled: chat.sceneImagesEnabled === true, sceneImagesAvailable: TAVERN_RELEASE_CAPABILITIES.sceneImages, modelCatalog: await tavernModelCatalog() }
+        return { backgroundModel: chat.backgroundModelSelection || null, imageModel: chat.imageModelSelection || null, backgroundTasks: normalizeBackgroundTasks(chat.backgroundTasks), webSearchEnabled: chat.webSearchEnabled === true, sceneImagesEnabled: chat.sceneImagesEnabled === true, sceneImagesAvailable: TAVERN_RELEASE_CAPABILITIES.sceneImages, modelCatalog: await tavernModelCatalog() }
       }
       case 'setConversationBackgroundModel':
       case 'setConversationBackgroundConfig': {
         const sessionId = str(args?.sessionId)
         const chat = await chatForSession(sessionId)
         if (!chat || groupOfMode(chat.mode) !== 'play') throw new Error('请先打开游玩会话')
-        const selection = normalizeBackgroundModel(args.backgroundModel)
-        if (args.backgroundModel !== null && !selection) throw new Error('后台模型配置无效')
-        if (selection) {
+        async function checkModel(value, label) {
+          const selection = normalizeBackgroundModel(value)
+          if (value !== null && !selection) throw new Error(label + '配置无效')
+          if (!selection) return
           const catalog = await tavernModelCatalog()
-          if (!catalog.some(group => group.provider === selection.provider && group.models.some(model => model.id === selection.model))) throw new Error('所选后台模型不可用')
+          if (!catalog.some(group => group.provider === selection.provider && group.models.some(model => model.id === selection.model))) throw new Error('所选' + label + '不可用')
           const reasoning = await readBackgroundModelReasoning(llm, selection)
           if (selection.reasoningEffort && !reasoning?.efforts?.some(effort => effort.id === selection.reasoningEffort)) throw new Error('所选推理强度不可用')
         }
+        if (Object.hasOwn(args, 'backgroundModel')) await checkModel(args.backgroundModel, '后台模型')
+        if (Object.hasOwn(args, 'imageModel')) await checkModel(args.imageModel, '生图 Agent 模型')
         const saved = await updateChat(chat.id, current => patchConversationBackground(current, args), { source: 'background-model.switch-conversation' })
-        return { backgroundModel: saved.backgroundModelSelection || null, backgroundTasks: normalizeBackgroundTasks(saved.backgroundTasks), webSearchEnabled: saved.webSearchEnabled === true, sceneImagesEnabled: saved.sceneImagesEnabled === true }
+        return { backgroundModel: saved.backgroundModelSelection || null, imageModel: saved.imageModelSelection || null, backgroundTasks: normalizeBackgroundTasks(saved.backgroundTasks), webSearchEnabled: saved.webSearchEnabled === true, sceneImagesEnabled: saved.sceneImagesEnabled === true }
       }
       case 'getBackgroundModelReasoning': return { reasoning: await readBackgroundModelReasoning(llm, args) }
       case 'getDisplayPreferences': return { renderDepth: (await readTavernSettings()).renderDepth }
@@ -3404,11 +3427,11 @@ export async function apply(ctx) {
         return { settings }
       }
       case 'saveSceneImageSettings': {
-        if (Object.hasOwn(args || {}, 'enabled')) throw new Error('请在本局设置中开启或关闭场景生图')
         return { settings: await enabledSceneIllustrations().configure(args) }
       }
       case 'testSceneImageConnection': return await enabledSceneIllustrations().testConnection(args)
       case 'listSceneImageModels': return await enabledSceneIllustrations().listModels(args)
+      case 'testSceneImageGeneration': return await enabledSceneIllustrations().testGenerate()
       case 'sceneImageStatus': return { illustration: await enabledSceneIllustrations().status(args.sessionId, args.turn) }
       case 'recordSceneImageInteraction': {
         enabledSceneIllustrations()
@@ -3429,6 +3452,14 @@ export async function apply(ctx) {
       }
       case 'retrySceneImageSave': return { illustration: await enabledSceneIllustrations().retrySave(args.sessionId, args.turn, args.key, args.requestId) }
       case 'cancelSceneImage': return { illustration: await enabledSceneIllustrations().cancel(args.sessionId, args.turn, args.key, args.requestId) }
+      case 'listSceneImageHistory': {
+        // The gallery shows only the session's own game.
+        const illustrations = enabledSceneIllustrations()
+        if (!args?.sessionId) return { items: await illustrations.history() }
+        const chat = await backgroundConfigForSession(str(args.sessionId))
+        return { items: chat?.id ? await illustrations.history(chat.id) : [] }
+      }
+      case 'removeSceneImageHistory': return { results: await enabledSceneIllustrations().removeStoredImages(args && args.items) }
       case 'removeSceneImage': return { illustration: await enabledSceneIllustrations().removeImage(args.sessionId, args.turn, args.key, args.versionId) }
       case 'setSceneImageReference': return { illustration: await enabledSceneIllustrations().setReference(args.sessionId, args.turn, args.key, args.versionId, args.consent, args.enabled !== false, args.personId) }
       case 'updateTavernSettings': return { settings: await updateTavernSettings(args && args.patch) }
@@ -3576,6 +3607,14 @@ export async function apply(ctx) {
           })
           throw error
         }
+      }
+      case 'getImageAgentUndo': {
+        const available = sceneIllustrations !== null && await sceneIllustrations.isAgentSession(str(args && args.parentSessionId), str(args && args.agentSessionId))
+        return { available }
+      }
+      case 'undoImageAgentTurn': {
+        if (sceneIllustrations === null) throw new Error('场景生图不可用')
+        return await sceneIllustrations.undoAgentTurn(str(args && args.parentSessionId), str(args && args.agentSessionId))
       }
       case 'applyUpdatedCard': {
         const sessionId = str(args && args.sessionId)
@@ -3785,7 +3824,7 @@ export async function apply(ctx) {
         if (gameplayRoute && origin && origin !== 'http://' + req.headers.host && origin !== 'https://' + req.headers.host) {
           res.writeHead(403); res.end('forbidden'); return
         }
-        const sceneImageRoute = TAVERN_RELEASE_CAPABILITIES.sceneImages && /^\/api\/dsh-tavern\/(?:scene-image|getSceneImageSettings|saveSceneImageSettings|testSceneImageConnection|listSceneImageModels|sceneImageStatus|recordSceneImageInteraction|generateSceneImage|retrySceneImageSave|cancelSceneImage|removeSceneImage|setSceneImageReference)$/.test(pathname)
+        const sceneImageRoute = TAVERN_RELEASE_CAPABILITIES.sceneImages && /^\/api\/dsh-tavern\/(?:scene-image|scene-image-artist-preview|scene-image-stored|listSceneImageHistory|removeSceneImageHistory|getSceneImageSettings|saveSceneImageSettings|testSceneImageConnection|listSceneImageModels|testSceneImageGeneration|sceneImageStatus|recordSceneImageInteraction|generateSceneImage|retrySceneImageSave|cancelSceneImage|removeSceneImage|setSceneImageReference)$/.test(pathname)
         const sceneSameOrigin = sceneImageRoute && (origin === 'http://' + req.headers.host || origin === 'https://' + req.headers.host)
         if (sceneImageRoute && origin && !sceneSameOrigin) {
           res.writeHead(403)
@@ -3865,6 +3904,20 @@ export async function apply(ctx) {
             res.end(body)
             return
           }
+          if (TAVERN_RELEASE_CAPABILITIES.sceneImages && req.method === 'GET' && pathname === '/api/dsh-tavern/scene-image-artist-preview') {
+            const image = await sceneIllustrations.readArtistPreview(new URL(req.url, 'http://x').searchParams.get('id'))
+            // The URL carries the preview revision, so a replaced image gets a new URL.
+            res.writeHead(200, { 'Content-Type': image.mediaType, 'Content-Length': image.data.byteLength, 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' })
+            res.end(image.data)
+            return
+          }
+          if (TAVERN_RELEASE_CAPABILITIES.sceneImages && req.method === 'GET' && pathname === '/api/dsh-tavern/scene-image-stored') {
+            const query = new URL(req.url, 'http://x').searchParams
+            const image = await sceneIllustrations.readStoredImage(query.get('chatId'), query.get('key'), query.get('versionId'))
+            res.writeHead(200, { 'Content-Type': image.ref.mediaType, 'Content-Length': image.data.byteLength, 'Cache-Control': 'private, max-age=3600', 'X-Content-Type-Options': 'nosniff' })
+            res.end(image.data)
+            return
+          }
           if (TAVERN_RELEASE_CAPABILITIES.sceneImages && req.method === 'GET' && pathname === '/api/dsh-tavern/scene-image') {
             const query = new URL(req.url, 'http://x').searchParams
             const image = await sceneIllustrations.readImage(query.get('sessionId'), Number(query.get('turn')), query.get('key'), query.get('versionId'))
@@ -3928,7 +3981,9 @@ export async function apply(ctx) {
             res.end()
             return
           }
-          const sceneImageBodyLimit = method === 'saveSceneImageSettings' ? 2 * 1024 * 1024 : 16384
+          // Ordinary scene-image calls carry ids and text: a hand-written prompt may be
+          // 12000 characters (36 KB of Chinese) and a gallery batch delete 500 items.
+          const sceneImageBodyLimit = method === 'saveSceneImageSettings' ? 2 * 1024 * 1024 : 256 * 1024
           const bodyChunks = []
           let bodyBytes = 0
           for await (const chunk of req) {
@@ -3938,7 +3993,7 @@ export async function apply(ctx) {
             if (sceneImageRoute && bodyBytes > sceneImageBodyLimit) {
               throw new Error(method === 'saveSceneImageSettings'
                 ? '无法保存生图配置：工作流与配置数据超过当前 2 MB 请求大小限制。请精简工作流后重试；这不是图片尺寸或显存不足。'
-                : '生图请求数据超过当前 16 KB 大小限制，请减少输入数据后重试；这不是图片尺寸或显存不足。')
+                : '生图请求数据超过 256 KB 大小限制，请缩短提示词或减少一次批量删除的图片后重试；这不是图片尺寸或显存不足。')
             }
             bodyChunks.push(bytes)
           }

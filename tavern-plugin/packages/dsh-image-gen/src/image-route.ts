@@ -2,7 +2,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ImageAttachmentRef, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { parseImageAttachmentRef } from './reference-image.js'
-import { IMAGE_ROUTE, DELETE_ROUTE } from './shared.js'
 
 export { IMAGE_ROUTE, DELETE_ROUTE } from './shared.js'
 const MAX_BODY_BYTES = 64 * 1024

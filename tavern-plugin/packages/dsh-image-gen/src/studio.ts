@@ -1,5 +1,5 @@
 /** Provider-aware orchestration for the browser image workbench. */
-import type { ImageAttachmentRef, ImageMediaType, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
+import type { ImageMediaType, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { Context } from '@deepseek-ai/cordis'
 import {

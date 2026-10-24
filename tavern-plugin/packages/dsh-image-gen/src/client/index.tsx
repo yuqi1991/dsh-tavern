@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { SettingsScope, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
@@ -13,7 +12,6 @@ import {
   DEFAULT_COMFYUI_TIMEOUT_MS,
   DEFAULT_MODELS,
   IMAGE_GENERATION_NAMESPACE,
-  IMAGE_ROUTE,
   MAX_COMFYUI_WORKFLOW_BYTES,
   STUDIO_ROUTE,
   activeComfyUIWorkflow,
@@ -110,7 +108,7 @@ const DICT = {
     description: '选择厂商并配置生图模型。',
     provider: 'Provider',
     providerGoogle: 'Google Gemini',
-    providerOpenAI: 'OpenAI / 中转站',
+    providerOpenAI: 'OpenAI / 兼容接口',
     providerGrok: 'Grok / xAI（文生图）',
     endpointHintGrok: 'xAI 官方 /v1 根地址；当前仅支持文生图。',
     providerSeedream: '字节 Seedream',
@@ -122,8 +120,8 @@ const DICT = {
     endpoint: '接口地址',
     reset: '重置',
     resetTitle: '重置为默认官方地址',
-    endpointHintGoogle: 'Google 官方地址或反代端点（全路径）。',
-    endpointHintOpenAI: '中转站请填其 OpenAI 兼容的 /v1 地址。',
+    endpointHintGoogle: 'Google 官方地址或自定义端点（全路径）。',
+    endpointHintOpenAI: '自定义渠道请填其 OpenAI 兼容的 /v1 地址。',
     endpointHintSeedream: '火山方舟兼容的 /api/v3 地址。',
     endpointHintDashScope: '阿里云百炼 DashScope 官方接口地址。',
     endpointHintComfyUI: '正在运行且 DSH Host 可以访问的 ComfyUI 地址，默认使用本机 8188 端口。',
@@ -180,7 +178,7 @@ const DICT = {
     description: 'Select provider and configure image generation models.',
     provider: 'Provider',
     providerGoogle: 'Google Gemini',
-    providerOpenAI: 'OpenAI / Relay',
+    providerOpenAI: 'OpenAI / Compatible',
     providerGrok: 'Grok / xAI (generation)',
     endpointHintGrok: 'xAI /v1 base URL; currently text-to-image only.',
     providerSeedream: 'ByteDance Seedream',
@@ -193,7 +191,7 @@ const DICT = {
     reset: 'Reset',
     resetTitle: 'Reset to official default URL',
     endpointHintGoogle: 'Official Google endpoint or reverse proxy (full path).',
-    endpointHintOpenAI: 'OpenAI-compatible /v1 base URL for relays.',
+    endpointHintOpenAI: 'OpenAI-compatible /v1 base URL for custom endpoints.',
     endpointHintSeedream: 'Volcengine Ark compatible /api/v3 base URL.',
     endpointHintDashScope: 'Official Aliyun DashScope endpoint.',
     endpointHintComfyUI: 'A running ComfyUI server reachable by the DSH Host; the default points to port 8188 on this computer.',
@@ -381,16 +379,6 @@ const STYLE = `
 .dsh-ig-card-fav-btn{appearance:none;border:0;background:transparent;color:var(--dsw-alias-label-tertiary,#94a3b8);padding:2px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:color .15s,transform .15s;flex-shrink:0}
 .dsh-ig-card-fav-btn:hover{color:#ef4444;transform:scale(1.15)}
 .dsh-ig-card-fav-btn.is-favorited{color:#ef4444}
-
-/* Placeholders for Upcoming Routes */
-.dsh-ig-placeholder-view{display:flex;align-items:center;justify-content:center;min-height:360px;height:100%;padding:24px}
-.dsh-ig-placeholder-card{max-width:500px;width:100%;text-align:center;padding:36px 28px;background:var(--dsw-alias-bg-layer-2,#ffffff);border:1px dashed var(--dsw-alias-border-l2,#e2e8f0);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:12px}
-.dsh-ig-placeholder-icon{font-size:40px;line-height:1}
-.dsh-ig-placeholder-header{display:flex;align-items:center;gap:8px;justify-content:center}
-.dsh-ig-placeholder-title{font-size:16px;font-weight:600;color:var(--dsw-alias-label-primary,inherit);margin:0}
-.dsh-ig-placeholder-badge{font-size:11px;font-weight:500;background:rgba(37,99,235,0.1);color:#2563eb;padding:2px 8px;border-radius:12px}
-.dsh-ig-placeholder-desc{font-size:13px;line-height:1.6;color:var(--dsw-alias-label-secondary,#64748b);margin:0}
-.dsh-ig-placeholder-tip{margin-top:6px;padding:8px 12px;font-size:12px;background:var(--dsw-alias-bg-layer-3,#f8fafc);border-radius:8px;color:var(--dsw-alias-label-tertiary,#64748b);text-align:left}
 
 /* Empty State */
 .dsh-ig-gallery-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:360px;text-align:center;color:var(--dsw-alias-label-tertiary,#94a3b8)}

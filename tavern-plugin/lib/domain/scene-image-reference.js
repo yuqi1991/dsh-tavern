@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { sceneSlotKeys } from './scene-slots.js'
 import { imageReferenceCapability } from '../../packages/dsh-image-gen/src/tavern/scene-image-reference.js'
 export { imageReferenceCapability }
 
@@ -34,8 +35,9 @@ export function createSceneImageReferences({ store }) {
     const document = await read(chatId)
     // Derive branch keys only when references exist, and only for their endpoints.
     const turns = new Set(document.records.flatMap(record => [record.source.turn, record.activation.turn]))
-    const targets = document.records.length ? (typeof lineage === 'function' ? lineage(turns) : lineage) : []
-    const keys = new Set(targets.map(target => target.key))
+    const targets = document.records.length ? (typeof lineage === 'function' ? await lineage(turns) : lineage) : []
+    // A picture added to a turn is a reference source of that turn too.
+    const keys = new Set(sceneSlotKeys(targets.map(target => target.key)))
     for (const record of document.records) {
       if (!keys.has(record.activation.key) || !keys.has(record.source.key)) continue
       people.set(record.person.id, record)

@@ -2602,7 +2602,7 @@ window.__ModuleLoader__.load({
 		/**
 		* Native Workspace Gallery & Studio View Component for DSH `conversation.view` slot.
 		* Fully i18n-reactive (Chinese & English) with modular tabs, multi-dimensional filters,
-		* responsive image grid, and placeholder routes.
+		* responsive image grid, and image editing.
 		*/
 		const DICT$1 = {
 			zh: {
@@ -2613,7 +2613,7 @@ window.__ModuleLoader__.load({
 				tabTasks: "任务",
 				filterAllProviders: "全部提供商",
 				filterGoogle: "Google Gemini",
-				filterOpenAI: "OpenAI / 中转站",
+				filterOpenAI: "OpenAI / 兼容接口",
 				filterSeedream: "字节 Seedream",
 				filterDashScope: "阿里 DashScope",
 				filterComfyUI: "本地 ComfyUI",
@@ -2676,15 +2676,7 @@ window.__ModuleLoader__.load({
 				justNow: "刚刚",
 				minutesAgo: "{n} 分钟前",
 				hoursAgo: "{n} 小时前",
-				daysAgo: "{n} 天前",
-				studioTitle: "AI 图像工作台 (Studio)",
-				studioDesc: "工作台模块正在紧锣密鼓开发中。在此你将体验大图精修、变体生成 (Variations)、参数重调并一键将生成结果无缝插回 DSH 正在进行的对话。",
-				studioTip: "💡 提示：目前你可以在“图库”中点击任意图片，在弹窗中进行查看、复制与下载。",
-				compareTitle: "多模型横向对比 (Compare)",
-				compareDesc: "支持单个 Prompt 一键同时调度 Gemini、Seedream、DashScope 及本地 ComfyUI 模型并排生成，直观横评画质与细节。",
-				tasksTitle: "异步任务队列 (Tasks)",
-				tasksDesc: "集中管理后台批量生图、多模型并发生成与本地 ComfyUI 耗时任务。支持状态追踪、失败重试与执行耗时分析。",
-				comingSoonBadge: "即将推出"
+				daysAgo: "{n} 天前"
 			},
 			en: {
 				tabGallery: "Gallery",
@@ -2694,7 +2686,7 @@ window.__ModuleLoader__.load({
 				tabTasks: "Tasks",
 				filterAllProviders: "All Providers",
 				filterGoogle: "Google Gemini",
-				filterOpenAI: "OpenAI / Relay",
+				filterOpenAI: "OpenAI / Compatible",
 				filterSeedream: "ByteDance Seedream",
 				filterDashScope: "Aliyun DashScope",
 				filterComfyUI: "Local ComfyUI",
@@ -2757,15 +2749,7 @@ window.__ModuleLoader__.load({
 				justNow: "Just now",
 				minutesAgo: "{n}m ago",
 				hoursAgo: "{n}h ago",
-				daysAgo: "{n}d ago",
-				studioTitle: "AI Image Studio",
-				studioDesc: "Studio workbench is under active development. Fine-tune prompts, generate variations (2x/4x), and inject images directly into DSH chat.",
-				studioTip: "💡 Tip: You can currently click any image in the Gallery to preview, copy, or download it.",
-				compareTitle: "Model Comparison (Compare)",
-				compareDesc: "Side-by-side multi-model benchmarking coming soon. Test Gemini, Seedream, DashScope, and ComfyUI with a single prompt.",
-				tasksTitle: "Task Queue (Tasks)",
-				tasksDesc: "Centralized view for batch generation, asynchronous ComfyUI runs, live progress tracking, and retry controls.",
-				comingSoonBadge: "Coming Soon"
+				daysAgo: "{n}d ago"
 			}
 		};
 		/** Format human-readable relative time */
@@ -4160,14 +4144,48 @@ window.__ModuleLoader__.load({
 .dsh-ig-workbench-toast{position:fixed;bottom:28px;left:50%;opacity:1;transform:translate(-50%,0);background:rgba(15,23,42,0.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;padding:8px 18px;border-radius:10px;font-size:12.5px;font-weight:500;box-shadow:0 12px 32px rgba(0,0,0,0.3);z-index:99999;animation:dshIgToast 150ms cubic-bezier(0.23,1,0.32,1);pointer-events:none}
 @keyframes dshIgToast{from{opacity:0;transform:translate(-50%,6px)}}
 @media(max-width:1120px){.dsh-ig-workbench-grid{grid-template-columns:190px minmax(360px,1fr) 300px}.dsh-ig-result-actions button span{display:none}}
-@media(max-width:900px){.dsh-ig-gallery-page-body.is-workbench{height:auto;overflow:auto}.dsh-ig-workbench{height:auto;min-height:100%;overflow:visible;padding:12px}.dsh-ig-workbench-heading{height:auto;padding-bottom:12px;align-items:center}.dsh-ig-provider-quick>span{display:none}.dsh-ig-workbench-grid{height:auto;display:flex;flex:none;flex-direction:column;overflow:visible}.dsh-ig-recent-panel{height:auto;overflow:hidden;border-right:0;border-bottom:1px solid var(--ig-line)}.dsh-ig-recent-scroll{height:auto;display:flex;overflow-x:auto;overflow-y:hidden;padding:8px}.dsh-ig-recent-item{min-width:220px}.dsh-ig-canvas-column{height:auto;min-height:560px}.dsh-ig-generate-panel{height:auto;border-left:0;border-top:1px solid var(--ig-line);min-height:560px}.dsh-ig-generator-form{height:auto;overflow:visible}.dsh-ig-canvas{height:auto;min-height:360px}}
-@media(max-width:560px){.dsh-ig-workbench-heading>div{display:block}.dsh-ig-workbench-heading h1{font-size:15px}.dsh-ig-provider-quick select{min-width:128px;max-width:150px}.dsh-ig-canvas{padding:12px;min-height:300px}.dsh-ig-result-strip,.dsh-ig-result-actions{align-items:flex-start;flex-direction:column}.dsh-ig-result-strip>div,.dsh-ig-result-actions>div{width:100%}.dsh-ig-result-strip button,.dsh-ig-result-actions button{flex:1;justify-content:center}.dsh-ig-result-actions button span{display:inline}.dsh-ig-field-grid{grid-template-columns:1fr}.dsh-ig-result-meta span+span:before{display:none}}
-@media(prefers-reduced-motion:reduce){.dsh-ig-workbench,.dsh-ig-workbench *{scroll-behavior:auto!important;animation:none!important}.dsh-ig-workbench *{transition-property:opacity,color,background-color,background,border-color,box-shadow!important}}
+@media(max-width:1023px){.dsh-ig-gallery-page-body.is-workbench{height:auto;overflow:auto}.dsh-ig-workbench{height:auto;min-height:100%;overflow:visible;padding:12px}.dsh-ig-workbench-heading{height:auto;padding-bottom:12px;align-items:center}.dsh-ig-provider-quick>span{display:none}.dsh-ig-workbench-grid{height:auto;display:flex;flex:none;flex-direction:column;overflow:visible}.dsh-ig-recent-panel{height:auto;overflow:hidden;border-right:0;border-bottom:1px solid var(--ig-line)}.dsh-ig-recent-scroll{height:auto;display:flex;overflow-x:auto;overflow-y:hidden;padding:8px}.dsh-ig-recent-item{min-width:220px}.dsh-ig-canvas-column{height:auto;min-height:0}.dsh-ig-generate-panel{height:auto;border-left:0;border-top:1px solid var(--ig-line);min-height:0}.dsh-ig-generator-form{height:auto;overflow:visible}.dsh-ig-canvas{height:auto;min-height:clamp(180px,40dvh,360px)}}
+@media(max-width:560px){.dsh-ig-workbench-heading>div{display:block}.dsh-ig-workbench-heading h1{font-size:15px}.dsh-ig-provider-quick select{min-width:128px;max-width:150px}.dsh-ig-canvas{padding:12px;min-height:clamp(160px,35dvh,300px)}.dsh-ig-result-strip,.dsh-ig-result-actions{align-items:flex-start;flex-direction:column}.dsh-ig-result-strip>div,.dsh-ig-result-actions>div{width:100%}.dsh-ig-result-strip button,.dsh-ig-result-actions button{flex:1;justify-content:center}.dsh-ig-result-actions button span{display:inline}.dsh-ig-field-grid{grid-template-columns:1fr}.dsh-ig-result-meta span+span:before{display:none}}
+@media(prefers-reduced-motion:reduce){.dsh-ig-workbench *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .dsh-ig-workspace-filter-label{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border:1px solid var(--ig-line,rgba(0,0,0,.1));border-radius:7px;background:var(--background,#fff);font-size:11.5px;color:var(--foreground,#242f44);cursor:pointer;user-select:none;transition:border-color .15s,background .15s}
 .dsh-ig-workspace-filter-label:hover{border-color:#9bb4f5;background:rgba(47,100,245,.04)}
 .dsh-ig-workspace-checkbox{cursor:pointer;accent-color:#2f64f5;width:13.5px;height:13.5px;margin:0}
 .dsh-ig-workspace-filter-text{font-weight:500;white-space:nowrap}
 .dsh-ig-workspace-filter-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,currentColor 7%,transparent);color:#64748b;font-variant-numeric:tabular-nums}
+/* 生图页使用同一手机断点；工具栏可横向浏览，不能撑开会话或把表单推到数屏之外。 */
+@media(max-width:1023px){
+  .dsh-ig-studio-tabs-bar{padding:2px 8px;overflow-x:auto;scrollbar-width:none;gap:4px}
+  .dsh-ig-studio-tab-btn{flex:none;min-height:40px;white-space:nowrap;padding:6px 10px}
+  .dsh-ig-studio-toolbar{padding:8px;gap:8px}
+  .dsh-ig-studio-toolbar-right{flex-wrap:wrap;max-width:100%}
+  .dsh-ig-studio-search-wrap{min-width:0;flex:1 1 160px}
+  .dsh-ig-studio-select{min-width:0;max-width:100%}
+  .dsh-ig-workbench{padding:8px}
+  /* 手机纵向流不能沿用桌面 flex-basis:0，否则移除 560px 占位后表单会被压成零高。 */
+  .dsh-ig-generator-form,.dsh-ig-recent-scroll{flex:none}
+  .dsh-ig-recent-panel,.dsh-ig-canvas-column,.dsh-ig-generate-panel{flex:none}
+  .dsh-ig-canvas-toolbar{height:auto;min-height:44px;flex-basis:auto;flex-wrap:wrap;padding:4px 8px}
+  .dsh-ig-canvas-toolbar-left,.dsh-ig-canvas-toolbar-right{flex-wrap:wrap;gap:4px;min-width:0}
+  .dsh-ig-canvas-toolbar button,.dsh-ig-status-badge{min-width:36px;min-height:36px}
+  .dsh-ig-gallery-grid{grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:10px}
+  .dsh-ig-gallery-card .dsh-ig-card-toolbar{opacity:1;pointer-events:auto}
+  .dsh-ig-gallery-card button,.dsh-ig-lightbox-close-btn{min-width:40px;min-height:40px}
+  .dsh-ig-workbench :is(input:not([type=checkbox]):not([type=range]),select,textarea),.dsh-ig-studio-toolbar :is(input,select),.dsh-ig-regenerate-modal-textarea{font-size:16px;max-width:100%;box-sizing:border-box}
+  .dsh-ig-batch-bar{box-sizing:border-box;width:max-content;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center;gap:6px;border-radius:12px;padding:8px}
+  .dsh-ig-batch-bar-left,.dsh-ig-batch-bar-right{flex-wrap:wrap;justify-content:center;gap:6px}
+  .dsh-ig-batch-bar-right{border:0;padding:0}
+  .dsh-ig-batch-btn,.dsh-ig-modal-btn{min-height:40px}
+  /* 可独立运行时回退 dvh；嵌入酒馆时沿用外壳的可视区，软键盘不盖住确认操作。 */
+  .dsh-ig-modal-backdrop,.dsh-ig-lightbox-backdrop{top:var(--dsh-vv-top,0px);bottom:auto;height:var(--dsh-vv-height,100dvh);padding:8px;box-sizing:border-box}
+  .dsh-ig-modal-box{max-height:100%;overflow-y:auto;padding:16px}
+  .dsh-ig-modal-body{padding-left:0}
+  .dsh-ig-lightbox-topbar{top:max(8px,env(safe-area-inset-top,0px));left:8px;right:8px;gap:8px}
+  .dsh-ig-lightbox-meta{min-width:0;overflow:hidden}
+  .dsh-ig-lightbox-bottombar{width:calc(100% - 16px);box-sizing:border-box;bottom:max(8px,env(safe-area-inset-bottom,0px));padding:8px}
+  .dsh-ig-lightbox-img-wrap,.dsh-ig-lightbox-img{max-height:calc(var(--dsh-vv-height,100dvh) * .65)}
+  .dsh-ig-lightbox-nav-btn{position:absolute}
+  .dsh-ig-lightbox-nav-prev{left:8px}.dsh-ig-lightbox-nav-next{right:8px}
+}
 `;
 		//#endregion
 		//#region lib/types/client/image-result-node.js
@@ -4393,7 +4411,7 @@ window.__ModuleLoader__.load({
 				description: "选择厂商并配置生图模型。",
 				provider: "Provider",
 				providerGoogle: "Google Gemini",
-				providerOpenAI: "OpenAI / 中转站",
+				providerOpenAI: "OpenAI / 兼容接口",
 				providerGrok: "Grok / xAI（文生图）",
 				endpointHintGrok: "xAI 官方 /v1 根地址；当前仅支持文生图。",
 				providerSeedream: "字节 Seedream",
@@ -4405,8 +4423,8 @@ window.__ModuleLoader__.load({
 				endpoint: "接口地址",
 				reset: "重置",
 				resetTitle: "重置为默认官方地址",
-				endpointHintGoogle: "Google 官方地址或反代端点（全路径）。",
-				endpointHintOpenAI: "中转站请填其 OpenAI 兼容的 /v1 地址。",
+				endpointHintGoogle: "Google 官方地址或自定义端点（全路径）。",
+				endpointHintOpenAI: "自定义渠道请填其 OpenAI 兼容的 /v1 地址。",
 				endpointHintSeedream: "火山方舟兼容的 /api/v3 地址。",
 				endpointHintDashScope: "阿里云百炼 DashScope 官方接口地址。",
 				endpointHintComfyUI: "正在运行且 DSH Host 可以访问的 ComfyUI 地址，默认使用本机 8188 端口。",
@@ -4463,7 +4481,7 @@ window.__ModuleLoader__.load({
 				description: "Select provider and configure image generation models.",
 				provider: "Provider",
 				providerGoogle: "Google Gemini",
-				providerOpenAI: "OpenAI / Relay",
+				providerOpenAI: "OpenAI / Compatible",
 				providerGrok: "Grok / xAI (generation)",
 				endpointHintGrok: "xAI /v1 base URL; currently text-to-image only.",
 				providerSeedream: "ByteDance Seedream",
@@ -4476,7 +4494,7 @@ window.__ModuleLoader__.load({
 				reset: "Reset",
 				resetTitle: "Reset to official default URL",
 				endpointHintGoogle: "Official Google endpoint or reverse proxy (full path).",
-				endpointHintOpenAI: "OpenAI-compatible /v1 base URL for relays.",
+				endpointHintOpenAI: "OpenAI-compatible /v1 base URL for custom endpoints.",
 				endpointHintSeedream: "Volcengine Ark compatible /api/v3 base URL.",
 				endpointHintDashScope: "Official Aliyun DashScope endpoint.",
 				endpointHintComfyUI: "A running ComfyUI server reachable by the DSH Host; the default points to port 8188 on this computer.",
@@ -4661,16 +4679,6 @@ window.__ModuleLoader__.load({
 .dsh-ig-card-fav-btn{appearance:none;border:0;background:transparent;color:var(--dsw-alias-label-tertiary,#94a3b8);padding:2px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:color .15s,transform .15s;flex-shrink:0}
 .dsh-ig-card-fav-btn:hover{color:#ef4444;transform:scale(1.15)}
 .dsh-ig-card-fav-btn.is-favorited{color:#ef4444}
-
-/* Placeholders for Upcoming Routes */
-.dsh-ig-placeholder-view{display:flex;align-items:center;justify-content:center;min-height:360px;height:100%;padding:24px}
-.dsh-ig-placeholder-card{max-width:500px;width:100%;text-align:center;padding:36px 28px;background:var(--dsw-alias-bg-layer-2,#ffffff);border:1px dashed var(--dsw-alias-border-l2,#e2e8f0);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:12px}
-.dsh-ig-placeholder-icon{font-size:40px;line-height:1}
-.dsh-ig-placeholder-header{display:flex;align-items:center;gap:8px;justify-content:center}
-.dsh-ig-placeholder-title{font-size:16px;font-weight:600;color:var(--dsw-alias-label-primary,inherit);margin:0}
-.dsh-ig-placeholder-badge{font-size:11px;font-weight:500;background:rgba(37,99,235,0.1);color:#2563eb;padding:2px 8px;border-radius:12px}
-.dsh-ig-placeholder-desc{font-size:13px;line-height:1.6;color:var(--dsw-alias-label-secondary,#64748b);margin:0}
-.dsh-ig-placeholder-tip{margin-top:6px;padding:8px 12px;font-size:12px;background:var(--dsw-alias-bg-layer-3,#f8fafc);border-radius:8px;color:var(--dsw-alias-label-tertiary,#64748b);text-align:left}
 
 /* Empty State */
 .dsh-ig-gallery-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:360px;text-align:center;color:var(--dsw-alias-label-tertiary,#94a3b8)}

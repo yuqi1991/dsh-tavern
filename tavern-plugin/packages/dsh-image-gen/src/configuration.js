@@ -15,7 +15,11 @@ export const configurationServiceName = 'tavernImageConfiguration'
 const ids = new Set(SCENE_IMAGE_CHANNELS.filter(x => x.id !== 'dsh-image-gen').map(x => x.id))
 function providerId(id) { if (!ids.has(id)) throw new Error('未知生图提供商'); return id }
 function extras(value) { try { const data = JSON.parse(value.tavernChannels || '{}'); return data && typeof data === 'object' && !Array.isArray(data) ? data : {} } catch { throw new Error('插件渠道配置损坏，请检查设置') } }
-function ref(id, authType) { return mapped[id]?.[3] || imageCredentialRef(id, authType) }
+// NovelAI endpoints other than the original one each keep a separate key.
+function ref(id, authType, endpoint) {
+  if (id === 'novelai' && endpoint && endpoint !== 'default') return 'DSH_TAVERN_IMAGE_NOVELAI_' + endpoint.toUpperCase() + '_API_KEY'
+  return mapped[id]?.[3] || imageCredentialRef(id, authType)
+}
 function endpoint(value) { return value?.replace(/\/+$/, '') || '' }
 function readChannel(value, id) {
   providerId(id)
@@ -33,11 +37,17 @@ export function createImageConfiguration({ read, write, restore = /** @type {((v
   let pending = Promise.resolve()
   /** @template T @param {() => T | Promise<T>} fn @returns {Promise<T>} */
   function serial(fn) { const result = pending.then(fn); pending = result.catch(() => {}); return result }
-  async function inspect(id, resolveKey = true) {
+  /** `endpoint` reads a saved NovelAI endpoint other than the active one, for
+   * read-only checks of an endpoint the user picked but has not saved yet. */
+  async function inspect(id, resolveKey = true, endpoint = undefined) {
     const value = await read()
     if (!id || id === 'dsh-image-gen') id = Object.keys(mapped).find(id => mapped[id][0] === value.provider) || 'openai'
-    const config = readChannel(value, id)
-    const key = resolveKey && channelNeedsKey(config) ? await credentials.resolve(ref(id, config.authType)) : undefined
+    let config = readChannel(value, id)
+    const other = endpoint && config.endpoints?.find(entry => entry.id === endpoint && entry.id !== config.endpoint)
+    if (other) config = { ...config, endpoint: other.id, baseURL: other.baseURL }
+    const key = resolveKey && channelNeedsKey(config) ? await credentials.resolve(ref(id, config.authType, config.endpoint)) : undefined
+    if (config.endpoints && resolveKey) config.endpoints = await Promise.all(config.endpoints.map(async entry => ({ ...entry,
+      hasKey: entry.id === config.endpoint ? Boolean(key?.value) : Boolean((await credentials.resolve(ref(id, config.authType, entry.id)))?.value) })))
     return { ...config, backend: 'dsh-image-gen', hasKey: Boolean(key?.value), ready: channelReady(config, key?.value),
       configured: Object.hasOwn(extras(value), id) || Boolean(key?.value), channels: SCENE_IMAGE_CHANNELS.filter(x => ids.has(x.id)) }
   }
@@ -47,8 +57,10 @@ export function createImageConfiguration({ read, write, restore = /** @type {((v
     if (input.apiKey !== undefined && typeof input.apiKey !== 'string') throw new Error('API Key 必须是文本')
     const supplied = next.authType === 'basic' ? input.apiKey : input.apiKey?.trim()
     if (supplied && /[\r\n]/.test(supplied)) throw new Error('鉴权信息格式不正确')
-    const keyRef = ref(id, next.authType), previousKey = await credentials.resolve(keyRef)
-    const identityChanged = endpoint(next.baseURL) !== endpoint(current.baseURL) || next.authType !== current.authType || next.username !== current.username
+    const keyRef = ref(id, next.authType, next.endpoint), previousKey = await credentials.resolve(keyRef)
+    // A key belongs to the address it was saved with: compare against that endpoint's own stored address.
+    const savedBaseURL = next.endpoint && next.endpoint !== current.endpoint ? current.endpoints?.find(entry => entry.id === next.endpoint)?.baseURL ?? '' : current.baseURL
+    const identityChanged = endpoint(next.baseURL) !== endpoint(savedBaseURL) || next.authType !== current.authType || next.username !== current.username
     if (channelNeedsKey(next) && previousKey?.value && identityChanged && !supplied) throw new Error('地址或鉴权身份已修改，请重新填写 API Key；旧密钥不会发送到新地址')
     // Reusing an effective key is not a write. DSH rejects even identical writes
     // to inherited environment credentials, including during legacy migration.
@@ -78,19 +90,20 @@ export function createImageConfiguration({ read, write, restore = /** @type {((v
     }
     return inspect(id)
   }
-  const connection = createSceneImageConnection({ settings: inspect, credentials: () => ({ resolve: oldRef => {
+  // Probes target the endpoint the form shows, which may be a saved but inactive NovelAI endpoint.
+  const connection = input => createSceneImageConnection({ settings: id => inspect(id, true, input?.endpoint), credentials: () => ({ resolve: oldRef => {
     // The original probe code addresses channel refs. Translate to plugin refs.
     const id = [...ids].find(id => imageCredentialRef(id) === oldRef)
-    return credentials.resolve(id && mapped[id] ? mapped[id][3] : oldRef)
+    return credentials.resolve(id === 'novelai' ? ref(id, 'bearer', input?.endpoint) : id && mapped[id] ? mapped[id][3] : oldRef)
   } }), fetchImpl, onDiagnostic })
   return {
     serial,
     inspect: id => serial(() => inspect(id)),
     describe: id => serial(() => inspect(id, false)),
     configure: input => serial(() => save(input)),
-    capture: id => serial(async () => { const active = await inspect(id); const key = channelNeedsKey(active) ? await credentials.resolve(ref(active.provider, active.authType)) : undefined; return { active, apiKey: key?.value || '' } }),
-    test: input => serial(() => connection.test(input)),
-    models: input => serial(() => connection.models(input)),
+    capture: id => serial(async () => { const active = await inspect(id); const key = channelNeedsKey(active) ? await credentials.resolve(ref(active.provider, active.authType, active.endpoint)) : undefined; return { active, apiKey: key?.value || '' } }),
+    test: input => serial(() => connection(input).test(input)),
+    models: input => serial(() => connection(input).models(input)),
     generate: async input => {
       const request = await serial(async () => {
         input.signal?.throwIfAborted()

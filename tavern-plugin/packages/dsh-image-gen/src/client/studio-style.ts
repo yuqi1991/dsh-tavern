@@ -80,12 +80,46 @@ export const STUDIO_STYLE = `
 .dsh-ig-workbench-toast{position:fixed;bottom:28px;left:50%;opacity:1;transform:translate(-50%,0);background:rgba(15,23,42,0.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;padding:8px 18px;border-radius:10px;font-size:12.5px;font-weight:500;box-shadow:0 12px 32px rgba(0,0,0,0.3);z-index:99999;animation:dshIgToast 150ms cubic-bezier(0.23,1,0.32,1);pointer-events:none}
 @keyframes dshIgToast{from{opacity:0;transform:translate(-50%,6px)}}
 @media(max-width:1120px){.dsh-ig-workbench-grid{grid-template-columns:190px minmax(360px,1fr) 300px}.dsh-ig-result-actions button span{display:none}}
-@media(max-width:900px){.dsh-ig-gallery-page-body.is-workbench{height:auto;overflow:auto}.dsh-ig-workbench{height:auto;min-height:100%;overflow:visible;padding:12px}.dsh-ig-workbench-heading{height:auto;padding-bottom:12px;align-items:center}.dsh-ig-provider-quick>span{display:none}.dsh-ig-workbench-grid{height:auto;display:flex;flex:none;flex-direction:column;overflow:visible}.dsh-ig-recent-panel{height:auto;overflow:hidden;border-right:0;border-bottom:1px solid var(--ig-line)}.dsh-ig-recent-scroll{height:auto;display:flex;overflow-x:auto;overflow-y:hidden;padding:8px}.dsh-ig-recent-item{min-width:220px}.dsh-ig-canvas-column{height:auto;min-height:560px}.dsh-ig-generate-panel{height:auto;border-left:0;border-top:1px solid var(--ig-line);min-height:560px}.dsh-ig-generator-form{height:auto;overflow:visible}.dsh-ig-canvas{height:auto;min-height:360px}}
-@media(max-width:560px){.dsh-ig-workbench-heading>div{display:block}.dsh-ig-workbench-heading h1{font-size:15px}.dsh-ig-provider-quick select{min-width:128px;max-width:150px}.dsh-ig-canvas{padding:12px;min-height:300px}.dsh-ig-result-strip,.dsh-ig-result-actions{align-items:flex-start;flex-direction:column}.dsh-ig-result-strip>div,.dsh-ig-result-actions>div{width:100%}.dsh-ig-result-strip button,.dsh-ig-result-actions button{flex:1;justify-content:center}.dsh-ig-result-actions button span{display:inline}.dsh-ig-field-grid{grid-template-columns:1fr}.dsh-ig-result-meta span+span:before{display:none}}
-@media(prefers-reduced-motion:reduce){.dsh-ig-workbench,.dsh-ig-workbench *{scroll-behavior:auto!important;animation:none!important}.dsh-ig-workbench *{transition-property:opacity,color,background-color,background,border-color,box-shadow!important}}
+@media(max-width:1023px){.dsh-ig-gallery-page-body.is-workbench{height:auto;overflow:auto}.dsh-ig-workbench{height:auto;min-height:100%;overflow:visible;padding:12px}.dsh-ig-workbench-heading{height:auto;padding-bottom:12px;align-items:center}.dsh-ig-provider-quick>span{display:none}.dsh-ig-workbench-grid{height:auto;display:flex;flex:none;flex-direction:column;overflow:visible}.dsh-ig-recent-panel{height:auto;overflow:hidden;border-right:0;border-bottom:1px solid var(--ig-line)}.dsh-ig-recent-scroll{height:auto;display:flex;overflow-x:auto;overflow-y:hidden;padding:8px}.dsh-ig-recent-item{min-width:220px}.dsh-ig-canvas-column{height:auto;min-height:0}.dsh-ig-generate-panel{height:auto;border-left:0;border-top:1px solid var(--ig-line);min-height:0}.dsh-ig-generator-form{height:auto;overflow:visible}.dsh-ig-canvas{height:auto;min-height:clamp(180px,40dvh,360px)}}
+@media(max-width:560px){.dsh-ig-workbench-heading>div{display:block}.dsh-ig-workbench-heading h1{font-size:15px}.dsh-ig-provider-quick select{min-width:128px;max-width:150px}.dsh-ig-canvas{padding:12px;min-height:clamp(160px,35dvh,300px)}.dsh-ig-result-strip,.dsh-ig-result-actions{align-items:flex-start;flex-direction:column}.dsh-ig-result-strip>div,.dsh-ig-result-actions>div{width:100%}.dsh-ig-result-strip button,.dsh-ig-result-actions button{flex:1;justify-content:center}.dsh-ig-result-actions button span{display:inline}.dsh-ig-field-grid{grid-template-columns:1fr}.dsh-ig-result-meta span+span:before{display:none}}
+@media(prefers-reduced-motion:reduce){.dsh-ig-workbench *{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 .dsh-ig-workspace-filter-label{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border:1px solid var(--ig-line,rgba(0,0,0,.1));border-radius:7px;background:var(--background,#fff);font-size:11.5px;color:var(--foreground,#242f44);cursor:pointer;user-select:none;transition:border-color .15s,background .15s}
 .dsh-ig-workspace-filter-label:hover{border-color:#9bb4f5;background:rgba(47,100,245,.04)}
 .dsh-ig-workspace-checkbox{cursor:pointer;accent-color:#2f64f5;width:13.5px;height:13.5px;margin:0}
 .dsh-ig-workspace-filter-text{font-weight:500;white-space:nowrap}
 .dsh-ig-workspace-filter-badge{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,currentColor 7%,transparent);color:#64748b;font-variant-numeric:tabular-nums}
+/* 生图页使用同一手机断点；工具栏可横向浏览，不能撑开会话或把表单推到数屏之外。 */
+@media(max-width:1023px){
+  .dsh-ig-studio-tabs-bar{padding:2px 8px;overflow-x:auto;scrollbar-width:none;gap:4px}
+  .dsh-ig-studio-tab-btn{flex:none;min-height:40px;white-space:nowrap;padding:6px 10px}
+  .dsh-ig-studio-toolbar{padding:8px;gap:8px}
+  .dsh-ig-studio-toolbar-right{flex-wrap:wrap;max-width:100%}
+  .dsh-ig-studio-search-wrap{min-width:0;flex:1 1 160px}
+  .dsh-ig-studio-select{min-width:0;max-width:100%}
+  .dsh-ig-workbench{padding:8px}
+  /* 手机纵向流不能沿用桌面 flex-basis:0，否则移除 560px 占位后表单会被压成零高。 */
+  .dsh-ig-generator-form,.dsh-ig-recent-scroll{flex:none}
+  .dsh-ig-recent-panel,.dsh-ig-canvas-column,.dsh-ig-generate-panel{flex:none}
+  .dsh-ig-canvas-toolbar{height:auto;min-height:44px;flex-basis:auto;flex-wrap:wrap;padding:4px 8px}
+  .dsh-ig-canvas-toolbar-left,.dsh-ig-canvas-toolbar-right{flex-wrap:wrap;gap:4px;min-width:0}
+  .dsh-ig-canvas-toolbar button,.dsh-ig-status-badge{min-width:36px;min-height:36px}
+  .dsh-ig-gallery-grid{grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:10px}
+  .dsh-ig-gallery-card .dsh-ig-card-toolbar{opacity:1;pointer-events:auto}
+  .dsh-ig-gallery-card button,.dsh-ig-lightbox-close-btn{min-width:40px;min-height:40px}
+  .dsh-ig-workbench :is(input:not([type=checkbox]):not([type=range]),select,textarea),.dsh-ig-studio-toolbar :is(input,select),.dsh-ig-regenerate-modal-textarea{font-size:16px;max-width:100%;box-sizing:border-box}
+  .dsh-ig-batch-bar{box-sizing:border-box;width:max-content;max-width:calc(100vw - 16px);flex-wrap:wrap;justify-content:center;gap:6px;border-radius:12px;padding:8px}
+  .dsh-ig-batch-bar-left,.dsh-ig-batch-bar-right{flex-wrap:wrap;justify-content:center;gap:6px}
+  .dsh-ig-batch-bar-right{border:0;padding:0}
+  .dsh-ig-batch-btn,.dsh-ig-modal-btn{min-height:40px}
+  /* 可独立运行时回退 dvh；嵌入酒馆时沿用外壳的可视区，软键盘不盖住确认操作。 */
+  .dsh-ig-modal-backdrop,.dsh-ig-lightbox-backdrop{top:var(--dsh-vv-top,0px);bottom:auto;height:var(--dsh-vv-height,100dvh);padding:8px;box-sizing:border-box}
+  .dsh-ig-modal-box{max-height:100%;overflow-y:auto;padding:16px}
+  .dsh-ig-modal-body{padding-left:0}
+  .dsh-ig-lightbox-topbar{top:max(8px,env(safe-area-inset-top,0px));left:8px;right:8px;gap:8px}
+  .dsh-ig-lightbox-meta{min-width:0;overflow:hidden}
+  .dsh-ig-lightbox-bottombar{width:calc(100% - 16px);box-sizing:border-box;bottom:max(8px,env(safe-area-inset-bottom,0px));padding:8px}
+  .dsh-ig-lightbox-img-wrap,.dsh-ig-lightbox-img{max-height:calc(var(--dsh-vv-height,100dvh) * .65)}
+  .dsh-ig-lightbox-nav-btn{position:absolute}
+  .dsh-ig-lightbox-nav-prev{left:8px}.dsh-ig-lightbox-nav-next{right:8px}
+}
 `

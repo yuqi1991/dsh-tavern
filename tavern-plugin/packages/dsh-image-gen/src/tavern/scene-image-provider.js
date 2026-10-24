@@ -116,16 +116,42 @@ export async function generateSceneImage(input, deps = {}) {
   }
 }
 
+const NOVELAI_BUSY_RETRIES = 3
+// Exponential backoff with jitter, never shorter than the server's Retry-After, capped at 30s.
+function novelaiRetryDelay(response, attempt, baseMs = 2000) {
+  const header = Number(response.headers?.get?.('retry-after'))
+  const backoff = baseMs * 2 ** attempt * (0.5 + Math.random() / 2)
+  return Math.min(30000, Math.max(Number.isFinite(header) ? header * 1000 : 0, backoff))
+}
+function abortableDelay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason)
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', abort); resolve() }, ms)
+    function abort() { clearTimeout(timer); reject(signal.reason) }
+    signal?.addEventListener('abort', abort, { once: true })
+  })
+}
+
 async function requestSceneImage(input, deps) {
   if (input.provider === 'comfyui') return generateComfyImage(input, { ...deps, readBytes: boundedBytes, decodeImage: imageBytes })
   const request = deps.fetch || fetch
   const maxBytes = input.maxBytes || 20 * 1024 * 1024
   const spec = imageChannelRequest(input)
-  const response = await request(spec.url, {
+  const send = () => request(spec.url, {
     method: 'POST', redirect: 'error', signal: input.signal,
     headers: spec.headers,
     body: JSON.stringify(spec.body)
   })
+  let response = await send()
+  // NovelAI answers 429 when the account already has a generation running
+  // (e.g. in its own web UI) and same-protocol custom endpoints pass it through: the job
+  // was refused before generating, so waiting and resending cannot double-charge.
+  // Other channels and 5xx stay unretried; they do not prove the job was skipped.
+  for (let attempt = 0; input.provider === 'novelai' && response.status === 429 && attempt < NOVELAI_BUSY_RETRIES; attempt++) {
+    await response.body?.cancel()
+    await abortableDelay(novelaiRetryDelay(response, attempt, deps.retryBaseMs), input.signal)
+    response = await send()
+  }
   // Keep bounded, useful error fields; never forward arbitrary bodies or secrets.
   if (!response.ok) {
     let detail = {}
@@ -137,14 +163,23 @@ async function requestSceneImage(input, deps) {
       detail = Object.fromEntries(Object.entries({ message, code: value?.code, param: value?.param }).filter(([, item]) => typeof item === 'string').map(([key, item]) => [key, safe(item)]))
     } catch { /* A malformed/oversized error must not hide the actual HTTP status. */ }
     const error = new Error('生图服务请求失败（HTTP ' + response.status + '）' + (detail.message ? '：' + detail.message : '') + (detail.param ? '（字段：' + detail.param + '）' : ''))
+    // Many custom endpoints serve image models only through chat/completions.
+    if (response.status === 404 && input.provider === 'openai') error.message += '。该地址没有 OpenAI 图片接口；如果它提供的是 NovelAI 图片，请改选「NovelAI（官方或自定义渠道）」并添加接入点'
     error.imageFailure = { httpStatus: response.status, ...detail }
     // A proxy timeout/5xx or 429 does not establish whether the upstream took
     // the job. Only explicit validation/auth rejection is safe for ordinary retry.
     if ([400, 401, 402, 403, 404, 422].includes(response.status)) error.imageOutcome = 'rejected'
     throw error
   }
-  if (input.provider === 'novelai') {
+  if (input.provider === 'novelai' && spec.body.messages === undefined) {
     const archive = await boundedBytes(response, maxBytes + 65536)
+    // An OpenAI-style custom endpoint answers this native path with its own web page:
+    // nothing reached an image service, so nothing was charged.
+    if (/^\s*</.test(archive.subarray(0, 64).toString('utf8'))) {
+      const error = new Error('该地址返回的是网页，不是 NovelAI 图片。如果这个地址用对话接口出图，请把这个接入点的「接口格式」改成「对话格式」。')
+      error.imageOutcome = 'rejected'
+      throw error
+    }
     return { ...imageBytes(sceneImageFromZip(archive, maxBytes), maxBytes), metadata: { seed: spec.body.parameters.seed, model: spec.body.model, request: spec.body } }
   }
   let payload

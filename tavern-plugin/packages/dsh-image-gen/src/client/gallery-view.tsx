@@ -1,11 +1,10 @@
 /**
  * Native Workspace Gallery & Studio View Component for DSH `conversation.view` slot.
  * Fully i18n-reactive (Chinese & English) with modular tabs, multi-dimensional filters,
- * responsive image grid, and placeholder routes.
+ * responsive image grid, and image editing.
  */
 import { useEffect, useState, useMemo, useRef, type FC, type MouseEvent } from 'react'
-import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import { IMAGE_ROUTE, DELETE_ROUTE, type ImageProvider } from '../shared.js'
+import { IMAGE_ROUTE, DELETE_ROUTE } from '../shared.js'
 import {
   Image as ImageIcon,
   SlidersHorizontal,
@@ -18,7 +17,6 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  CheckSquare,
   Check,
   AlertTriangle,
   Sparkles,
@@ -27,7 +25,6 @@ import {
   getGalleryItems,
   subscribeGallery,
   saveGalleryItem,
-  deleteGalleryItem,
   bulkDeleteGalleryItems,
   toggleFavoriteGalleryItem,
   isItemInWorkspace,
@@ -59,7 +56,7 @@ const DICT = {
     // 筛选工具栏
     filterAllProviders: '全部提供商',
     filterGoogle: 'Google Gemini',
-    filterOpenAI: 'OpenAI / 中转站',
+    filterOpenAI: 'OpenAI / 兼容接口',
     filterSeedream: '字节 Seedream',
     filterDashScope: '阿里 DashScope',
     filterComfyUI: '本地 ComfyUI',
@@ -131,16 +128,6 @@ const DICT = {
     minutesAgo: '{n} 分钟前',
     hoursAgo: '{n} 小时前',
     daysAgo: '{n} 天前',
-
-    // 预留模块占位
-    studioTitle: 'AI 图像工作台 (Studio)',
-    studioDesc: '工作台模块正在紧锣密鼓开发中。在此你将体验大图精修、变体生成 (Variations)、参数重调并一键将生成结果无缝插回 DSH 正在进行的对话。',
-    studioTip: '💡 提示：目前你可以在“图库”中点击任意图片，在弹窗中进行查看、复制与下载。',
-    compareTitle: '多模型横向对比 (Compare)',
-    compareDesc: '支持单个 Prompt 一键同时调度 Gemini、Seedream、DashScope 及本地 ComfyUI 模型并排生成，直观横评画质与细节。',
-    tasksTitle: '异步任务队列 (Tasks)',
-    tasksDesc: '集中管理后台批量生图、多模型并发生成与本地 ComfyUI 耗时任务。支持状态追踪、失败重试与执行耗时分析。',
-    comingSoonBadge: '即将推出',
   },
   en: {
     // Top Tabs
@@ -153,7 +140,7 @@ const DICT = {
     // Filter Toolbar
     filterAllProviders: 'All Providers',
     filterGoogle: 'Google Gemini',
-    filterOpenAI: 'OpenAI / Relay',
+    filterOpenAI: 'OpenAI / Compatible',
     filterSeedream: 'ByteDance Seedream',
     filterDashScope: 'Aliyun DashScope',
     filterComfyUI: 'Local ComfyUI',
@@ -225,16 +212,6 @@ const DICT = {
     minutesAgo: '{n}m ago',
     hoursAgo: '{n}h ago',
     daysAgo: '{n}d ago',
-
-    // Route Placeholders
-    studioTitle: 'AI Image Studio',
-    studioDesc: 'Studio workbench is under active development. Fine-tune prompts, generate variations (2x/4x), and inject images directly into DSH chat.',
-    studioTip: '💡 Tip: You can currently click any image in the Gallery to preview, copy, or download it.',
-    compareTitle: 'Model Comparison (Compare)',
-    compareDesc: 'Side-by-side multi-model benchmarking coming soon. Test Gemini, Seedream, DashScope, and ComfyUI with a single prompt.',
-    tasksTitle: 'Task Queue (Tasks)',
-    tasksDesc: 'Centralized view for batch generation, asynchronous ComfyUI runs, live progress tracking, and retry controls.',
-    comingSoonBadge: 'Coming Soon',
   },
 } as const
 
@@ -1707,36 +1684,6 @@ const GalleryCard: FC<GalleryCardProps> = ({
             />
           </button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-interface PlaceholderViewProps {
-  icon: string
-  title: string
-  description: string
-  tip?: string
-  badge?: string
-}
-
-const PlaceholderView: FC<PlaceholderViewProps> = ({
-  icon,
-  title,
-  description,
-  tip,
-  badge,
-}) => {
-  return (
-    <div className="dsh-ig-placeholder-view">
-      <div className="dsh-ig-placeholder-card">
-        <div className="dsh-ig-placeholder-icon">{icon}</div>
-        <div className="dsh-ig-placeholder-header">
-          <h2 className="dsh-ig-placeholder-title">{title}</h2>
-          {badge && <span className="dsh-ig-placeholder-badge">{badge}</span>}
-        </div>
-        <p className="dsh-ig-placeholder-desc">{description}</p>
-        {tip && <div className="dsh-ig-placeholder-tip">{tip}</div>}
       </div>
     </div>
   )

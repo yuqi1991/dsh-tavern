@@ -13,7 +13,12 @@ export const SCENE_LAYOUT_TOOL = {
   name: 'submit_scene_layout', description: '保存当前画面草稿的场景、构图和人物顺序。不会生成图片。',
   parameters: object({ description: string(1000), subjects: { type: 'array', items: string(100), maxItems: 8 },
     continuity: { type: 'string', enum: ['continued', 'changed', 'uncertain'] },
-    scene: object(propertiesFor(sceneFields, visual)), expressions: object(propertiesFor(sceneFields, string(1200)))
+    scene: object(propertiesFor(sceneFields, visual)), expressions: object(propertiesFor(sceneFields, string(1200))),
+    moment: { type: 'string', enum: ['end', 'earlier'] },
+    orientation: { type: 'string', enum: ['portrait', 'landscape', 'square'] },
+    negative: string(600), anchor: string(200),
+    views: { type: 'array', items: object({ id: string(100), angle: { type: 'string', enum: ['front', 'side', 'back'] }, appearance: string(1200) }, ['id', 'angle']), maxItems: 8 },
+    style: object({ text: string(200), tags: string(400) }, ['text', 'tags'])
   }, ['description', 'subjects', 'continuity', 'scene'])
 }
 export const SCENE_PLAN_TOOL = {

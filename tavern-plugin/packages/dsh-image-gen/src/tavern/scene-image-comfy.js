@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
-import { channelSettings, channelReady } from './scene-image-channels.js'
+import { channelSettings, channelReady, imageNegativePrompt } from './scene-image-channels.js'
 import { compileComfyWorkflow } from './scene-image-comfy-workflow.js'
 
 const uuid = value => typeof value === 'string' && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value)
@@ -32,7 +32,9 @@ export async function generateComfyImage(input, deps) {
   if (task) {
     if (task.provider !== 'comfyui' || !opaqueId(task.promptId) || task.baseURL !== config.baseURL || task.workflowDigest !== config.workflow.digest || task.outputNode !== config.workflow.outputNode) throw new Error('原 ComfyUI 任务与当前配置不匹配，请恢复原配置后查询')
   } else {
-    const compiled = compileComfyWorkflow(config.workflow, input.prompt, config)
+    // A picture's own negative tags only reach workflows that bind a negative prompt.
+    const negativePrompt = config.workflow?.bindings?.negative?.length ? imageNegativePrompt(config.negativePrompt, input) : config.negativePrompt
+    const compiled = compileComfyWorkflow(config.workflow, input.prompt, { ...config, negativePrompt })
     task = { provider: 'comfyui', promptId: randomUUID(), clientId: randomUUID(), baseURL: config.baseURL, workflowDigest: compiled.digest, outputNode: compiled.outputNode, state: 'submitting', generationParameters: compiled.generationParameters, ...(compiled.seed === undefined ? {} : { seed: compiled.seed }) }
     await saveTask({})
     let response

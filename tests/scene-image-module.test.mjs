@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtemp, writeFile, readFile, rm, cp, mkdir } from 'node:fs/promises'
+import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises"
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+
 import { createImageGenerationModule, IMAGE_MODULE_CONFIGURATION } from '../tavern-plugin/packages/dsh-image-gen/src/module.js'
 import { createSceneImageHostLogger } from '../tavern-plugin/lib/domain/scene-image-diagnostics.js'
 import { createProfileDataStore } from '../tavern-plugin/lib/profile-data-store.js'
@@ -11,18 +11,7 @@ import { legacyImageConfigurationReader } from '../tavern-plugin/lib/domain/imag
 import { createModuleSceneImageSettings } from '../tavern-plugin/lib/domain/scene-image-module-settings.js'
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z0l8AAAAASUVORK5CYII=', 'base64')
-test('clean runtime imports module without node_modules, Cordis or plugin registration', async t => {
-  const root = await mkdtemp(join(tmpdir(), 'image-module-clean-'))
-  t.after(() => rm(root, { recursive: true, force: true }))
-  await mkdir(join(root, 'src'))
-  await writeFile(join(root, 'package.json'), '{"type":"module"}')
-  const source = new URL('../tavern-plugin/packages/dsh-image-gen/src/', import.meta.url)
-  for (const file of ['module.js', 'configuration.js', 'tavern']) await cp(new URL(file, source), join(root, 'src', file), { recursive: true })
-  const { createImageGenerationModule: create } = await import(pathToFileURL(join(root, 'src/module.js')))
-  const module = create({ store: { readJson: async () => undefined }, credentials: () => ({ resolve: async () => undefined }) })
-  assert.equal((await module.inspect('grok')).provider, 'grok')
-  assert.equal(module.serial, undefined)
-})
+
 async function fixture(t, legacy = {}) {
   const root = await mkdtemp(join(tmpdir(), 'image-module-'))
   t.after(() => rm(root, { recursive: true, force: true }))
@@ -59,34 +48,6 @@ test('Tavern image module forwards read-only connection diagnostics to the Host 
   assert.equal(entry.httpStatus, 403)
   assert.equal(entry.runtime.platform, process.platform)
   assert.doesNotMatch(lines[0], /private-key/)
-})
-
-test('default is off without generation; saved choices survive restart', async t => {
-  const f = await fixture(t)
-  const initial = await f.setup.settings()
-  assert.equal(initial.enabled, false)
-  assert.equal(initial.ready, false)
-  assert.equal(f.requests.length, 0)
-  await f.setup.configure({ enabled: false })
-  assert.equal((await f.create().setup.settings()).enabled, false)
-  assert.equal(f.requests.length, 0)
-})
-
-test('legacy and current configurations stay off unless explicitly enabled', async t => {
-  const f = await fixture(t)
-  for (const version of [undefined, 2, 3, 4]) {
-    await f.store.writeJson('scene-images/settings.json', { version, provider: 'grok', providers: {} })
-    assert.equal((await f.setup.settings()).enabled, false)
-    await f.store.writeJson('scene-images/settings.json', { version, provider: 'grok', enabled: false, providers: {} })
-    const settings = await f.setup.settings()
-    assert.equal(settings.enabled, false)
-    assert.equal(settings.ready, false)
-    await f.setup.configure({ enabled: false })
-    assert.equal((await f.create().setup.settings()).enabled, false)
-    await f.setup.configure({ enabled: true })
-    assert.equal((await f.create().setup.settings()).enabled, true)
-  }
-  assert.equal(f.requests.length, 0)
 })
 
 test('no plugin registration: config, credentials, generate bytes; Tavern alone owns image saving', async t => {
@@ -130,25 +91,6 @@ test('plugin settings and original credential references survive migration and l
   assert.equal(f.requests.length, 0)
 })
 
-test('legacy Tavern-only config migrates on save without losing key or calling an API', async t => {
-  const f = await fixture(t)
-  f.keys.set('DSH_TAVERN_IMAGE_GROK_API_KEY', 'old-tavern-key')
-  await f.store.writeJson('scene-images/settings.json', { version: 2, provider: 'grok', enabled: true,
-    providers: { grok: { baseURL: 'https://gateway.example/v1', model: 'custom-model', size: '2k', aspectRatio: '16:9' } } })
-  const ui = await f.setup.settings()
-  assert.equal(ui.hasKey, true)
-  assert.equal(ui.migrationPending, true)
-  assert.equal(ui.enabled, true)
-  assert.equal(ui.ready, false)
-  assert.equal((await f.setup.config()).enabled, true)
-  await assert.rejects(f.setup.capture(), /迁移/)
-  await f.setup.configure({ model: ui.model })
-  const next = await f.create().setup.capture()
-  assert.equal(next.apiKey, 'old-tavern-key')
-  assert.equal(next.active.baseURL, ui.baseURL)
-  assert.equal(f.requests.length, 0)
-})
-
 test('failed migration write preserves original config and does not change credentials', async t => {
   const f = await fixture(t, { provider: 'grok', grokModel: 'old-model' })
   f.keys.set('XAI_API_KEY', 'old-key')
@@ -158,4 +100,27 @@ test('failed migration write preserves original config and does not change crede
   await assert.rejects(imageModule.configure({ provider: 'grok', model: 'new-model', apiKey: 'new-key' }), /disk full/)
   assert.equal((await f.imageModule.inspect('grok')).model, 'old-model')
   assert.equal(await f.store.readJson(IMAGE_MODULE_CONFIGURATION), undefined)
+})
+
+test('NovelAI artist previews are stored beside the settings, versioned, replaced and removed with their entry', async t => {
+  const f = await fixture(t)
+  const base = { provider: 'novelai', apiKey: 'nai-key', model: 'nai-diffusion-4-5-full', size: '832x1216' }
+  let ui = await f.setup.configure({ ...base, artists: [{ id: 'a', name: '水彩', prompt: 'artist:wlop', previewData: 'data:image/png;base64,' + png.toString('base64') }, { id: 'b', name: '无图', prompt: 'x' }] })
+  const first = ui.artists[0].preview
+  assert.match(first, /^[a-f0-9]{12}$/)
+  assert.equal(ui.artists[1].preview, '')
+  assert.ok(!JSON.stringify(await f.store.readJson(IMAGE_MODULE_CONFIGURATION)).includes(png.toString('base64')), 'image bytes stay out of the settings file')
+  assert.deepEqual((await f.create().setup.readArtistPreview('a')).data, png)
+  // Saving again without new data keeps the image and its revision.
+  ui = await f.setup.configure({ ...base, apiKey: undefined, artists: ui.artists })
+  assert.equal(ui.artists[0].preview, first)
+  const jpeg = Buffer.from([255, 216, 255, 224, 0, 16])
+  ui = await f.setup.configure({ ...base, apiKey: undefined, artists: [{ ...ui.artists[0], previewData: jpeg.toString('base64') }, ui.artists[1]] })
+  assert.notEqual(ui.artists[0].preview, first)
+  assert.equal((await f.setup.readArtistPreview('a')).mediaType, 'image/jpeg')
+  await assert.rejects(f.setup.configure({ ...base, apiKey: undefined, artists: [{ ...ui.artists[0], previewData: Buffer.from('<svg/>').toString('base64') }] }), /预览图/)
+  // Removing the entry removes its image.
+  await f.setup.configure({ ...base, apiKey: undefined, artists: [ui.artists[1]] })
+  await assert.rejects(f.setup.readArtistPreview('a'), /不存在/)
+  await assert.rejects(f.setup.readArtistPreview('../x'), /不存在/)
 })

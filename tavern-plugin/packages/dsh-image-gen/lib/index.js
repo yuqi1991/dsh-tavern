@@ -105,7 +105,7 @@ function mergeComfyUIPrompt(preset, user) {
 const DEFAULT_WORKSPACE_FOLDER = "dsh-image-gen";
 /** Google API credential reference. */
 const GOOGLE_API_KEY_ENV = "GEMINI_API_KEY";
-/** OpenAI Platform or compatible relay credential reference. */
+/** OpenAI Platform or compatible endpoint credential reference. */
 const OPENAI_API_KEY_ENV = "OPENAI_API_KEY";
 /** xAI image generation credential; separate from other providers. */
 const GROK_API_KEY_ENV = "XAI_API_KEY";
@@ -2011,6 +2011,197 @@ const models = {
 	}
 };
 const NOVELAI_MODELS = Object.freeze(Object.keys(models));
+const NOVELAI_BASE_SECTIONS = Object.freeze([
+	"quality",
+	"scene",
+	"style",
+	"artist"
+]);
+const NOVELAI_QUALITY_PRESETS = Object.freeze([
+	"none",
+	"light",
+	"standard"
+]);
+const NOVELAI_UC_PRESETS = Object.freeze([
+	"none",
+	"light",
+	"heavy",
+	"human-focus"
+]);
+const NOVELAI_SAMPLERS = Object.freeze([
+	"k_euler_ancestral",
+	"k_euler",
+	"k_dpmpp_2s_ancestral",
+	"k_dpmpp_2m",
+	"k_dpmpp_2m_sde",
+	"k_dpmpp_sde",
+	"ddim_v3"
+]);
+const NOVELAI_PROTOCOLS = Object.freeze(["native", "chat"]);
+const NOVELAI_NOISE_SCHEDULES = Object.freeze([
+	"karras",
+	"native",
+	"exponential",
+	"polyexponential"
+]);
+const LIBRARY_ID = /^[a-z0-9]{1,12}$/;
+const MAX_ENDPOINTS = 10;
+const MAX_ARTISTS = 50;
+const QUALITY_PRESET_TAGS = {
+	"nai-diffusion-5-full": "very aesthetic, masterpiece, no text",
+	"nai-diffusion-5-curated": "very aesthetic, masterpiece, no text",
+	"nai-diffusion-4-5-full": "very aesthetic, masterpiece, no text",
+	"nai-diffusion-4-5-curated": "very aesthetic, masterpiece, no text, -0.8::feet::, rating:general",
+	"nai-diffusion-4-full": "no text, best quality, very aesthetic, absurdres",
+	"nai-diffusion-4-curated": "rating:general, best quality, very aesthetic, absurdres",
+	"nai-diffusion-3": "best quality, amazing quality, very aesthetic, absurdres"
+};
+const QUALITY_LIGHT_V5_TAGS = "very aesthetic, amazing quality, no text";
+const UC_PRESET_TAGS = {
+	"nai-diffusion-4-5-full": {
+		heavy: "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page",
+		light: "lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page",
+		"human-focus": "lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy"
+	},
+	"nai-diffusion-4-5-curated": {
+		heavy: "blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page",
+		light: "blurry, lowres, upscaled, artistic error, scan artifacts, jpeg artifacts, logo, too many watermarks, negative space, blank page",
+		"human-focus": "blurry, lowres, upscaled, artistic error, film grain, scan artifacts, bad anatomy, bad hands, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, @_@, mismatched pupils, glowing eyes, negative space, blank page"
+	},
+	"nai-diffusion-4-full": {
+		heavy: "blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, multiple views, logo, too many watermarks",
+		light: "blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing"
+	},
+	"nai-diffusion-4-curated": {
+		heavy: "blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, multiple views, gigantic breasts",
+		light: "blurry, lowres, error, worst quality, bad quality, jpeg artifacts, very displeasing, logo, dated, signature"
+	},
+	"nai-diffusion-3": {
+		heavy: "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+		light: "lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing",
+		"human-focus": "lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes"
+	}
+};
+const QUALITY_MODEL_ALIASES = { "nai-diffusion-4-curated-preview": "nai-diffusion-4-curated" };
+const UC_MODEL_ALIASES = {
+	"nai-diffusion-5-full": "nai-diffusion-4-5-full",
+	"nai-diffusion-5-curated": "nai-diffusion-4-5-curated",
+	"nai-diffusion-4-curated-preview": "nai-diffusion-4-curated"
+};
+const UC_PRESET_INDEX = {
+	heavy: 0,
+	light: 1,
+	"human-focus": 2,
+	none: 3
+};
+const NOVELAI_TEXT_TAG = /(?:^|[\s,;|])Text\s*:\s*\S/i;
+const BASE64_IMAGE = /^[A-Za-z0-9+/]+={0,2}$/;
+function libraryText(value, limit, label) {
+	if (value !== void 0 && typeof value !== "string") throw new Error(label + "须为文本");
+	const text = (value || "").trim();
+	if (text.length > limit) throw new Error(label + "过长");
+	return text;
+}
+function libraryEntries(value, limit, label) {
+	if (value === void 0 || value === null) return [];
+	if (!Array.isArray(value) || value.length > limit) throw new Error(label + "最多 " + limit + " 条");
+	const ids = /* @__PURE__ */ new Set();
+	return value.map((entry) => {
+		if (!entry || typeof entry !== "object" || Array.isArray(entry) || typeof entry.id !== "string" || !LIBRARY_ID.test(entry.id) || ids.has(entry.id)) throw new Error(label + "格式不正确");
+		ids.add(entry.id);
+		return entry;
+	});
+}
+/** Named NovelAI endpoints (official site or custom endpoints). Each keeps
+* its own key; the active one's address is the channel baseURL, so switching
+* endpoints changes only where requests go, never model or prompt settings.
+* Older single-endpoint configurations become the `default` entry. */
+function novelaiEndpoints(value, active, baseURL) {
+	const endpoints = libraryEntries(value, MAX_ENDPOINTS, "NovelAI 接入点").map((entry) => {
+		const url = libraryText(entry.baseURL, 2e3, "接入点地址");
+		let parsed;
+		try {
+			parsed = url ? new URL(url) : void 0;
+		} catch {
+			throw new Error("接入点地址须为 HTTP(S) API 根地址");
+		}
+		if (parsed && (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash)) throw new Error("接入点地址须为不含密钥、查询参数的 HTTP(S) API 根地址");
+		const protocol = entry.protocol === void 0 || entry.protocol === "" ? "native" : entry.protocol;
+		if (!NOVELAI_PROTOCOLS.includes(protocol)) throw new Error("接口格式只能是官方格式或对话格式");
+		return {
+			id: entry.id,
+			name: libraryText(entry.name, 40, "接入点名称") || "未命名接入点",
+			baseURL: url,
+			protocol
+		};
+	});
+	if (!endpoints.length) endpoints.push({
+		id: "default",
+		name: "默认",
+		baseURL,
+		protocol: "native"
+	});
+	const id = active || endpoints[0].id;
+	const current = endpoints.find((entry) => entry.id === id);
+	if (!current) throw new Error("所选 NovelAI 接入点不存在");
+	current.baseURL = baseURL;
+	return {
+		endpoints,
+		endpoint: id,
+		protocol: current.protocol
+	};
+}
+/** Named artist strings, each optionally carrying its own quality and negative
+* tags that replace the channel-level ones while selected. Older free-text
+* settings (one artist string, or the JSON presets) migrate into entries once. */
+function novelaiArtists(value) {
+	let source = value.artists;
+	if (source === void 0) {
+		source = [];
+		let presets = {};
+		try {
+			presets = value.promptPresets ? JSON.parse(value.promptPresets) : {};
+		} catch {}
+		if (presets && typeof presets === "object" && !Array.isArray(presets)) for (const [name, preset] of Object.entries(presets)) {
+			if (!preset || typeof preset !== "object" || source.length >= MAX_ARTISTS) continue;
+			source.push({
+				id: "p" + source.length,
+				name,
+				prompt: preset.artistString,
+				quality: preset.qualityTags,
+				negative: preset.negativePrompt
+			});
+		}
+		if (typeof value.artistString === "string" && value.artistString.trim() && source.length < MAX_ARTISTS) {
+			source.push({
+				id: "legacy",
+				name: "我的画师串",
+				prompt: value.artistString
+			});
+			return {
+				artists: novelaiArtists({ artists: source }).artists,
+				activeArtist: "legacy"
+			};
+		}
+	}
+	return { artists: libraryEntries(source, MAX_ARTISTS, "画师串库").map((entry) => ({
+		id: entry.id,
+		name: libraryText(entry.name, 40, "画师串名称") || "未命名画师串",
+		prompt: libraryText(typeof entry.prompt === "string" ? entry.prompt : void 0, 1e3, "画师串"),
+		quality: libraryText(typeof entry.quality === "string" ? entry.quality : void 0, 600, "画师串质量词"),
+		negative: libraryText(typeof entry.negative === "string" ? entry.negative : void 0, 4e3, "画师串负面词"),
+		preview: typeof entry.preview === "string" && /^[a-f0-9]{1,16}$/.test(entry.preview) ? entry.preview : ""
+	})) };
+}
+/** The selected artist entry; its non-empty quality/negative tags take over. */
+function novelaiArtist(config) {
+	const entry = (config.artists || []).find((artist) => artist.id === config.activeArtist);
+	return {
+		prompt: entry?.prompt || "",
+		quality: entry?.quality || config.qualityTags || "",
+		negative: entry?.negative || config.negativePrompt || ""
+	};
+}
 function novelaiSettings(config) {
 	if (!Object.hasOwn(models, config.model)) throw new Error("NovelAI 请选择已接入的 V5、V4.5、V4 或 Anime V3 模型");
 	const dimensions = config.size.match(/^(\d+)x(\d+)$/);
@@ -2023,15 +2214,126 @@ function novelaiSettings(config) {
 		height
 	};
 }
+/** Join two tag lists, dropping duplicates case-insensitively. An empty right
+* side returns the left side verbatim, so untouched settings keep the exact
+* prompt earlier versions sent. */
+function mergeTags(first, second) {
+	const left = String(first || ""), right = String(second || "");
+	if (!right.trim()) return left;
+	if (!left.trim()) return right;
+	const seen = /* @__PURE__ */ new Set(), parts = [];
+	for (const segment of [left, right]) for (const part of segment.split(",").map((value) => value.trim())) if (part && !seen.has(part.toLowerCase())) {
+		seen.add(part.toLowerCase());
+		parts.push(part);
+	}
+	return parts.join(", ");
+}
+/** Official quality tags for the selected model and preset, or '' when unused. */
+function novelaiQualityTags(config, positivePrompt) {
+	const preset = String(config.qualityPreset || "none").trim().toLowerCase();
+	if (preset === "none") return "";
+	const model = String(config.model || "").trim();
+	const tags = preset === "light" && model.startsWith("nai-diffusion-5") ? QUALITY_LIGHT_V5_TAGS : QUALITY_PRESET_TAGS[QUALITY_MODEL_ALIASES[model] || model] || "";
+	if (!tags) return "";
+	if (!NOVELAI_TEXT_TAG.test(String(positivePrompt || ""))) return tags;
+	return tags.split(",").map((tag) => tag.trim()).filter((tag) => tag && tag.toLowerCase() !== "no text").join(", ");
+}
+/** Official undesired-content preset text, or '' when unused. */
+function novelaiNegativeTags(config) {
+	const preset = String(config.ucPreset || "none").trim().toLowerCase();
+	if (preset === "none") return "";
+	const model = String(config.model || "").trim();
+	return UC_PRESET_TAGS[UC_MODEL_ALIASES[model] || model]?.[preset] || "";
+}
+/** Section order comes from the user only when it is a full, duplicate-free
+* permutation; anything else falls back to the documented default. */
+function novelaiPromptOrder(value) {
+	const order = String(value || "").split(",").map((section) => section.trim()).filter(Boolean);
+	return order.length === NOVELAI_BASE_SECTIONS.length && new Set(order).size === order.length && order.every((section) => NOVELAI_BASE_SECTIONS.includes(section)) ? order : [...NOVELAI_BASE_SECTIONS];
+}
+/** Expand one `{A|B|C}` option per call. Braces without a pipe carry NovelAI
+* weight syntax, so they must reach the API untouched. */
+function expandWildcards(text) {
+	if (typeof text !== "string" || !text.includes("{")) return text || "";
+	let output = text;
+	for (let round = 0; round < 64; round++) {
+		const expanded = output.replace(/\{([^{}]*)\}/g, function(whole, inner) {
+			if (!inner.includes("|")) return whole;
+			const options = inner.split("|");
+			return options[randomInt(0, options.length)];
+		});
+		if (expanded === output) break;
+		output = expanded;
+	}
+	return output;
+}
+/** Section weights wrap a whole section. V4 and later take NovelAI's numeric
+* `1.5::tags::` syntax, so every value counts; Anime V3 only has brace
+* emphasis: >1 becomes {{}}, <1 becomes {}. 1 leaves the section unwrapped. */
+function applySectionWeight(tags, weight, numeric) {
+	const text = String(tags || "").trim();
+	if (!text) return "";
+	const value = Number(weight);
+	if (!Number.isFinite(value) || value === 1) return text;
+	if (numeric) return value + "::" + text + "::";
+	return value > 1 ? "{{" + text + "}}" : "{" + text + "}";
+}
+/** Positional section weights; a missing or unusable entry means 1. */
+function novelaiSectionWeights(value) {
+	return String(value || "").split(",").map((weight) => weight.trim()).filter(Boolean).slice(0, NOVELAI_BASE_SECTIONS.length).map((weight) => /^\d+(\.\d+)?$/.test(weight) && Number(weight) > 0 ? Number(weight) : 1);
+}
+/** Assemble base_caption from the configured section order, skipping empty
+* sections so an untouched configuration reproduces the previous prompt. The
+* official quality preset is appended to the user's own quality text. */
+function assembleBase(sections, config) {
+	const order = novelaiPromptOrder(config.promptOrder), weights = novelaiSectionWeights(config.sectionWeights);
+	const draft = order.map((name) => String(sections[name] || "")).filter(Boolean).join(", ");
+	const resolved = {
+		...sections,
+		quality: mergeTags(sections.quality, novelaiQualityTags(config, draft))
+	};
+	const numeric = Boolean(models[config.model]?.characters);
+	return order.map((name, index) => applySectionWeight(expandWildcards(resolved[name]), weights[index], numeric)).filter(Boolean).join(", ");
+}
+/** Empty means NovelAI's own ordering; only an explicit false keeps model order. */
+function novelaiUseOrder(config) {
+	const value = String(config.useOrder || "").trim().toLowerCase();
+	return value ? value !== "false" : true;
+}
+/** NovelAI wants raw base64 in `parameters.image`; a `data:` prefix must be
+* stripped and remote URLs are never fetched on the user's behalf. */
+function referenceImageBytes(value) {
+	const text = String(value || "").trim();
+	if (!text) return "";
+	if (!text.startsWith("data:") && /^[a-z][a-z0-9+.-]*:\/\//i.test(text)) throw new Error("图片参考不支持远程地址，请填写 base64 图片数据，可带 data:image/...;base64, 前缀");
+	const compact = (text.startsWith("data:") ? text.slice(text.indexOf(",") + 1) : text).replace(/\s+/g, "");
+	if (compact.length < 8 || compact.length % 4 || !BASE64_IMAGE.test(compact)) throw new Error("图片参考不是有效的 base64 图片数据");
+	return compact;
+}
+/** Image-to-image strength; NovelAI's own default is 0.7. An empty setting must
+* stay empty rather than coercing to 0, which would ignore the reference image. */
+function imageStrength(config) {
+	const raw = String(config.imageStrength ?? "").trim();
+	if (!raw) return .7;
+	const value = Number(raw);
+	return Number.isFinite(value) && value >= 0 && value <= 1 ? value : .7;
+}
 /** Compile frozen per-person blocks, not current game variables. Image-local
 * adjustments live in blocks; stale person.fields must not override them.
 * Names identify records but aren't repeated as invented visual subjects. */
-function novelaiPrompts(input) {
-	const plan = input.plan;
+function novelaiPrompts(input, config = {}, { withArtist = true } = {}) {
+	const plan = input.plan, artist = withArtist ? novelaiArtist(config) : {
+		...novelaiArtist(config),
+		prompt: ""
+	};
 	if (!plan || !Array.isArray(plan.blocks)) {
 		if (typeof input.prompt !== "string" || !input.prompt.trim() || input.prompt.length > 16e3) throw new Error("NovelAI 画面提示词为空或过长");
 		return {
-			base: input.prompt,
+			base: assembleBase({
+				quality: artist.quality,
+				scene: input.prompt,
+				artist: artist.prompt
+			}, config),
 			characters: []
 		};
 	}
@@ -2043,7 +2345,13 @@ function novelaiPrompts(input) {
 	}));
 	if (characters.some((person) => !person.caption)) throw new Error("NovelAI 人物方案缺少人物描述");
 	const style = plan.styleOverride?.tags ?? plan.style?.tags ?? "";
-	const base = [...plan.blocks.filter((block) => block.owner === "scene" && block.tags).map((block) => block.tags), style].filter(Boolean).join(", ");
+	const scene = plan.blocks.filter((block) => block.owner === "scene" && block.tags).map((block) => block.tags).join(", ");
+	const base = assembleBase({
+		quality: artist.quality,
+		scene,
+		style,
+		artist: artist.prompt
+	}, config);
 	if (!base.trim() && !characters.length) throw new Error("NovelAI 画面提示词为空");
 	if (base.length + characters.reduce((sum, person) => sum + person.caption.length, 0) > 16e3) throw new Error("NovelAI 组合提示词过长");
 	return {
@@ -2051,11 +2359,19 @@ function novelaiPrompts(input) {
 		characters
 	};
 }
+/** Variety Boost skips CFG at high noise levels, scaled by image area as in
+* NovelAI's own frontend. V5 has no such switch, so it is never sent there. */
+function varietyBoostSigma(model, width, height) {
+	return Math.sqrt(width * height / 1011712) * (model.startsWith("nai-diffusion-4-5") ? 58 : 19);
+}
 function novelaiRequest(input, config) {
 	const { width, height, guidance, characters: limit } = novelaiSettings(config);
-	const prompt = novelaiPrompts(input);
+	const prompt = novelaiPrompts(input, config);
 	if (limit && prompt.characters.length > limit) throw new Error("当前 NovelAI 模型最多支持 " + limit + " 人，请选择 V5 或调整画面");
-	const seed = randomInt(0, 4294967296);
+	const seed = config.seed ? Number(config.seed) : randomInt(0, 4294967296);
+	const negative = mergeTags(mergeTags(novelaiArtist(config).negative, novelaiNegativeTags(config)), typeof input.plan?.negative === "string" ? input.plan.negative : "");
+	const sampler = config.sampler || "k_euler_ancestral";
+	const reference = referenceImageBytes(config.referenceImage);
 	const captions = prompt.characters.map((person) => ({
 		char_caption: person.caption,
 		centers: [{
@@ -2063,27 +2379,51 @@ function novelaiRequest(input, config) {
 			y: .5
 		}]
 	}));
+	const qualityPreset = String(config.qualityPreset || "none").trim().toLowerCase(), ucPreset = String(config.ucPreset || "none").trim().toLowerCase();
+	const presets = {
+		...qualityPreset === "none" ? {} : {
+			qualityPresetId: qualityPreset,
+			qualityToggle: true,
+			quality_toggle: true,
+			tag_hint_qt: qualityPreset === "standard" ? 1 : 3
+		},
+		...ucPreset === "none" ? {} : {
+			uc: negative,
+			ucPreset: UC_PRESET_INDEX[ucPreset],
+			uc_preset: UC_PRESET_INDEX[ucPreset]
+		}
+	};
 	return {
 		input: limit ? prompt.base : [prompt.base, ...prompt.characters.map((person) => person.caption)].filter(Boolean).join("\n"),
 		model: config.model,
-		action: "generate",
+		action: reference ? "img2img" : "generate",
 		parameters: {
 			params_version: 4,
 			width,
 			height,
 			scale: config.guidance ? Number(config.guidance) : guidance,
 			steps: config.steps ? Number(config.steps) : 23,
-			sampler: "k_euler_ancestral",
-			noise_schedule: "karras",
+			sampler,
+			noise_schedule: config.noiseSchedule || "karras",
 			n_samples: 1,
 			seed,
-			negative_prompt: config.negativePrompt || "",
-			cfg_rescale: 0,
+			negative_prompt: negative,
+			cfg_rescale: config.cfgRescale ? Number(config.cfgRescale) : 0,
 			dynamic_thresholding: false,
 			legacy: false,
 			legacy_v3_extend: false,
-			deliberate_euler_ancestral_bug: false,
-			prefer_brownian: true,
+			...sampler === "k_euler_ancestral" ? {
+				deliberate_euler_ancestral_bug: false,
+				prefer_brownian: true
+			} : {},
+			...config.varietyBoost === "true" && !config.model.startsWith("nai-diffusion-5") ? { skip_cfg_above_sigma: varietyBoostSigma(config.model, width, height) } : {},
+			...presets,
+			...reference ? {
+				image: reference,
+				strength: imageStrength(config),
+				noise: 0,
+				extra_noise_seed: Math.max(0, seed - 1)
+			} : {},
 			...limit ? {
 				use_coords: false,
 				legacy_uc: false,
@@ -2093,11 +2433,11 @@ function novelaiRequest(input, config) {
 						char_captions: captions
 					},
 					use_coords: false,
-					use_order: true
+					use_order: novelaiUseOrder(config)
 				},
 				v4_negative_prompt: {
 					caption: {
-						base_caption: config.negativePrompt || "",
+						base_caption: negative,
 						char_captions: captions.map(() => ({
 							char_caption: "",
 							centers: [{
@@ -2112,6 +2452,49 @@ function novelaiRequest(input, config) {
 				sm: false,
 				sm_dyn: false
 			}
+		}
+	};
+}
+/** Conversation generation: the custom endpoint validates a fixed Chinese
+* field template in the user message and reads its values from the higher
+* priority `nai` object. One picture per call; the reply text carries its URL. */
+function novelaiChatRequest(input, config) {
+	const { width, height, guidance, characters: limit } = novelaiSettings(config);
+	const prompt = novelaiPrompts(input, config, { withArtist: false });
+	if (limit && prompt.characters.length > limit) throw new Error("当前 NovelAI 模型最多支持 " + limit + " 人，请选择 V5 或调整画面");
+	const oneLine = (text) => String(text || "").replace(/\s*\n+\s*/g, ", ").trim();
+	const tags = oneLine([prompt.base, ...prompt.characters.map((person) => person.caption)].filter(Boolean).join(", "));
+	const artist = oneLine(novelaiArtist(config).prompt);
+	const negative = oneLine(mergeTags(mergeTags(novelaiArtist(config).negative, novelaiNegativeTags(config)), typeof input.plan?.negative === "string" ? input.plan.negative : ""));
+	const sampler = config.sampler || "k_euler_ancestral";
+	const size = width === height ? "方图" : width > height ? "横图" : "竖图";
+	const scale = config.guidance ? Number(config.guidance) : guidance;
+	const cfg = config.cfgRescale ? Number(config.cfgRescale) : 0;
+	const content = [
+		"提示词:" + tags,
+		"画师串:" + artist,
+		"尺寸:" + size,
+		"提示词引导值:" + scale,
+		"缩放引导值:" + cfg,
+		"负面提示词:" + negative,
+		"采样器:" + sampler
+	].join("\n");
+	return {
+		model: config.model + ":" + sampler,
+		stream: false,
+		messages: [{
+			role: "user",
+			content
+		}],
+		nai: {
+			tag: tags,
+			artist,
+			size,
+			scale,
+			cfg,
+			negative,
+			sampler,
+			noise_schedule: config.noiseSchedule || "karras"
 		}
 	};
 }
@@ -2360,7 +2743,7 @@ const channels = [
 	},
 	{
 		id: "comfyui",
-		label: "ComfyUI",
+		label: "ComfyUI（自建）",
 		baseURL: "",
 		authType: "none",
 		username: "",
@@ -2373,7 +2756,7 @@ const channels = [
 	},
 	{
 		id: "novelai",
-		label: "NovelAI / 同协议第三方",
+		label: "NovelAI（官方或自定义渠道）",
 		baseURL: "https://image.novelai.net",
 		model: "nai-diffusion-5-full",
 		size: "832x1216",
@@ -2382,11 +2765,11 @@ const channels = [
 			"model",
 			"size"
 		],
-		hint: "默认使用官方 V5 Full。第三方必须支持相同的 /ai/generate-image 协议与 ZIP 图片响应，不是 OpenAI 兼容地址。"
+		hint: "默认连 NovelAI 官方，使用 V5 Full。用自定义渠道时新建一个接入点，填它的地址和 Key：接口和官方一样的选「官方格式」，用对话接口出图的选「对话格式」。"
 	},
 	{
 		id: "openai",
-		label: "OpenAI / Images 兼容中转",
+		label: "OpenAI（gpt-image 及兼容接口）",
 		baseURL: "https://api.openai.com/v1",
 		model: "gpt-image-2",
 		size: "1024x1024",
@@ -2395,11 +2778,11 @@ const channels = [
 			"model",
 			"size"
 		],
-		hint: "官方可使用默认地址与模型；兼容中转请填写自己的地址和模型。"
+		hint: "官方可直接用默认地址与模型；自定义渠道请填写自己的地址和模型。"
 	},
 	{
 		id: "gemini",
-		label: "Google Gemini 原生",
+		label: "Google Gemini（官方）",
 		baseURL: "https://generativelanguage.googleapis.com/v1beta",
 		model: "gemini-3.1-flash-image",
 		size: "1K",
@@ -2414,7 +2797,8 @@ const channels = [
 	},
 	{
 		id: "banana",
-		label: "Banana / Gemini 聊天兼容中转",
+		retired: true,
+		label: "Gemini 兼容接口（Nano Banana 等）",
 		baseURL: "",
 		model: "",
 		size: "1K",
@@ -2423,11 +2807,11 @@ const channels = [
 			"model",
 			"size"
 		],
-		hint: "填写支持 chat/completions 生图的中转地址与模型；不自动猜测接口。"
+		hint: "Gemini 图片模型（Nano Banana 等）的兼容接口选这个，地址填到 /v1，模型名照该服务的模型列表填写。NovelAI 的自定义渠道请选「NovelAI（官方或自定义渠道）」。"
 	},
 	{
 		id: "grok",
-		label: "Grok Images",
+		label: "Grok（xAI）",
 		baseURL: "https://api.x.ai/v1",
 		model: "grok-imagine-image-2.0",
 		size: "1k",
@@ -2442,7 +2826,7 @@ const channels = [
 	},
 	{
 		id: "seedream",
-		label: "Seedream / 火山方舟",
+		label: "Seedream（火山方舟）",
 		baseURL: "https://ark.cn-beijing.volces.com/api/v3",
 		model: "doubao-seedream-5-0-260128",
 		size: "2K",
@@ -2455,7 +2839,7 @@ const channels = [
 	},
 	{
 		id: "qwen",
-		label: "百炼 Qwen-Image",
+		label: "Qwen-Image（阿里百炼）",
 		baseURL: "https://dashscope.aliyuncs.com/api/v1",
 		model: "qwen-image-3.0",
 		size: "1024*1024",
@@ -2468,7 +2852,7 @@ const channels = [
 	},
 	{
 		id: "webui",
-		label: "SD WebUI / Forge",
+		label: "SD WebUI / Forge（自建）",
 		baseURL: "",
 		size: "512x512",
 		authType: "none",
@@ -2487,19 +2871,52 @@ const IMAGE_ADVANCED_FIELDS = [
 	"steps",
 	"guidance"
 ];
+const IMAGE_NOVELAI_PROMPT_FIELDS = [
+	"qualityTags",
+	"qualityPreset",
+	"ucPreset",
+	"promptOrder",
+	"sectionWeights",
+	"useOrder",
+	"seed",
+	"referenceImage",
+	"imageStrength",
+	"sampler",
+	"noiseSchedule",
+	"cfgRescale",
+	"varietyBoost",
+	"endpoint",
+	"activeArtist"
+];
+const IMAGE_FIELD_LIMITS = {
+	negativePrompt: 4e3,
+	baseURL: 2e3,
+	qualityTags: 600,
+	qualityPreset: 16,
+	ucPreset: 16,
+	imageStrength: 8,
+	promptOrder: 120,
+	sectionWeights: 120,
+	useOrder: 8,
+	seed: 20,
+	referenceImage: 5e4,
+	sampler: 32,
+	noiseSchedule: 32,
+	cfgRescale: 8,
+	varietyBoost: 8,
+	endpoint: 16,
+	activeArtist: 16
+};
 for (const channel of channels) {
-	const advanced = [
-		"novelai",
-		"webui",
-		"comfyui"
-	].includes(channel.id) ? IMAGE_ADVANCED_FIELDS : channel.id === "qwen" ? ["negativePrompt"] : [];
+	const advanced = channel.id === "novelai" ? [...IMAGE_ADVANCED_FIELDS, ...IMAGE_NOVELAI_PROMPT_FIELDS] : ["webui", "comfyui"].includes(channel.id) ? IMAGE_ADVANCED_FIELDS : channel.id === "qwen" ? ["negativePrompt"] : [];
 	channel.fields = [...channel.fields, ...advanced];
 }
-const SCENE_IMAGE_CHANNELS = channels.filter((channel) => channel.id !== "dsh-image-gen").map(({ id, label, fields, hint, model }) => ({
+const SCENE_IMAGE_CHANNELS = channels.filter((channel) => channel.id !== "dsh-image-gen").map(({ id, label, fields, hint, model, retired }) => ({
 	id,
 	label,
 	fields,
 	hint,
+	...retired ? { retired: true } : {},
 	models: id === "novelai" ? NOVELAI_MODELS : model ? [model] : [],
 	canListModels: [
 		"openai",
@@ -2520,7 +2937,7 @@ function channelSettings(value = {}, id = value.provider || "openai") {
 	for (const field of defaults.fields) {
 		if (value[field] !== void 0 && typeof value[field] !== "string") throw new Error("渠道配置须为文本");
 		result[field] = (value[field] ?? defaults[field] ?? "").trim();
-		if (result[field].length > (field === "negativePrompt" ? 4e3 : field === "baseURL" ? 2e3 : 200)) throw new Error("渠道配置过长");
+		if (result[field].length > (IMAGE_FIELD_LIMITS[field] ?? 200)) throw new Error("渠道配置过长");
 	}
 	for (const field of ["steps", "guidance"]) {
 		if (!result[field]) continue;
@@ -2545,7 +2962,43 @@ function channelSettings(value = {}, id = value.provider || "openai") {
 		const dimensions = result.size.match(/^(\d+)x(\d+)$/);
 		if (!dimensions || dimensions.slice(1).some((value) => Number(value) < 64 || Number(value) > 2048 || Number(value) % 8)) throw new Error("WebUI 尺寸须为宽x高，每边 64–2048 且为 8 的倍数");
 	}
-	if (id === "novelai") novelaiSettings(result);
+	if (id === "novelai") {
+		if (result.promptOrder) {
+			const order = result.promptOrder.split(",").map((section) => section.trim()).filter(Boolean);
+			if (order.length !== NOVELAI_BASE_SECTIONS.length || new Set(order).size !== order.length || order.some((section) => !NOVELAI_BASE_SECTIONS.includes(section))) throw new Error("promptOrder 须为 quality,scene,style,artist 的完整排列");
+		}
+		if (result.sectionWeights) {
+			const weights = result.sectionWeights.split(",").map((weight) => weight.trim()).filter(Boolean);
+			if (weights.length > NOVELAI_BASE_SECTIONS.length) throw new Error("sectionWeights 数量不能超过 4");
+			if (weights.some((weight) => !/^\d+(\.\d+)?$/.test(weight) || Number(weight) <= 0)) throw new Error("sectionWeights 须为正数，例如 1.5,1,1,0.75");
+		}
+		if (result.useOrder) {
+			if (!["true", "false"].includes(result.useOrder.toLowerCase())) throw new Error("useOrder 须填 true 或 false");
+			result.useOrder = result.useOrder.toLowerCase();
+		}
+		if (result.seed && (!/^\d+$/.test(result.seed) || Number(result.seed) > 4294967295)) throw new Error("种子须为 0–4294967295 的非负整数");
+		result.qualityPreset = (result.qualityPreset || "none").toLowerCase();
+		if (!NOVELAI_QUALITY_PRESETS.includes(result.qualityPreset)) throw new Error("官方质量词预设只能选择 none、light 或 standard");
+		result.ucPreset = (result.ucPreset || "none").toLowerCase();
+		if (!NOVELAI_UC_PRESETS.includes(result.ucPreset)) throw new Error("官方负面预设只能选择 none、light、heavy 或 human-focus");
+		if (result.imageStrength) {
+			if (!/^\d+(?:\.\d+)?$/.test(result.imageStrength) || Number(result.imageStrength) > 1) throw new Error("图片参考强度须为 0–1 的数值");
+			result.imageStrength = String(Number(result.imageStrength));
+		}
+		result.sampler ||= "k_euler_ancestral";
+		if (!NOVELAI_SAMPLERS.includes(result.sampler)) throw new Error("请选择有效的 NovelAI 采样器");
+		if (result.sampler === "ddim_v3" && result.model.startsWith("nai-diffusion-5")) throw new Error("V5 不支持 DDIM 采样器，请换用其他采样器");
+		result.noiseSchedule ||= "karras";
+		if (!NOVELAI_NOISE_SCHEDULES.includes(result.noiseSchedule)) throw new Error("请选择有效的 NovelAI 噪声表");
+		if (result.cfgRescale) {
+			if (!/^\d+(?:\.\d+)?$/.test(result.cfgRescale) || Number(result.cfgRescale) > 1) throw new Error("CFG Rescale 须为 0–1 的数值");
+			result.cfgRescale = String(Number(result.cfgRescale));
+		}
+		if (result.varietyBoost && !["true", "false"].includes(result.varietyBoost)) throw new Error("Variety Boost 须为开启或关闭");
+		Object.assign(result, novelaiEndpoints(value.endpoints, result.endpoint, result.baseURL), novelaiArtists(value));
+		if (result.activeArtist && !result.artists.some((artist) => artist.id === result.activeArtist)) result.activeArtist = "";
+		novelaiSettings(result);
+	}
 	if (id === "comfyui") {
 		result.workflow = comfyWorkflow(value.workflow);
 		for (const field of IMAGE_ADVANCED_FIELDS) if (result[field] && !result.workflow?.bindings[field === "negativePrompt" ? "negative" : field]?.length) throw new Error("工作流缺少 " + field + " 映射，请重新导入支持该参数的工作流或清空该设置");
@@ -2564,8 +3017,27 @@ function channelReady(config, hasKey) {
 	if (config.provider === "dsh-image-gen") return config.pluginReady === true;
 	return Boolean(config.baseURL && (config.provider === "comfyui" ? config.workflow : config.provider === "webui" || config.model) && (!channelNeedsKey(config) || hasKey) && (config.authType !== "basic" || config.username));
 }
+/** The picture's own orientation turns a configured WxH size or W:H ratio
+* around, keeping its resolution. Square settings and named sizes (1K, 2K)
+* stay as configured; so does everything when the user fixed the orientation. */
+function orientedChannelSettings(config, input = {}) {
+	const orientation = input.style?.orientation === "fixed" ? "" : input.plan?.orientation;
+	if (!["portrait", "landscape"].includes(orientation)) return config;
+	const turn = (width, height) => orientation === "portrait" ? width > height : width < height;
+	const result = { ...config };
+	const size = typeof config.size === "string" && config.size.match(/^(\d+)([x*])(\d+)$/);
+	if (size && turn(Number(size[1]), Number(size[3]))) result.size = size[3] + size[2] + size[1];
+	const ratio = typeof config.aspectRatio === "string" && config.aspectRatio.match(/^(\d+):(\d+)$/);
+	if (ratio && turn(Number(ratio[1]), Number(ratio[2]))) result.aspectRatio = ratio[2] + ":" + ratio[1];
+	return result;
+}
+/** Negative tags the picture itself asks for, added after the configured ones. */
+function imageNegativePrompt(configured, input = {}) {
+	const extra = typeof input.plan?.negative === "string" ? input.plan.negative.trim() : "";
+	return [configured || "", extra].filter(Boolean).join(", ");
+}
 function imageChannelRequest(input) {
-	const config = channelSettings(input);
+	const config = orientedChannelSettings(channelSettings(input), input);
 	const references = input.referenceImages || [];
 	const capability = imageReferenceCapability(config);
 	if (!Array.isArray(references) || references.length && (!capability.supported || references.length > capability.maxImages)) throw new Error("当前渠道不支持所选参考图，未发送请求");
@@ -2577,7 +3049,10 @@ function imageChannelRequest(input) {
 	};
 	const prompt = input.prompt;
 	let path = "images/generations", body;
-	if (config.provider === "novelai") {
+	if (config.provider === "novelai" && config.protocol === "chat") {
+		path = new URL(config.baseURL).pathname.replace(/\/+$/, "") ? "chat/completions" : "v1/chat/completions";
+		body = novelaiChatRequest(input, config);
+	} else if (config.provider === "novelai") {
 		path = "ai/generate-image";
 		body = novelaiRequest(input, config);
 	} else if (config.provider === "webui") {
@@ -2594,7 +3069,7 @@ function imageChannelRequest(input) {
 			seed: -1,
 			send_images: true,
 			save_images: false,
-			...config.negativePrompt ? { negative_prompt: config.negativePrompt } : {},
+			...imageNegativePrompt(config.negativePrompt, input) ? { negative_prompt: imageNegativePrompt(config.negativePrompt, input) } : {},
 			...config.steps ? { steps: Number(config.steps) } : {},
 			...config.guidance ? { cfg_scale: Number(config.guidance) } : {}
 		};
@@ -2657,7 +3132,7 @@ function imageChannelRequest(input) {
 				size: config.size,
 				n: 1,
 				prompt_extend: false,
-				...config.negativePrompt ? { negative_prompt: config.negativePrompt } : {}
+				...imageNegativePrompt(config.negativePrompt, input) ? { negative_prompt: imageNegativePrompt(config.negativePrompt, input) } : {}
 			}
 		};
 	} else if (config.provider === "grok") {
@@ -2706,6 +3181,12 @@ function channelImageResult(provider = "openai", payload) {
 		const parts = payload?.output?.choices?.[0]?.message?.content;
 		const image = Array.isArray(parts) ? parts.find((part) => typeof part?.image === "string") : void 0;
 		return image ? { url: image.image } : void 0;
+	}
+	if (provider === "novelai") {
+		const text = String(payload?.choices?.[0]?.message?.content ?? "");
+		const url = text.match(/!\[[^\]]*\]\(((?:https?:\/\/|data:image\/[^;]+;base64,)[^\s)]+)\)/)?.[1] || text.match(/https?:\/\/[^\s)\]"'<>]+/)?.[0];
+		if (url) return { url };
+		throw /* @__PURE__ */ new Error(text.trim() ? "该接口没有返回图片链接：" + text.trim().slice(0, 200) : "该接口没有返回图片链接");
 	}
 	if (provider === "banana") {
 		const message = payload?.choices?.[0]?.message;
@@ -2793,7 +3274,7 @@ async function verifySceneImageKey({ probe, baseURL, headers, fetchImpl, signal,
 				signal
 			});
 			try {
-				if (![401, 403].includes(control.status)) return unknown("连接成功，但此中转的只读接口未明确要求鉴权，无法确认 API Key 有效性。");
+				if (![401, 403].includes(control.status)) return unknown("连接成功，但此地址的只读接口未明确要求鉴权，无法确认 API Key 有效性。");
 			} finally {
 				await control.body?.cancel().catch(() => {});
 			}
@@ -3071,41 +3552,6 @@ function createSceneImageConnection({ settings, credentials, fetchImpl = fetch, 
 		models: (input) => request(input, true)
 	};
 }
-[
-	{
-		id: "default",
-		label: "默认",
-		tags: ""
-	},
-	{
-		id: "anime",
-		label: "日系插画",
-		tags: "Japanese illustration, clean linework, cel shading"
-	},
-	{
-		id: "photo",
-		label: "写实摄影",
-		tags: "photorealistic photography, lifelike textures"
-	},
-	{
-		id: "watercolor",
-		label: "水彩",
-		tags: "watercolor painting, translucent pigments, paper texture"
-	},
-	{
-		id: "ink",
-		label: "水墨",
-		tags: "Chinese ink wash painting, expressive brushwork, ink on paper"
-	},
-	{
-		id: "custom",
-		label: "自定义",
-		tags: ""
-	}
-].map(({ id, label }) => ({
-	id,
-	label
-}));
 //#endregion
 //#region lib/types/tavern/scene-image-zip.js
 const fail = () => {
@@ -3222,7 +3668,11 @@ async function generateComfyImage(input, deps) {
 	if (task) {
 		if (task.provider !== "comfyui" || !opaqueId(task.promptId) || task.baseURL !== config.baseURL || task.workflowDigest !== config.workflow.digest || task.outputNode !== config.workflow.outputNode) throw new Error("原 ComfyUI 任务与当前配置不匹配，请恢复原配置后查询");
 	} else {
-		const compiled = compileComfyWorkflow(config.workflow, input.prompt, config);
+		const negativePrompt = config.workflow?.bindings?.negative?.length ? imageNegativePrompt(config.negativePrompt, input) : config.negativePrompt;
+		const compiled = compileComfyWorkflow(config.workflow, input.prompt, {
+			...config,
+			negativePrompt
+		});
 		task = {
 			provider: "comfyui",
 			promptId: randomUUID(),
@@ -3469,6 +3919,26 @@ async function generateSceneImage(input, deps = {}) {
 		throw error;
 	}
 }
+const NOVELAI_BUSY_RETRIES = 3;
+function novelaiRetryDelay(response, attempt, baseMs = 2e3) {
+	const header = Number(response.headers?.get?.("retry-after"));
+	const backoff = baseMs * 2 ** attempt * (.5 + Math.random() / 2);
+	return Math.min(3e4, Math.max(Number.isFinite(header) ? header * 1e3 : 0, backoff));
+}
+function abortableDelay(ms, signal) {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) return reject(signal.reason);
+		const timer = setTimeout(() => {
+			signal?.removeEventListener("abort", abort);
+			resolve();
+		}, ms);
+		function abort() {
+			clearTimeout(timer);
+			reject(signal.reason);
+		}
+		signal?.addEventListener("abort", abort, { once: true });
+	});
+}
 async function requestSceneImage(input, deps) {
 	if (input.provider === "comfyui") return generateComfyImage(input, {
 		...deps,
@@ -3478,13 +3948,19 @@ async function requestSceneImage(input, deps) {
 	const request = deps.fetch || fetch;
 	const maxBytes = input.maxBytes || 20971520;
 	const spec = imageChannelRequest(input);
-	const response = await request(spec.url, {
+	const send = () => request(spec.url, {
 		method: "POST",
 		redirect: "error",
 		signal: input.signal,
 		headers: spec.headers,
 		body: JSON.stringify(spec.body)
 	});
+	let response = await send();
+	for (let attempt = 0; input.provider === "novelai" && response.status === 429 && attempt < NOVELAI_BUSY_RETRIES; attempt++) {
+		await response.body?.cancel();
+		await abortableDelay(novelaiRetryDelay(response, attempt, deps.retryBaseMs), input.signal);
+		response = await send();
+	}
 	if (!response.ok) {
 		let detail = {};
 		try {
@@ -3499,6 +3975,7 @@ async function requestSceneImage(input, deps) {
 			}).filter(([, item]) => typeof item === "string").map(([key, item]) => [key, safe(item)]));
 		} catch {}
 		const error = /* @__PURE__ */ new Error("生图服务请求失败（HTTP " + response.status + "）" + (detail.message ? "：" + detail.message : "") + (detail.param ? "（字段：" + detail.param + "）" : ""));
+		if (response.status === 404 && input.provider === "openai") error.message += "。该地址没有 OpenAI 图片接口；如果它提供的是 NovelAI 图片，请改选「NovelAI（官方或自定义渠道）」并添加接入点";
 		error.imageFailure = {
 			httpStatus: response.status,
 			...detail
@@ -3513,14 +3990,22 @@ async function requestSceneImage(input, deps) {
 		].includes(response.status)) error.imageOutcome = "rejected";
 		throw error;
 	}
-	if (input.provider === "novelai") return {
-		...imageBytes(sceneImageFromZip(await boundedBytes(response, maxBytes + 65536), maxBytes), maxBytes),
-		metadata: {
-			seed: spec.body.parameters.seed,
-			model: spec.body.model,
-			request: spec.body
+	if (input.provider === "novelai" && spec.body.messages === void 0) {
+		const archive = await boundedBytes(response, maxBytes + 65536);
+		if (/^\s*</.test(archive.subarray(0, 64).toString("utf8"))) {
+			const error = /* @__PURE__ */ new Error("该地址返回的是网页，不是 NovelAI 图片。如果这个地址用对话接口出图，请把这个接入点的「接口格式」改成「对话格式」。");
+			error.imageOutcome = "rejected";
+			throw error;
 		}
-	};
+		return {
+			...imageBytes(sceneImageFromZip(archive, maxBytes), maxBytes),
+			metadata: {
+				seed: spec.body.parameters.seed,
+				model: spec.body.model,
+				request: spec.body
+			}
+		};
+	}
 	let payload;
 	try {
 		payload = JSON.parse((await boundedBytes(response, Math.ceil(maxBytes * 1.4) + 4096)).toString("utf8"));
@@ -3625,7 +4110,8 @@ function extras(value) {
 		throw new Error("插件渠道配置损坏，请检查设置");
 	}
 }
-function ref(id, authType) {
+function ref(id, authType, endpoint) {
+	if (id === "novelai" && endpoint && endpoint !== "default") return "DSH_TAVERN_IMAGE_NOVELAI_" + endpoint.toUpperCase() + "_API_KEY";
 	return mapped[id]?.[3] || imageCredentialRef(id, authType);
 }
 function endpoint(value) {
@@ -3650,11 +4136,23 @@ function createImageConfiguration({ read, write, restore = void 0, credentials, 
 		pending = result.catch(() => {});
 		return result;
 	}
-	async function inspect(id, resolveKey = true) {
+	/** `endpoint` reads a saved NovelAI endpoint other than the active one, for
+	* read-only checks of an endpoint the user picked but has not saved yet. */
+	async function inspect(id, resolveKey = true, endpoint = void 0) {
 		const value = await read();
 		if (!id || id === "dsh-image-gen") id = Object.keys(mapped).find((id) => mapped[id][0] === value.provider) || "openai";
-		const config = readChannel(value, id);
-		const key = resolveKey && channelNeedsKey(config) ? await credentials.resolve(ref(id, config.authType)) : void 0;
+		let config = readChannel(value, id);
+		const other = endpoint && config.endpoints?.find((entry) => entry.id === endpoint && entry.id !== config.endpoint);
+		if (other) config = {
+			...config,
+			endpoint: other.id,
+			baseURL: other.baseURL
+		};
+		const key = resolveKey && channelNeedsKey(config) ? await credentials.resolve(ref(id, config.authType, config.endpoint)) : void 0;
+		if (config.endpoints && resolveKey) config.endpoints = await Promise.all(config.endpoints.map(async (entry) => ({
+			...entry,
+			hasKey: entry.id === config.endpoint ? Boolean(key?.value) : Boolean((await credentials.resolve(ref(id, config.authType, entry.id)))?.value)
+		})));
 		return {
 			...config,
 			backend: "dsh-image-gen",
@@ -3673,8 +4171,9 @@ function createImageConfiguration({ read, write, restore = void 0, credentials, 
 		if (input.apiKey !== void 0 && typeof input.apiKey !== "string") throw new Error("API Key 必须是文本");
 		const supplied = next.authType === "basic" ? input.apiKey : input.apiKey?.trim();
 		if (supplied && /[\r\n]/.test(supplied)) throw new Error("鉴权信息格式不正确");
-		const keyRef = ref(id, next.authType), previousKey = await credentials.resolve(keyRef);
-		const identityChanged = endpoint(next.baseURL) !== endpoint(current.baseURL) || next.authType !== current.authType || next.username !== current.username;
+		const keyRef = ref(id, next.authType, next.endpoint), previousKey = await credentials.resolve(keyRef);
+		const savedBaseURL = next.endpoint && next.endpoint !== current.endpoint ? current.endpoints?.find((entry) => entry.id === next.endpoint)?.baseURL ?? "" : current.baseURL;
+		const identityChanged = endpoint(next.baseURL) !== endpoint(savedBaseURL) || next.authType !== current.authType || next.username !== current.username;
 		if (channelNeedsKey(next) && previousKey?.value && identityChanged && !supplied) throw new Error("地址或鉴权身份已修改，请重新填写 API Key；旧密钥不会发送到新地址");
 		const writeKey = Boolean(supplied && channelNeedsKey(next) && supplied !== previousKey?.value);
 		if (writeKey) {
@@ -3706,11 +4205,11 @@ function createImageConfiguration({ read, write, restore = void 0, credentials, 
 		}
 		return inspect(id);
 	}
-	const connection = createSceneImageConnection({
-		settings: inspect,
+	const connection = (input) => createSceneImageConnection({
+		settings: (id) => inspect(id, true, input?.endpoint),
 		credentials: () => ({ resolve: (oldRef) => {
 			const id = [...ids].find((id) => imageCredentialRef(id) === oldRef);
-			return credentials.resolve(id && mapped[id] ? mapped[id][3] : oldRef);
+			return credentials.resolve(id === "novelai" ? ref(id, "bearer", input?.endpoint) : id && mapped[id] ? mapped[id][3] : oldRef);
 		} }),
 		fetchImpl,
 		onDiagnostic
@@ -3724,11 +4223,11 @@ function createImageConfiguration({ read, write, restore = void 0, credentials, 
 			const active = await inspect(id);
 			return {
 				active,
-				apiKey: (channelNeedsKey(active) ? await credentials.resolve(ref(active.provider, active.authType)) : void 0)?.value || ""
+				apiKey: (channelNeedsKey(active) ? await credentials.resolve(ref(active.provider, active.authType, active.endpoint)) : void 0)?.value || ""
 			};
 		}),
-		test: (input) => serial(() => connection.test(input)),
-		models: (input) => serial(() => connection.models(input)),
+		test: (input) => serial(() => connection(input).test(input)),
+		models: (input) => serial(() => connection(input).models(input)),
 		generate: async (input) => {
 			const request = await serial(async () => {
 				input.signal?.throwIfAborted();

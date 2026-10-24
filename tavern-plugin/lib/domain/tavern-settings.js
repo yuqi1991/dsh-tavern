@@ -27,7 +27,7 @@ export function applyTavernSettingsPatch(current, patch) {
     const disabled = Array.isArray(next.defaultDisabledWritingSkills) ? next.defaultDisabledWritingSkills : []
     next.defaultDisabledWritingSkills = enabled ? disabled.filter(value => value !== name) : [...new Set([...disabled, name])]
   }
-  for (const name of ['defaultForegroundModel', 'defaultBackgroundModel']) {
+  for (const name of ['defaultForegroundModel', 'defaultBackgroundModel', 'defaultImageModel']) {
     if (!Object.hasOwn(input, name)) continue
     const selection = normalizeBackgroundModel(input[name])
     if (input[name] !== null && !selection) throw new Error('默认模型配置无效')
@@ -104,6 +104,7 @@ export function presentTavernSettings(document, defaults) {
     defaultDisabledWritingSkills: Array.isArray(object(document).defaultDisabledWritingSkills) ? object(document).defaultDisabledWritingSkills.filter(name => typeof name === 'string') : [],
     defaultForegroundModel: normalizeBackgroundModel(object(document).defaultForegroundModel),
     defaultBackgroundModel: normalizeBackgroundModel(object(document).defaultBackgroundModel),
+    defaultImageModel: normalizeBackgroundModel(object(document).defaultImageModel),
     contextCompaction: compactionPolicy(object(document).contextCompaction),
     candidateDismissMode: object(document).candidateDismissMode === 'after-fill' ? 'after-fill' : 'after-send',
     // Only the latest floors run a card's HTML interface; 0 renders every floor.

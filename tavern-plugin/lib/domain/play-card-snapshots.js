@@ -44,7 +44,7 @@ export function createPlayCardSnapshots({ worldBooks, planner, readCard, writeCh
     }
     // Only new, unpublished openings: migration cannot manufacture their past.
     if (!(chat.messages || []).length && typeof captureSceneWorldbook === 'function') {
-      patch.sceneOpeningWorldbook = await captureSceneWorldbook(chat, card, worldBook)
+      patch.sceneOpeningWorldbook = await captureSceneWorldbook(chat, card, worldBook, 0)
     }
     return patch
   }

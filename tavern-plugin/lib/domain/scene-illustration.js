@@ -1,6 +1,7 @@
 import { postureForContext } from './posture-context.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { projectAgentContent } from './runtime-content-projection.js'
+import { SCENE_EXTRA_SLOTS, sceneSlotKey } from './scene-slots.js'
 import { createImageGenerationModule } from '../../packages/dsh-image-gen/src/module.js'
 import { createModuleSceneImageSettings } from './scene-image-module-settings.js'
 import { channelSettings, channelReady, imageExpressionProfile, imageExpressionGuidance } from './scene-image-channels.js'
@@ -8,7 +9,7 @@ import { createScenePlans, SCENE_PLAN_TOOL } from './scene-plan.js'
 import { SCENE_DRAFT_TOOLS, SCENE_PLAN_MAX_FAILURES, updateSceneDraft, assembleSceneDraft, sceneDraftSummary, readImageToolArguments } from './scene-plan-draft.js'
 import { readScenePlanInstruction, readSceneAdjustmentInstruction } from '../scene-image-prompts.js'
 import { imageAdjustmentInput, applyImageAdjustment, legacyImagePlan, SCENE_ADJUSTMENT_TOOL } from './scene-image-adjustment.js'
-import { createSceneImageStyles, applyImageStyle, composeSceneImagePrompt } from './scene-image-style.js'
+import { createSceneImageStyles, applyImageStyle, composeSceneImagePrompt, styleWrittenByAgent, legacyStyleLabel } from './scene-image-style.js'
 import { createPendingSceneImages } from './scene-image-pending.js'
 import { createSceneImageQueue } from './scene-image-queue.js'
 import { createSceneReferences } from './scene-references.js'
@@ -33,10 +34,29 @@ function versionsOf(record) {
   return record?.attachment ? [{ id: record.requestId || 'legacy', requestId: record.requestId, attachment: record.attachment, prompt: record.prompt, model: record.model, createdAt: record.completedAt || record.createdAt, plan: record.plan }] : []
 }
 
+function slotTarget(target, slot) {
+  return slot ? { ...target, key: sceneSlotKey(target.key, slot), slot, baseKey: target.key } : target
+}
+function slotOf(target, key) {
+  if (!key || key === target.key) return 0
+  for (let slot = 1; slot <= SCENE_EXTRA_SLOTS; slot++) if (sceneSlotKey(target.key, slot) === key) return slot
+  return -1
+}
+
 export function sceneTarget(chat, turn) {
   turn = Number(turn)
   if (!Number.isSafeInteger(turn) || turn < 1) throw new Error('正文轮次不合法')
   if (!chat || !['story', 'script'].includes(chat.mode || 'story')) throw new Error('请先打开游玩对话')
+  if(chat.sceneTargets){
+    if(chat.sceneTargets[turn])return {...chat.sceneTargets[turn]}
+    throw Object.assign(new Error('这段正文已不存在'),{code:'SCENE_TARGET_UNAVAILABLE'})
+  }
+  return computeSceneTarget(chat, turn)
+}
+
+/** The key from the chat itself, ignoring any precomputed sceneTargets (they embed the chat id). */
+export function computeSceneTarget(chat, turn) {
+  turn = Number(turn)
   const index = (chat.messages || []).findIndex(message => message?.role === 'assistant' && Number(message.turn || (message.greeting ? 1 : 0)) === Number(turn))
   if (index < 0) throw Object.assign(new Error('这段正文已不存在'), { code: 'SCENE_TARGET_UNAVAILABLE' })
   const message = chat.messages[index]
@@ -50,7 +70,7 @@ export function sceneTarget(chat, turn) {
   return { key, turn: Number(turn), swipeId, sourceDigest, source }
 }
 
-function projectedSceneText(source, macroState) {
+export function projectedSceneText(source, macroState) {
   return projectAgentContent(source, { macroState }).agentText
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -101,7 +121,7 @@ function sceneSources(chat, target, snapshot, sinceTurn = target.turn) {
     remaining -= source.text.length + 2
     sources.push(source)
   }
-  for (const item of [...lineage].reverse()) if (item.key !== target.key && item.turn > sinceTurn) add('history-' + item.key.slice(0, 16), item.turn, projectedSceneText(item.source, chat.macroState))
+  for (const item of [...lineage].reverse()) if (item.key !== (target.baseKey || target.key) && item.turn > sinceTurn) add('history-' + item.key.slice(0, 16), item.turn, projectedSceneText(item.source, chat.macroState))
   return { lineage, sources, omitted, stateAudit: snapshot.state?.omitted || [] }
 }
 
@@ -132,17 +152,26 @@ export function createSceneIllustrations(deps) {
   const pathFor = (chatId, key) => 'scene-images/' + hash(String(chatId)) + '/' + key + '.json'
   // Coalesce simultaneous display reads; never cache across completed reads or mutations.
   const statusReads = new Map()
-  function readStatusChat(sessionId) {
+  async function readStatusChat(sessionId, turn) {
     if (!statusReads.has(sessionId)) {
-      const pending = Promise.resolve().then(() => (deps.sceneStateForSession || deps.chatForSession)(sessionId)).finally(() => statusReads.delete(sessionId))
-      statusReads.set(sessionId, pending)
+      const entry={turn}
+      entry.promise=Promise.resolve().then(() => (deps.sceneStateForSession || deps.chatForSession)(sessionId,{turns:[Number(turn)]})).finally(() => statusReads.delete(sessionId))
+      statusReads.set(sessionId,entry)
     }
-    return statusReads.get(sessionId)
+    const entry=statusReads.get(sessionId),chat=await entry.promise
+    // Full legacy projections can still coalesce across turns. Native point
+    // projections are bounded; request other targets at the same pinned head.
+    return chat?.sceneTargets && Number(entry.turn)!==Number(turn)
+      ? deps.sceneStateForSession(sessionId,{turns:[Number(turn)],revision:chat._storageRevision}) : chat
   }
-  async function resolve(sessionId, turn, readChat = id => deps.chatForSession(id)) {
-    const chat = await readChat(sessionId)
-    const target = sceneTarget(chat, turn)
-    return { chat, target, path: pathFor(chat.id, target.key) }
+  // `key` selects one of the turn's picture slots; an unknown key keeps the
+  // turn's own target so callers report that the story version changed.
+  async function resolve(sessionId, turn, readChat = id => deps.chatForSession(id), key) {
+    const chat = await readChat(sessionId, turn)
+    const base = sceneTarget(chat, turn)
+    const slot = slotOf(base, key)
+    const target = slot > 0 ? slotTarget(base, slot) : base
+    return { chat, target, base, path: pathFor(chat.id, target.key) }
   }
   async function readRecord(path) {
     const record = await deps.store.readJson(path)
@@ -155,10 +184,21 @@ export function createSceneIllustrations(deps) {
     }
     return record
   }
+  // Which style a picture was drawn in, readable: written by the Agent or locked, and its words.
+  function styleLabel(plan) {
+    if (plan?.styleOverride) return '单图风格：' + plan.styleOverride.tags
+    const selection = plan?.style?.selection
+    if (!selection) return ''
+    if (selection.preset === 'auto') return plan.artStyle ? '自动：' + plan.artStyle.text + '（' + plan.artStyle.tags + '）' : selection.game ? '自动：' + selection.game : '自动（未写画风）'
+    const name = selection.preset === 'custom' ? '锁定画风' : legacyStyleLabel(selection.preset) || selection.preset
+    return plan.style.tags ? name + '：' + plan.style.tags : name
+  }
+  // An 'auto' picture's own style; older pictures kept only the game's style tags.
+  const artStyleOf = plan => plan?.artStyle || (plan?.style?.selection?.game ? { text: '', tags: plan.style.selection.game } : null)
   function present(target, record) {
     const { attachment, savedAttachment, diagnostics, diagnosticContext, providerRequests, referenceImages, plan, requests, versions, deletedVersions, ownerId, ownerPid, ...publicRecord } = record || {}
     const configuration = value => value?.workflow ? { ...value, workflow: { name: value.workflow.name, digest: value.workflow.digest } } : value
-    return { key: target.key, turn: target.turn, status: 'idle', ...publicRecord, hasDeletedImages: Boolean(deletedVersions?.length), ...(publicRecord.configuration ? { configuration: configuration(publicRecord.configuration) } : {}), versions: versionsOf(record).map(({ attachment, plan, ...item }) => ({ ...item, configuration: configuration(item.configuration), description: plan?.description || '', profile: plan?.profile || '',
+    return { key: target.key, turn: target.turn, status: 'idle', ...publicRecord, hasDeletedImages: Boolean(deletedVersions?.length), ...(publicRecord.configuration ? { configuration: configuration(publicRecord.configuration) } : {}), versions: versionsOf(record).map(({ attachment, plan, ...item }) => ({ ...item, configuration: configuration(item.configuration), description: plan?.description || '', planPrompt: plan?.prompt || '', style: styleLabel(plan), profile: plan?.profile || '', anchor: plan?.anchor || '', moment: plan?.moment || 'end', composition: plan?.scene?.composition?.text || '',
       referencePeople: imageReferencePeople({ plan }),
       referenceSingle: plan?.subjects?.length === 1 && imageReferencePeople({ plan }).length === 1,
       referencePerson: plan?.people?.length === 1 && plan.subjects?.length === 1 && imageReferencePeople({ plan }).length === 1 ? plan.people[0].name : '' })) }
@@ -172,17 +212,49 @@ export function createSceneIllustrations(deps) {
     const { chat, target, path } = resolved
     const current = await config()
     const last = [...chat.messages].reverse().find(item => item.role === 'assistant')
-    const reference = await imageReferences.select({ chatId: chat.id, lineage: turns => sceneLineage(chat, { turn: Number(last.turn || 1) }, turns), config: current })
-    return { ...present(target, await readRecord(path)), enabled: typeof chat.sceneImagesEnabled === 'boolean' ? chat.sceneImagesEnabled : current.enabled, profile: imageExpressionProfile(current),
-      reference: { ...reference.capability, warning: reference.warning,
-        bindings: reference.active.filter(record => record.source.key === target.key).map(record => ({ versionId: record.source.versionId, personId: record.person.id, name: record.person.name })),
-        versions: reference.active.filter(record => record.source.key === target.key).map(record => record.source.versionId) } }
+    const reference = await imageReferences.select({ chatId: chat.id, lineage: async turns => {
+      if(!chat.sceneTargets)return sceneLineage(chat,{turn:Number(last.turn||1)},turns)
+      const selected=await deps.sceneStateForSession(sessionId,{turns:[...turns].filter(turn=>turn<=chat.sceneLatestTurn),revision:chat._storageRevision})
+      return Object.values(selected.sceneTargets)
+    }, config: current })
+    const latestTurn = chat.sceneTargets ? Number(chat.sceneLatestTurn) : Number(last?.turn || (last?.greeting ? 1 : 0))
+    // Only the newest round can still be drawn automatically.
+    const shared = { enabled: current.enabled === true, auto: current.enabled === true && current.auto === true && latestTurn === Number(turn), profile: imageExpressionProfile(current) }
+    const referenceOf = key => ({ ...reference.capability, warning: reference.warning,
+      bindings: reference.active.filter(record => record.source.key === key).map(record => ({ versionId: record.source.versionId, personId: record.person.id, name: record.person.name })),
+      versions: reference.active.filter(record => record.source.key === key).map(record => record.source.versionId) })
+    // Added pictures of this turn; a slot left without pictures or a task is free again.
+    const extras = []
+    for (let slot = 1; slot <= SCENE_EXTRA_SLOTS; slot++) {
+      const extra = slotTarget(target, slot), record = await readRecord(pathFor(chat.id, extra.key))
+      if (!record || !versionsOf(record).length && record.status === 'idle' && record.recovery !== 'save') continue
+      extras.push({ ...present(extra, record), slot, ...shared, reference: referenceOf(extra.key) })
+    }
+    return { ...present(target, await readRecord(path)), ...shared, reference: referenceOf(target.key), extras, maxPictures: SCENE_EXTRA_SLOTS + 1 }
+  }
+  // 「每轮自动生图」: once a new round has settled, draw it once. Never redraws a
+  // round that already has a picture, one the player deleted, one in progress,
+  // or one whose last attempt failed or may have been charged — a failure waits
+  // for the player instead of paying again.
+  async function autoGenerate(sessionId) {
+    const quick = await config()
+    if (quick.enabled !== true || quick.auto !== true) return null
+    // Readiness needs the stored key, which only the full settings read resolves.
+    if (!(await settings()).ready) return null
+    const chat = await (deps.sceneStateForSession || deps.chatForSession)(sessionId, { turns: [] })
+    if (!chat || !['story', 'script'].includes(chat.mode || 'story')) return null
+    const latest = chat.sceneTargets ? Number(chat.sceneLatestTurn)
+      : Number([...(chat.messages || [])].reverse().find(item => item?.role === 'assistant')?.turn || 0)
+    // The opening is the card's own text; rounds start at turn 2.
+    if (!(latest >= 2)) return null
+    const state = await status(sessionId, latest)
+    if (!state.key || state.status !== 'idle' || state.versions.length || state.hasDeletedImages || state.recovery === 'save' || state.outcome === 'unconfirmed') return null
+    return start(sessionId, latest, state.key, { kind: 'generate', requestId: 'auto-' + state.key.slice(0, 48) })
   }
   async function setReference(sessionId, turn, key, versionId, consent, enabled = true, personId) {
-    const { chat, target, path } = await resolve(sessionId, turn)
+    const { chat, target, path } = await resolve(sessionId, turn, undefined, key)
     if (key !== target.key) throw new Error('正文版本已变化，请刷新后选择参考图')
     const active = await config()
-    if (enabled && !(typeof chat.sceneImagesEnabled === 'boolean' ? chat.sceneImagesEnabled : active.enabled)) throw new Error('请先启用场景生图')
     const version = versionsOf(await readRecord(path)).find(item => item.id === versionId)
     if (!version?.attachment) throw new Error('参考图片不存在或已删除')
     const latest = [...chat.messages].reverse().find(item => item.role === 'assistant')
@@ -234,7 +306,7 @@ export function createSceneIllustrations(deps) {
     await logAttempt(failed)
   }
   async function cancel(sessionId, turn, key, requestId) {
-    const { target, path } = await resolve(sessionId, turn)
+    const { target, path } = await resolve(sessionId, turn, undefined, key)
     if (target.key !== key) throw new Error('正文版本已变化，请返回原版本取消任务')
     await readRecord(path)
     const record = await deps.store.updateJson(path, current => {
@@ -246,52 +318,97 @@ export function createSceneIllustrations(deps) {
     await logAttempt(record, 'cancel-requested')
     return present(target, record)
   }
+  const requestSlots = new Map()
+  // The first slot nobody is using: never one holding pictures, a running task,
+  // an image awaiting save, or a result that may already have been paid for.
+  async function freeSlot(chat, base) {
+    for (let slot = 1; slot <= SCENE_EXTRA_SLOTS; slot++) {
+      const target = slotTarget(base, slot), path = pathFor(chat.id, target.key)
+      const record = await readRecord(path)
+      if (!record || !versionsOf(record).length && record.status !== 'running' && record.recovery !== 'save' && !needsPurchaseConfirmation(record)) return { target, path }
+    }
+    throw new Error('这一轮最多 ' + (SCENE_EXTRA_SLOTS + 1) + ' 张插图；可先删除不要的插图')
+  }
+  // The turn's other pictures, so the added one picks a different moment.
+  async function additionInput(chat, base, target, request) {
+    const existing = []
+    for (let slot = 0; slot <= SCENE_EXTRA_SLOTS; slot++) {
+      if (slot === target.slot) continue
+      const plan = versionsOf(await deps.store.readJson(pathFor(chat.id, sceneSlotKey(base.key, slot)))).at(-1)?.plan
+      if (plan) existing.push({ description: plan.description || '', moment: plan.moment || 'end', anchor: plan.anchor || '' })
+    }
+    return { instruction: '这一轮正文已有插图（existing）。这是新增的一张：选一个与它们不同的时刻或场景，anchor 也不要与它们相同；人物外貌照常保持一致。' + (request ? 'request 是用户对这张图的要求，优先遵从。' : ''),
+      existing, ...(request ? { request } : {}) }
+  }
   async function start(sessionId, turn, expectedKey, options = {}) {
-    const conversation = await deps.backgroundConfigForSession?.(sessionId)
-    if (conversation?.sceneImagesEnabled === false) throw new Error('请先在本局设置中开启场景生图')
-    const kind = options.kind || 'generate'
-    if (!['generate', 'repaint', 'adjust'].includes(kind)) throw new Error('未知生图操作')
-    const instruction = typeof options.instruction === 'string' ? options.instruction.trim() : ''
+    const adding = options.kind === 'add'
+    const kind = adding ? 'generate' : options.kind || 'generate'
+    if (!['generate', 'replan', 'repaint', 'adjust', 'prompt'].includes(kind)) throw new Error('未知生图操作')
+    // A 'prompt' repaint carries the user's own picture prompt in place of an instruction.
+    // Adding a picture carries the user's optional wish for the new scene instead.
+    const instruction = adding ? '' : String((kind === 'prompt' ? options.prompt : options.instruction) ?? '').trim()
+    const addRequest = adding ? String(options.instruction ?? '').trim() : ''
+    if (addRequest.length > 2000) throw new Error('新增插图的描述须在 2000 字符以内')
     if (kind === 'adjust' && (!instruction || instruction.length > 2000)) throw new Error('调整要求须为 1–2000 字符')
+    if (kind === 'prompt' && (!instruction || instruction.length > 12000)) throw new Error('提示词须为 1–12000 字符')
     const requestId = options.requestId === undefined ? randomUUID() : options.requestId
     if (typeof requestId !== 'string' || !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId)) throw new Error('生图请求标识不合法')
-    const { chat, target, path } = await resolve(sessionId, turn)
-    if (expectedKey !== target.key) throw new Error('正文版本已变化，请刷新后生图')
+    const resolved = await resolve(sessionId, turn, undefined, expectedKey)
+    if (expectedKey !== resolved.target.key) throw new Error('正文版本已变化，请刷新后生图')
+    const { chat, base } = resolved
+    let { target, path } = resolved
+    if (adding) {
+      // A repeated click with the same request id returns to the slot it claimed.
+      ({ target, path } = requestSlots.get(chat.id + ':' + requestId) || await freeSlot(chat, base))
+      requestSlots.set(chat.id + ':' + requestId, { target, path })
+      if (requestSlots.size > 200) requestSlots.delete(requestSlots.keys().next().value)
+    }
     if (starts.has(path)) return starts.get(path)
     const starting = (async () => {
       const existing = await readRecord(path)
       if (existing?.recovery === 'save') throw new Error('图片已生成，请先重试保存；不会再次请求图片渠道')
+      // Retrying an added picture keeps the user's wish for that scene.
+      const sceneRequest = target.slot ? (adding ? addRequest : String(existing?.addRequest || '')) : ''
       const { active, apiKey } = await capture()
-      if (!(typeof chat.sceneImagesEnabled === 'boolean' ? chat.sceneImagesEnabled : active.enabled)) throw new Error('请先在本局设置中开启场景生图')
+      if (active.enabled !== true) throw new Error('场景生图未开启：请到 设置 → 场景生图 打开「开启场景生图」')
       if (await deps.isRunning?.(sessionId)) throw new Error('请等待当前正文生成完成后再生图')
       if (Object.hasOwn(existing?.requests || {}, requestId) || (kind === 'generate' && existing?.status === 'succeeded') || existing?.status === 'running' && (jobs.has(path) || ownerIsLive(existing, path))) return present(target, existing)
       checkPurchaseConfirmation(existing, options)
       // A failure may reach disk just before the job's finally removes its handle.
       // An explicit retry waits for that cleanup, rather than returning the old failure.
       if (jobs.has(path)) await jobs.get(path).promise
-      if (!channelReady(active, apiKey)) throw new Error('请先在设置中完成生图渠道配置（地址、模型或 API Key）')
+      if (!channelReady(active, apiKey)) throw new Error('还没配置生图渠道：请到 设置 → 场景生图 填写并保存渠道、模型和 API Key')
       const selectedImageReferences = await imageReferences.select({ chatId: chat.id, lineage: turns => sceneLineage(chat, target, turns), config: active })
       if (typeof deps.attachments()?.saveImage !== 'function' || typeof deps.attachments()?.readImage !== 'function') throw new Error('当前 DSH 未提供图片附件服务，无法保存插画')
       const profile = imageExpressionProfile(active)
-      const style = await styles.resolve(active.style, profile)
+      const styleOf = plan => styles.resolve(active.style, profile, artStyleOf(plan))
       const providerTask = ['failed', 'cancelled'].includes(existing?.status) && existing.providerTask && !['rejected', 'failed'].includes(existing.providerTask.state) ? existing.providerTask : undefined
       if (providerTask && (kind !== existing.kind || instruction !== existing.instruction || (options.versionId || '') !== existing.baseVersionId || JSON.stringify({ ...channelSettings(active), style: active.style }) !== JSON.stringify(existing.configuration))) throw new Error('上次 ComfyUI 任务结果待确认，请恢复原渠道与风格配置，并重试原操作以查询；不会重新提交')
       let prepared, material = { omitted: [] }, basePlan, adjustment = false, references
       const historical = await deps.stateAtTarget?.(chat, target)
       const latestMessage = [...(chat.messages || [])].reverse().find(item => item.role === 'assistant')
       const designSnapshot = historical || (Number(latestMessage?.turn || (latestMessage?.greeting ? 1 : 0)) === target.turn && chat.settleStatus === 'done' ? chat : null)
-      if (kind !== 'generate') {
+      if (kind === 'prompt') {
+        // Hand-edited prompt: no Agent, no change to people or the turn's plan; only this picture's prompt.
+        const version = versionsOf(existing).find(item => item.id === options.versionId)
+        if (!version) throw new Error('找不到要重画的图片版本')
+        const artStyle = artStyleOf(version.plan)
+        basePlan = applyImageStyle({ ...legacyImagePlan({ prompt: instruction, description: version.plan?.description || version.description }, profile), ...(artStyle ? { artStyle } : {}) }, await styleOf(version.plan))
+        prepared = { saved: basePlan, input: null }
+      } else if (kind === 'repaint' || kind === 'adjust') {
         const version = versionsOf(existing).find(item => item.id === options.versionId)
         if (!version) throw new Error('找不到要重画或调整的图片版本')
-        basePlan = applyImageStyle(version.plan || legacyImagePlan(version, 'scene-tags-v1:' + version.model), style)
+        basePlan = applyImageStyle(version.plan || legacyImagePlan(version, 'scene-tags-v1:' + version.model), await styleOf(version.plan))
         adjustment = kind === 'adjust' ? 'adjust' : basePlan.profile !== profile ? 'convert' : false
         prepared = { saved: adjustment ? null : basePlan, input: adjustment ? imageAdjustmentInput(basePlan, instruction, profile, adjustment) : null }
-        if (existing?.status === 'failed' && existing.plan && existing.kind === kind && existing.instruction === instruction && existing.baseVersionId === options.versionId && existing.plan.profile === profile && existing.plan.style?.id === style.id) prepared.saved = existing.plan
+        if (existing?.status === 'failed' && existing.plan && existing.kind === kind && existing.instruction === instruction && existing.baseVersionId === options.versionId && existing.plan.profile === profile && existing.plan.style?.id === basePlan.style.id) prepared.saved = existing.plan
       } else {
         const snapshot = sceneInput(chat, target, historical)
         const basic = sceneSources(chat, target, snapshot)
-        prepared = await plans.prepare({ chatId: chat.id, target, ...basic, profile })
-        material = sceneSources(chat, target, snapshot, prepared.previousTurn ?? target.turn)
+        prepared = await plans.prepare({ chatId: chat.id, target, ...basic, profile, autoStyle: styleWrittenByAgent(active.style), stylePreference: active.style?.custom?.trim() || '', replan: kind === 'replan' })
+        // A previous picture of an earlier moment did not see the rest of its turn: include that turn again.
+        const sinceTurn = prepared.previousTurn === undefined ? target.turn : prepared.previousMoment === 'earlier' ? prepared.previousTurn - 1 : prepared.previousTurn
+        material = sceneSources(chat, target, snapshot, sinceTurn)
         prepared.sources = material.sources
         prepared.gapComplete = material.omitted.length === 0
         // Version/path hashes are host evidence, not useful model tokens. Keep
@@ -306,23 +423,30 @@ export function createSceneIllustrations(deps) {
           target, sources: material.sources, people: prepared.input.characters })
         if (references.metadata.available) prepared.input.references = references.metadata
         if (prepared.saved) prepared.saved = await plans.snapshot(chat.id, prepared.saved)
+        if (target.slot) prepared.input = { ...prepared.input, addition: await additionInput(chat, base, target, sceneRequest) }
+        if (kind === 'replan') {
+          // Rethinking runs in the game's shared Agent: the turn's text is already known there, only the new request is added.
+          const rejected = (versionsOf(existing).find(item => item.id === options.versionId) || versionsOf(existing).at(-1))?.plan
+          prepared.input = { ...prepared.input, rethink: { instruction: '用户否决了这一轮已有的画面，要求重新构思：换一个时刻、动作或构图，不要沿用旧方案；人物外貌照常保持一致。',
+            ...(rejected ? { rejected: { description: rejected.description || '', moment: rejected.moment || 'end', composition: rejected.scene?.composition?.text || '' } } : {}) } }
+        }
       }
       const expressionGuidance = imageExpressionGuidance(active)
       if (providerTask) prepared.saved = existing.plan
       if (prepared.input && expressionGuidance) prepared.input = { ...prepared.input, expressionGuidance }
-      const selection = deps.selection(sessionId)
+      const selection = await deps.selection(sessionId)
       if (!prepared.saved && !selection) throw new Error('请先为当前对话选择模型，供生图 Agent 理解场景')
       const characterDesigns = !prepared.saved
         ? createSceneCharacterDesigns({ snapshot: designSnapshot, target, sources: prepared.sources || [] }) : null
       const controller = new AbortController()
-      const draftBinding = hash(JSON.stringify([target.key, profile, prepared.generation, channelSettings(active), style.id, kind, instruction]))
+      const draftBinding = hash(JSON.stringify([target.key, profile, prepared.generation, channelSettings(active), active.style, kind, instruction]))
       let claimed = false
       const record = await deps.store.updateJson(path, current => {
         if (current?.recovery === 'save') throw new Error('图片已生成，请先重试保存；不会再次请求图片渠道')
         if (Object.hasOwn(current?.requests || {}, requestId) || kind === 'generate' && current?.status === 'succeeded' || current?.status === 'running' && ownerIsLive(current, path)) return current
         checkPurchaseConfirmation(current, options)
         claimed = true
-        return { key: target.key, turn: target.turn, status: 'running', outcome: providerTask ? 'unconfirmed' : 'not_requested', stage: prepared.saved ? 'generating' : 'planning', kind, instruction, baseVersionId: options.versionId || '', createdAt: Date.now(), requestId, ownerId, ownerPid: process.pid, error: '', ...(providerTask ? { providerTask } : {}),
+        return { key: target.key, turn: target.turn, ...(target.slot ? { slot: target.slot, addRequest: sceneRequest } : {}), status: 'running', outcome: providerTask ? 'unconfirmed' : 'not_requested', stage: prepared.saved ? 'generating' : 'planning', kind, instruction, baseVersionId: options.versionId || '', createdAt: Date.now(), requestId, ownerId, ownerPid: process.pid, error: '', ...(providerTask ? { providerTask } : {}),
           ...(!adjustment && !prepared.saved ? { draftBinding, planDraft: current?.draftBinding === draftBinding ? current.planDraft : undefined } : {}),
           versions: versionsOf(current), deletedVersions: current?.deletedVersions || [], requests: { ...current?.requests, [requestId]: { status: 'running', ...(options.confirmNewRequestId ? { confirmedReplacementOf: options.confirmNewRequestId } : {}) } } }
       })
@@ -334,7 +458,7 @@ export function createSceneIllustrations(deps) {
       diagnosticSecrets.set(record.requestId, [apiKey])
       const job = { controller, requestId: record.requestId, promise: null }
       jobs.set(path, job)
-      job.promise = execute({ sessionId, chatId: chat.id, target, path, record, prepared, material, references, characterDesigns, selectedImageReferences, adjustment, basePlan, profile, style, active, apiKey, selection, controller })
+      job.promise = execute({ sessionId, chatId: chat.id, target, path, record, prepared, material, references, characterDesigns, selectedImageReferences, adjustment, basePlan, profile, styleOf, active, apiKey, selection, controller })
         .finally(() => { jobs.delete(path); diagnosticSecrets.delete(record.requestId) })
       // Failure to persist a failure is reported locally, never as an unhandled rejection.
       job.promise.catch(() => deps.onStorageError?.())
@@ -361,7 +485,7 @@ export function createSceneIllustrations(deps) {
     }
     async function deliverImage() {
       controller.signal.throwIfAborted()
-      plan = applyImageStyle(plan, input.style)
+      plan = applyImageStyle(plan, await input.styleOf(plan))
       const prompt = composeSceneImagePrompt(plan)
       record.planId = plan.id
       record.plan = plan
@@ -430,7 +554,8 @@ export function createSceneIllustrations(deps) {
         let failures = 0, toolTail = Promise.resolve()
         let draft = record.planDraft || { characters: {}, layout: null }
         try { result = await deps.runAgent({
-          sessionId: input.sessionId, turn: target.turn, task: 'image', persistent: true,
+          sessionId: input.sessionId, turn: target.turn, task: 'image',
+          persistent: true,
           async resolvePersistentSessionId() {
             const saved = await deps.store.readJson('scene-images/' + hash(String(input.chatId)) + '/agent.json')
             if (!saved) return ''
@@ -476,7 +601,7 @@ export function createSceneIllustrations(deps) {
               try {
                 controller.signal.throwIfAborted()
                 const current = await deps.chatForSession(input.sessionId)
-                if (!current || sceneTarget(current, target.turn).key !== target.key) throw new Error('目标正文已变化，不能提交旧方案')
+                if (!current || sceneTarget(current, target.turn).key !== (target.baseKey || target.key)) throw new Error('目标正文已变化，不能提交旧方案')
                 const args = readImageToolArguments(call)
                 if (input.adjustment) {
                   if (call.name !== SCENE_ADJUSTMENT_TOOL.name) throw new Error('参数内容错误：请调用 submit_image_adjustment')
@@ -539,7 +664,7 @@ export function createSceneIllustrations(deps) {
     try { await pendingImages.remove(path, record.requestId) } catch { deps.onStorageError?.() }
   }
   async function retrySave(sessionId, turn, key, requestId) {
-    const { target, path } = await resolve(sessionId, turn)
+    const { target, path } = await resolve(sessionId, turn, undefined, key)
     if (target.key !== key) throw new Error('正文版本已变化，请返回原版本重试保存')
     if (starts.has(path)) { await starts.get(path); return retrySave(sessionId, turn, key, requestId) }
     const starting = (async () => {
@@ -571,7 +696,7 @@ export function createSceneIllustrations(deps) {
     try { return await starting } finally { starts.delete(path) }
   }
   async function readImage(sessionId, turn, key, versionId) {
-    const { target, path } = await resolve(sessionId, turn)
+    const { target, path } = await resolve(sessionId, turn, undefined, key)
     if (target.key !== key) throw new Error('图片不属于当前正文版本')
     const record = await readRecord(path)
     const versions = versionsOf(record)
@@ -579,10 +704,69 @@ export function createSceneIllustrations(deps) {
     if (!version?.attachment) throw new Error('图片尚未就绪或已删除')
     return deps.attachments().readImage(version.attachment)
   }
-  async function removeImage(sessionId, turn, key, versionId) {
-    const { target, path } = await resolve(sessionId, turn)
-    if (target.key !== key) throw new Error('正文版本已变化')
-    const next = await deps.store.updateJson(path, record => {
+  // An explicit, paid check of the saved channel: one fixed picture, shown
+  // once and never kept. It waits in the same queue as story pictures.
+  async function testGenerate() {
+    const { active, apiKey } = await capture()
+    if (!channelReady(active, apiKey)) throw new Error('请先在设置中完成生图渠道配置（地址、模型或 API Key）')
+    const profile = imageExpressionProfile(active)
+    const style = await styles.resolve(active.style, profile)
+    const plan = applyImageStyle({ profile, description: '测试图', subjects: ['test'], people: [{ id: 'test', name: '测试人物' }],
+      blocks: [
+        { owner: 'test', field: 'appearance', text: '黑色长发、白色连衣裙、微笑的女孩', tags: 'girl, long black hair, white dress, smiling' },
+        { owner: 'scene', field: 'composition', text: '单人半身', tags: '1girl, solo, upper body' },
+        { owner: 'scene', field: 'environment', text: '晴天的花园', tags: 'flower garden, sunny day' }
+      ], prompt: '测试人物: girl, long black hair, white dress, smiling\n1girl, solo, upper body\nflower garden, sunny day' }, style)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), deps.timeoutMs || 300000)
+    const startedAt = Date.now()
+    try {
+      const generated = await imageQueue.run({ requestId: 'test-' + randomUUID(), signal: controller.signal }, () =>
+        imageModule.generate({ ...active, apiKey, prompt: composeSceneImagePrompt(plan), plan, referenceImages: [], signal: controller.signal, maxBytes: deps.attachments()?.imageLimits?.maxImageBytes }))
+      const image = generated.data ? generated : await deps.attachments()?.readImage(generated.attachment)
+      if (!image?.data) throw new Error('生图服务没有返回图片')
+      return { mediaType: image.mediaType || 'image/png', data: Buffer.from(image.data).toString('base64'), model: generated.metadata?.model || active.model || '', durationMs: Date.now() - startedAt }
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error('测试生图超时，未得到图片；服务可能已计费')
+      throw new Error(redactImageError(error.message || '测试生图失败', apiKey).slice(0, 500))
+    } finally { clearTimeout(timer) }
+  }
+  // Whether agentSessionId is this game's scene-image agent, from its durable binding.
+  async function isAgentSession(sessionId, agentSessionId) {
+    const chat = await deps.chatForSession(sessionId).catch(() => undefined)
+    if (!chat) return false
+    const saved = await deps.store.readJson('scene-images/' + hash(String(chat.id)) + '/agent.json')
+    return Boolean(agentSessionId) && saved?.parentSessionId === sessionId && saved.sessionId === agentSessionId
+  }
+  // Undo the image agent's latest drawing conversation in its own Session. Pictures stay.
+  async function undoAgentTurn(sessionId, agentSessionId) {
+    if (!await isAgentSession(sessionId, agentSessionId)) throw new Error('这不是当前游戏的文生图对话，未撤销')
+    const selection = await deps.selection(sessionId)
+    if (!selection) throw new Error('请先为当前对话选择模型')
+    const result = await deps.runAgent({ sessionId, task: 'image', persistent: true, persistentSessionId: agentSessionId, undoLastTask: true, selection, messages: [] })
+    return { undone: result?.undone === true }
+  }
+  // The pictures a reader sees for each turn: each slot's latest version at its newest
+  // anchor, the same pictures and places play shows by default. Turns without one are skipped.
+  async function exportImages(sessionId, turns) {
+    const images = []
+    for (const turn of turns) {
+      let resolved
+      try { resolved = await resolve(sessionId, turn) } catch { continue }
+      for (let slot = 0; slot <= SCENE_EXTRA_SLOTS; slot++) {
+        try {
+          const versions = versionsOf(await deps.store.readJson(pathFor(resolved.chat.id, sceneSlotKey(resolved.target.key, slot)))), version = versions.at(-1)
+          if (!version?.attachment) continue
+          const image = await deps.attachments().readImage(version.attachment)
+          const anchor = versions.findLast(item => item.anchor)?.anchor || ''
+          images.push({ turn: Number(turn), slot, mediaType: String(image.mediaType || version.attachment.mediaType || ""), data: image.data, anchor })
+        } catch { /* A missing picture must not block exporting the story. */ }
+      }
+    }
+    return images
+  }
+  async function detachVersion(path, versionId) {
+    return deps.store.updateJson(path, record => {
       if (record?.status === 'running') throw new Error('请等待当前生图任务结束后删除图片')
       if (record?.recovery === 'save') throw new Error('请先恢复待保存的图片，再删除图片版本')
       const versions = versionsOf(record)
@@ -593,9 +777,60 @@ export function createSceneIllustrations(deps) {
       // their bytes blindly. Keep a tombstone for subsequent reference-aware GC.
       return { ...record, versions: kept, status: kept.length ? 'succeeded' : 'idle', error: '', deletedVersions: [...(record.deletedVersions || []), { ...removed, deletedAt: Date.now() }] }
     })
-    return present(target, next)
   }
-  return { settings, configure, testConnection: connection.test, listModels: connection.models, status, start, cancel, retrySave, readImage, removeImage, setReference,
+  async function removeImage(sessionId, turn, key, versionId) {
+    const { target, path } = await resolve(sessionId, turn, undefined, key)
+    if (target.key !== key) throw new Error('正文版本已变化')
+    // An added picture that failed before producing anything is simply dismissed.
+    if (!versionId && target.slot) return present(target, await deps.store.updateJson(path, record => {
+      if (record?.status === 'running' || record?.recovery === 'save' || versionsOf(record).length) throw new Error('这张插图还在生成或已有图片，不能直接移除')
+      return { ...record, status: 'idle', error: '' }
+    }))
+    return present(target, await detachVersion(path, versionId))
+  }
+  // History spans every game, including deleted ones whose session no longer resolves,
+  // so these address a record by the chat id saved in it rather than by session and turn.
+  const storedPath = (chatId, key) => {
+    if (typeof chatId !== 'string' || !chatId || !/^[0-9a-f]{64}$/.test(String(key))) throw new Error('图片地址不合法')
+    return pathFor(chatId, key)
+  }
+  // One game's pictures (the gallery), or every game's when no chat id is given.
+  async function history(onlyChatId) {
+    const games = new Map((await deps.chatSummaries?.() || []).map(chat => [chat.id, chat]))
+    const items = []
+    const only = onlyChatId ? hash(String(onlyChatId)) : ''
+    for (const folder of await deps.store.list('scene-images')) {
+      if (!folder.directory || only && folder.name !== only) continue
+      for (const file of await deps.store.list('scene-images/' + folder.name)) {
+        if (file.directory || !/^[0-9a-f]{64}\.json$/.test(file.name)) continue
+        const record = await deps.store.readJson('scene-images/' + folder.name + '/' + file.name).catch(() => undefined)
+        const chatId = record?.diagnosticContext?.chatId
+        const versions = versionsOf(record).filter(item => item.attachment)
+        if (typeof chatId !== 'string' || !versions.length || record.key + '.json' !== file.name || onlyChatId && chatId !== onlyChatId) continue
+        const game = games.get(chatId)
+        items.push({ chatId, key: record.key, turn: Number(record.turn) || 0, cardName: game?.cardName || '', title: game?.title || '', deleted: !game,
+          versions: versions.map(item => ({ id: item.id, description: item.plan?.description || item.description || '', createdAt: Number(item.createdAt) || 0 })) })
+      }
+    }
+    const latest = item => Math.max(0, ...item.versions.map(version => version.createdAt))
+    return items.sort((a, b) => latest(b) - latest(a))
+  }
+  async function readStoredImage(chatId, key, versionId) {
+    const version = versionsOf(await readRecord(storedPath(chatId, key))).find(item => item.id === versionId)
+    if (!version?.attachment) throw new Error('图片不存在或已删除')
+    return deps.attachments().readImage(version.attachment)
+  }
+  async function removeStoredImages(items) {
+    if (!Array.isArray(items) || items.length > 500) throw new Error('一次最多删除 500 张')
+    const results = []
+    // One at a time and independently: report exactly which pictures were removed.
+    for (const item of items) {
+      try { await detachVersion(storedPath(item?.chatId, item?.key), item?.versionId); results.push({ versionId: item.versionId, ok: true }) }
+      catch (error) { results.push({ versionId: item?.versionId, ok: false, error: String(error?.message || error) }) }
+    }
+    return results
+  }
+  return { settings, configure, readArtistPreview: setup.readArtistPreview, testConnection: connection.test, listModels: connection.models, testGenerate, status, start, autoGenerate, cancel, retrySave, readImage, exportImages, isAgentSession, undoAgentTurn, removeImage, setReference, history, readStoredImage, removeStoredImages,
     async dispose() { for (const job of jobs.values()) job.controller.abort(); await Promise.allSettled([...jobs.values()].map(job => job.promise)); imageHosts.delete(ownerId); imageAborters.delete(ownerId) }
   }
 }

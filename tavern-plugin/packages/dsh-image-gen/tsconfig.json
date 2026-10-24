@@ -17,6 +17,7 @@
     "declaration": true,
     "declarationMap": false,
     "sourceMap": true,
+    "newLine": "lf",
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js"],
