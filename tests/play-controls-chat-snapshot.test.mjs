@@ -33,11 +33,11 @@ function dockWith(nodes, mode = 'story', releaseCapabilities = { sceneImages: tr
   return { rendered, selections }
 }
 
-test('停止后的半截回复不能继承上一轮生图操作和错误', () => {
+test('生图操作在每轮的操作栏里，不再出现在输入框上方', () => {
   const nodes = [{ kind: 'assistant', messageId: 'partial-reply' }]
-  const pending = dockWith(nodes, 'story', { sceneImages: true }, true).rendered
-  assert.equal(pending.children[1], null)
-  assert.equal(pending.children[2].type, 'more')
-  const cleared = dockWith(nodes, 'story', { sceneImages: true }, false).rendered
-  assert.equal(cleared.children[1].type, 'scene-image')
+  for (const pendingReply of [true, false]) {
+    const dock = dockWith(nodes, 'story', { sceneImages: true }, pendingReply).rendered
+    assert.equal(dock.children.some(child => child?.type === 'scene-image'), false)
+    assert.equal(dock.children.some(child => child?.type === 'more'), true)
+  }
 })

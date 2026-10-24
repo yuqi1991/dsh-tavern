@@ -82,6 +82,20 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
   - 批末检查：完整测试失败名全部在基线内（唯一"新"项是 916b17ee 把 text-layout 的 include 放进了 TavernSettingsSection 与 UserPreferenceProfileTab 之间，
     破坏 conversation-settings-ui 的源码截取；已把 include 前移并给测试补桩，d8e50f83）；负载下偶发 133 帧测试/生图开关测试 30 秒超时，与改动无关。
     `build-tavern-client --check`、`build-plugin-package --check` 通过；e2e `--batch1-ui`、`--render-depth --display-regression` 通过，普通 e2e 仍只死在 ticket-19 "金币：40"。
+- **批 3 · 场景生图 完成**（2026-10-24，62b0c341 服务端、3ad04e6c 界面、其后的测试修正）：
+  - 服务端：我们从未改过的 `dsh-image-gen` 包与 `lib/domain/scene-*` 整组取上游最终状态（构建产物的 import 与旧版完全一致，不依赖 DSH 0.2）；
+    `lib/index.js` 手工接线：每局/全局默认的"生图 Agent 模型"（`imageModelSelection`/`defaultImageModel`，默认跟随前台并用最低推理强度）、
+    新 RPC（testSceneImageGeneration、listSceneImageHistory、removeSceneImageHistory、getImageAgentUndo、undoImageAgentTurn）、
+    画师串预览与画廊读图两条 GET 路由、生图请求体上限 16KB→256KB、结算后自动生图（默认关，`auto-<key>` 请求号去重，已有图/删过图/失败/疑似已计费都不自动重画）、
+    场景世界书快照按轮登记（只留最近 50 轮）、分叉复制引用、删游戏时释放。同时取了 `profile-data-store.js`（新增 list）与 `conversation-background.js`。
+  - 界面：`SceneIllustration`（重画/同方案重画/改提示词/新增插图/造型参考）、`SceneImageGallery`（对话区"画廊"标签）、`SceneImageSettings` 独立成设置页"场景生图"、
+    每轮操作栏图标生图（输入框上方的按钮取消）、本局设置里的"生图 Agent 模型"。Story View 在正文下接主图和同轮新增的图。
+  - **行为变化（需告知用户）**：`场景生图`改为**全局开关**（默认关，配置完整后才能开）；旧版的"每局开启场景生图"开关取消。已配好生图的老用户升级后要去 设置 → 场景生图 打开一次。
+    同轮新增的插图暂时排在正文后面（上游按段落锚定，依赖插件文本管线，未取）。
+  - 测试：生图相关的 6 个测试文件和 `tavern-settings-browser` 夹具换成上游版本（旧测试断言的是上游已删除的行为，如固定画风预设；其中一个会因此永远等待）；
+    每局开关测试文件删除；字节上限、批量删除、输入框快照、本局设置界面测试按新行为更新。上游新的 native 夹具依赖 DSH 0.2 的包，保留我们的。
+    完整测试失败名全部在基线内；e2e `--batch3-images` 通过（设置页、画廊标签、本局模型选择）。
+  - **未做**：真实生图渠道的端到端（需要用户的 API Key），只验证了界面与服务端单测。批 3 剩余：存档管理、MVU 工具链。
 
 ## 摘取流程（每个提交）
 1. `git cherry-pick -x --no-commit <hash>`；2. `lib/client.js` 冲突不手合，`node bin/build-tavern-client.mjs` 重建；

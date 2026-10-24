@@ -8,11 +8,11 @@ function setup() {
   const events = []
   const deletedChatIds = new Set()
   const workers = new Map(['a', 'background'].map(id => [id, { cancel: () => events.push('cancel:' + id), whenIdle: async () => events.push('idle:' + id) }]))
-  const api = new Function('readChat', 'str', 'storyTimeline', 'agentRegistry', 'cancelSettlement', 'conversationRegistry', 'deletedChatIds', section + '; return { deleteChats };')(
+  const api = new Function('readChat', 'str', 'storyTimeline', 'agentRegistry', 'cancelSettlement', 'conversationRegistry', 'deletedChatIds', 'sceneWorldbooks', section + '; return { deleteChats };')(
     async id => ({ id, sessionId: id }), String,
     { inspect: () => ({ participants: { worker: { sessionId: 'background' } } }) }, workers,
     async id => { events.push('settlement:' + id) },
-    { remove: async id => { events.push('remove:' + id); if (id === 'bad') throw new Error('disk error') } }, deletedChatIds)
+    { remove: async id => { events.push('remove:' + id); if (id === 'bad') throw new Error('disk error') } }, deletedChatIds, null)
   return { ...api, events, deletedChatIds }
 }
 test('batch deletion stops foreground and background before removing, deduplicates, and continues after a failure', async () => {
