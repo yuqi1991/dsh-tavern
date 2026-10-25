@@ -605,9 +605,25 @@ export function createFileResourceStore(options = {}) {
     return operation
   }
 
-  async function importCard(payload, card) {
+  let importCardTail = Promise.resolve()
+  function importCard(payload, card, options = {}) {
+    const operation = importCardTail.catch(() => {}).then(() => writeImportedCard(payload, card, options))
+    importCardTail = operation
+    return operation
+  }
+
+  async function writeImportedCard(payload, card, options) {
     await ensure()
-    const rawName = safeResourceName(payload && payload.name || '未命名人物卡.json')
+    let rawName = safeResourceName(payload && payload.name || '未命名人物卡.json')
+    // options.unique: never take over an existing card's name (game saves bring their own copy).
+    if (options.unique) {
+      const parsed = path.parse(rawName)
+      for (let suffix = 1; ; suffix += 1) {
+        const candidate = 'cards/' + path.parse(rawName).name + '.json'
+        if (!await exists(absolute(candidate)) && await originalCardName(candidate) === null) break
+        rawName = parsed.name + ' (' + suffix + ')' + parsed.ext
+      }
+    }
     const workingName = path.parse(rawName).name + '.json'
     const relative = 'cards/' + workingName
     const originalName = payload && payload.kind === 'png' ? path.parse(rawName).name + '.png' : workingName
@@ -621,7 +637,7 @@ export function createFileResourceStore(options = {}) {
     return relative
   }
 
-  async function importText(kind, payload, cardPath) {
+  async function importText(kind, payload, cardPath, options = {}) {
     await ensure()
     if (kind !== 'source' && kind !== 'preset' && kind !== 'script') throw new Error('文本资源类型不合法: ' + kind)
     const text = str(payload && payload.text).replace(/\r\n?/g, '\n').trim()
@@ -632,7 +648,15 @@ export function createFileResourceStore(options = {}) {
       ? Buffer.from(payload.fileB64, 'base64')
       : (typeof (payload && payload.originalText) === 'string' ? payload.originalText : text)
     let relative
-    if (kind === 'source') relative = 'materials/' + name
+    if (kind === 'source') {
+      relative = 'materials/' + name
+      if (options.unique) {
+        const parsed = path.parse(name)
+        for (let suffix = 1; await exists(absolute(relative)) || await exists(absolute(relative, true)); suffix++) {
+          relative = 'materials/' + parsed.name + ' (' + suffix + ')' + parsed.ext
+        }
+      }
+    }
     else if (kind === 'preset') relative = 'presets/' + name
     else {
       const normalizedCard = normalizeResourcePath(cardPath, 'card')
@@ -1049,5 +1073,5 @@ export function createFileResourceStore(options = {}) {
     return result
   }
 
-  return Object.freeze({ globalWorldBookSources, setGlobalWorldBook: serializeWorldBookMutation(setGlobalWorldBook), readMvuDraftSession, updateMvuDraftSession, readMvuDraft, updateMvuDraft, readMvuDefinition, saveMvuDefinition, absolute, copyCard, saveMvuCard: serializeWorldBookMutation(saveMvuCard), inspectMvuDestination, bindMaterial, bindWorldBook: serializeWorldBookMutation(bindWorldBook), bindWorldBooks: serializeWorldBookMutation(bindWorldBooks), cardsForMaterial, ensure, ensureCardWorkspace, hasCardImage, importCard, importText, importWorldBook, list, metadata, migrateLegacy, readCard, readCardImage, readText, remove: serializeWorldBookMutation(remove), rename: serializeWorldBookMutation(renameResource), replaceScript, restoreCard, scriptBindingsForCards, scriptForCard, unbindMaterial, unbindWorldBook: serializeWorldBookMutation(unbindWorldBook), worldBookBindingForCard, writeWorking })
+  return Object.freeze({ originalCardPayload, globalWorldBookSources, setGlobalWorldBook: serializeWorldBookMutation(setGlobalWorldBook), readMvuDraftSession, updateMvuDraftSession, readMvuDraft, updateMvuDraft, readMvuDefinition, saveMvuDefinition, absolute, copyCard, saveMvuCard: serializeWorldBookMutation(saveMvuCard), inspectMvuDestination, bindMaterial, bindWorldBook: serializeWorldBookMutation(bindWorldBook), bindWorldBooks: serializeWorldBookMutation(bindWorldBooks), cardsForMaterial, ensure, ensureCardWorkspace, hasCardImage, importCard, importText, importWorldBook, list, metadata, migrateLegacy, readCard, readCardImage, readText, remove: serializeWorldBookMutation(remove), rename: serializeWorldBookMutation(renameResource), replaceScript, restoreCard, scriptBindingsForCards, scriptForCard, unbindMaterial, unbindWorldBook: serializeWorldBookMutation(unbindWorldBook), worldBookBindingForCard, writeWorking })
 }

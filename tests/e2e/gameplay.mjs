@@ -16,6 +16,7 @@ import { presetSwitch } from './preset-switch.mjs'
 import { playControls } from './play-controls.mjs'
 import { batch1UiChecks } from './batch1-ui.mjs'
 import { batch3ImageChecks } from './batch3-images.mjs'
+import { batch3SaveChecks } from './batch3-saves.mjs'
 import { renderDepthChecks } from './render-depth.mjs'
 import { mkdtemp, mkdir, writeFile, readFile, symlink, rm, readdir, cp, access } from 'node:fs/promises'
 import { join, resolve, dirname } from 'node:path'
@@ -143,6 +144,11 @@ try {
       extensions: { mvu: {}, regex_scripts: [{ id: 'e2e-status', scriptName: '金币状态', findRegex: '<StatusPlaceHolderImpl/>',
         replaceString: '```html\n' + status + '\n```', placement: [2], markdownOnly: true, disabled: false }, ...(displayScenario ? displayRegressionRules() : [])] }
     } }))
+    // A card imported through the UI keeps its original beside the working copy; saves carry that original.
+    if (process.argv.includes('--batch3-saves')) {
+      await mkdir(join(data, 'originals/cards'), { recursive: true })
+      await cp(join(data, 'resources/cards/e2e.json'), join(data, 'originals/cards/e2e.json'))
+    }
   })
   if(process.argv.includes('--real-variables')) {report.scope='real isolated DSH + Chromium + configured live model';report.model=await setupRealVariables({root,profile,data,runtimeHome:join(homedir(),'.dsh-tavern')})}
   await step('启动真实 DSH 与酒馆', async () => {
@@ -265,6 +271,8 @@ try {
     await batch1UiChecks({ page, step, output, errors })
   } else if (process.argv.includes('--batch3-images')) {
     await batch3ImageChecks({ page, step, output, errors })
+  } else if (process.argv.includes('--batch3-saves')) {
+    await batch3SaveChecks({ page, step, data, root, output, report, errors, restartServer })
   } else if (process.argv.includes('--render-depth')) {
     await renderDepthChecks({ page, step, output, errors })
   } else if (process.argv.includes('--mvu-incremental')) {
@@ -325,7 +333,7 @@ try {
       assert.deepEqual(await readFile(join(directory, 'session.jsonl.zstd.bak-tavern-premigrate')), await readFile(join(output, 'legacy-input.jsonl.zstd')))
     }
     await compactionChecks({ page, step, savedChat, output, report, restartServer, installLegacyFixture, scenario: compactionScenario })
-  } else if (!process.argv.includes('--batch1-ui') && !process.argv.includes('--batch3-images') && !process.argv.includes('--render-depth') && !process.argv.includes('--card-memory') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
+  } else if (!process.argv.includes('--batch1-ui') && !process.argv.includes('--batch3-images') && !process.argv.includes('--batch3-saves') && !process.argv.includes('--render-depth') && !process.argv.includes('--card-memory') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
     await step('生成候选项并选择行动，再玩一轮', async () => {
       await page.getByRole('button', { name: '生成候选项', exact: true }).click()
       await page.getByText('5 个', { exact: true }).waitFor()

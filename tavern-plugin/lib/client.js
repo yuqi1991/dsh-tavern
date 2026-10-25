@@ -9107,6 +9107,7 @@ function subscribeTavernHostTheme(win, listener) {
 			const [openingPicker, setOpeningPicker] = React.useState(null);
 			const [chatImport, setChatImport] = React.useState(null);
 			const chatImportFile = React.useRef(null);
+			const saveImportFile = React.useRef(null);
 			const [pendingOpen, setPendingOpen] = React.useState(null);
 			const [menuSession, setMenuSession] = React.useState(null);
 			const [managing, setManaging] = React.useState(false);
@@ -9534,6 +9535,23 @@ function subscribeTavernHostTheme(win, listener) {
 				} catch (error) { setError(String(error.message || error)); }
 				finally { setBusy(false); }
 			}
+			// A save from another install becomes a new game here; the card comes with it.
+			async function importGameSave(file) {
+				if (busy) return;
+				setBusy(true); setError("");
+				try {
+					if (!/\.dshsave$/i.test(file.name)) throw new Error("请选择 .dshsave 存档文件");
+					if (file.size > 256 * 1024 * 1024) throw new Error("存档文件超过 256 MB");
+					const bytes = new Uint8Array(await file.arrayBuffer());
+					let binary = "";
+					for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(index, index + 0x8000));
+					const imported = await call("importGameSave", { fileB64: btoa(binary) });
+					notifyDataChanged(["cards", "sessions"]);
+					closePicker();
+					await finishPendingOpen({ sessionId: imported.sessionId, targetMode: "story" });
+				} catch (error) { setError("导入存档失败：" + String(error.message || error)); }
+				finally { setBusy(false); }
+			}
 			async function importConversation() {
 				if (busy || !chatImport || !openingPicker || chatImport.cardPath !== openingPicker.card.path) return;
 				setBusy(true); setError("");
@@ -9912,7 +9930,11 @@ function subscribeTavernHostTheme(win, listener) {
 				h("div", { className: "dsh-tavern-picker-foot", style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "24px", flexWrap: "wrap" } }, h("input", { ref: chatImportFile, type: "file", accept: ".jsonl", style: { display: "none" }, onChange: function (event) { previewChatImport(event.target.files && event.target.files[0]); event.target.value = ""; } }), h("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "6px" } }, h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: function () { chatImportFile.current.click(); } }, "导入聊天记录"), h("small", { style: { opacity: .7 } }, "（必须和人物卡匹配）")), h("button", { className: "dsh-tavern-question-primary", disabled: busy || openingPicker.preparing || (openingPicker.openings.length > 0 && !selectedOpening), onClick: function () { newConversation(openingPicker.card, null, selectedOpening ? selectedOpening.id : "", openingPicker.userName || "你"); } }, "开始新游戏"))
 			) : null;
 			const playPicker = h("div", { className: "dsh-tavern-card-picker", role: "dialog", "aria-modal": "true", "aria-label": openingPicker ? "游戏准备" : "选择人物卡开始游玩" }, pickerError, openingPicker ? h(React.Fragment, null, importChoice, h("div", { style: { display: importChoice ? "none" : "contents" } }, openingChoice)) : h(React.Fragment, null,
-				h("div", { className: "dsh-tavern-card-picker-head" }, h("span", null, "选择人物卡 · 开始游玩"), h("span", { className: "dsh-tavern-spacer" }), h("button", { className: "dsh-tavern-btn", disabled: busy || (!cardBatch.managing && !cards.length), onClick: function () { if (cardBatch.managing) cardBatch.reset(); else cardBatch.begin(); } }, cardBatch.managing ? "取消" : "批量删除"), h(MobileCardImportButton, { inputRef: fileRef, disabled: busy, onImported: async function () { await refresh(); notifyDataChanged(["cards"]); } }), h("button", { className: "dsh-tavern-btn", onClick: closePicker }, "关闭")),
+				h("div", { className: "dsh-tavern-card-picker-head" }, h("span", null, "选择人物卡 · 开始游玩"), h("span", { className: "dsh-tavern-spacer" }), h("button", { className: "dsh-tavern-btn", disabled: busy || (!cardBatch.managing && !cards.length), onClick: function () { if (cardBatch.managing) cardBatch.reset(); else cardBatch.begin(); } }, cardBatch.managing ? "取消" : "批量删除"), h(MobileCardImportButton, { inputRef: fileRef, disabled: busy, onImported: async function () { await refresh(); notifyDataChanged(["cards"]); } }),
+					// No accept list: Android filters by MIME type and `.dshsave` has none, so a list would hide the very file being imported.
+					h("input", { ref: saveImportFile, type: "file", style: { display: "none" }, onChange: function (event) { const file = event.target.files && event.target.files[0]; event.target.value = ""; if (file) importGameSave(file); } }),
+					h("button", { className: "dsh-tavern-btn", disabled: busy, title: "在其他电脑的 DSH Tavern 导出的存档，作为一局新游戏继续玩；SillyTavern 聊天记录请在选择人物卡后导入", onClick: function () { if (saveImportFile.current) saveImportFile.current.click(); } }, "导入存档"),
+					h("button", { className: "dsh-tavern-btn", onClick: closePicker }, "关闭")),
 				h("input", { ref: fileRef, type: "file", accept: ".png,.json", style: { display: "none" }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f) importCard(f); e.target.value = ""; } }),
 				organization.toolbar(),
 				organization.visible.length ? h(React.Fragment, null, h("div", { className: "dsh-tavern-side-empty", style: { padding: "4px 6px" } }, "已绑定剧本的人物卡将自动按剧本推进；未绑定的按自由故事推进。剧本绑定在“卡片模式”中管理。"), organization.renderCards(function (card) {
@@ -12919,6 +12941,19 @@ function subscribeTavernHostTheme(win, listener) {
 					} catch (err) { tavernErrorHub.report("导出纯对话", err); }
 					finally { setBusy(false); }
 				}
+				async function exportSave() {
+					setBusy(true);
+					try {
+						const result = await rpc("exportGameSave", { images: true }, props.sessionId);
+						const bytes = Uint8Array.from(atob(result.base64), function (value) { return value.charCodeAt(0); });
+						const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+						const link = document.createElement("a");
+						link.href = url; link.download = result.filename;
+						document.body.appendChild(link); link.click(); link.remove();
+						window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+					} catch (err) { tavernErrorHub.report("导出存档", err); }
+					finally { setBusy(false); }
+				}
 				async function exportLogs() {
 					setBusy(true);
 					try {
@@ -12935,6 +12970,7 @@ function subscribeTavernHostTheme(win, listener) {
 				return React.createElement("div", { className: "dsh-tavern-more-actions dsh-tavern-export-menu", ref: root },
                     React.createElement("button", { type: "button", className: "dsh-tavern-export-action", "aria-haspopup": "menu", "aria-expanded": open, "aria-busy": busy, onClick: function () { setOpen(value => !value); } }, busy ? "导出中…" : "导出 ▾"),
                     React.createElement("div", { className: "dsh-tavern-more-menu", role: "menu", "aria-label": "导出", hidden: !open, onClick: function (event) { if (event.target.closest("button:not(:disabled)")) setOpen(false); } },
+                        React.createElement("button", { type: "button", role: "menuitem", disabled: busy, title: "导出这一局的存档，可在其他电脑的酒馆里导入继续玩", onClick: exportSave }, "存档"),
                         React.createElement("button", { type: "button", role: "menuitem", "data-tavern-log-export": "", disabled: busy, "aria-label": "日志", title: "下载 Session、MVU、生图与更新日志；含私人剧情，分享前请检查隐私", onClick: exportLogs }, "日志"),
                         React.createElement("button", { type: "button", role: "menuitem", disabled: busy, title: "导出只包含玩家与角色正文的 TXT", onClick: exportText }, "纯对话 TXT")
                     ));

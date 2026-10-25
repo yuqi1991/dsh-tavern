@@ -38,6 +38,19 @@
 					} catch (err) { tavernErrorHub.report("导出纯对话", err); }
 					finally { setBusy(false); }
 				}
+				async function exportSave() {
+					setBusy(true);
+					try {
+						const result = await rpc("exportGameSave", { images: true }, props.sessionId);
+						const bytes = Uint8Array.from(atob(result.base64), function (value) { return value.charCodeAt(0); });
+						const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+						const link = document.createElement("a");
+						link.href = url; link.download = result.filename;
+						document.body.appendChild(link); link.click(); link.remove();
+						window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+					} catch (err) { tavernErrorHub.report("导出存档", err); }
+					finally { setBusy(false); }
+				}
 				async function exportLogs() {
 					setBusy(true);
 					try {
@@ -54,6 +67,7 @@
 				return React.createElement("div", { className: "dsh-tavern-more-actions dsh-tavern-export-menu", ref: root },
                     React.createElement("button", { type: "button", className: "dsh-tavern-export-action", "aria-haspopup": "menu", "aria-expanded": open, "aria-busy": busy, onClick: function () { setOpen(value => !value); } }, busy ? "导出中…" : "导出 ▾"),
                     React.createElement("div", { className: "dsh-tavern-more-menu", role: "menu", "aria-label": "导出", hidden: !open, onClick: function (event) { if (event.target.closest("button:not(:disabled)")) setOpen(false); } },
+                        React.createElement("button", { type: "button", role: "menuitem", disabled: busy, title: "导出这一局的存档，可在其他电脑的酒馆里导入继续玩", onClick: exportSave }, "存档"),
                         React.createElement("button", { type: "button", role: "menuitem", "data-tavern-log-export": "", disabled: busy, "aria-label": "日志", title: "下载 Session、MVU、生图与更新日志；含私人剧情，分享前请检查隐私", onClick: exportLogs }, "日志"),
                         React.createElement("button", { type: "button", role: "menuitem", disabled: busy, title: "导出只包含玩家与角色正文的 TXT", onClick: exportText }, "纯对话 TXT")
                     ));

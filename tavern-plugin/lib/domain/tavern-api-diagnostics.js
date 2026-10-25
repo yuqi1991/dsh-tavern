@@ -45,7 +45,7 @@ export function createTavernApiDiagnostics(storage) {
     droppedBuffers.delete(id)
     const previous = tails.get(id) || Promise.resolve()
     if (!rows.length) return previous
-    const next = previous.catch(() => {}).then(() => storage.updateJson(pathFor(id), old => {
+    const next = previous.catch(() => {}).then(() => forgotten.has(id) ? undefined : storage.updateJson(pathFor(id), old => {
       const all = [...(old?.records || []), ...rows], records = bounded(all)
       return { version: 1, sessionId: id, dropped: (old?.dropped || 0) + dropped + all.length - records.length, records }
     }))
@@ -53,7 +53,10 @@ export function createTavernApiDiagnostics(storage) {
     next.finally(() => { if (tails.get(id) === next) tails.delete(id) }).catch(() => {})
     return next
   }
+  // A deleted game's in-flight calls must not write its diagnostics back after cleanup.
+  const forgotten = new Set()
   function record(id, row) {
+    if (forgotten.has(id)) return
     const all = [...(buffers.get(id) || []), row]
     const kept = bounded(all)
     droppedBuffers.set(id, (droppedBuffers.get(id) || 0) + all.length - kept.length)
@@ -67,6 +70,12 @@ export function createTavernApiDiagnostics(storage) {
     }
   }
   return {
+    async forget(sessionId) {
+      forgotten.add(sessionId)
+      buffers.delete(sessionId); droppedBuffers.delete(sessionId)
+      await (tails.get(sessionId) || Promise.resolve()).catch(() => {})
+      await storage.remove?.(pathFor(sessionId))
+    },
     recordResourceSave(sessionId, summary) {
       if (!sessionId) return
       record(sessionId, { at: Date.now(), method: 'resource-save', ...summary })

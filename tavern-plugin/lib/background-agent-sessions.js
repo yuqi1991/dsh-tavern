@@ -399,5 +399,12 @@ export function createBackgroundAgentSessions(options, task) {
     return null
   }
 
-  return Object.freeze({ progress, run, owns, requestContext, requestSession, compact, cancel, reapIdle, dispose })
+  // A deleted game must not keep resident agents that would write its sessions back to disk.
+  async function releaseFor(parentSessionId) {
+    const parent = str(parentSessionId)
+    for (const [id, resident] of Array.from(residentHandles)) {
+      if (requestContexts.get(id)?.parentSessionId === parent || JSON.parse(resident.key)[0] === parent) await releaseResident(id, resident)
+    }
+  }
+  return Object.freeze({ progress, run, owns, requestContext, requestSession, compact, cancel, reapIdle, dispose, releaseFor })
 }
