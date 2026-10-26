@@ -73,8 +73,22 @@ function promptVariables(value) {
     delete variables.schema
     delete variables.display_data
     delete variables.delta_data
+    withoutMetadataKeys(variables.stat_data)
   }
   return variables
+}
+
+// MVU reads `$meta` (strictSet, extensible, templates) into the schema and the
+// structure section already states it; left in the snapshot it reads as one more
+// state field the model may try to update (#153). Only object keys are hidden:
+// dropping an array element would shift every index the model writes back.
+function withoutMetadataKeys(value) {
+  if (Array.isArray(value)) { value.forEach(withoutMetadataKeys); return }
+  if (value === null || typeof value !== 'object') return
+  for (const key of Object.keys(value)) {
+    if (key === '$meta') delete value[key]
+    else withoutMetadataKeys(value[key])
+  }
 }
 
 function retryPromptState(variables, initialSchema) {
