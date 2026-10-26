@@ -28,3 +28,9 @@ test('invalid or ambiguous encoded values fail before dispatch; legacy persisted
   const operations = [{ op: 'replace', path: '/hp', value: 3 }, { op: 'remove', path: '/old' }, { op: 'move', from: '/a', path: '/b' }]
   assert.deepEqual(normalizeMvuToolSubmission({ operations }).operations, operations)
 })
+
+test('valueJson 解析失败时报出路径与常见原因，模型重提时能对症修正', () => {
+  assert.throws(() => normalizeMvuToolSubmission({ operations: [{ op: 'replace', path: '/地点', valueJson: '城市街道' }] }),
+    /变量操作 #1（\/地点）的 valueJson 不是有效 JSON：无法解析；文本值须带 JSON 双引号/)
+  assert.throws(() => normalizeMvuToolSubmission({ operations: [{ op: 'replace', path: '/hp', valueJson: '1e999' }] }), /（\/hp）.*数字必须有限/)
+})
