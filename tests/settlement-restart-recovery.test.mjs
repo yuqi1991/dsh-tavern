@@ -544,6 +544,8 @@ for (const recovery of ['自动恢复', '手动重新投递']) test('正式模�
   assert.equal(gate.start('session', offer.event.id, offer.leaseToken, 'browser').started, true)
   await adapter.updateMessages('session', [{ message_id: 1, data: { stat_data: { hp: 9 } } }], 0, offer.event.id)
   assert.equal(run.get().messages[1].variables[0].stat_data.hp, 10, 'script writes remain isolated')
+  // An await or timer drops the event identity; like SillyTavern, the write joins the running settlement.
+  await adapter.updateMessages('session', [{ message_id: 1, data: { stat_data: { hp: 9 } } }], 0, '')
   assert.equal(gate.complete('session', offer.event.id, [1], 'browser', offer.leaseToken), true)
   await resumed
   assert.equal(run.get().messages[1].variables[0].stat_data.hp, 9)

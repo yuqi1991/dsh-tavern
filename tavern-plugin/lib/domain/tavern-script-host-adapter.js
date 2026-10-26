@@ -138,10 +138,10 @@ export function createTavernScriptHostAdapter(options = {}) {
 
   function assertTransactionEvent(transaction, eventId) {
     const id = str(eventId)
-    if (transaction !== undefined && transaction.eventId !== id) {
-      const error = new Error(id === ''
-        ? '脚本异步写入未携带当前 MVU 结算事件身份，已拒绝'
-        : '脚本写入不属于当前 MVU 结算事件')
+    // Scripts lose the event identity after an await or timer. SillyTavern applies
+    // such writes to the current state, so they join the running settlement too.
+    if (transaction !== undefined && id !== '' && transaction.eventId !== id) {
+      const error = new Error('脚本写入不属于当前 MVU 结算事件')
       error.code = 'MVU_SETTLEMENT_EVENT_MISMATCH'
       throw error
     }

@@ -277,6 +277,31 @@ export function normalizeMvuToolSubmission(value) {
   }
 }
 
+function valueKind(value) {
+  return Array.isArray(value) ? '列表' : value !== null && typeof value === 'object' ? '对象' : typeof value === 'number' ? '数字' : typeof value === 'boolean' ? '布尔值' : value === null ? '空值' : '文本'
+}
+// A replace that changes a field's shape (list <-> text <-> object) makes MVU's
+// schema diverge and the card's view mis-render. Let the agent fix it and retry.
+function assertMvuValueKinds(operations, variables) {
+  const root = object(variables)
+  for (const [index, operation] of operations.entries()) {
+    if (operation.op !== 'replace') continue
+    const keys = operation.path.split('/').slice(1).map(key => key.replace(/~1/g, '/').replace(/~0/g, '~'))
+    let target = keys[0] === 'stat_data' ? root : object(root.stat_data)
+    let found = true
+    for (const key of keys) {
+      if (target === null || typeof target !== 'object' || !Object.hasOwn(target, key)) { found = false; break }
+      target = target[key]
+    }
+    if (!found || target === null) continue
+    const before = valueKind(target), after = valueKind(operation.value)
+    const numericText = before === '数字' && after === '文本' || before === '文本' && after === '数字'
+    if (before !== after && !numericText) {
+      throw new Error('变量操作 #' + (index + 1) + ' 类型不一致：' + operation.path + ' 当前是' + before + '，提交的是' + after + '；请按原类型提交（列表用 JSON 数组）')
+    }
+  }
+}
+
 function resolveMvuValueMacros(value, input) {
   if (typeof value === 'string') {
     return resolveRuntimeMacroText(value, {
@@ -539,6 +564,7 @@ export function createMvuSettlementModule(options = {}) {
       try {
         if (!call || call.name !== MVU_SUBMIT_UPDATE_TOOL_NAME) throw new Error('后台 Agent 调用了未授权的变量工具')
         submission = resolveMvuSubmissionMacros(normalizeMvuToolSubmission(call.arguments), input)
+        assertMvuValueKinds(submission.operations, input.currentVariables)
         if (feedback && submission.operations.length === 0) throw new Error('上一批更新未通过校验，请修正完整 operations，不能用空数组跳过失败')
       } catch (error) {
         await record('submission-rejected', { error: error.message, argumentKeys: Object.keys(object(call?.arguments)), operations: object(call?.arguments).operations })
