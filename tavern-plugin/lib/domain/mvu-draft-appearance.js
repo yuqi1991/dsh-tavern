@@ -5,7 +5,14 @@ export function patchDraftAppearance(draft,values) {
   if(!values || typeof values!=='object' || Array.isArray(values))fail('appearance values 必须是外观方案或 {replacements:[{expected,value}]}')
   if(!Object.hasOwn(values,'replacements')) {
     if(Object.hasOwn(values,'html')&&typeof values.html!=='string')fail('html 必须是字符串；读取回执的 text 才是 HTML 内容')
-    return structuredClone(values)
+    const plan=structuredClone(values)
+    // Path strings are the natural shorthand; normalize before anything reads item.path.
+    if(Object.hasOwn(plan,'fields')) {
+      if(!Array.isArray(plan.fields))fail('fields 必须是数组，例如 ["/地点"] 或 [{path:"/地点",label:"地点",display:"text"}]')
+      plan.fields=plan.fields.map(item=>typeof item==='string'?{path:item}:item)
+      for(const item of plan.fields)if(!item||typeof item!=='object'||Array.isArray(item)||typeof item.path!=='string'||!item.path.startsWith('/')||Object.keys(item).some(key=>!['path','label','display'].includes(key)))fail('fields 每项是根路径字符串或 {path,label,display}')
+    }
+    return plan
   }
   if(Object.keys(values).some(key=>key!=='replacements'))fail('局部替换只传 replacements；绑定由已有方案与 mvu-field 组件生成')
   const plan=draft.definition.appearance
