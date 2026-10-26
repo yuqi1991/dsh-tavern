@@ -539,18 +539,14 @@ test('服务重启后迟到的 MVU 事件不能越过已消失的草稿直接写
   assert.equal(h.writes.length, 0)
 })
 
-test('结算事务打开期间，空 eventId 写入给出可操作的错配提示', async () => {
+test('结算事务打开期间，脚本无事件身份的写入并入当前结算，不再报错配', async () => {
   let adapter
-  let sawEmpty = false
+  let emptyRejected = false
   const run = harness(chat(), {
     scriptDispatch: {
       async dispatch(_session, _name, _args, _context, work) {
-        try {
-          await adapter.updateVariables('session-1', { type: 'message', message_id: 0 }, { hp: 1 }, 2, '')
-        } catch (error) {
-          sawEmpty = error.code === 'MVU_SETTLEMENT_EVENT_MISMATCH'
-          assert.match(error.message, /未携带当前 MVU 结算事件身份/)
-        }
+        try { await adapter.updateVariables('session-1', { type: 'message', message_id: 0 }, { hp: 1 }, 2, '') }
+        catch (error) { emptyRejected = true }
         await adapter.updateVariables('session-1', { type: 'message', message_id: 0 }, { hp: 9 }, 2, work.eventId)
         return { handled: true }
       }
@@ -561,12 +557,10 @@ test('结算事务打开期间，空 eventId 写入给出可操作的错配提�
     operationId: 'empty-id', sessionId: 'session-1', messageId: 0, swipeId: 0,
     expectedLifecycleRevision: 2, command: '<UpdateVariable/>'
   })
-  assert.equal(sawEmpty, true)
+  assert.equal(emptyRejected, false)
   assert.equal(result.updated, true)
   assert.ok(result.mutations >= 1)
 })
-
-
 
 test('已有普通事件执行时，MVU 延后领取事务，不拒绝该事件的合法写入', async t => {
   const dispatch = createTavernScriptDispatch({ timeoutMs: 5000 })

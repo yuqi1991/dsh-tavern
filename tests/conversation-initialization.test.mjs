@@ -186,7 +186,7 @@ test('新游戏后台默认跟随前台且结算开关独立，不继承旧全�
   const created = await fixed.make().start(fixed.input)
   assert.equal(created.backgroundModelSelection, null)
   assert.equal(created.backgroundConfigVersion, 1)
-  assert.deepEqual(created.backgroundTasks, { variables: true, posture: true, characterDesign: false, ledger: false })
+  assert.deepEqual(created.backgroundTasks, { variables: true, posture: true, characterDesign: false, ledger: false, variableFeedback: true })
   fixed.state.settings.backgroundModel.reasoningEffort = 'low'
   assert.equal((await fixed.make().start(fixed.input)).backgroundModelSelection, null)
   assert.equal((await fixed.make().start({ ...fixed.input, cardPath: '', mode: 'card' })).backgroundModelSelection, null)
