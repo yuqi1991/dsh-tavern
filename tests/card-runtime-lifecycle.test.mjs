@@ -139,6 +139,15 @@ function execution(options = {}) {
   })
 }
 
+const announcementDelays = [1500, 4000, 9000]
+const announcementTimers = h => [...h.timers.entries()].filter(([, timer]) => announcementDelays.includes(timer.delay))
+function runAnnouncement(h, delay) {
+  const entry = announcementTimers(h).find(([, timer]) => timer.delay === delay)
+  assert.ok(entry, `no pending chat announcement timer for ${delay}ms`)
+  h.timers.delete(entry[0])
+  return entry[1].run()
+}
+
 test('coordination subscription performs an authoritative initial refresh when a restart signal was lost', async () => {
   const h = host()
   const states = []
@@ -228,6 +237,41 @@ test('script readiness without a chat identity never cancels MVU initialization 
   await h.runtimes[0].options.onReady('A')
   assert.equal(h.runtimes[0].emissions.length, 0)
   h.module.dispose()
+})
+
+test('初始变量尚未保存时重发 CHAT_CHANGED，让卡脚本重跑聊天级初始化且重发有界', async () => {
+  const h = execution(), input = view()
+  h.module.sync('A', input)
+  await h.settle()
+  await h.runtimes[0].options.onReady('A')
+  assert.equal(h.runtimes[0].emissions.length, 1, 'readiness announces the chat once')
+
+  h.runtimes[0].options.onMvuLoadState({ phase: 'evaluating' })
+  for (const [index, delay] of [1500, 4000, 9000].entries()) {
+    runAnnouncement(h, delay)
+    await h.settle()
+    const emitted = h.runtimes[0].emissions.slice(-2)
+    assert.equal(emitted.length, 2, `retry ${index + 1} announces twice`)
+    assert.deepEqual(copy(emitted[0][1]), [''], 'the forced retry first announces an identity MVU cannot adopt')
+    assert.deepEqual(copy(emitted[1][1]), ['tavern-chat'], 'the forced retry then announces the Tavern chat')
+    assert.equal(h.runtimes[0].emissions.length, index * 2 + 3, `retry ${index + 1} re-initializes the chat once`)
+  }
+  assert.equal(announcementTimers(h).length, 0, 'retries stop after the bounded schedule')
+  h.module.dispose()
+})
+
+test('初始变量保存后不再重发 CHAT_CHANGED', async () => {
+  const h = execution(), input = view()
+  h.module.sync('A', input)
+  await h.settle()
+  await h.runtimes[0].options.onReady('A')
+  h.runtimes[0].options.onMvuLoadState({ phase: 'evaluating' })
+  assert.equal(announcementTimers(h).length, 1, 'a missing initial variable schedules one retry')
+  h.runtimes[0].options.onMvuLoadState({ phase: 'ready' })
+  assert.equal(announcementTimers(h).length, 0, 'saved initial variables cancel the pending retry')
+  h.runtimes[0].options.onMvuLoadState({ phase: 'evaluating' })
+  h.module.dispose()
+  assert.equal(announcementTimers(h).length, 0, 'disposal cancels the retry')
 })
 
 test('A -> B -> A rejects late claims/readiness and uses distinct leases', async () => {
