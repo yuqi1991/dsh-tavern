@@ -34,7 +34,7 @@ export function registerMvuConversionTools({ tools, defineTool, conversion, chat
       appearanceRequirement:{type:'string',enum:['custom','preserve','basic'],description:'begin：无原美化默认 custom（需 HTML 设计）；有原美化默认 preserve。basic 仅用户要求简单面板或已说明的设计回退'},
       basicReason:{type:'string',description:'选择 basic 时必填的依据'},
       section:{type:'string',enum:['fields','opening','rules','appearance','mapping','cleanup','requirements','review']},
-      values:{type:'json',description:'fields/opening：JSON Pointer 到值的对象，如 {"/时间":{"时段":"白天"}}；rules：分组名到规则文本，空文本删除该组；appearance：可传 {replacements:[{expected,value}]} 局部修改草稿 HTML；新增字段用 mvu-field 组件，工具自动分配捕获与绑定；也可提交完整 HTML/fields 或 sourcePath/bindings 方案；mapping：sourceFields/fieldMappings 数组；cleanup：完整清理数组；requirements：appearanceRequirement/basicReason，仅明确改变美化要求时使用；review：sourceCoverage/cleanup/appearance 布尔确认。未提交的分组保留'},
+      values:{type:'json',description:'fields/opening：JSON Pointer 到值的对象，如 {"/时间":{"时段":"白天"}}；rules：分组名到规则文本，空文本删除该组；appearance：可传 {replacements:[{expected,value}]} 局部修改草稿 HTML；新增字段用 mvu-field 组件，工具自动分配捕获与绑定；也可提交完整 HTML/fields 或 sourcePath/bindings 方案；脚本型原视图（单个 $1 文本由原脚本解析）提交 {sourcePath,protocol:{capture:1,template:"原协议文本，值写 {{/路径}}"}}；mapping：sourceFields/fieldMappings 数组；cleanup：完整清理数组；requirements：appearanceRequirement/basicReason，仅明确改变美化要求时使用；review：sourceCoverage/cleanup/appearance 布尔确认。未提交的分组保留'},
       openingId:{type:'string',description:'opening-0 对应 first_mes，后续按 alternate_greetings 顺序；以工具返回 ID 为准'},
       inheritInitialState:{type:'boolean',description:'opening 显式从底稿仅补缺失字段，保留已有开场值，再应用 values；新增字段也可用此操作同步'},
       operation:{type:'string',enum:['set','merge','replace','move','remove'],description:'fields/opening 默认 set：替换所选路径的值；merge：递归合并对象，null 是值；replace 同 set。fields 专用 move/remove：传 path（move 另传 toPath），同步各开场与结构化绑定；删除仍有引用的字段会拦截'},
@@ -97,6 +97,7 @@ export function registerMvuConversionTools({ tools, defineTool, conversion, chat
         sourcePath: { type:'string', description:'inspect.appearanceSources 返回的 replaceString 路径' },
         collectionPath: {type:'string',description:'多人面板集合路径，如 /人物；所有 bindings.path 相对于成员（如 /姓名），不能混入顶层 /时间。省略时所有路径相对于整个初值。'},
         html:{type:'string',description:'无原美化时使用的 HTML，可含命名 mvu-field 组件。'},
+        protocol:{type:'object',additionalProperties:false,description:'脚本型原视图：保留原视图全部字节，用变量按原状态协议生成捕获文本。',properties:{capture:{type:'number',required:true},template:{type:'string',required:true,description:'原协议文本，字段值写 {{/路径}}'}}},
         fields:{type:'array',items:{type:'object',additionalProperties:false,properties:{path:{type:'string',required:true},label:{type:'string'},display:{type:'string',enum:['text','list']}}}},
         bindings: { type:'array', items:{type:'object',additionalProperties:false,properties:{
           capture:{type:'number',required:true,description:'原视图 $1/$2 的捕获编号'},

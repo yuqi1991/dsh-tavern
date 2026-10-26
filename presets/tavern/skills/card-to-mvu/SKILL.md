@@ -36,7 +36,7 @@ begin 会选中当前草稿，后续省略 draft，工具按会话记住已读�
 
 `patch section=appearance` 保存完整外观方案，不重传状态、开场和规则。之后修改其他分组会保留这份设计。
 
-有原美化时传 `sourcePath` 与 `bindings`，路径来自 begin 的 appearanceSources；工具从来源固化 HTML/CSS。复杂脚本不被支持时报告具体适配缺口，不能删除原美化。无原美化时按题材、时代和氛围设计 HTML/CSS，使用 `<mvu-field path="/地点/名称"></mvu-field>` 自动编号，数组用 `display="list"`；外层已有标签时省略组件 label。字段覆盖完整，兼顾窄屏与长文本。仅基础面板使用 `fields`。
+有原美化时传 `sourcePath` 与 `bindings`，路径来自 begin 的 appearanceSources；工具从来源固化 HTML/CSS。原视图带脚本、只有一个捕获文本（如隐藏 textarea 里的 `$1` 由脚本解析 `[标签|值|…]`）时，改传 `protocol`：按原卡状态协议（通常在【状态栏】类世界书条目或规则里）原样写出全部标签，值换成 `{{/路径}}`，工具保留原视图全部字节并用变量生成这段文本。不得删除原美化、另做不含美化的来源副本或改用重设计面板来绕过；确实无法适配时报告具体缺口。无原美化时按题材、时代和氛围设计 HTML/CSS，使用 `<mvu-field path="/地点/名称"></mvu-field>` 自动编号，数组用 `display="list"`；外层已有标签时省略组件 label。字段覆盖完整，兼顾窄屏与长文本。仅基础面板使用 `fields`。
 
 多人重复面板、原视图捕获绑定或复杂清理参数需要时读取 [转换参数与边界](references/mvu-recipe.md)。标签使用静态文本，状态通过绑定读取；不接受自定义 JavaScript、事件属性、EJS 或动态属性。
 

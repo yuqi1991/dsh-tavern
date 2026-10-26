@@ -107,6 +107,7 @@ function references(definition,visit) {
     if(before!==after)appearance.collectionPath=after
     // Relative bindings inside collections require per-item semantic decisions.
   }else for(const item of appearance.bindings||[])item.path=visit(item.path)
+  if(typeof appearance.protocol?.template==='string')appearance.protocol.template=appearance.protocol.template.replace(/\{\{\s*(\/[^{}]*?)\s*\}\}/g,(match,path)=>{const after=visit(path);return after===path?match:'{{'+after+'}}'})
   for(const item of appearance.fields||[])item.path=visit(item.path)
   if(typeof appearance.html==='string'&&/<mvu-field\b/i.test(appearance.html)){
     const dom=new JSDOM(appearance.html)

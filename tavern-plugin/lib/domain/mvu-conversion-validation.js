@@ -22,6 +22,9 @@ async function simulatePanel(html, initialState, frozen = false) {
   })
   const text = () => {
     if (!frozen) return w.document.querySelector('#values').textContent
+    // Protocol views hand the filled original document to a child frame; the
+    // card's own scripts are not executed here, only the host-filled input.
+    if (frozen.protocol) { const frame = [...w.document.querySelectorAll('iframe[data-dsh-mvu-protocol]')].at(-1); return frame ? String(frame.srcdoc ?? frame.getAttribute('srcdoc') ?? '') : '' }
     const walker = w.document.createTreeWalker(w.document.body,w.NodeFilter.SHOW_TEXT)
     let node, result = ''
     while ((node=walker.nextNode())) if (!['SCRIPT','STYLE'].includes(node.parentElement?.tagName)) result += node.nodeValue
@@ -131,6 +134,7 @@ export async function validateMvuConversion(data) {
   })
   if (trusted) await check('templateSimulation', async () => {
     for (const state of meta.openingStates || [meta.initialState]) await simulatePanel(expected.statusHtml, state, meta.frozenAppearance)
+    if (meta.frozenAppearance?.protocol) return '原视图按卡片状态协议填入变量文本，模拟初值、更新及恢复后重新生成；原卡脚本未在此执行'
     return meta.frozenAppearance ? (meta.frozenAppearance.generated ? '生成视图' : '原视图') + '在 DOM 中显示初值、更新及恢复，保留折叠交互状态' : '固定 HTML 在 DOM 中显示初值，模拟更新及恢复事件后重读最新变量'
   })
   const limitations = ['真实模型后台提交与官方 MVU 结算', '浏览器布局、字号与实际会话切换', '原卡复杂脚本、活动预设/全局正则及剧情语义']

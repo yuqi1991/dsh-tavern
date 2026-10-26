@@ -4,13 +4,27 @@ import { JSDOM } from 'jsdom'
 
 const hash = text => createHash('sha256').update(text).digest('hex')
 const capturePattern = /\$([1-9]\d?)/g
+const protocolPlaceholder = /\{\{\s*(\/[^{}]*?)\s*\}\}/g
+// A state view renders captured state ($1, $2…). Decoration without captures (an
+// opening page, a banner) shows no state: it stays untouched and is no status skin.
 export function appearanceSources(data) {
   return (data.extensions?.regex_scripts || []).flatMap((rule, index) => {
     const html = String(rule.replaceString || '')
     if (!/<(?:html|style|div|details|table|section|main|script|iframe|p|span|h[1-6]|ul|ol|dl|svg)\b/i.test(html)) return []
+    const captures = [...new Set([...html.matchAll(capturePattern)].map(m => Number(m[1])))].sort((a,b)=>a-b)
+    if (!captures.length) return []
     return [{ path: `/extensions/regex_scripts/${index}/replaceString`, name: rule.scriptName || rule.id || String(index), enabled: rule.disabled !== true && rule.enabled !== false,
-      digest: hash(html), captures: [...new Set([...html.matchAll(capturePattern)].map(m => Number(m[1])))].sort((a,b)=>a-b) }]
+      digest: hash(html), captures, scripted: /<script\b|\son[a-z]+\s*=/i.test(html) }]
   })
+}
+export function protocolPaths(template) {
+  return [...String(template).matchAll(protocolPlaceholder)].map(match => match[1])
+}
+// Every variable path an appearance plan displays, whatever its mode.
+export function appearancePaths(plan) {
+  if (!plan) return []
+  if (plan.protocol) return protocolPaths(plan.protocol.template)
+  return (plan.bindings || []).map(binding => binding.path)
 }
 
 // Read source bytes ourselves. Model input is a source pointer plus data bindings,
@@ -25,6 +39,7 @@ export function freezeMvuAppearance(data, plan) {
     return {...frozen,sourcePath:null,generated:true}
   }
 
+  if (plan && typeof plan === 'object' && Object.hasOwn(plan, 'protocol')) return freezeProtocolAppearance(data, plan)
   if (!plan || typeof plan !== 'object' || Object.keys(plan).some(k => !['sourcePath','bindings','collectionPath'].includes(k))) throw Error('美化方案只接受 sourcePath 和 bindings，不接受模型重写 HTML')
   const entry = appearanceSources(data).find(x => x.path === plan.sourcePath)
   if (!entry) throw Error('美化来源不存在，请从 inspect.appearanceSources 选择')
@@ -66,8 +81,84 @@ export function freezeMvuAppearance(data, plan) {
   } finally { dom.window.close() }
 }
 
+// Script-driven views parse one captured text block (e.g. "[Stats|80|35]") with
+// their own JS. Keep every original byte and feed that capture with text the tool
+// renders from MVU variables in the card's own protocol.
+function freezeProtocolAppearance(data, plan) {
+  if (Object.keys(plan).some(key => !['sourcePath','protocol'].includes(key))) throw Error('协议适配只接受 sourcePath 和 protocol')
+  const protocol = plan.protocol
+  if (!protocol || typeof protocol !== 'object' || Object.keys(protocol).some(key => !['capture','template'].includes(key))) throw Error('protocol 只接受 capture 和 template')
+  const entry = appearanceSources(data).find(x => x.path === plan.sourcePath)
+  if (!entry) throw Error('美化来源不存在，请从 inspect.appearanceSources 选择')
+  const source = data.extensions.regex_scripts[Number(plan.sourcePath.split('/')[3])].replaceString
+  const fenced = source.trim().match(/^```html\s*\n([\s\S]*?)\n```$/i)
+  const html = fenced ? fenced[1] : source
+  if (!Number.isInteger(protocol.capture) || !entry.captures.includes(protocol.capture)) throw Error('protocol.capture 必须是原视图中的捕获编号: ' + entry.captures.map(n => '$' + n).join('、'))
+  if (entry.captures.length !== 1) throw Error('协议适配要求原视图只有一个捕获文本；多个捕获请用 bindings 固化')
+  const outside = outsideScripts(html)
+  if (!new RegExp('\\$' + protocol.capture + '(?!\\d)').test(outside)) throw Error('原视图的捕获只出现在脚本内，无法作为面板文本输入')
+  if (typeof protocol.template !== 'string' || !protocol.template.trim()) throw Error('protocol.template 必须是原卡状态协议文本，字段写作 {{/路径}}')
+  const paths = protocolPaths(protocol.template)
+  if (!paths.length) throw Error('protocol.template 没有 {{/路径}} 字段占位')
+  const dom = new JSDOM(html)
+  try {
+    if (dom.window.document.querySelector('iframe,object,embed,base,meta[http-equiv]')) throw Error('美化包含嵌入文档，需专门适配；原视图保留，不自动删除')
+  } finally { dom.window.close() }
+  return { version:1, sourcePath:entry.path, sourceDigest:entry.digest, html, htmlDigest:hash(html), protocol:{ capture:protocol.capture, template:protocol.template } }
+}
+function outsideScripts(html) {
+  return html.replace(/<script\b[\s\S]*?<\/script\s*>/gi, '')
+}
+
+// The original view runs in a fresh child document per render: its scripts expect
+// to run once, against a filled capture, in their own global scope.
+function renderProtocolAppearance(frozen, pointerKeys, initialState) {
+  const paths = protocolPaths(frozen.protocol.template).map(path => {
+    const keys = pointerKeys(path)
+    let value = initialState
+    for (const key of keys) {
+      if (value == null || !Object.hasOwn(value, key)) throw Error('美化变量路径不存在: ' + path)
+      value = value[key]
+    }
+    return [path, keys]
+  })
+  const literal = value => JSON.stringify(value).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/\$/g,'\\u0024').replace(/`/g,'\\u0060').replace(/\{\{/g,'\\u007b\\u007b').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029')
+  return `<div data-dsh-mvu-protocol-host></div>
+<script data-dsh-frozen-mvu>
+(function(){
+const source=${literal(frozen.html)};
+const template=${literal(frozen.protocol.template)};
+const capture=new RegExp(${literal('\\$' + frozen.protocol.capture + '(?!\\d)')},'g');
+const paths=new Map(${literal(paths)});
+const placeholder=new RegExp(${literal('\\{\\{\\s*(\\/[^{}]*?)\\s*\\}\\}')},'g');
+function format(value){if(value==null)return'';if(Array.isArray(value))return value.map(format).join('|');if(typeof value==='object')return Object.keys(value).filter(key=>!key.startsWith('\\u0024')&&!key.startsWith('__')).map(key=>format(value[key])).join('|');return String(value);}
+function protocolText(state){return template.replace(placeholder,(_,path)=>{let value=state;for(const key of paths.get(path)||[])value=value!=null&&Object.prototype.hasOwnProperty.call(value,key)?value[key]:undefined;return format(value);});}
+function escapeHtml(text){return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fill(text){const filled=escapeHtml(text);return source.split(/(<script\\b[\\s\\S]*?<\\/script\\s*>)/i).map((part,index)=>index%2?part:part.replace(capture,()=>filled)).join('');}
+const host=document.querySelector('[data-dsh-mvu-protocol-host]');let frame=null,last=null,observer=null;
+function size(){try{const doc=frame&&frame.contentDocument;if(!doc||!doc.documentElement)return;const body=doc.body;if(!body)return;const style=getComputedStyle(body);frame.style.height=Math.ceil(Math.max(body.scrollHeight,body.getBoundingClientRect().height)+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0))+'px';}catch(_){}}
+function render(){const state=Mvu.getMvuData({type:'message',message_id:'latest'}).stat_data;const text=protocolText(state);if(text===last)return;last=text;
+const previous=frame,next=document.createElement('iframe');next.setAttribute('data-dsh-mvu-protocol','');
+next.style.cssText='display:block;width:100%;border:0;overflow:hidden'+(previous?';position:absolute;left:0;top:0;visibility:hidden':'');
+next.addEventListener('load',()=>{if(frame!==next)return;
+// Swap only once the new view is ready, keeping which sections the player had open.
+try{const before=previous&&previous.contentDocument?[...previous.contentDocument.querySelectorAll('details')].map(item=>item.open):[];const after=[...next.contentDocument.querySelectorAll('details')];before.forEach((open,index)=>{if(after[index])after[index].open=open;});}catch(_){}
+for(const item of [...host.querySelectorAll('iframe[data-dsh-mvu-protocol]')])if(item!==next)item.remove();if(previous){next.style.position='';next.style.left='';next.style.top='';next.style.visibility='';}
+if(observer)observer.disconnect();size();try{observer=new ResizeObserver(size);observer.observe(next.contentDocument.documentElement);}catch(_){}});
+host.style.position='relative';next.srcdoc=fill(text);host.appendChild(next);frame=next;}
+async function start(){await waitGlobalInitialized('Mvu');for(const event of new Set([Mvu.events.VARIABLE_INITIALIZED,Mvu.events.VARIABLE_UPDATE_ENDED,...Object.values(tavern_events)]))eventOn(event,render);render();}
+start().catch(error=>{console.error('MVU 原样式状态更新失败',error);});
+})();
+</script>`
+}
+
 export function renderFrozenAppearance(frozen, pointerKeys, initialState) {
   if (frozen.version !== 1 || hash(frozen.html) !== frozen.htmlDigest) throw Error('固化美化内容指纹不匹配')
+  if (frozen.protocol) {
+    // Revalidate persisted metadata, then render without touching the original bytes.
+    freezeProtocolAppearance({extensions:{regex_scripts:[{replaceString:frozen.html}]}}, {sourcePath:'/extensions/regex_scripts/0/replaceString',protocol:frozen.protocol})
+    return renderProtocolAppearance(frozen, pointerKeys, initialState)
+  }
   // Revalidate persisted metadata before the validator executes the host binder.
   freezeMvuAppearance({extensions:{regex_scripts:[{replaceString:frozen.html}]}}, {sourcePath:'/extensions/regex_scripts/0/replaceString',bindings:frozen.bindings,...(frozen.collectionPath?{collectionPath:frozen.collectionPath}:{})})
   let examples = [initialState]

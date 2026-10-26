@@ -585,3 +585,33 @@ test('基础面板 fields 可直接写根路径字符串；删字段与提交不
  await f.patch('review',{sourceCoverage:true,cleanup:true,appearance:true})
  assert.equal((await f.conversion.draft(f.commitArgs())).receipt.validation.valid,true)
 })
+
+test('脚本型原状态栏走协议适配：原视图字节保留，捕获文本由变量按原协议生成；无捕获的开场美化不算状态栏',async t=>{
+ const panel='```html\n<!DOCTYPE html><html><body><details><summary>面板</summary><textarea class="raw" hidden>$1</textarea><div id="v" onclick="flip()"></div></details><script>function flip(){}const raw=document.querySelector(".raw").value;document.getElementById("v").textContent=raw.replace(/\\[(\\w+)\\|/g,"$1:")</script></body></html>\n```'
+ const home='<div class="home" onclick="go()">主页</div><script>function go(){}</script>'
+ const f=await fixture(t,{card:{first_mes:'【主页】',alternate_greetings:['车站开场'],extensions:{regex_scripts:[
+  {id:'home',scriptName:'开场',findRegex:'/【主页】/',replaceString:home,placement:[2],markdownOnly:true},
+  {id:'panel',scriptName:'面板',findRegex:'/<st>([\\s\\S]*?)<\\/st>/',replaceString:panel,placement:[2],markdownOnly:true}]}}})
+ assert.equal(f.current.progress.appearanceRequirement,'preserve')
+ assert.deepEqual(f.current.appearanceSources.map(x=>x.path),['/extensions/regex_scripts/1/replaceString'])
+ await f.patch('fields',{'/位置':'','/待办':[]})
+ await f.patch('opening',undefined,{openingId:'opening-0',inheritInitialState:true})
+ await f.patch('opening',{'/位置':'车站','/待办':['买票']},{openingId:'opening-1'})
+ await f.patch('rules',{位置:'只根据正文移动更新'})
+ await assert.rejects(f.patch('appearance',{sourcePath:'/extensions/regex_scripts/1/replaceString',bindings:[{capture:1,path:'/位置'}]}).then(()=>f.conversion.draft(f.commitArgs())),/自定义脚本|未通过/)
+ await f.patch('appearance',{sourcePath:'/extensions/regex_scripts/1/replaceString',protocol:{capture:1,template:'[Basic|{{/位置}}]'}})
+ assert.ok(f.current.missing.some(x=>x.code==='DRAFT_APPEARANCE_FIELDS'&&x.missingPaths.includes('/待办')))
+ await f.patch('appearance',{sourcePath:'/extensions/regex_scripts/1/replaceString',protocol:{capture:1,template:'[Basic|{{/位置}}]\n[ToDo|{{/待办}}]'}})
+ await f.patch('fields',undefined,{operation:'move',path:'/位置',toPath:'/场景/位置'})
+ assert.equal((await draftValue(f,['definition','appearance'])).protocol.template,'[Basic|{{/场景/位置}}]\n[ToDo|{{/待办}}]')
+ await f.patch('cleanup',[{op:'remove',path:'/extensions/regex_scripts/1'}])
+ await f.patch('review',{sourceCoverage:true,cleanup:true,appearance:true})
+ const result=await f.conversion.draft(f.commitArgs())
+ assert.equal(result.receipt.validation.valid,true,JSON.stringify(result.receipt.validation.checks.filter(x=>x.status!=='passed')))
+ const data=cardData(await f.resources.readCard(result.targetPath))
+ const meta=data.extensions.dsh_mvu_conversion
+ assert.equal(meta.frozenAppearance.html,panel.slice(8,-4))
+ assert.ok(data.extensions.regex_scripts.some(rule=>rule.id==='home'&&rule.replaceString===home),'无捕获的开场美化原样保留')
+ const view=data.extensions.regex_scripts.find(rule=>rule.id==='dsh-mvu-status-view').replaceString
+ assert.doesNotMatch(view,/\$/);assert.match(view,/data-dsh-mvu-protocol-host/)
+})

@@ -1,6 +1,6 @@
 import { compileMvuComponents } from './mvu-conversion-components.js'
 import { appearanceCoverageError, conversionInputError } from './mvu-conversion-guidance.js'
-import { appearanceSources } from './mvu-conversion-appearance.js'
+import { appearanceSources, appearancePaths } from './mvu-conversion-appearance.js'
 import { createHash } from 'node:crypto'
 import {fieldPaths} from './mvu-draft-fields.js'
 import { isDeepStrictEqual } from 'node:util'
@@ -91,7 +91,8 @@ export function createDefinition(source,args) {
   }
   for (const mapping of mappings) {
     let visible
-    if (args.appearance) {
+    if (args.appearance?.protocol) visible=appearancePaths(args.appearance).some(path=>mapping.path===path||mapping.path.startsWith(path+'/'))
+    else if (args.appearance) {
       const prefix=args.appearance.collectionPath
       visible=args.appearance.bindings.some(binding=>{
         if(!prefix)return binding.path===mapping.path
@@ -116,6 +117,18 @@ export function createDefinition(source,args) {
       })) missingPaths.add(field.path)
     }
     if (missingPaths.size) throw appearanceCoverageError([...missingPaths],args.appearance.collectionPath)
+  }
+  if (args.appearance?.protocol) {
+    // The original view only sees what the protocol text carries.
+    const shown=appearancePaths(args.appearance).map(pointerKeys)
+    const missingPaths=new Set()
+    for (const state of states) for (const field of leaves(state)) {
+      const keys=pointerKeys(field.path)
+      if(keys.some(key=>key.startsWith('$') || key.startsWith('__'))) continue
+      if(!shown.some(bound=>bound.length<=keys.length && bound.every((key,i)=>keys[i]===key))) missingPaths.add(field.path)
+    }
+    for (const path of appearancePaths(args.appearance)) for (const state of states) atPath(state,path)
+    if (missingPaths.size) throw conversionInputError('MVU_APPEARANCE_MISSING_FIELDS','协议文本遗漏已定义字段: '+[...missingPaths][0],{field:'protocol.template',missingPaths:[...missingPaths],hint:'在 protocol.template 中按原卡状态协议的位置补上 {{/路径}}；不要删除字段来通过校验。'})
   }
   if (mappings.some(m=>!inventory.some(i=>i.id===m.sourceId))) throw Error('fieldMappings 包含未知来源字段')
   return {version:1,sourcePath:source.sourcePath,sourceRevision:source.revision,
