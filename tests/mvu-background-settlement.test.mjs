@@ -416,7 +416,7 @@ test('本局 Guide 进入变量结算上下文，空 Guide 不占位', function 
   const base = { operationId: 'guide-1', chatId: 'chat', branchId: 'main', basedOnRevision: 1, messageId: 1, swipeId: 0, storyText: '正文' }
   const request = projectMvuBackgroundRequest(createMvuBackgroundTaskFrame({ ...base, guides: [{ id: 'a', text: ' 好感度涨得慢一点 ' }, { id: 'b', text: '' }] }))
   assert.match(request.turnContext, /【玩家 Guide · 持续生效】/)
-  assert.match(request.turnContext, /1\. 好感度涨得慢一点\n/)
+  assert.match(request.turnContext, /1\. 好感度涨得慢一点(\n|$)/)
   assert.doesNotMatch(request.turnContext, /2\. /)
   assert.match(request.system, /只根据【正文】中已经确认发生的事实结算变量/)
   assert.doesNotMatch(projectMvuBackgroundRequest(createMvuBackgroundTaskFrame(base)).turnContext, /Guide/)

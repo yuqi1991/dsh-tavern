@@ -451,7 +451,11 @@ export function projectMvuBackgroundRequest(frame) {
       content: [{ type: 'text', text: str(output.storyText) }],
       source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'mvu-final-story' }
     }],
+    // Stable schema and rules precede the per-turn snapshot so the shared background prefix stays cacheable.
     turnContext: [
+      '【变量结构】',
+      JSON.stringify(state.variableSchema || {}),
+      ...(updateRules.length === 0 ? [] : ['【人物卡变量更新规则】', updateRules.join('\n\n')]),
       '【当前变量快照】',
       JSON.stringify(promptVariables(state.currentVariables)),
       ...(rules.helperContext?.length ? ['【本轮人物卡 Helper 交接】',
@@ -461,9 +465,6 @@ export function projectMvuBackgroundRequest(frame) {
         '玩家对本局的持续要求。结算时遵循其中关于变量取向、数值尺度和状态变化的要求；不得据此制造正文未发生的事件。',
         ...rules.guides.map((text, index) => (index + 1) + '. ' + text)] : []),
       ...(rules.guidance ? ['【本次重新结算的指导意见（仅本次有效）】', str(rules.guidance)] : []),
-      '【变量结构】',
-      JSON.stringify(state.variableSchema || {}),
-      ...(updateRules.length === 0 ? [] : ['【人物卡变量更新规则】', updateRules.join('\n\n')]),
       ...(tasks.characterDesign ? ['【人物设计（按需）】',
       '若本轮出现值得长期保留的重要人物，可先调用 skill 加载 character-design，再按 Skill 读取或保存人物档案。人物设计独立保存，不属于 MVU operations。'] : [])
     ].join('\n'),
