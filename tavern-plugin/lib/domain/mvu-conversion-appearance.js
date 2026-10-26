@@ -135,14 +135,23 @@ function format(value){if(value==null)return'';if(Array.isArray(value))return va
 function protocolText(state){return template.replace(placeholder,(_,path)=>{let value=state;for(const key of paths.get(path)||[])value=value!=null&&Object.prototype.hasOwnProperty.call(value,key)?value[key]:undefined;return format(value);});}
 function escapeHtml(text){return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fill(text){const filled=escapeHtml(text);return source.split(/(<script\\b[\\s\\S]*?<\\/script\\s*>)/i).map((part,index)=>index%2?part:part.replace(capture,()=>filled)).join('');}
-const host=document.querySelector('[data-dsh-mvu-protocol-host]');let frame=null,last=null,observer=null;
+const host=document.querySelector('[data-dsh-mvu-protocol-host]');let frame=null,last=null,observer=null,replaying=false;
+// The view keeps UI state (tab, flipped cards, open sections) in its own JS. A new
+// document starts fresh, so replay the player's clicks on it to land where they were.
+const clicks=[];
+function pathOf(node,root){const path=[];while(node&&node!==root){const parent=node.parentElement;if(!parent)return null;path.unshift([...parent.children].indexOf(node));node=parent;}return node===root?path:null;}
+function nodeAt(root,path){let node=root;for(const index of path){node=node&&node.children[index];}return node||null;}
+function record(doc){doc.addEventListener('click',event=>{if(replaying||!event.isTrusted)return;const path=pathOf(event.target,doc.body);if(path)clicks.push(path);if(clicks.length>200)clicks.splice(0,clicks.length-200);},true);}
+// Let each click's queued effects (e.g. a details toggle handler) run before the next.
+async function replay(doc){replaying=true;try{for(const path of clicks){const node=nodeAt(doc.body,path);if(node&&typeof node.click==='function')try{node.click();}catch(_){}await new Promise(resolve=>setTimeout(resolve,0));}}finally{replaying=false;}}
 function size(){try{const doc=frame&&frame.contentDocument;if(!doc||!doc.documentElement)return;const body=doc.body;if(!body)return;const style=getComputedStyle(body);frame.style.height=Math.ceil(Math.max(body.scrollHeight,body.getBoundingClientRect().height)+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0))+'px';}catch(_){}}
 function render(){const state=Mvu.getMvuData({type:'message',message_id:'latest'}).stat_data;const text=protocolText(state);if(text===last)return;last=text;
 const previous=frame,next=document.createElement('iframe');next.setAttribute('data-dsh-mvu-protocol','');
 next.style.cssText='display:block;width:100%;border:0;overflow:hidden'+(previous?';position:absolute;left:0;top:0;visibility:hidden':'');
-next.addEventListener('load',()=>{if(frame!==next)return;
-// Swap only once the new view is ready, keeping which sections the player had open.
-try{const before=previous&&previous.contentDocument?[...previous.contentDocument.querySelectorAll('details')].map(item=>item.open):[];const after=[...next.contentDocument.querySelectorAll('details')];before.forEach((open,index)=>{if(after[index])after[index].open=open;});}catch(_){}
+next.addEventListener('load',async()=>{if(frame!==next)return;
+try{const doc=next.contentDocument;record(doc);if(previous)await replay(doc);}catch(_){}
+if(frame!==next)return;
+// Swap only once the new view is ready, so an update never flashes an empty panel.
 for(const item of [...host.querySelectorAll('iframe[data-dsh-mvu-protocol]')])if(item!==next)item.remove();if(previous){next.style.position='';next.style.left='';next.style.top='';next.style.visibility='';}
 if(observer)observer.disconnect();size();try{observer=new ResizeObserver(size);observer.observe(next.contentDocument.documentElement);}catch(_){}});
 host.style.position='relative';next.srcdoc=fill(text);host.appendChild(next);frame=next;}
