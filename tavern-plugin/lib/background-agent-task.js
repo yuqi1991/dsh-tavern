@@ -195,7 +195,8 @@ export function createBackgroundAgentTask(options) {
       })
       state.refreshConfiguredTools = function () {
         if (state.input.task === 'image') return
-        const key = JSON.stringify([state.input.task, state.input.backgroundTasksSnapshot || null])
+        // Foreground-only switches must not re-register background tools.
+        const key = JSON.stringify([state.input.task, state.input.backgroundTasksSnapshot ? { ...state.input.backgroundTasksSnapshot, variableFeedback: undefined } : null])
         if (state.configuredToolsKey === key) return
         for (const dispose of state.stableToolDisposers || []) dispose()
         state.configuredToolsKey = key

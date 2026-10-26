@@ -12,7 +12,8 @@ function promptOverride(document, name) {
 
 export function normalizeBackgroundTasks(value) {
   const tasks = object(value)
-  return { posture: tasks.posture !== false, characterDesign: false, variables: tasks.variables !== false, ledger: false }
+  // variableFeedback: hand the last round's changed variables back to the foreground.
+  return { posture: tasks.posture !== false, characterDesign: false, variables: tasks.variables !== false, ledger: false, variableFeedback: tasks.variableFeedback !== false }
 }
 
 export const DEFAULT_RENDER_DEPTH = 3

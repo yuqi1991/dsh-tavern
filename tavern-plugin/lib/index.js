@@ -77,6 +77,7 @@ import { buildGameSave, collectSaveRevisions, readGameSave } from './domain/game
 import { compressSaveImage } from './domain/save-image-compression.js'
 import { sceneSaveKeyMap } from './domain/scene-save.js'
 import { SURFACE_SELECT_TYPE } from './domain/surface-selection.js'
+import { appendVariableChanges } from './domain/foreground-variable-changes.js'
 
 const TAVERN_PACKAGE_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 import { fileURLToPath } from 'node:url'
@@ -4639,8 +4640,9 @@ export async function apply(ctx) {
       chat,
       requestId: requestIdForMessages(payload.messages)
     })
-    try { return await cardMemory.appendRecall({ chat, payload, decision: prepared }) }
-    catch (error) { console.warn('[Tavern card memory] recall unavailable:', error.message); return prepared }
+    const withChanges = appendVariableChanges({ chat, payload, decision: prepared })
+    try { return await cardMemory.appendRecall({ chat, payload, decision: withChanges }) }
+    catch (error) { console.warn('[Tavern card memory] recall unavailable:', error.message); return withChanges }
   })
 
   const importContextPreparation = createImportContextPreparation({
