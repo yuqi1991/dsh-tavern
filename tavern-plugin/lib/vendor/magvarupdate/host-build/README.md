@@ -25,7 +25,15 @@ The deterministic host build applies these adaptations:
   and enable controls; historical snapshots remain available for rollback and
   imported-chat restoration. Existing cleanup settings do not trigger writes.
 
-It does not patch MVU parsing, validation or variable calculation.
+- searches prior valid variable snapshots backward without first copying the
+  entire historical prefix; the predicate and returned absolute index are unchanged.
+- limits restoration eligibility checks to the existing recent-floor threshold;
+  missing snapshots in that range still run the original restoration logic.
+
+- derives the schema from an opening `<initvar>` block and strips its `$meta` /
+  `$arrayMeta` metadata, as upstream already does for lorebook `[initvar]` data.
+
+It does not otherwise patch MVU parsing, validation or variable calculation.
 The sandbox-local uniqueness change is valid because the Host enforces exactly
 one official MVU core per chat sandbox; the readiness barrier only restores the
 shared-page registration order before official chat initialization starts.

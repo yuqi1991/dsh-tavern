@@ -199,3 +199,64 @@ for (const flag of ['已提醒自动清理旧变量功能', '已默认开启自�
     'if (false) {', 'suppress unsupported cleanup notification: ' + flag)
 }
 await writeFile(notificationPath, notificationSource)
+
+// Looking for the previous valid snapshot must not copy every earlier row.
+// On a paged host each array access can be an actual historical read.
+const utilPath = path.join(root, 'src/util.ts')
+let utilSource = await readFile(utilPath, 'utf8')
+utilSource = replaceExactlyOnce(utilSource, `    return _(SillyTavern.chat)
+        .slice(0, end_message_id)
+        .findLastIndex(chat_message => {
+            return isMvuData(_.get(chat_message, ['variables', chat_message.swipe_id ?? 0], {}));
+        });`, `    const chat = SillyTavern.chat;
+    const end = _.toInteger(end_message_id);
+    const limit = end < 0 ? Math.max(0, chat.length + end) : Math.min(chat.length, end);
+    for (let index = limit - 1; index >= 0; index--) {
+        const chat_message = chat[index];
+        if (isMvuData(_.get(chat_message, ['variables', chat_message.swipe_id ?? 0], {}))) return index;
+    }
+    return -1;`, 'search prior MVU snapshot without copying historical rows')
+await writeFile(utilPath, utilSource)
+
+// Restoration only acts when a missing snapshot is within the recent threshold.
+// Older missing rows have always taken the no-restoration branch.
+const restorePath = path.join(root, 'src/function/cleanup/restore_variables.ts')
+let restoreSource = await readFile(restorePath, 'utf8')
+restoreSource = replaceExactlyOnce(restoreSource, `    const last_not_has_variable_message_id = SillyTavern.chat.findLastIndex(
+        chat_message =>
+            !_.has(chat_message, ['variables', chat_message.swipe_id ?? 0, 'stat_data']) ||
+            !_.has(chat_message, ['variables', chat_message.swipe_id ?? 0, 'schema'])
+    );`, `    let last_not_has_variable_message_id = -1;
+    for (let index = last_message_id; index >= last_10th_message_id; index--) {
+        const chat_message = SillyTavern.chat[index];
+        if (!_.has(chat_message, ['variables', chat_message.swipe_id ?? 0, 'stat_data']) ||
+            !_.has(chat_message, ['variables', chat_message.swipe_id ?? 0, 'schema'])) {
+            last_not_has_variable_message_id = index;
+            break;
+        }
+    }`, 'bound restoration eligibility to its existing recent-floor threshold')
+await writeFile(restorePath, restoreSource)
+
+// An opening <initvar> replaces stat_data after the lorebook schema was built,
+// and upstream neither derives a schema from it nor strips its metadata: $meta
+// (strictSet, extensible) stays inert and $arrayMeta elements remain real data
+// until some later update reconciles. Treat it like the lorebook path does.
+const initPath = path.join(root, 'src/function/initvar/variable_init.ts')
+let initSource = await readFile(initPath, 'utf8')
+initSource = replaceExactlyOnce(initSource, `                            //重新进行其他全局世界书的初始化。
+                            await loadInitVarData(current_data);
+`, `                            //重新进行其他全局世界书的初始化。
+                            await loadInitVarData(current_data);
+                            const opening_schema: SchemaNode & RootAdditionalProps = generateSchema(
+                                klona(current_data.stat_data)
+                            );
+                            if (isObjectSchema(opening_schema)) {
+                                for (const key of ['strictTemplate', 'concatTemplateArray', 'strictSet'] as const) {
+                                    if (_.has(current_data.stat_data, ['$meta', key]))
+                                        opening_schema[key] = current_data.stat_data['$meta']?.[key] as boolean;
+                                }
+                                current_data.schema = opening_schema;
+                            }
+                            cleanUpMetadata(current_data.stat_data);
+`, 'derive schema and strip metadata for opening initvar')
+await writeFile(initPath, initSource)
