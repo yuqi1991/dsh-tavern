@@ -55,6 +55,10 @@ export function normalizeOpeningStates(input,initialState,count) {
   }
   return structuredClone(states)
 }
+export function withStrictSet(state) {
+  if (isObject(state) && state.$meta?.strictSet === undefined) state.$meta={...(isObject(state.$meta)?state.$meta:{}),strictSet:true}
+  return state
+}
 export function createDefinition(source,args) {
   if (!isObject(args.initialState) || !Object.keys(args.initialState).length) throw Error('initialState 必须是非空变量对象')
   const inventory=stateInventory(source.data,args.sourceFields)
@@ -62,6 +66,10 @@ export function createDefinition(source,args) {
   if (!Array.isArray(mappings)) throw Error('fieldMappings 必须为数组')
   const openingCount=1+(source.data.alternate_greetings?.length || 0)
   const states=normalizeOpeningStates(args.openingStates,args.initialState,openingCount)
+  // Official MVU treats any [value, "text"] pair as value-with-description and a
+  // replace then only rewrites element 0, nesting a submitted list inside it.
+  // Converted cards submit literal JSON Patch, so opt out of that convention.
+  for (const state of states) withStrictSet(state)
   args={...args,appearance:compileMvuComponents(args.appearance,states)}
   // Every declared field exists in every opening. Unknown values belong in the
   // definition explicitly, rather than borrowing another opening's facts.

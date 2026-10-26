@@ -541,7 +541,7 @@ test('已有卡增删变量复用草稿检查，所有开场同步且原文保�
  const card=cardData(await f.resources.readCard(first.targetPath))
  for(const [index,opening] of [card.first_mes,...card.alternate_greetings].entries()){
   const state=JSON.parse(opening.match(/<initvar>\s*([\s\S]*?)\s*<\/initvar>/)[1])
-  assert.deepEqual(state,{时间:{时段:index?'夜晚':'白天'},体力:100})
+  assert.deepEqual(state,{时间:{时段:index?'夜晚':'白天'},体力:100,$meta:{strictSet:true}})
   assert.ok(opening.includes(index?'车站开场':'大厅开场'))
  }
  assert.equal(card.description,'保留设定')

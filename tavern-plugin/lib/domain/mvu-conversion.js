@@ -2,7 +2,7 @@ import {DRAFT_FIELD_CHANGES,fieldPaths} from './mvu-draft-fields.js'
 import {createMvuDrafts} from './mvu-drafts.js'
 import {inspectMvuEntrances,preflightMvuConversion,resolveMvuCleanup} from './mvu-conversion-preflight.js'
 import { mvuStructureGuide, mvuDeliveryGuide } from './mvu-conversion-guidance.js'
-import { atPath, stateInventory, createDefinition, definitionDigest, definitionKeys, assertDefinition } from './mvu-conversion-definition.js'
+import { atPath, stateInventory, createDefinition, definitionDigest, definitionKeys, assertDefinition, withStrictSet } from './mvu-conversion-definition.js'
 import { appearanceSources, freezeMvuAppearance } from './mvu-conversion-appearance.js'
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
@@ -226,7 +226,8 @@ export function createMvuConversion({ resources }) {
         }
       }
       for (const key of definitionKeys) {
-        if (Object.hasOwn(input,key) && !isDeepStrictEqual(input[key],definition[key])) throw Error('不能覆写已保存定义: '+key+'；请重新 saveDefinition')
+        const submitted = key==='initialState' ? withStrictSet(clone(input[key])) : key==='openingStates' && Array.isArray(input[key]) ? input[key].map(state=>withStrictSet(clone(state))) : input[key]
+        if (Object.hasOwn(input,key) && !isDeepStrictEqual(submitted,definition[key])) throw Error('不能覆写已保存定义: '+key+'；请重新 saveDefinition')
         args[key] = clone(definition[key])
       }
     } else if (stateInventory(source.data).length) throw Error('先 saveDefinition 保存全部状态字段，再用 definitionRevision 装配')

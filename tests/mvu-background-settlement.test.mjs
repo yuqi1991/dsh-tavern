@@ -439,3 +439,19 @@ test('replace 改变字段形状（列表↔文本）时退回给模型按原类
   assert.equal(feedback[1].ok,true)
   assert.equal(dispatched,1)
 })
+
+test('列表元素改变形状（文本元素换成数组元素）同样退回重提', async () => {
+  const feedback=[]
+  const module=createMvuSettlementModule({maxAttempts:2,
+    model:{async run(input){
+      await input.onToolCall({name:'posture_submit',arguments:{posture:'站在路旁'}})
+      feedback.push(JSON.parse(await input.onToolCall({name:'mvu_submit_update',arguments:{operations:[{op:'replace',path:'/通讯',valueJson:'[["😤","胡伟","别回所里"]]'}]}})))
+      feedback.push(JSON.parse(await input.onToolCall({name:'mvu_submit_update',arguments:{operations:[{op:'insert',path:'/通讯/-',valueJson:'"😤|胡伟|别回所里"'}]}})))
+      return {text:''}
+    }},
+    runtime:{async settleMvuUpdate(){return {updated:true,context:{messages:[{variables:{stat_data:{通讯:['📞|宋|你好','😤|胡伟|别回所里']}}}]}}}}
+  })
+  await module.settleVariables({operationId:'element',chatId:'c',branchId:'b',basedOnRevision:1,sessionId:'s',messageId:0,swipeId:0,storyText:'看手机。',currentVariables:{stat_data:{通讯:['📞|宋|你好']}}})
+  assert.match(feedback[0].error,/\/通讯 的列表元素 当前是文本，提交的是列表/)
+  assert.equal(feedback[1].ok,true)
+})
