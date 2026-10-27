@@ -45,7 +45,9 @@ import { createGameplayApi } from './gameplay-api.js'
 import { cardOpeningChoices } from './domain/card-openings.js'
 import { marked } from 'marked'
 import { presentModelError } from './domain/model-error-presentation.js'
-import { validateCardFile } from './domain/card-validation.js'
+import { createCardValidationCheck } from './tools/card-validation-check.js'
+import { registerCardReadingTools } from './tools/card-reading.js'
+import { registerCardEditingTools } from './tools/card-editing.js'
 import { resolveAgentCompaction } from './agent-compaction.js'
 import { compactForegroundIfNeeded } from './domain/foreground-compaction.js'
 import { compactBackgroundIfNeeded, measureBackgroundBudget } from './domain/background-compaction.js'
@@ -670,6 +672,7 @@ export async function apply(ctx) {
   }
   async function writeIndex(idx) { await writeJson('index.json', idx) }
   const fileResources = createFileResourceStore({ dataRoot })
+  const checkCard = createCardValidationCheck({ cardMemory, fileResources })
   const resourceWorkspaceProjection = createResourceWorkspaceProjection({ root: dataRoot + '/resources' })
   const mobileCardImport = createMobileCardImport({ runtimeHost: process.env.DSH_TAVERN_RUNTIME_HOST })
   const cardDeletion = createCardDeletion({ resources: fileResources })
@@ -4541,7 +4544,7 @@ export async function apply(ctx) {
     })
   }
 
-  const controlledToolNames = new Set(['tavern_read_variables', 'tavern_card_draft', 'tavern_convert_to_mvu', 'tavern_design_mvu_appearance', 'tavern_read_mvu_appearance', 'tavern_update_mvu_appearance', 'tavern_validate_mvu_conversion', ...CARD_MEMORY_TOOLS, 'bash', 'pwsh', ...dshFileToolNames, 'skill', 'tavern_read_skill_reference', 'web_search', 'tavern_save_skill', ...cordisToolNames, 'tavern_user_profile_read', 'tavern_user_profile_save', 'tavern_user_profile_confirm', 'tavern_read_card', 'tavern_read_card_raw', 'tavern_read_play_chat', 'tavern_read_script', 'tavern_recall_history', 'worldbook_search', 'tavern_read_worldbook', 'tavern_update_worldbook', 'tavern_read_preset', 'tavern_update_preset', 'tavern_copy_card', 'tavern_update_card', 'tavern_restore_card', 'tavern_validate_card', 'tavern_test_response'])
+  const controlledToolNames = new Set(['tavern_read_variables', 'tavern_card_draft', 'tavern_convert_to_mvu', 'tavern_design_mvu_appearance', 'tavern_read_mvu_appearance', 'tavern_update_mvu_appearance', 'tavern_validate_mvu_conversion', ...CARD_MEMORY_TOOLS, 'bash', 'pwsh', ...dshFileToolNames, 'skill', 'tavern_read_skill_reference', 'web_search', 'tavern_save_skill', ...cordisToolNames, 'tavern_user_profile_read', 'tavern_user_profile_save', 'tavern_user_profile_confirm', 'tavern_read_card', 'tavern_read_card_raw', 'tavern_search_card', 'tavern_replace_card_text', 'tavern_read_play_chat', 'tavern_read_script', 'tavern_recall_history', 'worldbook_search', 'tavern_read_worldbook', 'tavern_update_worldbook', 'tavern_read_preset', 'tavern_update_preset', 'tavern_copy_card', 'tavern_update_card', 'tavern_restore_card', 'tavern_validate_card', 'tavern_test_response'])
   const foregroundStrategies = createForegroundOrchestrationStrategies({
     scaffoldingInjectionExperiment: function () {
       return process.env.DSH_TAVERN_SCAFFOLDING_INJECTION_EXPERIMENT === '1' ||
@@ -5068,34 +5071,8 @@ export async function apply(ctx) {
       }))
     }
 
-    tools.register(defineTool({
-      name: 'tavern_validate_card',
-      description: '只读校验人物卡 JSON、字段类型和 MVU 扩展结构。写入后必须调用，始终读取磁盘文件。不会执行脚本、自动修复或覆盖文件。',
-      parameters: { path: { type: 'string', description: '可选的 cards/... 相对路径；省略时检查当前已保存人物卡' } },
-      output: {
-        schema: {
-          type: 'object', additionalProperties: false,
-          properties: {
-            valid: { type: 'boolean', required: true },
-            errors: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: { path: { type: 'string', required: true }, message: { type: 'string', required: true } } } },
-            warnings: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: { path: { type: 'string', required: true }, message: { type: 'string', required: true } } } }
-          }
-        },
-        render: function (_args, value) { return [{ type: 'text', text: JSON.stringify(value, null, 2) }] }
-      },
-      isConcurrencySafe: function () { return true },
-      async execute(args, exec) {
-        const chat = await chatForSession(exec.agent.session.id)
-        if (!chat || chat.mode !== 'card') throw new Error('人物卡校验只能在卡片工作台使用')
-        const requested = str(args.path).trim()
-        const cardPath = requested || str(chat.cardPath)
-        const normalized = cardPath ? normalizeResourcePath(cardPath, 'card') : ''
-        const result = await validateCardFile({ path: normalized, readText: fileResources.readText })
-        try { await cardMemory.recordValidation(chat, normalized, result) }
-        catch (error) { console.warn('[Tavern card memory] validation record unavailable:', error.message) }
-        return result
-      }
-    }))
+    registerCardReadingTools({ cardPreparation, checkCard, chatForSession, fileResources, readCardWorkspace, str, tools })
+    registerCardEditingTools({ activeTurnOf, cardPreparation, chatForSession, checkCard, readCardWorkspace, str, tools, turnOrchestrator, worldBooks })
 
     tools.register(defineTool({
       name: 'tavern_read_card',

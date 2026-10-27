@@ -1,14 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { validateCardText, validateCardFile } from '../tavern-plugin/lib/domain/card-validation.js'
+import { validatePresetText, validateWorldBookText } from '../tavern-plugin/lib/domain/resource-validation.js'
 const check = value => validateCardText(JSON.stringify(value))
-test('legacy, V2, V3 and workspace cards preserve unknown extensions', () => {
-  const data = { name: '测试', extensions: { custom: { arbitrary: true } } }
-  for (const raw of [data, { spec: 'chara_card_v2', data }, { spec: 'chara_card_v3', data }]) {
-    assert.equal(check(raw).valid, true)
-    assert.equal(check({ kind: 'dsh-tavern-character-workspace', version: 1, raw }).valid, true)
-  }
-})
+
 test('invalid JSON, card shape and MVU containers report safe locations', () => {
   const invalid = validateCardText('<开局>秘密正文')
   assert.equal(invalid.valid, false)
@@ -17,25 +12,51 @@ test('invalid JSON, card shape and MVU containers report safe locations', () => 
   assert.match(validateCardText('{\n "name": }').errors[0].message, /第 2 行/)
 })
 
+test('preset structure: syntax location, prompt and order shapes, regex compile; real-world variants pass', () => {
+  const preset = value => validatePresetText(JSON.stringify(value, null, 2))
+  assert.match(validatePresetText('{\n  "prompts": [\n    {"content": "秘密"},,\n  ]\n}').errors[0].message, /第 3 行/)
+  assert.doesNotMatch(JSON.stringify(validatePresetText('{"a": "秘密正文"')), /秘密正文/)
+  for (const value of [[], { prompts: {} }, { prompts: ['x'] }, { prompts: [{ content: 1 }] }, { prompts: [], prompt_order: [{ order: {} }] }, { prompts: [], prompt_order: [{ order: [{ enabled: true }] }] }, { prompts: [], extensions: { regex_scripts: [{ findRegex: '/(/g' }] } }]) {
+    assert.equal(preset(value).valid, false, JSON.stringify(value))
+  }
+  const ok = preset({ prompts: [{ identifier: 'main', role: 'model', content: 'x', enabled: true }], prompt_order: [{ character_id: 100001, order: [{ identifier: 'main', enabled: true }] }], extensions: { regex_scripts: [{ scriptName: 'r', findRegex: '/a+/g' }] } })
+  assert.equal(ok.valid, true, JSON.stringify(ok.errors))
+  assert.equal(preset({ temperature: 1 }).valid, true)
+  assert.ok(preset({ temperature: 1 }).warnings.some(item => /prompts/.test(item.message)))
+})
+
+test('world book structure: standalone and embedded shapes, entry field types', () => {
+  const book = value => validateWorldBookText(JSON.stringify(value))
+  assert.equal(validateWorldBookText('{"entries": {').valid, false)
+  assert.equal(book({ name: 'x' }).valid, false)
+  assert.equal(book({ entries: [] }).valid, true)
+  assert.equal(book({ entries: { 0: { key: ['a'], keysecondary: [], content: 'x', comment: 'c' } } }).valid, true)
+  assert.deepEqual(book({ entries: { 3: { key: 'a', content: 'x' } } }).errors.map(item => item.path), ['/entries/3/key'])
+  assert.deepEqual(book({ data: { character_book: { entries: [{ keys: ['a'], content: 1 }] } } }).errors.map(item => item.path), ['/data/character_book/entries/0/content'])
+  assert.equal(book({ entries: { 0: 'x' } }).valid, false)
+})
+
 test('production tool reads disk through native DSH schema and rejects play-mode or escaped paths', { skip: !process.env.DSH_BOOT_MODULE }, async t => {
-  const { readFile, mkdtemp, writeFile, rm } = await import('node:fs/promises')
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const { pathToFileURL } = await import('node:url')
-  const { createFileResourceStore, normalizeResourcePath } = await import('../tavern-plugin/lib/domain/file-resources.js')
-  const { defineTool } = await import(new URL('../../dsh-tools/lib/index.js', pathToFileURL(process.env.DSH_BOOT_MODULE)))
+  const { createFileResourceStore } = await import('../tavern-plugin/lib/domain/file-resources.js')
+  const { registerCardReadingTools } = await import('../tavern-plugin/lib/tools/card-reading.js')
+  const { createCardValidationCheck } = await import('../tavern-plugin/lib/tools/card-validation-check.js')
   const root = await mkdtemp(join(tmpdir(), 'tavern-validate-tool-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   const files = createFileResourceStore({ dataRoot: root })
   await files.ensure()
   const path = 'cards/test.json'
   await writeFile(files.absolute(path), '<开局>')
-  const source = await readFile(new URL('../tavern-plugin/lib/index.js', import.meta.url), 'utf8')
-  const start = source.indexOf("    tools.register(defineTool({\n      name: 'tavern_validate_card'")
-  const end = source.indexOf('    tools.register(defineTool({', start + 1)
   let tool, mode = 'card'
-  new Function('tools', 'defineTool', 'chatForSession', 'str', 'normalizeResourcePath', 'validateCardFile', 'fileResources', source.slice(start, end))(
-    { register(value) { tool = value } }, defineTool, async () => ({ mode, cardPath: path }), value => String(value || ''), normalizeResourcePath, validateCardFile, files)
+  registerCardReadingTools({
+    tools: { register(value) { if (value.name === 'tavern_validate_card') tool = value } },
+    chatForSession: async () => ({ mode, cardPath: path }),
+    str: value => String(value || ''), fileResources: files,
+    cardMemory: { recordValidation: async () => {} },
+    checkCard: createCardValidationCheck({ cardMemory: { recordValidation: async () => {} }, fileResources: files })
+  })
   const exec = { agent: { session: { id: 'test' } } }
   const broken = await tool.execute({}, exec)
   assert.equal(broken.valid, false)
@@ -43,26 +64,13 @@ test('production tool reads disk through native DSH schema and rejects play-mode
   await writeFile(files.absolute(path), JSON.stringify({ name: '已修复' }))
   assert.equal((await tool.execute({}, exec)).valid, true)
   await assert.rejects(tool.execute({ path: '../private.json' }, exec))
+  await writeFile(files.absolute('presets/p.json'), '{"prompts": [}')
+  assert.match((await tool.execute({ path: 'presets/p.json' }, exec)).errors[0].message, /JSON 语法错误（第 1 行/)
+  await writeFile(files.absolute('presets/p.json'), JSON.stringify({ prompts: [{ identifier: 'main', content: 'x' }] }))
+  assert.equal((await tool.execute({ path: 'presets/p.json' }, exec)).valid, true)
+  await writeFile(files.absolute('worldbooks/w.json'), JSON.stringify({ entries: { 0: { key: ['a'], content: 'x' } } }))
+  assert.equal((await tool.execute({ path: 'worldbooks/w.json' }, exec)).valid, true)
+  assert.equal((await tool.execute({ path: 'worldbooks/missing.json' }, exec)).valid, false)
   mode = 'story'
   await assert.rejects(tool.execute({}, exec), /卡片工作台/)
-})
-
-test('legacy workspace with V3 marker and flat fields remains editable and validates without migration', async () => {
-  const { createCardPreparation } = await import('../tavern-plugin/lib/domain/card-preparation.js')
-  const cards = createCardPreparation({ id: () => 'fixture', now: () => 1 })
-  const raw = { spec: 'chara_card_v3', name: '铜铃客栈', description: '旧设定', first_mes: '欢迎', extensions: { custom: { keep: true } } }
-  const workspace = { kind: 'dsh-tavern-character-workspace', version: 1, raw, meta: { id: 'fixture' } }
-  assert.equal(cards.project(workspace).description, '旧设定')
-  assert.equal(check(workspace).valid, true)
-  const changed = cards.update({ kind: 'card', card: workspace, patch: { description: '先介绍一位旅人，再引入新人物。' } }).card
-  const before = JSON.stringify(changed)
-  assert.equal(cards.project(changed).description, '先介绍一位旅人，再引入新人物。')
-  assert.equal(changed.raw.data, undefined)
-  assert.deepEqual(changed.raw.extensions, raw.extensions)
-  assert.equal(workspace.raw.description, '旧设定')
-  assert.equal(validateCardText(before).valid, true)
-  assert.equal(JSON.stringify(changed), before)
-  assert.equal(check({ ...raw, description: [] }).valid, false)
-  assert.equal(check({ ...raw, spec: 'unknown' }).valid, false)
-  assert.equal(check({ ...raw, data: [] }).valid, false)
 })

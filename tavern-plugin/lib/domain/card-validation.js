@@ -1,4 +1,5 @@
-import { parseExpressionAt } from 'acorn'
+import { checkMvuCard, looksLikeMvuCard } from './mvu-card-check.js'
+import { parseJsonWithLocation } from './resource-validation.js'
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 
 // Static validation only: never execute card scripts or rewrite the document.
@@ -6,24 +7,9 @@ export function validateCardText(text) {
   const errors = [], warnings = []
   const issue = (path, message) => errors.push({ path, message })
   const result = () => ({ valid: errors.length === 0, errors, warnings })
-  let raw
-  try { raw = JSON.parse(text) } catch (error) {
-    // V8 messages contain document excerpts. Return location only.
-    const position = /position (\d+)/.exec(error.message)
-    const line = /line (\d+) column (\d+)/.exec(error.message)
-    let location = ''
-    if (position) {
-      const prefix = text.slice(0, Number(position[1]))
-      location = '（第 ' + prefix.split('\n').length + ' 行，第 ' + (prefix.length - prefix.lastIndexOf('\n')) + ' 列）'
-    } else if (line) location = '（第 ' + line[1] + ' 行，第 ' + line[2] + ' 列）'
-    if (!location) {
-      try { parseExpressionAt(text, 0, { ecmaVersion: 2020, locations: true }) } catch (syntax) {
-        if (syntax.loc) location = '（第 ' + syntax.loc.line + ' 行，第 ' + (syntax.loc.column + 1) + ' 列）'
-      }
-    }
-    issue('/', 'JSON 语法错误' + location)
-    return result()
-  }
+  const parsed = parseJsonWithLocation(text)
+  if (parsed.error) { issue('/', parsed.error); return result() }
+  let raw = parsed.value
   let prefix = ''
   if (object(raw) && raw.kind === 'dsh-tavern-character-workspace') {
     if (raw.version !== 1) issue('/version', '不支持的人物卡工作版版本')
@@ -58,6 +44,16 @@ export function validateCardText(text) {
   }
   if (data.character_book && data.character_book.entries !== undefined && !Array.isArray(data.character_book.entries)) issue(prefix + '/character_book/entries', '世界书条目必须是数组')
   if (!data.first_mes) warnings.push({ path: prefix + '/first_mes', message: '未设置开场白；请确认是否符合预期' })
+  if (data.character_book && Array.isArray(data.character_book.entries)) data.character_book.entries.forEach(function (entry, index) {
+    const path = prefix + '/character_book/entries/' + index
+    if (!object(entry)) return issue(path, '世界书条目必须是对象')
+    if (entry.keys !== undefined && (!Array.isArray(entry.keys) || entry.keys.some(key => typeof key !== 'string'))) issue(path + '/keys', '关键词必须是字符串数组')
+    if (entry.content !== undefined && typeof entry.content !== 'string') issue(path + '/content', '条目正文必须是字符串')
+  })
+  if (looksLikeMvuCard(data)) {
+    const mvu = checkMvuCard(data, prefix)
+    errors.push(...mvu.errors); warnings.push(...mvu.warnings)
+  }
   warnings.push({ path: '/', message: '仅检查静态格式；未执行正则、脚本或 MVU 结算，格式通过不代表运行成功' })
   return result()
 }

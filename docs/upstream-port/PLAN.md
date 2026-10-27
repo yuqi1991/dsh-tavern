@@ -113,6 +113,13 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
   - 不取：8d84a002（依赖 `installBackgroundModel`/额外模型解析代理，我们没有这套）、f7ef2b4a（我们没有 `runtime-preset-front` 区段，内核 0.1.5 也无 `interpolate`）。
   - **卡住的原因**：我们没有上游的 `lib/tools/` 拆分（工具定义内联在 index.js 约 5000 行之后），卡片工作台的新工具（tavern_search_card / tavern_replace_card_text / 校验预设与世界书）、原地 MVU、`ee728107`（用"直接编辑+格式校验"取代草稿/定义/指纹体系，净删约 3600 行）都碰这块，无法直接摘取。需要先定做法：①在现有布局里按行为手工移植、暂留草稿体系；②先把工具定义拆成 `tools/` 再摘取；③暂缓。
 
+- **批 3 · MVU 工具链（第二段，2026-10-27，用户选定"按行为手工移植、暂留草稿体系"）**：
+  - 已加：`tavern_search_card`（全卡搜文字）、`tavern_replace_card_text`（全卡批量替换，可限定位置/预期处数，保存后报告剩余并附格式校验）、`tavern_validate_card` 支持预设和世界书文件、人物卡校验新增 MVU 格式检查（`mvu-card-check.js`：开场 initvar 能否解析、字段一致、[mvu_update] 规则、状态入口与面板正则、面板脚本语法等，只报告不执行）。对应上游 3108bd9e、08f3ec10、00e37c7d 以及 ee728107 里"新增"的那一半。
+  - 布局：工具定义放进新目录 `lib/tools/`（`card-reading.js`、`card-editing.js`、`card-validation-check.js`，签名与上游一致，测试直接取上游的）；`index.js` 只调注册函数。`saveChanges` 增加可选 `path`（改指定卡）。
+  - 没做（有意）：删草稿/转换/指纹体系（ee728107 删除的那一半）；上游"直接改文件"的 skill 改写；`tavern_update_preset/worldbook` 描述里"仅在用户明确确认后"改成"按用户要求"（产品策略变化，没用户同意不改）；署名（card-credit）。
+  - 验证：上游 3 个新测试 + 我们的转换/草稿测试全过；e2e `--card-memory` 里真实卡片工作台模型请求的工具表含新工具且 `tavern_read_card` 仍在（中途发现过一次误删 `tavern_read_card`，已恢复并核对：原先每个工具名都还在）；完整测试失败名 ⊆ 基线。
+  - 部署注意：新增目录 `tavern-plugin/lib/tools/` 要进白名单复制。
+
 ## 摘取流程（每个提交）
 1. `git cherry-pick -x --no-commit <hash>`；2. `lib/client.js` 冲突不手合，`node bin/build-tavern-client.mjs` 重建；
 3. `tavern.css` 末尾追加冲突：保留我们的 Story View 规则，再追加该提交自己的新增行；
