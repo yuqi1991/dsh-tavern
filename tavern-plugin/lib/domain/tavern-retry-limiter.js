@@ -7,6 +7,8 @@ const MAX_RETRIES = 1
 function retryable(payload) {
   const policy = payload && payload.retryPolicy
   if (!policy) return false
+  // Overflow is recovered by compacting, not by resending the same request.
+  if (payload.failure && payload.failure.code === 'CONTEXT_WINDOW_EXCEEDED') return false
   if (policy.mode === 'always') return true
   return Array.isArray(policy.retryableCodes) && policy.retryableCodes.includes(payload.failure && payload.failure.code)
 }

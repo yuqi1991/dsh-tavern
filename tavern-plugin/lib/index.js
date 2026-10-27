@@ -81,6 +81,7 @@ import { sceneSaveKeyMap } from './domain/scene-save.js'
 import { SURFACE_SELECT_TYPE } from './domain/surface-selection.js'
 import { appendVariableChanges } from './domain/foreground-variable-changes.js'
 import { markRequestHandled, requestHandledBy } from './domain/request-lineage.js'
+import { normalizeProviderOverflow } from './domain/provider-overflow.js'
 
 const TAVERN_PACKAGE_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 import { fileURLToPath } from 'node:url'
@@ -4627,6 +4628,9 @@ export async function apply(ctx) {
   })
 
   ctx.on('agent/request-error', tavernRetryLimiter.handle, { prepend: true })
+  // Registered last with prepend, so it runs first: the retry limiter and DSH's
+  // overflow compaction both see the normalized code.
+  ctx.on('agent/request-error', normalizeProviderOverflow, { prepend: true })
 
   ctx.on('agent/pre-step', async function (payload, next) {
     const sessionId = payload.agent && payload.agent.session ? payload.agent.session.id : ''
