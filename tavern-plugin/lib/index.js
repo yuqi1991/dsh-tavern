@@ -80,6 +80,7 @@ import { compressSaveImage } from './domain/save-image-compression.js'
 import { sceneSaveKeyMap } from './domain/scene-save.js'
 import { SURFACE_SELECT_TYPE } from './domain/surface-selection.js'
 import { appendVariableChanges } from './domain/foreground-variable-changes.js'
+import { markRequestHandled, requestHandledBy } from './domain/request-lineage.js'
 
 const TAVERN_PACKAGE_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 import { fileURLToPath } from 'node:url'
@@ -4511,7 +4512,6 @@ export async function apply(ctx) {
 
   // ---------- DSH 回合生命周期 ----------
   const requestCoordinates = new Map()
-  const storyCompactionRequests = new WeakSet()
   const tavernRetryLimiter = createTavernRetryLimiter({
     owns: async function (agent) {
       const sessionId = agent && agent.session ? agent.session.id : ''
@@ -4664,7 +4664,6 @@ export async function apply(ctx) {
       return Math.max(native, Math.ceil((text.length - nonAscii) / 4) + nonAscii * 2 + 8)
     }
   })
-  const fullTemplateRequests = new WeakMap()
   installWorkspaceInstructionPresentation(ctx, async sessionId => {
     if (backgroundAgentRunner.owns(sessionId)) return true
     const chat = await sessionStateForSession(sessionId)
@@ -4680,7 +4679,7 @@ export async function apply(ctx) {
         source: { kind: 'model', provider: str(options.provider), model: str(options.model) }
       }))
     }
-    if (options !== null && typeof options === 'object' && options.purpose === 'compaction' && !storyCompactionRequests.has(options)) {
+    if (options !== null && typeof options === 'object' && options.purpose === 'compaction' && !requestHandledBy(options, 'story-compaction')) {
       const fallback = next()
       return (async function * () {
         const chat = await chatForSession(sessionId)
@@ -4694,11 +4693,10 @@ export async function apply(ctx) {
           yield * fallback
           return
         }
-        storyCompactionRequests.add(request)
-        yield * ctx.llm.stream(request)
+        yield * ctx.llm.stream(markRequestHandled(request, 'story-compaction'))
       })()
     }
-    const projectedRequest = (fullTemplateRequests.has(options) || importContextPreparation.isPrepared(options)) ? null : foregroundStrategies.projectRequest(options, coordinates)
+    const projectedRequest = (requestHandledBy(options, 'full-template') || importContextPreparation.isPrepared(options)) ? null : foregroundStrategies.projectRequest(options, coordinates)
     if (projectedRequest !== null) return ctx.llm.stream(projectedRequest)
     const stream = next()
     const backgroundContext = backgroundAgentRunner.requestContext(sessionId)
@@ -4707,11 +4705,9 @@ export async function apply(ctx) {
       const prepared = await importContextPreparation.prepare(options)
       if (prepared !== options) { yield * ctx.llm.stream(prepared); return }
       const chat = ownerSessionId === '' ? undefined : await chatForSession(ownerSessionId)
-      if (chat && ['story', 'script'].includes(chat.mode) && options.purpose === undefined && chat.requestMode !== 'sillytavern' && !fullTemplateRequests.has(options)) {
+      if (chat && ['story', 'script'].includes(chat.mode) && options.purpose === undefined && chat.requestMode !== 'sillytavern' && !requestHandledBy(options, 'full-template')) {
         const projected = await fullTemplateRuntime.forSession(ownerSessionId).projectRequest({ messages: options.messages, system: options.system, model: options.model })
-        const templated = { ...options, ...projected }
-        fullTemplateRequests.set(templated, options)
-        yield * ctx.llm.stream(templated)
+        yield * ctx.llm.stream(markRequestHandled({ ...options, ...projected }, 'full-template'))
         return
       }
       let requestRecord = null
@@ -4738,7 +4734,7 @@ export async function apply(ctx) {
         throw displayedError
       } finally {
         const completed = finish && finish.kind !== 'error' && finish.kind !== 'aborted'
-        foregroundStrategies.completeRequest(fullTemplateRequests.get(options) || options, completed)
+        foregroundStrategies.completeRequest(options, completed)
         if (chat && requestRecord) {
           try { await modelRequestLog.complete({ chatId: chat.id, id: requestRecord.id, text: responseText, finish, error: failure }) }
           catch (error) { console.error('dsh-tavern: 模型结果日志写入失败', str(error && error.message || error)) }

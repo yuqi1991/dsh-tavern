@@ -3,6 +3,7 @@ import { resolveRuntimePresetMacros } from './runtime-presets.js'
 import { createEphemeralCompatibilityRequest, isCompatibilityConversationRequest } from './compatibility-request.js'
 import { projectRuntimePresetRequest } from './runtime-preset-lifecycle.js'
 import { projectStoryMaterials, projectHistoryBlockTrim } from './story-materials.js'
+import { markRequestHandled, requestHandledBy } from './request-lineage.js'
 import { injectScaffoldingProbe } from './scaffolding-injection-experiment.js'
 
 function str(value) {
@@ -191,9 +192,11 @@ function projectDeepSeekThinkingPassback(messages, request) {
   return changed ? projected : messages
 }
 
+// Copies made by later hooks (workspace presentation) must still count as projected.
+const PROJECTED = 'foreground-projection'
+
 export function createCompatibilityOrchestrationStrategy(options) {
   const stagedRequests = new Map()
-  const redispatches = new WeakSet()
 
   async function prepareStep(input) {
     const sessionId = input.sessionId
@@ -219,14 +222,12 @@ export function createCompatibilityOrchestrationStrategy(options) {
   function projectRequest(optionsValue, coordinates) {
     const sessionId = str(optionsValue && optionsValue.sessionId)
     const staged = stagedRequests.get(sessionId)
-    if (redispatches.has(optionsValue) || !isCompatibilityConversationRequest(optionsValue, staged, coordinates)) return null
-    const request = createEphemeralCompatibilityRequest(optionsValue, projectContextSystemRoles(staged.messages))
-    redispatches.add(request)
-    return request
+    if (requestHandledBy(optionsValue, PROJECTED) || !isCompatibilityConversationRequest(optionsValue, staged, coordinates)) return null
+    return markRequestHandled(createEphemeralCompatibilityRequest(optionsValue, projectContextSystemRoles(staged.messages)), PROJECTED)
   }
 
   function completeRequest(optionsValue, completed) {
-    if (!completed || !redispatches.has(optionsValue)) return false
+    if (!completed || !requestHandledBy(optionsValue, PROJECTED)) return false
     stagedRequests.delete(str(optionsValue && optionsValue.sessionId))
     return true
   }
@@ -249,7 +250,6 @@ export function createCompatibilityOrchestrationStrategy(options) {
 
 export function createNativePlayOrchestrationStrategy(options) {
   const stagedRequests = options.stagedRequests instanceof Map ? options.stagedRequests : new Map()
-  const redispatches = new WeakSet()
 
   async function prepareStep(input) {
     const sessionId = input.sessionId
@@ -295,7 +295,7 @@ export function createNativePlayOrchestrationStrategy(options) {
   function projectRequest(optionsValue) {
     const sessionId = str(optionsValue && optionsValue.sessionId)
     const staged = stagedRequests.get(sessionId)
-    if (optionsValue === null || typeof optionsValue !== 'object' || optionsValue.purpose !== undefined || staged === undefined || redispatches.has(optionsValue)) return null
+    if (optionsValue === null || typeof optionsValue !== 'object' || optionsValue.purpose !== undefined || staged === undefined || requestHandledBy(optionsValue, PROJECTED)) return null
     // Empty surface tombstones preserve append-only history, but are not messages
     // for the provider. Remove them before choosing a regeneration target.
     const visibleMessages = (optionsValue.messages || []).filter(message => {
@@ -335,12 +335,11 @@ export function createNativePlayOrchestrationStrategy(options) {
       delete request.system
     }
     if (request === optionsValue) return null
-    redispatches.add(request)
-    return request
+    return markRequestHandled(request, PROJECTED)
   }
 
   function completeRequest(optionsValue, completed) {
-    if (!completed || !redispatches.has(optionsValue)) return false
+    if (!completed || !requestHandledBy(optionsValue, PROJECTED)) return false
     stagedRequests.delete(str(optionsValue && optionsValue.sessionId))
     return true
   }

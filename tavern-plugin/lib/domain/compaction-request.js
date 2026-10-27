@@ -1,4 +1,5 @@
 import { boundedCompaction } from './bounded-compaction.js'
+import { markRequestHandled, requestHandledBy } from './request-lineage.js'
 
 // Internal metadata-only events are persisted on the Session surface but are
 // not user utterances. Native compaction replays that surface independently of
@@ -13,13 +14,10 @@ export function projectCompactionRequest(request) {
 }
 
 export function installCompactionRequestProjection(ctx, ownsSession) {
-  const internal = new WeakSet()
-  const stream = request => {
-    internal.add(request)
-    return ctx.llm.stream(request)
-  }
+  // Segment requests re-enter llm/stream; copies other hooks make of them stay internal.
+  const stream = request => ctx.llm.stream(markRequestHandled(request, 'compaction-projection'))
   ctx.on('llm/stream', (request, next) => {
-    if (internal.has(request) || request?.purpose !== 'compaction' || !request.sessionId) return next()
+    if (requestHandledBy(request, 'compaction-projection') || request?.purpose !== 'compaction' || !request.sessionId) return next()
     return (async function * () {
       if (!(await ownsSession(request.sessionId))) { yield* next(); return }
       const projected = projectCompactionRequest(request)

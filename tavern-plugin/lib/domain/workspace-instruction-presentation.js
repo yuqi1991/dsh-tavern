@@ -26,12 +26,16 @@ export function presentWorkspaceInstructions(request) {
   return changed ? { ...request, messages } : request
 }
 
+import { markRequestHandled, requestHandledBy } from './request-lineage.js'
+
+const PRESENTED = 'workspace-instructions'
+
 export function installWorkspaceInstructionPresentation(ctx, ownsSession) {
   ctx.on('llm/stream', (request, next) => (async function * () {
-    if (request?.sessionId && await ownsSession(request.sessionId)) {
+    if (request?.sessionId && !requestHandledBy(request, PRESENTED) && await ownsSession(request.sessionId)) {
       const presented = presentWorkspaceInstructions(request)
       if (presented !== request) {
-        yield * ctx.llm.stream(presented)
+        yield * ctx.llm.stream(markRequestHandled(presented, PRESENTED))
         return
       }
     }

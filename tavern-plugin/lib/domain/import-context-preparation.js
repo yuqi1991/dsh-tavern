@@ -1,5 +1,6 @@
 import { writeSurfaceEvent } from './surface-transaction.js'
 import { sessionEvents } from './session-events.js'
+import { markRequestHandled, requestHandledBy } from './request-lineage.js'
 
 const PLUGIN = 'dsh-tavern-context-window'
 const eventMessage = event => event.type === 'user/message' ? event.data : event.type === 'assistant/message' ? event.data.message : null
@@ -60,10 +61,11 @@ export function planImportContext({ session, request, operationId, contextWindow
   return result
 }
 
+const PREPARED = 'import-context-preparation'
+
 export function createImportContextPreparation({ readChat, updateChat, getSession, flush, modelInfo, estimateMessage }) {
-  const preparedRequests = new WeakSet()
   async function prepare(request) {
-    if (request.purpose !== undefined || preparedRequests.has(request)) return request
+    if (request.purpose !== undefined || requestHandledBy(request, PREPARED)) return request
     const chat = await readChat(request.sessionId)
     if (!needsImportContextPreparation(chat)) return request
     const session = getSession(request.sessionId)
@@ -96,9 +98,7 @@ export function createImportContextPreparation({ readChat, updateChat, getSessio
     }, { source: 'chat-import.context-preparation' })
     if (!removedIds.length) return request
     const removed = new Set(removedIds)
-    const projected = { ...request, messages: request.messages.filter(m => !removed.has(m.id) && m.id !== markerId) }
-    preparedRequests.add(projected)
-    return projected
+    return markRequestHandled({ ...request, messages: request.messages.filter(m => !removed.has(m.id) && m.id !== markerId) }, PREPARED)
   }
-  return { prepare, isPrepared: request => preparedRequests.has(request) }
+  return { prepare, isPrepared: request => requestHandledBy(request, PREPARED) }
 }
