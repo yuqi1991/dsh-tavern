@@ -159,9 +159,11 @@ export function createOpeningPreparation({ readCard, worldBooks, generateRaw, re
     resolve(id, cardPath, openingId) {
       const draft = requireDraft(id)
       if (draft.cardPath !== cardPath) throw new Error('开局草稿与人物卡不匹配')
-      const selected = openingId || 'primary'
+      // No choice falls back to the first greeting the card has (an empty first_mes
+      // is skipped); a card with no greeting at all starts from a blank scene.
+      const selected = openingId || draft.openings[0]?.id || ''
       const selectedIndex = draft.openings.findIndex(opening => opening.id === selected)
-      if (selectedIndex < 0) throw new Error('人物卡开场白不存在')
+      if (selectedIndex < 0 && selected !== '') throw new Error('人物卡开场白不存在')
       return copy({ openingVariables: Object.fromEntries(draft.openings.map((opening, index) => [opening.id, draft.chat.messages[0]?.variables?.[index] || {}])), variables: draft.chat.variables || {}, messageVariables: draft.chat.messages[0]?.variables?.[selectedIndex] || {}, openingId: selected, sourceSessionId: draft.sourceSessionId, sourceLifecycleRevision: draft.sourceLifecycleRevision, worldbookSnapshot: { version: 1, libraryDigest: draft.libraryDigest, source: draft.source, document: draft.document } })
     }
   }
