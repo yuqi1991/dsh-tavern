@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { appendSessionEvent, sessionEvents } from './session-events.js'
 import { SURFACE_SELECT_TYPE } from './surface-selection.js'
 import { detachedSession } from './conversation-algebra-host-adapter.js'
@@ -22,7 +23,7 @@ export function restoredSurfaceSeqs(events) {
 }
 
 function selection(nodes) {
-  return { version: 1, nodes: [...nodes], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select' } }
+  return { version: 1, nodes: [...nodes], source: producerSource('dsh-tavern', { form: 'surface-select' }) }
 }
 
 /** Check a selection against a detached copy; throws before any write. */

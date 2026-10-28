@@ -144,7 +144,7 @@ export function createCardMemory({ dataRoot }) {
       '用户可要求查看、纠正、移除记忆。下列偏好是当前完整列表，以它替代旧列表；经验仅为本次检索命中。',
       JSON.stringify(recalled)
     ].join('\n')
-    return { ...decision, messages: [...decision.messages, { id: randomUUID(), role: 'user', content: [{ type: 'text', text: notice }], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'card-memory' } }] }
+    return { ...decision, messages: [...decision.messages, { id: randomUUID(), role: 'user', content: [{ type: 'text', text: notice }], source: { kind: 'plugin:dsh-tavern', form: 'card-memory' } }] }
   }
   return { search, preference, experience, recordValidation, appendRecall }
 }

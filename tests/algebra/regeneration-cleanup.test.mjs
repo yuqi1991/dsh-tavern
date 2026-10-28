@@ -18,15 +18,22 @@ after(() => patch.dispose())
 // the surface checked out to the input before the attempt is generated.
 async function fixture() {
  let session=Session.create('regen-cleanup-algebra'),failChat=false,flushHook=async()=>{}
- for(const row of [user('input','继续'),assistant('old','已编辑旧正文',2)])session.append(row.type,row.data,{surfaceOp:'append'})
+ session.append('turn/start',{turn:1})
+ session.append(user('input','继续').type,user('input','继续').data,{surfaceOp:'append'})
+ session.append('step/start',{turn:1,step:1})
+ session.append('assistant/message',assistant('old','已编辑旧正文',1).data,{surfaceOp:'append'})
+ session.append('step/end',{turn:1,step:1})
+ session.append('turn/end',{turn:1,reason:{kind:'completed'}})
  const original={id:'chat',sessionId:session.id,messages:[{role:'user',text:'继续'},{role:'assistant',text:'已编辑旧正文'}],variables:{hp:9}}
- const pre=createConversationBranches(session,{flush:async()=>{}}),intent=await pre.plan(0)
+ const pre=createConversationBranches(session,{flush:async()=>{}}),intent=await pre.plan(1)
  await pre.commit(intent)
  const eventStart=session.snapshotEvents().length
- session.append('turn/start',{turn:3})
- session.append('user/message',user('synthetic','重掷',{kind:'plugin',plugin:'dsh-tavern-regen'}).data,{surfaceOp:'append'})
- session.append('assistant/message',assistant('partial','半截',3).data,{surfaceOp:'append'})
- session.append('turn/end',{turn:3,reason:{kind:'aborted'}})
+ session.append('turn/start',{turn:2})
+ session.append('user/message',user('synthetic','重掷',{kind:'plugin:dsh-tavern-regen'}).data,{surfaceOp:'append'})
+ session.append('step/start',{turn:2,step:1})
+ session.append('assistant/message',assistant('partial','半截',2).data,{surfaceOp:'append'})
+ session.append('step/end',{turn:2,step:1})
+ session.append('turn/end',{turn:2,reason:{kind:'aborted'}})
  let chat={...structuredClone(original),regenInProgress:true,regenRecovery:{id:'op',sessionId:session.id,eventStart,preCheckoutBranchId:intent.branchId,before:structuredClone(original)}}
  const chats={read:async()=>structuredClone(chat),update:async(id,fn,metadata)=>{
   const next=await fn(structuredClone(chat))
@@ -83,11 +90,11 @@ test('foreign later player input refuses abort before any writes',async()=>{
 test('actual Chat journal and host zstd persistence reopen a partially written abort',async()=>{
  const {mkdtemp}=await import('node:fs/promises')
  const {Context}=await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js')
- const {default:Persistence}=await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js')
+ const JsonlModule=await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'),Jsonl=typeof JsonlModule.apply==='function'?JsonlModule:JsonlModule.default
  const {createChatPersistence}=await import('../../lib/domain/chat-persistence.js')
  const {createChatJournalStore}=await import('../../lib/domain/chat-journal-store.js')
  const root=await mkdtemp('/home/claw/dsh-tavern-dev/regen-abort-persistence-'),h=await fixture()
- const persistence=new Persistence(new Context(),{root:root+'/sessions',compression:'zstd'})
+ const persistence=await (async()=>{const c=new Context();await c.plugin(Jsonl,{root:root+'/sessions',compression:'zstd'}).await();return c.sessionPersistence})()
  patch.patchPersistence(persistence)
  let handle=await persistence.create(h.session.header),durable=0,session=h.session
  const flush=async live=>{const events=live.snapshotEvents();await handle.append(events.slice(durable));durable=events.length;await handle.flush()}

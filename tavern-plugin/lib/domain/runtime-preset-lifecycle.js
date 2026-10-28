@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource, isSystemPromptSource } from './message-source.js'
 import { randomUUID } from 'node:crypto'
 
 function str(value) {
@@ -73,17 +74,16 @@ export function runtimePresetPhaseMessages(snapshot, phase, options = {}) {
       id: 'dsh-tavern-runtime-preset-' + scope + '-' + phase + '-' + turn + '-' + step + '-' + randomUUID(),
       role: entry.role === 'user' || entry.role === 'assistant' ? entry.role : 'system',
       content: [{ type: 'text', text }],
-      source: {
-        kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot',
-        sections: [{ name: 'tavern:runtime-preset-' + phase, text }]
-      }
+      source: producerSource('dsh-tavern', {
+        form: 'snapshot',
+        sections: [{ name: 'tavern:runtime-preset-' + phase, text }] })
     }
   })
 }
 
 export function isRuntimePresetBoundaryMessage(message) {
   const source = message && message.source
-  if (!source || source.kind !== 'plugin' || source.plugin !== 'dsh-tavern') return false
+  if (!source || !isProducerSource(source, 'dsh-tavern')) return false
   return (Array.isArray(source.sections) ? source.sections : []).some(function (section) {
     return section && (section.name === 'tavern:runtime-preset-front' || section.name === 'tavern:runtime-preset-back')
   })
@@ -114,8 +114,7 @@ export function projectRuntimePresetRequest(request, snapshot, options = {}) {
   // V3 carries the assembled system prompt as a native message, sometimes
   // after the opening seed. Keep it at the system boundary when composing
   // presets; ordinary in-story system notes retain their existing treatment.
-  const isNativeSystem = message => message.role === 'system' && message.source?.kind === 'plugin' &&
-    message.source.plugin === '@deepseek-ai/dsh-system-prompt'
+  const isNativeSystem = message => message.role === 'system' && isSystemPromptSource(message.source)
   let nativeSystems = ordinary.filter(isNativeSystem)
   const history = ordinary.filter(message => !isNativeSystem(message))
   // The assembly hook already puts this instruction first. External presets
@@ -143,16 +142,15 @@ export function projectRuntimePresetRequest(request, snapshot, options = {}) {
   }
   const instructions = lifted ? [{
     role: 'system', content: [{ type: 'text', text: instruction }],
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot', sections: [{ name: 'tavern:system-append', text: instruction }] }
+    source: producerSource('dsh-tavern', { form: 'snapshot', sections: [{ name: 'tavern:system-append', text: instruction }] })
   }] : []
   const systemMessages = moveSystem && systemText ? [{
     id: 'dsh-tavern-runtime-system-' + randomUUID(),
     role: 'system',
     content: [{ type: 'text', text: systemText }],
-    source: {
-      kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot',
-      sections: [{ name: 'tavern:dsh-system', text: systemText }]
-    }
+    source: producerSource('dsh-tavern', {
+      form: 'snapshot',
+      sections: [{ name: 'tavern:dsh-system', text: systemText }] })
   }] : []
   return Object.assign({}, request, {
     ...(moveSystem ? { system: '' } : {}),

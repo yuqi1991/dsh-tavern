@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource, isPluginSource, sourceProducerName } from './message-source.js'
 import { inputAttachments } from './player-input-content.js'
 import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { writeSurfaceEvent } from './surface-transaction.js'
@@ -37,7 +38,7 @@ function isReplayableInputSource(source) {
   const value = object(source)
   if (!value) return false
   if (value.kind === 'user') return true
-  return value.kind === 'plugin' && value.plugin === 'dsh-tavern-replay'
+  return isProducerSource(value, 'dsh-tavern-replay')
 }
 
 // The host chat UI turns a user/message into an input row only when its source
@@ -79,19 +80,20 @@ function isForegroundContext(event) {
   // would let rollback tombstone from the frame down and orphan the real
   // player message in the surface forever.
   if (source?.kind === 'skill-catalog') return true
-  if (!source || source.kind !== 'plugin') return false
+  if (!source || (!isPluginSource(source) && source.kind !== 'runtime-context')) return false
   // Host-side notices (e.g. model-selection "[model changed]") ride after the
   // input in the same turn; they are context, not the player message.
   if (String(source.form) === 'notice') return true
-  return !ROUND_PARTICIPATING_PLUGINS.has(String(source.plugin))
+  return !ROUND_PARTICIPATING_PLUGINS.has(String(sourceProducerName(source)))
 }
 
 function isRollbackUserTombstone(event) {
   const source = event && event.type === 'user/message' && event.data && event.data.source
-  return source && source.kind === 'plugin' && (
-    source.plugin === 'dsh-tavern-failed-turn-cleanup' ||
-    source.plugin === 'dsh-tavern-regeneration-abort' ||
-    source.plugin === 'dsh-tavern-context-window'
+  const producer = sourceProducerName(source)
+  return producer !== '' && (
+    producer === 'dsh-tavern-failed-turn-cleanup' ||
+    producer === 'dsh-tavern-regeneration-abort' ||
+    producer === 'dsh-tavern-context-window'
   )
 }
 
@@ -104,7 +106,7 @@ function committedHistoryControls(events) {
     if (event.type !== 'user/message' || !event.surfaceOp || event.data?.role !== 'user' ||
         !Array.isArray(event.data.content) || event.data.content.length !== 0) return false
     const { source, id } = event.data
-    if (source?.kind !== 'plugin' || source.plugin !== 'dsh-tavern') return false
+    if (!isProducerSource(source, 'dsh-tavern')) return false
     const tag = source.conversationTransaction
     if (!tag || typeof tag.operationId !== 'string' || !['begin', 'continue', 'commit', 'begin-commit'].includes(tag.phase) || !completed.has(tag.operationId)) return false
     return source.form === 'conversation-metadata' && String(id).startsWith('conversation-metadata:') ||
@@ -163,7 +165,7 @@ export function pendingFailedSurfaceTurns({ events = [], nodes = [], suppressed 
     // marker and legacy context snapshots do not end the pending failure tail.
     if (isRollbackAssistantTombstone(event, events) || isForegroundContext(event)) continue
     if (!isRollbackUserTombstone(event)) break
-    if (event.data.source.plugin !== 'dsh-tavern-failed-turn-cleanup') continue
+    if (!isProducerSource(event.data.source, 'dsh-tavern-failed-turn-cleanup')) continue
     ownership ??= createSurfaceOwnership(events)
     failures ??= turnIntervals(events).filter(interval => interval.failed && !hidden.has(interval.turn))
     const sources = refSeqsOf(event)
@@ -230,7 +232,7 @@ export function locateRollbackSurface(input) {
   let userIndex = -1
   for (let index = nodes.length - 1; index >= 0; index -= 1) {
     const event = eventAt(events, nodes[index])
-    if (event?.type === 'user/message' && event.data?.source?.kind === 'plugin' && ['compact', 'dsh-compaction-basic'].includes(event.data.source.plugin)) return null
+    if (event?.type === 'user/message' && ['compact', 'dsh-compaction-basic'].includes(sourceProducerName(event.data?.source))) return null
     if (event && event.type === 'user/message' && !isForegroundContext(event) && !isRollbackUserTombstone(event)) {
       userIndex = index
       break
@@ -329,7 +331,7 @@ export async function clearFailedTurnSurface(input) {
       // model-sourced on restore. Keep this empty tombstone explicitly plugin-owned.
       return {
         type: 'user/message',
-        data: { id: randomUUID(), role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern-failed-turn-cleanup' } },
+        data: { id: randomUUID(), role: 'user', content: [], source: producerSource('dsh-tavern-failed-turn-cleanup') },
         intent: { surfaceOp: { op: 'replace', start: cleanup.start, end: cleanup.end }, sourceEventSeqs: cleanup.shadowedSeqs }
       }
     }

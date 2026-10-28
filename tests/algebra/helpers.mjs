@@ -12,7 +12,7 @@ export function assistant(id, text, turn, step = 1, source = { kind: 'model', pr
 export function toolResult(id, callId, turn, step = 1) {
   return {
     type: 'tool/result',
-    data: { turn, step, message: { id, role: 'user', source: { kind: 'tool', callId }, content: [{ type: 'tool-result', toolCallId: callId, content: [{ type: 'text', text: 'loaded' }] }] } }
+    data: { turn, step, message: { id, role: 'tool', toolCallId: callId, source: { kind: 'tool', callId }, content: [{ type: 'text', text: 'loaded' }] } }
   }
 }
 

@@ -1,3 +1,4 @@
+import { producerSource } from '../message-source.js'
 import { computeFold } from './fold.js'
 import { GuardError, committedOperationIds, guardShape, hasPendingTransaction, transactionOf } from './guards.js'
 import { SURFACE_SELECT_TYPE } from '../surface-selection.js'
@@ -170,7 +171,7 @@ export function committedMetadata(events) {
 function surfaceSelection(nodes) {
   return { kind: 'select', event: { type: SURFACE_SELECT_TYPE, data: {
     version: 1, nodes: [...nodes],
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select' }
+    source: producerSource('dsh-tavern', { form: 'surface-select' })
   } } }
 }
 

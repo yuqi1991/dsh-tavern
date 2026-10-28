@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { scriptForState } from './script-layout.js'
 import { projectAgentContent, projectAgentMessageText } from './runtime-content-projection.js'
 import { createBackgroundTaskCoordinator } from './background-task-coordinator.js'
@@ -363,7 +364,7 @@ export function createCandidateGenerator(options) {
       id: 'choices-' + now().toString(36),
       role: 'user',
       content: [{ type: 'text', text: request }],
-      source: { kind: 'plugin', plugin: 'dsh-tavern' }
+      source: producerSource('dsh-tavern')
     }])
     const research = scriptMode ? scriptResearchAttempt(script, scriptWindow, card, chat) : null
     let submittedChoices = null

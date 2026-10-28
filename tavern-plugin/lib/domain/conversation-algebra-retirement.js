@@ -1,3 +1,4 @@
+import { isProducerSource } from './message-source.js'
 import { computeFold, dropTagged, runTransaction, recoverTransaction, assertTransactionReady } from './conversation-algebra/index.js'
 import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
 
@@ -8,7 +9,7 @@ export function planForegroundRetirement(events, keepTurn) {
   const snapshots = state.steps.filter(step => step.tag === 'worldbook-snapshot')
   const latest = snapshots.at(-1)
   const reminderSeen = events.some(event => event.type === 'user/message' &&
-    event.data?.source?.kind === 'plugin' && event.data.source.plugin === 'dsh-tavern' &&
+    isProducerSource(event.data?.source, 'dsh-tavern') &&
     event.data.source.form === 'writing-skill-reminder' && event.data.content?.length)
   const targets = state.steps.filter(step => {
     if (!step.tag) return false

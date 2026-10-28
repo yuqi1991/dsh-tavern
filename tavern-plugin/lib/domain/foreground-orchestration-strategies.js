@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource } from './message-source.js'
 import { inputAttachments, projectPlayerContent } from './player-input-content.js'
 import { resolveRuntimePresetMacros } from './runtime-presets.js'
 import { createEphemeralCompatibilityRequest, isCompatibilityConversationRequest } from './compatibility-request.js'
@@ -19,7 +20,7 @@ function contentText(message) {
 
 function isTurnInput(message) {
   const source = message && message.source
-  return source && (source.kind === 'user' || (source.kind === 'plugin' && source.plugin === 'dsh-tavern-regen'))
+  return source && (source.kind === 'user' || isProducerSource(source, 'dsh-tavern-regen'))
 }
 
 function userTextOf(messages) {
@@ -41,7 +42,7 @@ function replaceTurnInput(messages, text) {
 
 function isRegenerationInput(message) {
   const source = message && message.source
-  return source && source.kind === 'plugin' && source.plugin === 'dsh-tavern-regen'
+  return source && isProducerSource(source, 'dsh-tavern-regen')
 }
 
 function isOriginalPlayerInput(message) {
@@ -83,7 +84,7 @@ function isContextSystemMessage(message) {
   const source = message && message.source
   if (!source || typeof source !== 'object') return false
   if (source.kind === 'skill-catalog') return true
-  return source.kind === 'plugin' && source.plugin === 'dsh-tavern' && CONTEXT_SYSTEM_FORMS.has(String(source.form))
+  return isProducerSource(source, 'dsh-tavern') && CONTEXT_SYSTEM_FORMS.has(String(source.form))
 }
 
 /** Change only the provider request; Session evidence remains append-only. */
@@ -103,17 +104,16 @@ function snapshotMessage(text) {
     id: crypto.randomUUID(),
     role: 'user',
     content: [{ type: 'text', text: str(text) }],
-    source: {
-      kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot',
-      sections: [{ name: 'tavern:turn', text: str(text) }]
-    }
+    source: producerSource('dsh-tavern', {
+      form: 'snapshot',
+      sections: [{ name: 'tavern:turn', text: str(text) }] })
   }
 }
 
 function isNativeStablePrefix(message) {
   const source = message && message.source
   return str(message && message.id).startsWith('tavern-session-prefix:') && message.role === 'user'
-    && source && source.kind === 'plugin' && source.plugin === 'dsh-tavern'
+    && source && isProducerSource(source, 'dsh-tavern')
     && (source.form === 'snapshot' || source.form === 'session-prefix')
 }
 

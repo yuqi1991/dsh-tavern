@@ -1,3 +1,4 @@
+import { isProducerSource } from './message-source.js'
 export function usesStoryCompaction(chat) {
   return chat !== null && typeof chat === 'object' && (chat.mode === 'story' || chat.mode === 'script')
 }
@@ -11,7 +12,7 @@ export function createStoryCompactionRequest(options, instruction) {
   const message = options.messages[lastIndex]
   const source = message && message.source
   if (message === null || typeof message !== 'object' || message.role !== 'user' ||
-    source === null || typeof source !== 'object' || source.plugin !== 'dsh-compaction-basic') return options
+    source === null || typeof source !== 'object' || !isProducerSource(source, 'dsh-compaction-basic')) return options
 
   const messages = options.messages.slice()
   messages[lastIndex] = Object.freeze(Object.assign({}, message, {

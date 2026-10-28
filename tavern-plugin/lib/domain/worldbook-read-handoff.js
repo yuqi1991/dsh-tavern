@@ -1,3 +1,4 @@
+import { toolResultsOf } from './tool-result-message.js'
 import { sessionEvents } from './session-events.js'
 import { floorHostTurn, projectChatFloors } from './floor-projection.js'
 
@@ -19,8 +20,10 @@ export function foregroundWorldbookReads(chat, session) {
           else if (args.read === true && typeof args.query === 'string' && args.query.trim()) calls.set(block.id, {query:args.query.trim()})
         } catch { /* Malformed calls do not produce transferable reads. */ }
       }
-      if (block.type !== 'tool-result' || block.isError || !calls.has(block.toolCallId)) continue
-      for (const part of block.content || []) {
+    }
+    for (const block of toolResultsOf(event.data?.message)) {
+      if (block.isError || !calls.has(block.toolCallId)) continue
+      for (const part of block.content) {
         if (part.type !== 'text') continue
         try {
           const result = JSON.parse(part.text)

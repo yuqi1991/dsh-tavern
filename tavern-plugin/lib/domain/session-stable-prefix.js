@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource } from './message-source.js'
 import { ensureSessionSystemHead, sessionEvents } from './session-events.js'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -52,8 +53,8 @@ function hasReleasedSnapshot(message) {
 
 function messageRecord(event) {
   const message = event && event.type === 'user/message' ? event.data : null
-  if (!str(message?.id).startsWith('tavern-session-prefix:') || message.role !== 'user' || message.source?.kind !== 'plugin' ||
-      message.source?.plugin !== 'dsh-tavern' || ![MESSAGE_FORM, LEGACY_MESSAGE_FORM].includes(message.source?.form) || !Array.isArray(message.content)) return null
+  if (!str(message?.id).startsWith('tavern-session-prefix:') || message.role !== 'user' || !isProducerSource(message.source, 'dsh-tavern') ||
+      ![MESSAGE_FORM, LEGACY_MESSAGE_FORM].includes(message.source?.form) || !Array.isArray(message.content)) return null
   // Prefer released snapshot sections. fixedSystemText is legacy only (issue #71).
   const text = typeof message.source.fixedSystemText === 'string' && message.source.fixedSystemText.trim()
     ? message.source.fixedSystemText
@@ -119,12 +120,9 @@ function fixedContextMessage(session, text) {
     id: 'tavern-session-prefix:' + session.id,
     role: 'user',
     content: [],
-    source: {
-      kind: 'plugin',
-      plugin: 'dsh-tavern',
+    source: producerSource('dsh-tavern', {
       form: MESSAGE_FORM,
-      sections: sourceSections(text)
-    }
+      sections: sourceSections(text) })
   }
 }
 

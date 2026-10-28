@@ -15522,9 +15522,9 @@ function subscribeTavernHostTheme(win, listener) {
 		function tavernBookkeepingContext(data) {
 			if (!data || data.kind !== "context" || !Array.isArray(data.content) || data.content.length !== 0) return false;
 			const source = data.source || {};
-			if (source.kind !== "plugin") return false;
-			if (source.plugin === "dsh-tavern-surface-restore") return true;
-			return source.plugin === "dsh-tavern" && (source.form === "conversation-metadata" || source.form === "checkout");
+			const producer = source.kind === "plugin" ? source.plugin : typeof source.kind === "string" && source.kind.startsWith("plugin:") ? source.kind.slice(7) : "";
+			if (producer === "dsh-tavern-surface-restore") return true;
+			return producer === "dsh-tavern" && (source.form === "conversation-metadata" || source.form === "checkout");
 		}
 
 		// DSH 0.1.5 may withdraw an already materialized assistant when a stream block
@@ -15568,7 +15568,7 @@ function subscribeTavernHostTheme(win, listener) {
 						start: function (_context, match) {
 							const event = match.event;
 							return { kind: "context", seq: event.seq, time: event.time, content: [],
-								source: { kind: "plugin", plugin: "dsh-tavern", form: "surface-select" }, provenance: { role: "inject", label: "dsh-tavern" }, form: null };
+								source: { kind: "plugin:dsh-tavern", form: "surface-select" }, provenance: { role: "inject", label: "dsh-tavern" }, form: null };
 						},
 						update: function (context) { return context.state; },
 						buildViewNode: function (context) {
@@ -15785,7 +15785,7 @@ function subscribeTavernHostTheme(win, listener) {
 							let syntheticSeq = -1;
 							for (let index = live.length - 1; index >= 0; index -= 1) {
 								const meta = evidence.get(live[index]);
-								if (meta && meta.type === "user/message" && meta.source && meta.source.plugin === "dsh-tavern-regen") { syntheticSeq = live[index]; break; }
+								if (meta && meta.type === "user/message" && meta.source && (meta.source.plugin === "dsh-tavern-regen" || meta.source.kind === "plugin:dsh-tavern-regen")) { syntheticSeq = live[index]; break; }
 							}
 							if (syntheticSeq < 0) return snapshot;
 							let inputSeq = -1;

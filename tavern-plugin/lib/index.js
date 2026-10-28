@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource } from './domain/message-source.js'
 import {registerVariableReadTool} from './domain/read-variables.js'
 import { createBackgroundSessionRetirement, installRetiredBackgroundFilter } from './domain/background-session-retirement.js'
 import { createCardMemory, CARD_MEMORY_TOOLS } from '../packages/dsh-tavern-card-memory/index.js'
@@ -67,6 +68,7 @@ import { createOpeningPreparation } from './domain/opening-preparation.js'
 import { createChatHistoryImportService } from './domain/chat-history-import-service.js'
 import { createImportContextPreparation } from './domain/import-context-preparation.js'
 import { sessionEvents, appendSessionEvent } from './domain/session-events.js'
+import { setAgentResolver } from './domain/agent-lookup.js'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -241,6 +243,9 @@ export async function apply(ctx) {
     console.error('dsh-tavern: 缺少 llm、agents 或 sessions 服务')
     return
   }
+  // Surface rewrites that happen between rounds need the live Agent to publish
+  // their edit turn as used (V4 numbers the next turn from phase.lastTurn).
+  setAgentResolver(sessionId => agentRegistry.get(String(sessionId || '')))
   const agentDefaultModel = ctx.get('agentDefaultModel')
   let autoCompaction = null
   const compactionTimers = new Map()
@@ -2972,7 +2977,7 @@ export async function apply(ctx) {
               role: 'user',
               regexPlacement: 2,
               content: [{ type: 'text', text: settleUserText(snapshot, backgroundTasksSettings.posture) }],
-              source: { kind: 'plugin', plugin: 'dsh-tavern' }
+              source: producerSource('dsh-tavern')
             }],
             system: [
               backgroundTasksSettings.posture ? runtimePrompt('posture-settlement') : '本轮不生成或提交姿势。完成启用的后台任务后简短回复完成。',
@@ -4360,7 +4365,7 @@ export async function apply(ctx) {
 
   function isTurnInput(message) {
     const source = message && message.source
-    return source && (source.kind === 'user' || (source.kind === 'plugin' && (source.plugin === 'dsh-tavern-regen' || source.plugin === 'dsh-tavern-replay')))
+    return source && (source.kind === 'user' || (isProducerSource(source, 'dsh-tavern-regen') || isProducerSource(source, 'dsh-tavern-replay')))
   }
 
   function activeTurnOf(exec) {
@@ -4624,11 +4629,10 @@ export async function apply(ctx) {
         id: randomUUID(),
         role: item.role,
         content: projectPlayerContent(item.inputAttachments, item.content, { fallback: false }),
-        source: {
-          kind: 'plugin', plugin: 'dsh-tavern', form: 'sillytavern-compatibility',
+        source: producerSource('dsh-tavern', {
+          form: 'sillytavern-compatibility',
           sections: [{ name: 'tavern:sillytavern:' + label, text: item.content }],
-          trace: item.source
-        }
+          trace: item.source })
       }
     })
   }

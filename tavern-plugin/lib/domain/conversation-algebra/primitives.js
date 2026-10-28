@@ -1,3 +1,4 @@
+import { producerSource } from '../message-source.js'
 import { guardDropTagged, guardEdit, guardStepComplete, guardTombstoneSource, messageOf, SCAFFOLD_TAGS } from './guards.js'
 import { computeFold } from './fold.js'
 
@@ -35,7 +36,7 @@ function tombstone(event, tag) {
   const write = replacement(event, {
     id, role: 'user', content: [],
     source: {
-      ...(event.type === 'user/message' && original.source?.kind !== 'skill-catalog' ? clone(original.source) : { kind: 'plugin', plugin: 'dsh-tavern', form: tag }),
+      ...(event.type === 'user/message' && original.source?.kind !== 'skill-catalog' ? clone(original.source) : producerSource('dsh-tavern', { form: tag })),
       retiredSeq: event.seq
     }
   })

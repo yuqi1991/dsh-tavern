@@ -2,7 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { Context } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
-import Persistence from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'
+import * as JsonlModule from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'
+const Jsonl = typeof JsonlModule.apply === 'function' ? JsonlModule : JsonlModule.default
+async function openPersistence(ctx, options) { await ctx.plugin(Jsonl, options).await(); return ctx.sessionPersistence }
 import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import { SURFACE_SELECT_TYPE } from '../../lib/domain/surface-selection.js'
@@ -12,7 +14,7 @@ import { computeFold, committedMetadata } from '../../lib/domain/conversation-al
 import { user, assistant, toolResult } from './helpers.mjs'
 
 const RUNTIME = '/home/claw/dsh-stage-021/runtime/lib'
-const system = { turn: 1, step: 1, message: { id: 'system', role: 'system', content: [{ type: 'text', text: 'rules' }], source: { kind: 'plugin', plugin: 'fixture' } } }
+const system = { turn: 1, step: 1, message: { id: 'system', role: 'system', content: [{ type: 'text', text: 'rules' }], source: { kind: 'system-prompt' } } }
 
 function withPatch(run) {
   return async () => {
@@ -26,12 +28,24 @@ function twoVariants(id) {
   const s = Session.create(id)
   const seq = {}
   const put = (name, type, data) => { s.append(type, data, { surfaceOp: 'append' }); seq[name] = s.seq - 1 }
+  const mark = (type, data) => s.append(type, data)
+  mark('turn/start', { turn: 1 })
+  mark('step/start', { turn: 1, step: 1 })
   put('system', 'system/message', system)
   put('input', 'user/message', user('input', 'hello').data)
   put('callA', 'assistant/message', assistant('callA', [{ type: 'tool-call', id: 'c1', name: 'skill', arguments: '{}' }], 1).data)
+  mark('tool/call', { turn: 1, step: 1, callId: 'c1', name: 'skill', arguments: '{}' })
   put('toolA', 'tool/result', toolResult('toolA', 'c1', 1).data)
+  mark('step/end', { turn: 1, step: 1 })
+  mark('step/start', { turn: 1, step: 2 })
   put('bodyA', 'assistant/message', assistant('bodyA', 'variant A', 1, 2).data)
+  mark('step/end', { turn: 1, step: 2 })
+  mark('turn/end', { turn: 1, reason: { kind: 'completed' } })
+  mark('turn/start', { turn: 2 })
+  mark('step/start', { turn: 2, step: 1 })
   put('bodyB', 'assistant/message', assistant('bodyB', 'variant B', 2).data)
+  mark('step/end', { turn: 2, step: 1 })
+  mark('turn/end', { turn: 2, reason: { kind: 'completed' } })
   return { s, seq }
 }
 
@@ -44,7 +58,7 @@ test('selection switches the live surface by reference', withPatch(() => {
   s.append(SURFACE_SELECT_TYPE, select([seq.system, seq.input, seq.callA, seq.toolA, seq.bodyA]))
   assert.deepEqual([...s.surface.nodes], [seq.system, seq.input, seq.callA, seq.toolA, seq.bodyA])
   assert.equal(s.surface.replaceGeneration, before + 1)
-  assert.deepEqual(texts(s), ['rules', 'hello', 'tool-call', 'tool-result', 'variant A'])
+  assert.deepEqual(texts(s), ['rules', 'hello', 'tool-call', 'loaded', 'variant A'])
   s.append(SURFACE_SELECT_TYPE, select([seq.system, seq.input, seq.bodyB]))
   assert.deepEqual(texts(s), ['rules', 'hello', 'variant B'])
   // Later native operations keep working on the selected surface.
@@ -76,7 +90,7 @@ test('selection guards reject without writing', withPatch(() => {
 
 test('selection survives persistence and reload', withPatch(async patch => {
   const root = await mkdtemp('/home/claw/dsh-tavern-dev/surface-select-')
-  const persistence = new Persistence(new Context(), { root, compression: 'zstd' })
+  const persistence = await openPersistence(new Context(), { root, compression: 'zstd' })
   patch.patchPersistence(persistence)
   let handle
   try {
@@ -104,7 +118,7 @@ test('a host without the patch refuses to load a selection log', async () => {
     const patch = await prepareExpandedPatch(RUNTIME, { version: '0.2.1-rc.2' })
     const s = Session.create('select-unpatched')
     try {
-      const writer = new Persistence(new Context(), { root, compression: 'zstd' })
+      const writer = await openPersistence(new Context(), { root, compression: 'zstd' })
       patch.patchPersistence(writer)
       s.append('user/message', user('input', 'hello').data, { surfaceOp: 'append' })
       s.append(SURFACE_SELECT_TYPE, select([0]))
@@ -113,7 +127,7 @@ test('a host without the patch refuses to load a selection log', async () => {
       await handle.flush()
       await handle.close()
     } finally { patch.dispose() }
-    const reader = new Persistence(new Context(), { root, compression: 'zstd' })
+    const reader = await openPersistence(new Context(), { root, compression: 'zstd' })
     await assert.rejects(async () => { const handle = await reader.open(s.id, 'read'); await handle.read() }, /surface-select.*not marked ignorable/)
   } finally { await rm(root, { recursive: true, force: true }) }
 })
@@ -122,14 +136,14 @@ test('Tavern fold and branch metadata read a committed selection', withPatch(() 
   const { s, seq } = twoVariants('select-fold')
   const metadata = { version: 1, branches: [{ branchId: 'b1', headSeq: seq.bodyA, turn: 1 }], activeBranchId: 'b1', activeHeadSeq: seq.bodyA }
   s.append(SURFACE_SELECT_TYPE, { ...select([seq.system, seq.input, seq.callA, seq.toolA, seq.bodyA]),
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select', conversationTransaction: { operationId: 'op-1', phase: 'commit', metadata } } })
+    source: { kind: 'plugin:dsh-tavern', form: 'surface-select', conversationTransaction: { operationId: 'op-1', phase: 'commit', metadata } } })
   const fold = computeFold(s.snapshotEvents())
   assert.deepEqual(fold.surfaceNodes, [...s.surface.nodes])
   assert.deepEqual(fold.views.conversation.map(event => event.seq), [seq.input, seq.bodyA])
   assert.deepEqual(committedMetadata(s.snapshotEvents()), metadata)
   // An uncommitted selection (begin without commit) is ignored by the fold.
   s.append(SURFACE_SELECT_TYPE, { ...select([seq.system, seq.input, seq.bodyB]),
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select', conversationTransaction: { operationId: 'op-2', phase: 'begin' } } })
+    source: { kind: 'plugin:dsh-tavern', form: 'surface-select', conversationTransaction: { operationId: 'op-2', phase: 'begin' } } })
   assert.deepEqual(computeFold(s.snapshotEvents()).surfaceNodes, [seq.system, seq.input, seq.callA, seq.toolA, seq.bodyA])
 }))
 

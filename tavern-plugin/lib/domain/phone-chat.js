@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { postureForContext } from './posture-context.js'
 import { randomUUID } from 'node:crypto'
 
@@ -106,7 +107,7 @@ function modelMessages(messages, now) {
       id: 'phone-' + index + '-' + now.toString(36),
       role: message.role,
       content: [{ type: 'text', text: message.text }],
-      source: { kind: 'plugin', plugin: 'dsh-tavern-phone' }
+      source: producerSource('dsh-tavern-phone')
     }
   })
 }

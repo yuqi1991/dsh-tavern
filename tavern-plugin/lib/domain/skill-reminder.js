@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { sessionEvents } from './session-events.js'
 
 export const SKILL_REMINDER_FORM = 'writing-skill-reminder'
@@ -43,14 +44,11 @@ export function buildSkillReminder(session, { trace, messages, disabledWritingSk
   if (disabled.length > 0) lines.push('本局停用：' + disabled.map(name => '`' + name + '`').join('、') + '，不要装载或遵循其内容。')
   return {
     text: lines.join('\n'),
-    source: {
-      kind: 'plugin',
-      plugin: 'dsh-tavern',
+    source: producerSource('dsh-tavern', {
       form: SKILL_REMINDER_FORM,
       catalog: carried,
       ...(disabled.length === 0 ? {} : { disabledWritingSkills: [...disabled] }),
-      ...(trace === undefined ? {} : { trace })
-    }
+      ...(trace === undefined ? {} : { trace }) })
   }
 }
 

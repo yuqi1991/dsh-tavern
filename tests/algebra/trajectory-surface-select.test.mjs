@@ -9,13 +9,13 @@ function region(s, name) { const start = s.indexOf('//#region ' + name); assert.
 function fixture() {
   const c = readFileSync(root + 'dsh-client-ui-conversation/lib/client.js', 'utf8'), t = readFileSync(root + 'dsh-client-ui-trajectory/lib/client.js', 'utf8')
   const ctx = vm.createContext({ _deepseek_ai_dsh_client_store: { notifySubscribers() {} }, require: () => ({ ConversationNodeAssembler: ctx.ConversationNodeAssembler }) })
-  for (const name of ['lib/types/client/contract/request-inspection.js', '../../core/session/src/surface.ts', 'lib/types/client/contract/system-prompt.js', 'lib/types/client/contract/conversation.js', 'lib/types/client/conversation/location-index.js', 'lib/types/client/conversation/assembler.js']) vm.runInContext(region(c, name), ctx)
-  for (const name of ['lib/types/client/locales.js', 'lib/types/client/trajectory-definition-common.js', 'lib/types/client/trajectory-event-projection.js', 'lib/types/client/trajectory-assistant-definition.js', 'lib/types/client/trajectory-message-definitions.js', 'lib/types/client/trajectory-snapshot-builder.js']) vm.runInContext(region(t, name), ctx)
+  for (const name of ['lib/types/client/contract/request-inspection.js', '../../core/session/lib/types/surface.js', 'lib/types/client/contract/system-prompt.js', 'lib/types/client/contract/conversation.js', 'lib/types/client/conversation/location-index.js', 'lib/types/client/conversation/assembler.js']) vm.runInContext(region(c, name), ctx)
+  for (const name of ['lib/types/client/locales.js', '../../util/values/src/partial-json.ts', '../../util/values/src/index.ts', '../../llm/llm/src/assistant-stream.ts', 'lib/types/client/trajectory-definition-common.js', 'lib/types/client/trajectory-event-projection.js', 'lib/types/client/trajectory-assistant-definition.js', 'lib/types/client/trajectory-message-definitions.js', 'lib/types/client/trajectory-snapshot-builder.js']) vm.runInContext(region(t, name), ctx)
   vm.runInContext(readFileSync(new URL('../../tavern-plugin/src/client/modules/trajectory-surface-view.js', import.meta.url), 'utf8'), ctx)
   return vm.runInContext(`new ConversationNodeAssembler({entries:()=>[trajectoryInboxDefinition,trajectoryMessageDefinition,trajectoryAssistantDefinition,tavernSurfaceSelectTrajectoryDefinition()],fallbackEntry:()=>undefined},{entries:()=>[trajectoryViewDefinition]})`, ctx)
 }
 const user = (seq, id, surfaceOp = 'append') => ({ type: 'event', event: { seq, time: 1, type: 'user/message', data: { id, role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: id }] }, surfaceOp } })
-const select = (seq, nodes) => ({ type: 'event', event: { seq, time: 1, type: 'dsh-tavern/surface-select', data: { version: 1, nodes, source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'surface-select' } } } })
+const select = (seq, nodes) => ({ type: 'event', event: { seq, time: 1, type: 'dsh-tavern/surface-select', data: { version: 1, nodes, source: { kind: 'plugin:dsh-tavern', form: 'surface-select' } } } })
 function visible(a) {
   const builder = a.views.get('trajectory').builder
   return [...builder.replace({ nodes: [...builder.nodes.values()] }).eventNodes].map(row => row.seq)

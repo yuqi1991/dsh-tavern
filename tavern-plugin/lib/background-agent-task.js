@@ -1,3 +1,4 @@
+import { producerSource } from './domain/message-source.js'
 import { createBackgroundProgress } from './domain/background-progress.js'
 import { worldbookSnapshot } from './domain/worldbook-snapshot.js'
 import { projectCandidateScriptContext } from './domain/candidate-script-context.js'
@@ -408,11 +409,11 @@ export function createBackgroundAgentTask(options) {
         id: randomUUID(),
         role: 'user',
         content: [{ type: 'text', text: taskText }],
-        source: { kind: 'plugin', plugin: 'dsh-tavern', ...(snapshot ? { worldbookSnapshot: snapshot } : {}), ...(scriptContext?.body ? {
+        source: producerSource('dsh-tavern', { ...(snapshot ? { worldbookSnapshot: snapshot } : {}), ...(scriptContext?.body ? {
           candidateScriptWindow: { version: 1, start: taskText.indexOf(scriptContext.body), length: scriptContext.body.length, digest: scriptContext.digest }
         } : {}), ...(filterContext ? {
           worldbookFilterPayload: { version: 1, start: taskText.indexOf(filterContext.payloadText), length: filterContext.payloadText.length }
-        } : {}) }
+        } : {}) })
       })
       await progress.wait(agent.whenIdle())
       input.signal?.throwIfAborted()

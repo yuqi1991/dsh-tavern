@@ -1,4 +1,6 @@
+import { isProducerSource, sourceProducerName, isSystemPromptSource } from '../message-source.js'
 import { SURFACE_SELECT_TYPE } from '../surface-selection.js'
+import { toolResultsOf } from '../tool-result-message.js'
 export class GuardError extends Error {
   constructor(rule, message, details = {}) {
     super(`[${rule}] ${message}`)
@@ -82,12 +84,12 @@ export function toolCallIdsOf(row) {
 
 export function toolResultCallId(row) {
   if (row?.type !== 'tool/result') return ''
-  return sourceOf(row)?.callId || contentOf(row)[0]?.toolCallId || ''
+  return sourceOf(row)?.callId || toolResultsOf(messageOf(row))[0]?.toolCallId || ''
 }
 
 export function tagOfEvent(event, rows = [event]) {
   const source = sourceOf(event)
-  const form = source?.kind === 'plugin' && source.plugin === 'dsh-tavern' ? source.form : ''
+  const form = isProducerSource(source, 'dsh-tavern') ? source.form : ''
   if (SCAFFOLD_TAGS.has(form)) return form
   if (source?.kind === 'skill-catalog') return 'writing-skill-reminder'
   const callNames = new Map(rows.filter(row => row?.type === 'tool/call').map(row => [row.data?.callId, row.data?.name]))
@@ -110,22 +112,22 @@ export function guardShape(event) {
   if (!record(message) || !nonempty(message.id)) fail('G1', `${event.type} 缺少 message.id`)
   const expectedRole = event.type === 'assistant/message' ? 'assistant'
     : event.type === 'system/message' ? 'system' : 'user'
-  if (message.role !== expectedRole) fail('G1', `${event.type} role 必须为 ${expectedRole}`)
+  if (message.role !== expectedRole && !(event.type === 'tool/result' && message.role === 'tool')) fail('G1', `${event.type} role 必须为 ${expectedRole}`)
   if (!record(message.source) || !nonempty(message.source.kind)) fail('G1', `${event.type} source 无效`)
   if (!Array.isArray(message.content)) fail('G1', `${event.type} content 必须为数组`)
   if (event.type !== 'user/message') {
     if (!Number.isSafeInteger(event.data?.turn) || !Number.isSafeInteger(event.data?.step)) fail('G1', `${event.type} turn/step 必须为安全整数`)
   }
-  if (event.type === 'system/message' && (message.source.kind !== 'plugin' || !nonempty(message.source.plugin))) fail('G1', 'system/message 必须带 plugin source')
+  if (event.type === 'system/message' && !sourceProducerName(message.source) && !isSystemPromptSource(message.source)) fail('G1', 'system/message 必须带 plugin source')
   if (event.type === 'assistant/message') {
     if (message.source.kind !== 'model' || !nonempty(message.source.provider) || !nonempty(message.source.model)) fail('G1', 'assistant/message 必须带完整 model source')
     if (!Array.isArray(event.data.stream)) fail('G1', 'assistant/message stream 必须为数组')
   }
   if (event.type === 'tool/result') {
-    const block = message.content[0]
     if (message.source.kind !== 'tool' || !nonempty(message.source.callId)) fail('G1', 'tool/result 必须带 tool source')
-    if (message.content.length !== 1 || !record(block) || block.type !== 'tool-result' || !Array.isArray(block.content)) fail('G1', 'tool/result content 形状无效')
-    if (block.toolCallId !== message.source.callId) fail('G1', 'tool/result callId 不匹配')
+    const results = toolResultsOf(message)
+    if (results.length !== 1 || (message.role !== 'tool' && message.content.length !== 1)) fail('G1', 'tool/result content 形状无效')
+    if (results[0].toolCallId !== message.source.callId) fail('G1', 'tool/result callId 不匹配')
   }
   return true
 }

@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
-import { appendSessionEvent, sessionEvents, sessionEventData, surfaceReplacementRange } from './session-events.js'
+import { appendSessionEvent, openTurnStep, sessionEvents, sessionEventData, surfaceReplacementRange } from './session-events.js'
+import { agentForSession } from './agent-lookup.js'
 
 /** Commit replacements against the current surface, never the raw history.
  * Only the algebra's host adapter may use this: the plugin writes the model
@@ -16,6 +17,28 @@ import { appendSessionEvent, sessionEvents, sessionEventData, surfaceReplacement
 export function createSessionSurfaceMutator(session, events = sessionEvents(session)) {
   const bySeq = new Map()
   const replacements = new Map()
+  // Which turn and step are open, and the highest turn and step numbers used, kept up
+  // to date from this batch's own appends, so a write never copies the whole log
+  // again (restoring n messages stays O(n)).
+  let open = openTurnStep(events)
+  let anyTurn = false
+  let lastTurn = 0
+  const lastStep = new Map()
+  function count(event) {
+    if (event.type === 'turn/start') { anyTurn = true; lastTurn = Math.max(lastTurn, Number(event.data?.turn) || 0) }
+    else if (event.type === 'step/start') {
+      const turn = event.data?.turn
+      lastStep.set(turn, Math.max(lastStep.get(turn) || 0, Number(event.data?.step) || 0))
+    }
+  }
+  events.forEach(count)
+  function track(event) {
+    count(event)
+    if (event.type === 'turn/start') open = { turn: event.data?.turn ?? null, step: null }
+    else if (event.type === 'turn/end') open = { turn: null, step: null }
+    else if (event.type === 'step/start') open = { ...open, step: event.data?.step ?? null }
+    else if (event.type === 'step/end') open = { ...open, step: null }
+  }
   function remember(event) {
     if (!event) return
     bySeq.set(event.seq, event)
@@ -27,19 +50,57 @@ export function createSessionSurfaceMutator(session, events = sessionEvents(sess
     ids.get(id).push(event)
   }
   events.forEach(remember)
-  function append(type, data, intent) {
+  function write(type, data, intent) {
     const event = appendSessionEvent(session, type, data, intent)
-    remember(typeof event === 'number' ? (session.eventAt?.(event) ?? session.events?.[event]) : event)
+    const stored = typeof event === 'number' ? (session.eventAt?.(event) ?? session.events?.[event]) : event
+    remember(stored)
+    if (stored) track(stored)
     return event
   }
+  // Released V4 accepts an assistant or tool event only inside the open turn and
+  // step, carrying that step's numbers; anything else stops the whole archive from
+  // loading ("does not match an open turn and step"). Writes after a round closed
+  // (settlement, repair, restore) therefore go into an edit step of their own: in
+  // the open turn when there is one, otherwise in an edit turn published as used.
+  const needsStep = type => type === 'assistant/message' || type === 'tool/result'
+  const misplaced = (type, data) => needsStep(type) && anyTurn
+    && (open.turn === null || open.step === null || data.turn !== open.turn || data.step !== open.step)
+  function editStep(body) {
+    if (open.turn !== null && open.step !== null) return body(open.turn, open.step)
+    const turn = open.turn ?? lastTurn + 1
+    const opensTurn = open.turn === null
+    const step = opensTurn ? 1 : (lastStep.get(turn) || 0) + 1
+    if (opensTurn) write('turn/start', { turn })
+    write('step/start', { turn, step })
+    try {
+      return body(turn, step)
+    } finally {
+      write('step/end', { turn, step })
+      if (opensTurn) {
+        write('turn/end', { turn, reason: { kind: 'completed' } })
+        const agent = agentForSession(session)
+        if (agent?.phase?.kind === 'idle') agent.phase.lastTurn = Math.max(Number(agent.phase.lastTurn) || 0, turn)
+      }
+    }
+  }
+  function append(type, data, intent) {
+    if (!misplaced(type, data)) return write(type, data, intent)
+    return editStep((turn, step) => write(type, { ...data, turn, step }, intent))
+  }
+  // A relocated write's retry must still match although its step number may differ
+  // between attempts.
+  const sameWithoutPlacement = (left, right) => isDeepStrictEqual(
+    { ...left, turn: null, step: null }, { ...right, turn: null, step: null })
   function replace(type, data, { start, end, sourceEventSeqs }) {
     const id = type === 'assistant/message' || type === 'tool/result' ? data.message?.id : data.id
     const normalized = sessionEventData(session, type, data)
+    const adoptsStep = misplaced(type, data)
     if (id) {
       const prior = (replacements.get(type)?.get(id) || []).find(event => isDeepStrictEqual(event.sourceEventSeqs, sourceEventSeqs))
       if (prior) {
         const range = surfaceReplacementRange(prior.surfaceOp)
-        if (range.start === start && range.end === end && isDeepStrictEqual(prior.data, normalized)) return prior
+        const same = adoptsStep ? sameWithoutPlacement(prior.data, normalized) : isDeepStrictEqual(prior.data, normalized)
+        if (range.start === start && range.end === end && same) return prior
         throw new Error('消息修改标识已用于不同内容，请重新读取上下文')
       }
     }
@@ -54,11 +115,14 @@ export function createSessionSurfaceMutator(session, events = sessionEvents(sess
     const referenced = new Set(Array.isArray(sourceEventSeqs) ? sourceEventSeqs : [])
     if (!Array.isArray(sourceEventSeqs) || targets.some(seq => !referenced.has(seq)) ||
         sourceEventSeqs.some(seq => !Number.isSafeInteger(seq) || !bySeq.has(seq))) throw new Error('消息替换缺少有效的来源引用')
-    return append(type, data, {
+    if (!adoptsStep) return write(type, data, {
       surfaceOp: { op: 'replace', start, end }, sourceEventSeqs
     })
+    return editStep((turn, step) => write(type, { ...data, turn, step }, {
+      surfaceOp: { op: 'replace', start, end }, sourceEventSeqs
+    }))
   }
-  return { append, replace }
+  return { append, replace, editStep }
 }
 
 function restorationComparable(data) {
@@ -86,6 +150,10 @@ export function isTavernSurfaceEdit(session, event, priorNodes, resolvePreset) {
   const owned = source.provider === 'dsh-tavern' && source.model === 'reply-projection'
   const replacement = event.surfaceOp
   const refs = event.sourceEventSeqs
+  // A story submitted through the tool is projected after the turn concluded, so this
+  // append lies outside any step; the host meter rejects such an assistant message and
+  // every later compaction fails (#263). It carries no provider usage: count it as injected.
+  if (owned && replacement === 'append' && event.data?.usage === undefined) return true
   if (replacement?.op !== 'replace' || !Array.isArray(refs) || refs.length === 0) return false
   if (!owned) {
     // Ordinary model replies never need a history lookup. The meter supplies a

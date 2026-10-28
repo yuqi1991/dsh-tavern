@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource } from './message-source.js'
 import { writeSurfaceEvent } from './surface-transaction.js'
 import { sessionEvents } from './session-events.js'
 import { markRequestHandled, requestHandledBy } from './request-lineage.js'
@@ -72,7 +73,7 @@ export function createImportContextPreparation({ readChat, updateChat, getSessio
     if (!session) throw new Error('无法访问导入对话的原生 Session')
     const markerId = 'tavern-context-preparation:' + chat.importHistory.operationId
     const events = sessionEvents(session)
-    const existing = events.find(e => e.type === 'user/message' && e.data.id === markerId && e.data.source?.plugin === PLUGIN)
+    const existing = events.find(e => e.type === 'user/message' && e.data.id === markerId && isProducerSource(e.data.source, PLUGIN))
     let result
     if (existing) {
       const removed = new Set(existing.sourceEventSeqs)
@@ -83,7 +84,7 @@ export function createImportContextPreparation({ readChat, updateChat, getSessio
       result = planImportContext({ session, request: { ...request, maxTokens: request.maxTokens ?? info.defaultMaxTokens }, operationId: chat.importHistory.operationId, contextWindow: info.context?.contextWindow, estimateMessage })
       const { removedIds, removedSeqs, ...receipt } = result
       const message = { id: markerId, role: 'user', content: [],
-        source: { kind: 'plugin', plugin: PLUGIN, preparation: receipt } }
+        source: producerSource(PLUGIN, { preparation: receipt }) }
       await writeSurfaceEvent(session, { operation: 'import-context', flush, plan: () => ({
         type: 'user/message', data: message,
         intent: result.status === 'trimmed'

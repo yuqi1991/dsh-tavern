@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { sessionEvents } from './session-events.js'
 import { commitConversationHistoryTransaction } from './conversation-algebra-history.js'
 import { computeFold, operationCommitted, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
@@ -88,7 +89,7 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
             // round's player input stays the (possibly edited) original node.
             ops.push({ kind: 'surface-write',
               event: { type: 'user/message', data: { id: 'conversation-tombstone:regen-attempt:' + saved.syntheticInputSeq,
-                role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'regen-attempt', retiredSeq: saved.syntheticInputSeq } } },
+                role: 'user', content: [], source: producerSource('dsh-tavern', { form: 'regen-attempt', retiredSeq: saved.syntheticInputSeq }) } },
               intent: { surfaceOp: { op: 'replace', start: saved.syntheticInputSeq, end: saved.syntheticInputSeq }, sourceEventSeqs: [saved.syntheticInputSeq] } })
           }
           if (ops.length) {

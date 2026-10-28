@@ -8,7 +8,7 @@ const runtime='/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/'
 function client() {
   const modules=new Map([['@deepseek-ai/cordis',cordis],['@deepseek-ai/dsh-client-store',{}]])
   const context=vm.createContext({window:{__ModuleLoader__:{load(descriptor){modules.set(descriptor.id+'/client',descriptor.factory(name=>modules.get(name)))}}},console,AbortController,queueMicrotask,setTimeout,clearTimeout})
-  for(const name of ['dsh-api-gateway','dsh-api-session-controller']) vm.runInContext(readFileSync(runtime+name+'/lib/client.js','utf8'),context)
+  for(const file of ['dsh-api-gateway/lib/client.browser.js','dsh-api-session-controller/lib/client.js']) vm.runInContext(readFileSync(runtime+file,'utf8'),context)
   vm.runInContext(readFileSync(new URL('../../tavern-plugin/src/client/modules/host-session-patch.js',import.meta.url),'utf8'),context)
   const published=[]
   const Stream=modules.get('@deepseek-ai/dsh-api-session-controller/client').SessionEventStream
@@ -16,7 +16,7 @@ function client() {
   context.installConversationPublicationGate(stream)
   return {stream,published}
 }
-const entry=(seq,phase)=>({type:'event',event:{seq,time:1,type:'user/message',surfaceOp:'append',data:{id:String(seq),role:'user',content:[],source:{kind:'plugin',plugin:'dsh-tavern',...(phase?{conversationTransaction:{operationId:'op',phase}}:{})}}}})
+const entry=(seq,phase)=>({type:'event',event:{seq,time:1,type:'user/message',surfaceOp:'append',data:{id:String(seq),role:'user',content:[],source:{kind:'plugin:dsh-tavern',...(phase?{conversationTransaction:{operationId:'op',phase}}:{})}}}})
 
 test('actual host SessionEventStream publishes one window for a complete transaction',async()=>{
   const {stream,published}=client()

@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource } from './message-source.js'
 import { projectPlayerContent } from './player-input-content.js'
 import { assertRescueHistoryEditable } from './chat-history-rescue.js'
 import { canUndoRollback, selectSurface, preflightSelectSurface, unchangedSinceRollback } from './surface-restoration.js'
@@ -313,7 +314,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         id: randomUUID(),
         role: 'user',
         content: projectPlayerContent(msgs0[oldAssistantIndex - 1].inputAttachments, syntheticText),
-        source: { kind: 'plugin', plugin: 'dsh-tavern-regen', regenerationId: operationId }
+        source: producerSource('dsh-tavern-regen', { regenerationId: operationId })
       })
       await agent.whenIdle()
       syntheticTurn = agent.phase !== undefined && agent.phase !== null && Number.isFinite(Number(agent.phase.lastTurn)) ? Number(agent.phase.lastTurn) : (beforeLastTurn + 1)
@@ -392,7 +393,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
           const nodes = session.surface?.nodes || []
           for (let index = nodes.length - 1; index >= 0; index--) {
             const event = sessionEvents(session).find(item => item.seq === nodes[index])
-            if (event?.type === 'user/message' && event.data?.source?.plugin === 'dsh-tavern-regen') return event.seq
+            if (event?.type === 'user/message' && isProducerSource(event.data?.source, 'dsh-tavern-regen')) return event.seq
           }
           return undefined
         })()

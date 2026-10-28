@@ -1,3 +1,4 @@
+import { sourceProducerName, isPluginSource, isProducerSource } from './message-source.js'
 // Prepare Session v0 logs so DSH 0.1.5-rc.2 can migrate them. The original file
 // is replaced only after the official catalog accepts the result and the visible
 // story text still matches. A refused log is left untouched.
@@ -95,7 +96,7 @@ function compactionBoundaries(events) {
       range: Boolean(event.data.shadowedRange), seqs: Boolean(event.data.shadowedSeqs?.length),
     }]
     if (event.surfaceOp?.op === 'replace' &&
-        (message?.source?.compactionId || /compact/.test(message?.source?.plugin || ''))) {
+        (message?.source?.compactionId || /compact/.test(sourceProducerName(message?.source)))) {
       return [{ kind: 'checkpoint', content: message.content }]
     }
     return []
@@ -1033,7 +1034,7 @@ function stripKnownExtras(source) {
 }
 
 function normalizePluginForm(source) {
-  if (!source || source.kind !== 'plugin' || !source.form || ALLOWED_FORM.has(source.form)) return false
+  if (!source || !isPluginSource(source) || !source.form || ALLOWED_FORM.has(source.form)) return false
   if (validSections(source.sections)) source.form = 'snapshot'
   else {
     delete source.form
@@ -1044,7 +1045,7 @@ function normalizePluginForm(source) {
 }
 
 function cleanSource(source) {
-  if (!source || source.kind !== 'plugin' || source.plugin !== 'dsh-tavern') return false
+  if (!source || !isProducerSource(source, 'dsh-tavern')) return false
   let changed = false
   for (const key of Object.keys(source)) {
     if (TAVERN_SOURCE_KEYS.has(key)) continue

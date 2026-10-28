@@ -4,9 +4,9 @@
 function tavernBookkeepingContext(data) {
 	if (!data || data.kind !== "context" || !Array.isArray(data.content) || data.content.length !== 0) return false;
 	const source = data.source || {};
-	if (source.kind !== "plugin") return false;
-	if (source.plugin === "dsh-tavern-surface-restore") return true;
-	return source.plugin === "dsh-tavern" && (source.form === "conversation-metadata" || source.form === "checkout");
+	const producer = source.kind === "plugin" ? source.plugin : typeof source.kind === "string" && source.kind.startsWith("plugin:") ? source.kind.slice(7) : "";
+	if (producer === "dsh-tavern-surface-restore") return true;
+	return producer === "dsh-tavern" && (source.form === "conversation-metadata" || source.form === "checkout");
 }
 
 // DSH 0.1.5 may withdraw an already materialized assistant when a stream block

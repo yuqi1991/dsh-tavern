@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 // 故事固定背景（人物卡信息 + 常驻世界书）的 StoryMaterials 投影。
 // 固定背景不再占据顶部 system，而是在种子轨迹（CoreTask + 确认回复）之后
 // 以独立 system 消息注入：<StoryMaterials> 包裹人物卡各段，常驻世界书置于
@@ -165,10 +166,9 @@ function storyMaterialsMessage(text, sessionId) {
     id: 'tavern-story-materials:v1:' + str(sessionId),
     role: 'system',
     content: [{ type: 'text', text }],
-    source: {
-      kind: 'plugin', plugin: 'dsh-tavern', form: 'story-materials',
-      sections: [{ name: 'tavern:story-materials', text }]
-    }
+    source: producerSource('dsh-tavern', {
+      form: 'story-materials',
+      sections: [{ name: 'tavern:story-materials', text }] })
   }
 }
 

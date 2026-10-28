@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 
@@ -61,5 +62,5 @@ export function appendVariableChanges({ chat, payload, decision }) {
   if (decision.messages.some(message => message.source?.form === 'variable-changes')) return decision
   const text = lastRoundVariableChanges(chat)
   if (!text) return decision
-  return { ...decision, messages: [...decision.messages, { id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'variable-changes' } }] }
+  return { ...decision, messages: [...decision.messages, { id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: producerSource('dsh-tavern', { form: 'variable-changes' }) }] }
 }

@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { foregroundFrameText } from './agent-input-frame.js'
 import { buildSkillReminder } from './skill-reminder.js'
 import { worldbookSnapshot } from './worldbook-snapshot.js'
@@ -29,8 +30,8 @@ export function createForegroundFrameSessionAdapter(options = {}) {
     const snapshots = snapshot ? [{
       id: makeId() + ':worldbook', role: 'user',
       content: [{ type: 'text', text: snapshot.rendered }],
-      source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'worldbook-snapshot',
-        worldbookSnapshot: snapshot, trace: { frameId: frame.frameId, turn: frame.turn, operationId: frame.operationId } }
+      source: producerSource('dsh-tavern', { form: 'worldbook-snapshot',
+        worldbookSnapshot: snapshot, trace: { frameId: frame.frameId, turn: frame.turn, operationId: frame.operationId } })
     }] : []
     // 写作技能提醒随本轮输入下发（目录 + 停用清单 + 按需装载指令），下一轮由按轮退役
     // 清理。skill 目录从事件日志读取，停用清单由调用方从 chat 状态传入。
@@ -58,9 +59,7 @@ export function createForegroundFrameSessionAdapter(options = {}) {
         id: makeId(),
         role: 'user',
         content: [{ type: 'text', text }],
-        source: {
-          kind: 'plugin',
-          plugin: 'dsh-tavern',
+        source: producerSource('dsh-tavern', {
           form: 'foreground-frame',
           sections,
           trace: {
@@ -70,8 +69,7 @@ export function createForegroundFrameSessionAdapter(options = {}) {
             basedOnRevision: frame.basedOnRevision,
             operationId: frame.operationId,
             turn: frame.turn
-          }
-        }
+          } })
       }]),
       receipt: { appended: true, reason: 'appended', frameId: frame.frameId }
     }

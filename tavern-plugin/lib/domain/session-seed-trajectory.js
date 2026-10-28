@@ -1,3 +1,4 @@
+import { producerSource } from './message-source.js'
 import { ensureSessionSystemHead, sessionEvents, appendSessionEvent } from './session-events.js'
 
 const VERSION = 1
@@ -31,7 +32,7 @@ function userMessage(sessionId, index, texts) {
     id: id(sessionId, index),
     role: 'user',
     content: [{ type: 'text', text: texts[index] }],
-    source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'synthetic-trajectory', version: VERSION }
+    source: producerSource('dsh-tavern', { form: 'synthetic-trajectory', version: VERSION })
   }
 }
 

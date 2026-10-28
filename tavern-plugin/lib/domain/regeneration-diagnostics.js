@@ -1,3 +1,4 @@
+import { isPluginSource } from './message-source.js'
 import { sessionEvents } from './session-events.js'
 import { createHash } from 'node:crypto'
 
@@ -16,7 +17,7 @@ function message(value, index) {
 function event(value) {
   const data = value?.data, msg = data?.message || data
   return { seq: number(value?.seq), type: label(value?.type, ['user/message', 'assistant/message', 'turn/start', 'turn/end', 'tool/call', 'tool/result']),
-    turn: number(data?.turn), sourceKind: label(msg?.source?.kind, ['user', 'model', 'plugin']),
+    turn: number(data?.turn), sourceKind: label(isPluginSource(msg?.source) ? 'plugin' : msg?.source?.kind, ['user', 'model', 'plugin']),
     textLength: typeof msg?.content === 'string' ? msg.content.length : Array.isArray(msg?.content)
       ? msg.content.reduce((sum, block) => sum + (block?.type === 'text' && typeof block.text === 'string' ? block.text.length : 0), 0) : null,
     contentType: type(msg?.content), contentCount: Array.isArray(msg?.content) ? msg.content.length : null }

@@ -41,7 +41,7 @@ export function planSurfaceSelection(currentNodes, event, eventAt) {
     const message = target.data && (target.type === 'user/message' ? target.data : target.data.message)
     const content = message && Array.isArray(message.content) ? message.content : []
     if (target.type === 'tool/result') {
-      const callId = content[0] && content[0].toolCallId
+      const callId = message && message.role === 'tool' ? message.toolCallId : content[0] && content[0].toolCallId
       if (!open.has(callId)) throw new Error(where + ': tool result ' + seq + ' has no selected tool call before it')
       open.delete(callId)
       continue

@@ -1,3 +1,4 @@
+import { isProducerSource } from './message-source.js'
 import { createHash } from 'node:crypto'
 
 const digest = text => createHash('sha256').update(text).digest('hex')
@@ -17,7 +18,7 @@ export function projectCandidateScriptContext(session, input) {
   try {
     for (const message of session.deriveMessages()) {
       const span = message.source?.candidateScriptWindow
-      if (message.source?.kind !== 'plugin' || message.source.plugin !== 'dsh-tavern' || span?.version !== 1 || span.digest !== version) continue
+      if (!isProducerSource(message.source, 'dsh-tavern') || span?.version !== 1 || span.digest !== version) continue
       if (message.content?.length !== 1 || message.content[0]?.type !== 'text') continue
       const text = message.content[0].text
       if (typeof text !== 'string' || !Number.isSafeInteger(span.start) || !Number.isSafeInteger(span.length) ||

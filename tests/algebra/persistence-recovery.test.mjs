@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { mkdtemp } from 'node:fs/promises'
 import { Context } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
-import Persistence from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'
+import * as JsonlModule from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'
+const Jsonl = typeof JsonlModule.apply === 'function' ? JsonlModule : JsonlModule.default
+async function openPersistence(ctx, options) { await ctx.plugin(Jsonl, options).await(); return ctx.sessionPersistence }
 import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { createConversationAlgebraHostAdapter } from '../../tavern-plugin/lib/domain/conversation-algebra-host-adapter.js'
 import { appendStep, runTransaction, recoverTransaction } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
@@ -11,7 +13,7 @@ import { user } from './helpers.mjs'
 for (const cut of [1,2]) test(`host persistence reopens durable prefix after write ${cut}`, async () => {
   const root=await mkdtemp('/home/claw/dsh-tavern-dev/algebra-persistence-')
   const ctx=new Context()
-  const persistence=new Persistence(ctx,{root,compression:'zstd'})
+  const persistence=await openPersistence(ctx,{root,compression:'zstd'})
   let handle
   try {
     const session=Session.create('algebra-persistence-test')

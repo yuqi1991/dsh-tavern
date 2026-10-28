@@ -1,5 +1,6 @@
 import { committedOperationIds, contentOf, messageOf, tagOfEvent, transactionOf as transactionTagOf } from './guards.js'
 import { SURFACE_SELECT_TYPE } from '../surface-selection.js'
+import { toolResultsOf } from '../tool-result-message.js'
 
 const SURFACE_TYPES = new Set(['system/message', 'user/message', 'assistant/message', 'tool/result'])
 
@@ -26,6 +27,8 @@ function replacementOf(event) {
 }
 
 function visibleContent(event) {
+  const message = messageOf(event)
+  if (toolResultsOf(message).some(result => result.content.length > 0)) return true
   const blocks = contentOf(event)
   if (blocks.length === 0) return false
   return blocks.some(block => {
