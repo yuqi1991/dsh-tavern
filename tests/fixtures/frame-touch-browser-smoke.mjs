@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 const client = await readFile(new URL('../../tavern-plugin/lib/client.js', import.meta.url))
 const page = `<!doctype html><meta charset="utf-8"><title>Issue 44 touch relay regression</title>
 <style>#conversation{height:400px;overflow:auto;scroll-behavior:smooth}iframe{height:320px;width:95%;border:1px solid}#spacer{height:2000px}</style>
-<h1>Issue 44 — browser layout regression</h1><button id="run">运行滚动接力测试</button><pre id="result">等待测试</pre><div id="conversation"><div id="mount"></div><div id="spacer"></div></div>
+<h1>Issue 44 — browser layout regression</h1><button id="run">运行滚动接力测试</button><pre id="result">等待测试</pre><div id="conversation"><div id="mount"></div><div id="mount2"></div><div id="spacer"></div></div>
 <script>window.__ModuleLoader__={load(value){window.client=value.factory(()=>({}))}};</script><script src="/client.js"></script>
 <script>
 const trace=[];addEventListener('message',e=>{if(e.data?.type?.includes('frame-touch')||e.data?.type==='dsh-tavern-frame-scroll')trace.push(e.data)});
@@ -14,6 +14,13 @@ const content='<div id="inner" style="height:100px;overflow-y:auto;touch-action:
 const life=client.createTavernMessageFrameLifecycle({content,eager:true,runtimeReporting:false},{window});
 const release=life.start(()=>{}), doc=life.snapshot().visibleDocument, frame=document.createElement('iframe');
 frame.srcdoc=doc.html;document.querySelector('#mount').append(frame);doc.ref(frame);
+// 卡片常见写法：正文里用 <style> 锁住 body 的手势。touch-action 沿祖先求交，body 上的
+// none 会让浏览器不把整笔手势认作滚动 —— 帧内没有滚动范围（帧高=内容高），也不会链
+// 给会话容器，于是哪儿都不动（真机报告：59 次 touchmove、0 次 preventDefault、两边都 0）。
+const blocked='<style>body{touch-action:none}</style><div id="plain">正文段落：这一帧没有可滚区域，拖动应当交给外层会话区。</div>';
+const blockedLife=client.createTavernMessageFrameLifecycle({content:blocked,eager:true,runtimeReporting:false},{window});
+const blockedRelease=blockedLife.start(()=>{}), blockedDoc=blockedLife.snapshot().visibleDocument, blockedFrame=document.createElement('iframe');
+blockedFrame.srcdoc=blockedDoc.html;document.querySelector('#mount2').append(blockedFrame);blockedDoc.ref(blockedFrame);
 const pause=()=>new Promise(resolve=>setTimeout(resolve,30));
 document.querySelector('#run').onclick=async()=>{
  const out=document.querySelector('#result'),outer=document.querySelector('#conversation'),w=frame.contentWindow,inner=w.document.querySelector('#inner');
@@ -28,8 +35,15 @@ document.querySelector('#run').onclick=async()=>{
  if(outer.scrollTop!==0)throw Error('native pan received synthetic scroll');
  inner.style.touchAction='none';gesture('touchstart',200);gesture('touchmove',160);await pause();gesture('touchstart',160);gesture('touchmove',140);await pause();gesture('touchmove',120);await pause();
  if(outer.scrollTop!==80)throw Error('fresh gesture cancelled by stale stop: '+outer.scrollTop);
- gesture('touchcancel',120);release();
- out.textContent='PASS: inner 10px + outer 90px; smooth CSS bypassed; native pan untouched; new gesture survives old cancellation; lifecycle disposed';
+ gesture('touchcancel',120);
+ // 根元素归一化：卡片把 body 锁成 none 之后，本模块必须把它改回 auto，否则原生滚动
+ // 链整条失效（这是「正文划不动」的真机根因，见 PR 说明）。
+ await pause();
+ const blockedBody=blockedFrame.contentWindow.document.body;
+ const blockedAction=blockedFrame.contentWindow.getComputedStyle(blockedBody).touchAction;
+ if(blockedAction!=='auto')throw Error('root touch-action not restored: '+blockedAction);
+ blockedRelease();release();
+ out.textContent='PASS: inner 10px + outer 90px; smooth CSS bypassed; native pan untouched; new gesture survives old cancellation; body touch-action restored to '+blockedAction+'; lifecycle disposed';
  }catch(error){out.textContent='FAIL: '+error.stack+' '+JSON.stringify(trace)}
 };
 </script>`

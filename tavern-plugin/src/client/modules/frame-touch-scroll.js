@@ -29,12 +29,33 @@ function installTavernFrameTouch(token, scrollChain) {
         animation = 0;
     }
     function selected() { return Boolean(String(window.getSelection() || '')); }
+    // Measured on a phone (Android WebView 155, message frame sized to its content):
+    // one stroke fired touchmove 59 times, nothing was preventDefault'ed, and neither the
+    // frame nor the conversation moved. The only blocking style in the chain was
+    // `body { touch-action: none }`, from a card stylesheet.
+    //
+    // touch-action intersects up to the root, so that single declaration makes the browser
+    // treat the stroke as "not a scroll": the frame has no scroll range of its own (it is
+    // sized to its content) and the stroke is never chained to the conversation either.
+    // Nothing pans, and no JS relays it because the gesture looks native.
+    //
+    // A message document never needs to block panning at its root — a card that wants a
+    // custom gesture declares it on its own container, which nativeVertical() already
+    // handles — so normalise the two root elements back to `auto`. Any value that already
+    // allows vertical panning is left untouched.
+    // Same rule as nativeVertical(): none, or pan-* without a vertical component, blocks.
+    const blocksVerticalPan = action => action === 'none' || (/pan-|pinch-zoom/.test(action) && !/pan-y|pan-up|pan-down/.test(action));
+    function unblockRootPanning() {
+        for (const node of [document.documentElement, document.body]) {
+            if (node && blocksVerticalPan(String(getComputedStyle(node).touchAction || 'auto'))) node.style.setProperty('touch-action', 'auto', 'important');
+        }
+    }
     function nativeVertical(start) {
         // touch-action is intersected up to the first scroll container.
         for (let node = start; node && node.nodeType === 1; node = node.parentElement) {
             const style = getComputedStyle(node);
             const action = String(style.touchAction || 'auto');
-            if (action === 'none' || (/pan-/.test(action) && !/pan-y|pan-up|pan-down/.test(action))) return false;
+            if (blocksVerticalPan(action)) return false;
             if (node === document.scrollingElement || /^(auto|scroll)$/.test(style.overflowY)) break;
         }
         return true;
@@ -44,6 +65,9 @@ function installTavernFrameTouch(token, scrollChain) {
         if (rest) send('dsh-tavern-frame-scroll', { dy: rest });
     }
     addEventListener('touchstart', event => {
+        // A card script may set it later. The browser fixes a stroke's touch-action at
+        // touch-down, so this repairs the next stroke, not the current one.
+        unblockRootPanning();
         stop();
         sequence++;
         send('dsh-tavern-frame-touch-start');
@@ -99,6 +123,9 @@ function installTavernFrameTouch(token, scrollChain) {
     addEventListener('message', event => {
         if (event.source === parent && event.data && event.data.token === token && event.data.type === 'dsh-tavern-frame-touch-stop' && event.data.sequence === sequence) stop();
     });
+    // Stylesheets are normally parsed by now; the per-gesture check catches late ones.
+    unblockRootPanning();
+    addEventListener('load', unblockRootPanning);
 }
 
 // At most one manually scrolling frame per host; no persistent global listeners.
