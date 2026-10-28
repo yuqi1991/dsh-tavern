@@ -38,7 +38,7 @@ test('失败轮只有用户输入、从未获得模型来源，也能清理并�
   await clearFailedTurnSurface({ session, turn: 2, flush })
   const marker = sessionEvents(session).at(-1)
   assert.equal(marker.type, 'user/message')
-  assert.equal(marker.data.source.kind, 'plugin')
+  assert.equal(marker.data.source.kind, 'plugin:dsh-tavern-failed-turn-cleanup')
   assert.deepEqual(marker.data.content, [])
   assert.deepEqual(marker.sourceEventSeqs, [3])
   assert.doesNotThrow(() => Session.create(session.id, sessionEvents(session), session.header))
@@ -122,7 +122,7 @@ test('失败轮更新历史系统槽位后，纯思考残留可回退清理，�
   for (const laterTurn of [false, true]) {
     let session = Session.create('reasoning-only-system-refresh')
     const source = { kind: 'model', provider: 'test', model: 'test' }
-    const system = text => ({ turn: 2, step: 1, message: { id: 'system-' + text, role: 'system', content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-system-prompt' } } })
+    const system = text => ({ turn: 2, step: 1, message: { id: 'system-' + text, role: 'system', content: [{ type: 'text', text }], source: { kind: 'system-prompt' } } })
     appendSessionEvent(session, 'system/message', system('旧系统提示'), { surfaceOp: 'append' })
     session.append('user/message', { id: 'seed', role: 'user', content: [{ type: 'text', text: '历史设定' }], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot' } }, { surfaceOp: 'append' })
     appendSessionEvent(session, 'assistant/message', { turn: 1, step: 1, message: { id: 'old-body', role: 'assistant', content: [{ type: 'text', text: '历史正文' }], source } }, { surfaceOp: 'append' })

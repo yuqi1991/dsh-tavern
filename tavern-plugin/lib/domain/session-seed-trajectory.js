@@ -59,7 +59,7 @@ export function sessionSeedTrajectoryMessages(sessionId, mode = 'story', overrid
   return Object.freeze([
     Object.freeze({ text: texts[0], type: 'user/message', data: userOne, intent: { surfaceOp: 'append' } }),
     Object.freeze({ text: texts[1], type: 'assistant/message', data: {
-      turn: 0, step: 1, message: assistant
+      turn: 1, step: 1, message: assistant
     }, intent: { surfaceOp: 'append', sourceEventSeqs: [] } }),
     Object.freeze({ text: texts[2], type: 'user/message', data: userTwo, intent: { surfaceOp: 'append' } })
   ])

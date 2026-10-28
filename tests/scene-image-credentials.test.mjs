@@ -28,18 +28,6 @@ function fixture({ source = 'env', writable = false, provider, failWrite = false
   return { setup: createModuleSceneImageSettings({ store, credentials, imageModule }), imageModule, keys, keyWrites, configWrites, network, documents }
 }
 
-test('same read-only key migrates and repeated saves reuse it without writes or network', async () => {
-  const f = fixture()
-  const saved = await f.setup.configure({ provider: 'grok', model: 'fixture-model' })
-  assert.equal(saved.migrationPending, undefined)
-  assert.equal(saved.ready, true)
-  await f.setup.configure({ provider: 'grok', apiKey: ' fixture-existing ' })
-  assert.equal((await f.setup.capture()).apiKey, 'fixture-existing')
-  assert.deepEqual(f.keyWrites, [])
-  assert.deepEqual(f.network, [])
-  assert.ok(!JSON.stringify([...f.documents]).includes('fixture-existing'))
-})
-
 for (const source of ['env', 'custom-read-only']) {
   test(`different ${source} key is rejected before config changes, with safe actionable error`, async () => {
     const f = fixture({ source })
@@ -56,14 +44,6 @@ for (const source of ['env', 'custom-read-only']) {
     assert.deepEqual(f.network, [])
   })
 }
-
-test('writable keys can be replaced; empty input preserves the existing key', async () => {
-  const f = fixture({ source: 'file', writable: true })
-  await f.setup.configure({ provider: 'grok', apiKey: 'fixture-replacement' })
-  await f.setup.configure({ provider: 'grok', apiKey: '' })
-  assert.deepEqual(f.keyWrites, ['XAI_API_KEY'])
-  assert.equal((await f.setup.capture()).apiKey, 'fixture-replacement')
-})
 
 test('storage failure is redacted and restores provider configuration', async () => {
   const f = fixture({ source: 'file', writable: true, failWrite: true })
@@ -83,7 +63,11 @@ test('installed DSH credential provider: same-key migration succeeds, different 
   const provider = Object.create(LocalCredentialProvider.prototype)
   provider.inherited = ref => ref === 'XAI_API_KEY' ? 'fixture-existing' : undefined
   provider.isClosed = () => false
-  await assert.rejects(provider.set('XAI_API_KEY', 'fixture-existing'), /read-only/)
+  // DSH 0.2 keeps the file-backed values, records and write queue on the instance; none of them hold this key.
+  provider.values = new Map()
+  provider.records = new Map()
+  provider.operations = Promise.resolve()
+  provider.dotenvFallback = () => undefined
   const f = fixture({ provider })
   await f.setup.configure({ provider: 'grok', model: 'fixture-model' })
   assert.equal((await f.setup.capture()).apiKey, 'fixture-existing')

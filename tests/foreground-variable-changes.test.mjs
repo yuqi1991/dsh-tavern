@@ -27,7 +27,7 @@ test('变量回灌是本局设置，默认开启，关闭后不注入；开启�
   assert.equal(appendVariableChanges({ chat: { ...base, backgroundTasks: { variableFeedback: false } }, payload: { step: 1 }, decision }).messages.length, 0)
   const injected = appendVariableChanges({ chat: base, payload: { step: 1 }, decision })
   assert.equal(injected.messages.length, 1)
-  assert.deepEqual(injected.messages[0].source, { kind: 'plugin', plugin: 'dsh-tavern', form: 'variable-changes' })
+  assert.deepEqual(injected.messages[0].source, { kind: 'plugin:dsh-tavern', form: 'variable-changes' })
   assert.match(injected.messages[0].content[0].text, /\/hp = 9/)
   assert.equal(appendVariableChanges({ chat: base, payload: { step: 2 }, decision }).messages.length, 0, '只在第一步注入')
   assert.equal(appendVariableChanges({ chat: base, payload: { step: 1 }, decision: injected }).messages.length, 1, '不重复注入')

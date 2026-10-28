@@ -10,7 +10,7 @@ test('only removes Tavern metadata placeholders; preserves valid request prefix 
   const image = Object.freeze({ role: 'user', content: [{ type: 'image', url: 'fixture' }] })
   const tool = Object.freeze({ role: 'assistant', content: [{ type: 'tool-call', id: 'call' }] })
   const unknown = empty('another-plugin')
-  const instruction = Object.freeze({ role: 'user', content: [{ type: 'text', text: '摘要指令' }], source: { plugin: 'dsh-compaction-basic' } })
+  const instruction = Object.freeze({ role: 'user', content: [{ type: 'text', text: '摘要指令' }], source: { kind: 'plugin', plugin: 'dsh-compaction-basic' } })
   const kept = [story, image, tool, unknown, instruction]
   const messages = Object.freeze([metadata, story, empty('dsh-tavern-failed-turn-cleanup'), image, tool, unknown, metadata, instruction])
   const request = Object.freeze({ purpose: 'compaction', sessionId: 's', system: '固定系统前缀', tools: Object.freeze([{ name: 'fixture' }]), provider: 'fixture', model: 'text', maxTokens: 1024, signal: new AbortController().signal, messages })

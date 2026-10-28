@@ -1,4 +1,5 @@
 import { producerSource, isProducerSource, isPluginSource, sourceProducerName } from './message-source.js'
+import { isCompactionCheckpoint } from './compaction-checkpoint.js'
 import { inputAttachments } from './player-input-content.js'
 import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { writeSurfaceEvent } from './surface-transaction.js'
@@ -232,7 +233,7 @@ export function locateRollbackSurface(input) {
   let userIndex = -1
   for (let index = nodes.length - 1; index >= 0; index -= 1) {
     const event = eventAt(events, nodes[index])
-    if (event?.type === 'user/message' && ['compact', 'dsh-compaction-basic'].includes(sourceProducerName(event.data?.source))) return null
+    if (isCompactionCheckpoint(event)) return null
     if (event && event.type === 'user/message' && !isForegroundContext(event) && !isRollbackUserTombstone(event)) {
       userIndex = index
       break

@@ -11,8 +11,10 @@ export function createStoryCompactionRequest(options, instruction) {
   const lastIndex = options.messages.length - 1
   const message = options.messages[lastIndex]
   const source = message && message.source
+  // The summarization directive is the final user message DSH appends. DSH 0.1.x tagged it
+  // with its producer; DSH 0.2.x sends it with no source at all.
   if (message === null || typeof message !== 'object' || message.role !== 'user' ||
-    source === null || typeof source !== 'object' || !isProducerSource(source, 'dsh-compaction-basic')) return options
+    (source !== undefined && source !== null && !isProducerSource(source, 'dsh-compaction-basic'))) return options
 
   const messages = options.messages.slice()
   messages[lastIndex] = Object.freeze(Object.assign({}, message, {

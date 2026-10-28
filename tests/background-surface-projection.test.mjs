@@ -5,7 +5,7 @@ import { rewindBackgroundSurface } from '../tavern-plugin/lib/domain/background-
 
 const MODEL = { kind: 'model', provider: 'fixture', model: 'fixture' }
 const PREFIX = { id: 'tavern-session-prefix:bg', role: 'user', content: [{ type: 'text', text: 'prefix' }], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'snapshot' } }
-const system = id => ({ turn: 1, step: 1, message: { id, role: 'system', content: [{ type: 'text', text: id }], source: { kind: 'plugin', plugin: 'fixture' } } })
+const system = id => ({ turn: 1, step: 1, message: { id, role: 'system', content: [{ type: 'text', text: id }], source: { kind: 'system-prompt' } } })
 const assistant = (id, turn) => ({ turn, step: 1, stream: [], message: { id, role: 'assistant', content: [{ type: 'text', text: id }], source: MODEL } })
 const ids = session => session.deriveMessages().map(message => message.id)
 

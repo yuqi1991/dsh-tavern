@@ -62,7 +62,7 @@ export async function buildImportedConversation(chat, parsed, { operationId, fil
           source: { importSource: message.importSource } })
         const adapted = createForegroundFrameSessionAdapter({ id: () => `tavern-import-frame:${operationId}:${turn}` })
           .append({ messages: [], frame, step: 1, historyMessages: events.filter(event => event.type === 'user/message').map(event => event.data) })
-        events.push({ type: 'turn/start', data: { turn } }, { type: 'step/start', data: { turn, step: 1 } })
+        events.push(...(turn === 1 ? [] : [{ type: 'turn/start', data: { turn } }, { type: 'step/start', data: { turn, step: 1 } }]))
         for (const context of adapted.messages) events.push({ type: 'user/message', data: context, intent: { surfaceOp: 'append' } })
         chat.timeline.checkpoints.push({ id: `import-checkpoint:${operationId}:${turn}`, turn, userText: pendingUsers.join('\n\n'),
           importMessageCount: roundStart, importBefore: { scriptState: clone(chat.scriptState), posture: '', candidates: null,
@@ -71,7 +71,7 @@ export async function buildImportedConversation(chat, parsed, { operationId, fil
         chat.timeline.checkpoints = chat.timeline.checkpoints.slice(-40)
         chat.timeline.revision++
       }
-      if (!pendingUsers.length) events.push({ type: 'turn/start', data: { turn } }, { type: 'step/start', data: { turn, step: 1 } })
+      if (!pendingUsers.length && turn !== 1) events.push({ type: 'turn/start', data: { turn } }, { type: 'step/start', data: { turn, step: 1 } })
       events.push(
         { type: 'assistant/message', data: { turn, step: 1, message: { id: messageId, role: 'assistant', content: [{ type: 'text', text: row.text }],
           source: { kind: 'model', provider: 'dsh-tavern', model: 'chat-import', importSource: message.importSource } } }, intent: { surfaceOp: 'append', sourceEventSeqs: [] } },
@@ -88,8 +88,11 @@ export async function buildImportedConversation(chat, parsed, { operationId, fil
 export async function appendImportedEvents(session, plan, flush) {
   ensureSessionSystemHead(session)
   const events = sessionEvents(session).filter(event => event.type !== 'session/end-seed')
-  let start = events.findIndex(event => event.type === 'turn/start' || event.type === 'assistant/message' ||
-    (event.type === 'user/message' && event.data?.id !== 'tavern-session-prefix:' + session.id))
+  // The reserved opening turn/step precedes the system head; imported history
+  // starts after it, so the head's own turn/start must never anchor the resume.
+  const headIndex = events.findIndex(event => event.type === 'system/message')
+  let start = events.findIndex((event, index) => index > headIndex && (event.type === 'turn/start' || event.type === 'assistant/message' ||
+    (event.type === 'user/message' && event.data?.id !== 'tavern-session-prefix:' + session.id)))
   if (start < 0) start = events.length
   if (events.length > start + plan.events.length) throw new Error('导入期间 Session 已有新事件，请使用新 Session')
   for (let index = 0; index < plan.events.length; index++) {

@@ -27,13 +27,27 @@ function isRecoveryLifecycle(event) {
   return event.surfaceOp === undefined && ['session/end-seed','turn/start','turn/end','step/start','step/end','assistant/attempt'].includes(event.type)
 }
 
+// Released V4 only accepts an assistant or tool event inside an open step, so the
+// host writer may place a write in a step of its own (turn/start ... turn/end around
+// it, turn and step numbers adjusted). Those lifecycle events and the turn/step
+// numbers are placement, not content.
+const PLACED_TYPES = new Set(['assistant/message', 'tool/result'])
+const placementLifecycle = event => event.surfaceOp === undefined && ['turn/start', 'step/start', 'step/end', 'turn/end'].includes(event.type)
+function withoutPlacement(type, data) {
+  if (!PLACED_TYPES.has(type) || data === null || typeof data !== 'object') return data
+  const { turn: _turn, step: _step, ...rest } = data
+  return rest
+}
+const sameData = (type, left, right) => JSON.stringify(withoutPlacement(type, left)) === JSON.stringify(withoutPlacement(type, right))
+
 function cursorAfterWrite(adapter, cursor, write) {
   const added = snapshot(adapter).filter(event => event.seq > cursor)
-  const event = added.at(-1)
-  if (!event || event.type !== write.event.type || JSON.stringify(event.data) !== JSON.stringify(write.event.data) ||
-      added.slice(0, -1).some(item => !isHostMarker(item)) || added.length > 2) throw new Error('事务写入数量或内容异常')
+  const written = added.filter(event => event.type === write.event.type && sameData(event.type, event.data, write.event.data))
+  const event = written.at(-1)
+  if (!event || written.length !== 1 || added.some(item => item !== event && !isHostMarker(item) && !placementLifecycle(item)) ||
+      added.filter(isHostMarker).length > 1) throw new Error('事务写入数量或内容异常')
   if (write.plannedSeq !== undefined && event.seq !== write.plannedSeq) throw new Error('恢复计划事件位置与宿主不一致')
-  return event.seq
+  return added.at(-1).seq
 }
 
 export function assertTransactionReady(adapter) {
@@ -75,7 +89,7 @@ export function recoverTransaction(adapter) {
           const tag = transactionOf(actual)
           delete tag.plan
           const expected = saved.plan[i]
-          if (actual.type !== expected.event.type || JSON.stringify(actual.data) !== JSON.stringify(expected.event.data) ||
+          if (actual.type !== expected.event.type || !sameData(actual.type, actual.data, expected.event.data) ||
               JSON.stringify(actual.surfaceOp) !== JSON.stringify(mappedIntent(expected).surfaceOp) ||
               JSON.stringify(actual.sourceEventSeqs) !== JSON.stringify(mappedIntent(expected).sourceEventSeqs)) throw new Error('事务记录与恢复计划不匹配')
           if (expected.plannedSeq !== undefined) positions.set(expected.plannedSeq, actual.seq)

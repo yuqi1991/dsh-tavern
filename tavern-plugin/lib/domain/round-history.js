@@ -3,7 +3,7 @@ import { projectPlayerContent } from './player-input-content.js'
 import { assertRescueHistoryEditable } from './chat-history-rescue.js'
 import { canUndoRollback, selectSurface, preflightSelectSurface, unchangedSinceRollback } from './surface-restoration.js'
 import { rewindBackgroundSurface } from './background-surface.js'
-import { sessionEvents, appendSessionEvent } from './session-events.js'
+import { releaseOpeningTurn, sessionEvents, appendSessionEvent } from './session-events.js'
 import { randomUUID } from 'node:crypto'
 import { createRegenerationRecovery } from './regeneration-recovery.js'
 import { isDeepStrictEqual } from 'node:util'
@@ -303,6 +303,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const guide = str(guidance).trim()
     // Edited input replaces the original text; guidance still appends as a supplement.
     const syntheticText = regenerationInputText(editedInput !== null ? editedInput : originalUserText, guide, replyTextOf(msgs0[oldAssistantIndex]))
+    releaseOpeningTurn(agent.session, agent)
     const beforeLastTurn = agent.phase !== undefined && agent.phase !== null && Number.isFinite(Number(agent.phase.lastTurn)) ? Number(agent.phase.lastTurn) : 0
     let committedChat, body, syntheticTurn
     try {
@@ -471,6 +472,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       // prepare/finalize pipeline commits it exactly like a typed message. Its
       // source must stay kind 'user': hosts render anything else as a context
       // node, which would hide the player's text instead of resending it.
+      releaseOpeningTurn(agent.session, agent)
       agent.followup({
         id: randomUUID(),
         role: 'user',

@@ -51,7 +51,7 @@ test('固定背景快照只写一次，正文不进入可压缩历史，恢复�
   assert.equal(Object.hasOwn(prefix.message.source, 'cardContextRevision'), false)
   assert.deepEqual(prefix.message.source.sections.map(section => section.name), ['tavern:character-card', 'tavern:constant-worldbook'])
   assert.equal(sessionEvents(session).find(e => e.data?.id === prefix.id).type, 'user/message')
-  assert.equal(sessionEvents(session)[0].surfaceOp, 'append')
+  assert.equal(sessionEvents(session).find(e => e.type === 'system/message').surfaceOp, 'append')
   assert.equal(sessionStablePrefixSections(session).map(s => s.text).join('\n\n'), text)
   const first = session.append('user/message', user('第一轮'), { surfaceOp: 'append' })
   const second = session.append('user/message', user('第二轮'), { surfaceOp: 'append' })

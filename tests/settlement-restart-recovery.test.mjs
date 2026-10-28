@@ -1,3 +1,4 @@
+import { producerSource, isProducerSource } from '../tavern-plugin/lib/domain/message-source.js'
 import { createSettlementJobs } from '../tavern-plugin/lib/domain/settlement-jobs.js'
 import { createSessionStateView, projectChatSessionState, pendingMvuSettlementState } from '../tavern-plugin/lib/domain/chat-session-state.js'
 import { collectMvuHelperContext, createMvuSettlementModule } from '../tavern-plugin/lib/domain/mvu-background-settlement.js'
@@ -44,7 +45,7 @@ async function harness({ beginRunning = true, mvu = true } = {}) {
   }).chat
   const running = beginRunning ? await tasks.begin(current, 'settlement') : null
   const sandbox = vm.createContext({
-    collectMvuHelperContext, normalizeBackgroundTasks, pendingMvuSettlementState, structuredClone, Date, AbortController, console: { log() {}, error() {} },
+    producerSource, isProducerSource, collectMvuHelperContext, normalizeBackgroundTasks, pendingMvuSettlementState, structuredClone, Date, AbortController, console: { log() {}, error() {} },
     str: value => value == null ? '' : String(value),
     backgroundTasks: tasks, storyTimeline: timeline,
     readChat: store.readChat, chatForSession: store.readChat, writeChat: store.writeChat,

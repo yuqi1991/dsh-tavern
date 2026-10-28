@@ -65,7 +65,7 @@ export function createConversationAlgebraHostAdapter(session, metadata = {}) {
           sourceEventSeqs: intent.sourceEventSeqs
         })
       }
-      return appendSessionEvent(session, type, data, { surfaceOp: 'append' })
+      return createSessionSurfaceMutator(session).append(type, data, { surfaceOp: 'append' })
     },
     ...(typeof metadata.bump === 'function' ? { bump: metadata.bump } : {})
   })

@@ -836,7 +836,7 @@ test('失败尾部重放：移除被中断的回复后原样重发本轮输入�
   assert.deepEqual(h.agent.input.source, { kind: 'user', rpcId: 'rpc-3' })
   assert.deepEqual(result.replayed, { turn: 3, userText: '重放这句', cleared: 0 })
   // 已经清理过的失败回合不会再插一个清理墓碑。
-  assert.equal(sessionEvents(h.session).filter(event => event.data?.source?.plugin === 'dsh-tavern-failed-turn-cleanup').length, 1)
+  assert.equal(sessionEvents(h.session).filter(event => event.data?.source?.kind === 'plugin:dsh-tavern-failed-turn-cleanup').length, 1)
   assert.deepEqual(h.chat.messages.map(message => message.text).slice(0, committed.length), committed)
   assert.equal(h.chat.messages.at(-2).text, '重放这句')
   assert.equal(h.chat.messages.at(-1).text, '新正文3')
@@ -852,7 +852,7 @@ test('失败清理钩子缺失时，重放先补清被中断的回复再重发',
   const result = await h.create().replayFailed('chat', 'session')
 
   assert.equal(result.replayed.cleared, 2)
-  const tombstone = h.session.snapshotEvents().find(event => event.data?.source?.plugin === 'dsh-tavern-failed-turn-cleanup')
+  const tombstone = h.session.snapshotEvents().find(event => event.data?.source?.kind === 'plugin:dsh-tavern-failed-turn-cleanup')
   assert.ok(tombstone, 'the cleanup tombstone is written before the replay')
   assert.deepEqual(tombstone.sourceEventSeqs, [3, 4])
   assert.equal(h.agent.input.content[0].text, '重放这句')

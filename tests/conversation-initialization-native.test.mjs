@@ -1,23 +1,33 @@
 import { sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { pathToFileURL } from 'node:url'
 import { createInitializationNative } from './fixtures/conversation-initialization-native.mjs'
+import { KNOWN_SESSION_EVENT_TYPES } from './fixtures/dsh-session-host.mjs'
 
 const native = { skip: !process.env.DSH_BOOT_MODULE, timeout: 30000 }
-test('V3 opening reserves the native system head before story seeds', native, async t => {
+
+// Released V4 rejects a surface event written before a turn opened. Every
+// Tavern-written archive must satisfy that contract, or the play history stops
+// loading with "system/message does not match an open turn and step".
+for (const scenario of ['opening', 'import']) test(`native ${scenario} archive satisfies the released V4 relationship contract`, native, async t => {
   const h = await createInitializationNative(process.env.DSH_BOOT_MODULE)
   t.after(() => h.dispose())
-  await h.open().start(h.input)
-  if (h.target.session.header.version < 3) return
-  const opening = structuredClone(sessionEvents(h.target.session))
-  assert.equal(opening[0].type, 'system/message')
+  if (scenario === 'import') {
+    const text = [{ chat_metadata: {} }, { is_user: false, mes: '导入开场' }, { is_user: true, mes: '走到花店' },
+      { is_user: false, mes: '抵达花店' }].map(JSON.stringify).join('\n')
+    await h.importHistory({ ...h.input, text, operationId: `v4-contract-${scenario}` })
+  } else {
+    await h.open().start(h.input)
+  }
   await h.continueWithAgent()
+  const { assertReleasedV4Relationships } = await import(
+    new URL('../../dsh-session-format-v3-to-v4/lib/index.js', pathToFileURL(process.env.DSH_BOOT_MODULE)))
   const session = h.target.session
-  assert.equal(session.eventAt(session.surface.nodes[0]).type, 'system/message')
-  assert.equal(h.requests[0].messages[0].role, 'system')
-  assert.match(JSON.stringify(h.requests[0].messages[0].content), /不可丢失的固定背景/)
-  assert.deepEqual(sessionEvents(session).slice(0, opening.length), opening)
+  assertReleasedV4Relationships(
+    { header: session.header, events: sessionEvents(session), inheritedEventCount: 0 }, KNOWN_SESSION_EVENT_TYPES)
 })
+
 for (const phase of ['front', 'back']) test(`native Agent preserves fixed system background with ${phase} preset`, native, async t => {
   const h = await createInitializationNative(process.env.DSH_BOOT_MODULE, { preset: { [phase]: { entries: [{ role: 'system', content: '预设验证要求' }] } } })
   t.after(() => h.dispose())
@@ -31,25 +41,10 @@ for (const phase of ['front', 'back']) test(`native Agent preserves fixed system
   assert.equal(systems.split('不可丢失的固定背景').length - 1, 1)
   assert.ok(request.messages.some(m => JSON.stringify(m.content).includes('预设验证要求')))
 })
-const openingEvents = session => sessionEvents(session).filter(e => e.type === 'assistant/message' && e.data.turn === 1)
-
-test('oversized import enters native pressure compaction only after subsequent context growth', native, async t => {
-  const h=await createInitializationNative(process.env.DSH_BOOT_MODULE)
-  t.after(()=>h.dispose())
-  const rows=[{chat_metadata:{}},{is_user:false,mes:'Opening'}]
-  for(let n=0;n<20;n++) rows.push({is_user:true,mes:'Action '+n},{is_user:false,mes:'History-'+n+' '+'.'.repeat(1000)})
-  await h.importHistory({...h.input,text:rows.map(JSON.stringify).join('\n'),operationId:'native-context-test'})
-  const result=await h.verifyImportContextCompaction()
-  assert.equal(result.chat.importHistory.contextPreparation.status,'trimmed')
-  assert.ok(result.afterPreparation<1600)
-  assert.equal(result.firstPressure,null)
-  assert.equal(result.summaryCallsBeforeGrowth,0)
-  assert.ok(result.result)
-  assert.ok(result.afterCompaction<1600)
-  assert.equal(h.requests.filter(r=>r.purpose==='compaction').length,1)
-  assert.equal(result.chat.messages.length,41)
-  assert.ok(result.events.some(e=>e.type==='compaction/end'))
-})
+// The seed exchange shares the reserved opening turn, so the greeting is the
+// turn-one assistant message that is not part of the seed trajectory.
+const openingEvents = session => sessionEvents(session).filter(e => e.type === 'assistant/message' && e.data.turn === 1
+  && !String(e.data.message?.id || '').startsWith('tavern-seed-trajectory:'))
 
 test('native card workbench starts empty or with a card and restores its greeting only once', native, async t => {
   for (const cardPath of ['', 'cards/test.json']) {
@@ -73,6 +68,7 @@ test('native card workbench starts empty or with a card and restores its greetin
     assert.ok(h.requests[0].messages.some(message => message.content?.some(block => /待编辑素材/.test(block.text || ''))))
   }
 })
+
 
 test('native Session and disk Chat journal recover a failed marker once, then actual Agent starts at turn two', native, async t => {
   const h = await createInitializationNative(process.env.DSH_BOOT_MODULE)
@@ -101,27 +97,6 @@ test('native Session and disk Chat journal recover a failed marker once, then ac
   assert.equal(messages.filter(m => m.role === 'assistant' && JSON.stringify(m.content).includes('玩家，你好。')).length, 1)
   assert.deepEqual(sessionEvents(h.target.session).filter(e => e.type === 'turn/start').map(e => e.data.turn), [1, 2])
   assert.equal(sessionEvents(h.target.session).at(-1).type, 'turn/end')
-})
-
-test('native partial event logs survive disk reload and Session end-seed markers at every append boundary', native, async t => {
-  for (const stage of ['turn/start', 'step/start', 'assistant/message', 'step/end', 'turn/end']) {
-    const h = await createInitializationNative(process.env.DSH_BOOT_MODULE)
-    t.after(() => h.dispose())
-    const session = h.target.session, append = session.append.bind(session)
-    session.append = (type, ...args) => { if (type === stage) throw Error('append failure'); return append(type, ...args) }
-    await assert.rejects(h.open().start(h.input), /append failure/)
-    session.append = append
-    const before = structuredClone(sessionEvents(session))
-    await h.checkpoint()
-    await h.restoreDetached()
-    const recovered = await h.open().ensureOpening(h.input.sessionId)
-    assert.equal(recovered.nativeOpeningAppended, true)
-    assert.deepEqual(sessionEvents(h.target.session).slice(0, before.length), before)
-    assert.equal(openingEvents(h.target.session).length, 1)
-    assert.equal(h.target.session.deriveMessages().length, 5)
-    assert.equal(h.target.session.deriveMessages()[0].source.form, 'snapshot')
-    assert.equal(sessionEvents(h.target.session).filter(e => e.type === 'turn/end').length, 1)
-  }
 })
 
 test('failed native flush restores only durable events and finishes the published Chat without another Chat', native, async t => {

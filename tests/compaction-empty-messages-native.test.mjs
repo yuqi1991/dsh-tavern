@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { pathToFileURL } from 'node:url'
 import { createInitializationNative } from './fixtures/conversation-initialization-native.mjs'
 import { ensureSessionStablePrefix, readSessionStablePrefix } from '../tavern-plugin/lib/domain/session-stable-prefix.js'
-import { sessionEvents, appendSessionEvent } from '../tavern-plugin/lib/domain/session-events.js'
+import { sessionEvents, appendSessionEvent, releaseOpeningTurn } from '../tavern-plugin/lib/domain/session-events.js'
 
 import { installCompactionRequestProjection } from '../tavern-plugin/lib/domain/compaction-request.js'
 
@@ -21,9 +21,12 @@ for (const side of ['foreground', 'background']) {
     }
     const flush = async () => {}
     await ensureSessionStablePrefix(agent.session, '不可丢失的固定背景', undefined, 0, flush)
-    appendSessionEvent(agent.session, 'user/message', { id: 'frame', role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern', form: 'foreground-frame' } }, { surfaceOp: 'append' })
+    appendSessionEvent(agent.session, 'user/message', { id: 'frame', role: 'user', content: [], source: { kind: 'plugin:dsh-tavern', form: 'foreground-frame' } }, { surfaceOp: 'append' })
     await ensureSessionStablePrefix(agent.session, '不可丢失的固定背景：更新后的世界书', undefined, 1, flush)
-    appendSessionEvent(agent.session, 'user/message', { id: 'cleanup', role: 'user', content: [], source: { kind: 'plugin', plugin: 'dsh-tavern-failed-turn-cleanup' } }, { surfaceOp: 'append' })
+    appendSessionEvent(agent.session, 'user/message', { id: 'cleanup', role: 'user', content: [], source: { kind: 'plugin:dsh-tavern-failed-turn-cleanup' } }, { surfaceOp: 'append' })
+    // The prefix writer reserved an opening turn that no greeting fills, and this
+    // test drives the Agent directly: close it the way Tavern's own turn starters do.
+    releaseOpeningTurn(agent.session, agent)
     agent.followup({ id: 'story', role: 'user', content: [{ type: 'text', text: '花店旧事。'.repeat(500) }], source: { kind: 'user' } })
     await agent.whenIdle()
     const before = structuredClone(sessionEvents(agent.session))
@@ -37,7 +40,7 @@ for (const side of ['foreground', 'background']) {
       }
       return next()
     })
-    const result = await new BasicCompactionEngine(h.ctx, { auto: false }).compactNow(agent, new AbortController().signal)
+    const result = await new BasicCompactionEngine(h.ctx, { auto: false, maxTokens: 4096 }).compactNow(agent, new AbortController().signal).catch(error => { throw error.cause || error })
     assert.ok(requests.length, 'must reach the real summary request')
     assert.ok(result, 'compaction must produce a summary instead of failing on an empty user message')
     assert.ok(sessionEvents(agent.session).some(e => e.type === 'compaction/summary'))

@@ -32,6 +32,7 @@ test('原生 DSH 筛选工具、结算与重启恢复使用同一后台 Session 
   const requests = []
   let searchPhase = null
   const searchCalls = []
+  const worldbookProjections = []
   class Model extends LlmAdapter {
     async resolveModel(provider, model) { return { provider, id: model, name: model } }
     async *stream(input) {
@@ -65,11 +66,12 @@ test('原生 DSH 筛选工具、结算与重启恢复使用同一后台 Session 
   } })
   const makeRunner = () => createBackgroundAgentRunner({ agents: ctx.agents, backgroundTools: WORLD_BOOK_FILTER_TOOLS,
     sharedTools: [sharedWorldbookSearch(async (sessionId, args) => { searchCalls.push({ sessionId, args }); return { entries: [{ ref: 'entry:62', text: '少林门规原文' }] } })],
+    resolveCurrentWorldbook: async input => { worldbookProjections.push(input.task); return { prefixContext: '常驻：旅店规矩', foregroundContext: '' } },
     resolveForegroundWorldbookReads: async input => input.task === 'settlement' ? '【前台本轮完整查阅的世界书资料】\n少林门规只读快照' : '',
     resolveStablePrefix: async () => '固定背景：雨夜旅店', flushSession: session => ctx.sessions.flush(session) })
   runner = makeRunner()
   const filter = createWorldbookFilter({ selection: () => selection, runAgent: input => runner.run(input), beginTask: value => tasks.begin(value, 'worldbook-filter') })
-  const candidates = Array.from({ length: 6 }, (_, n) => ({ ref: 'entry:' + n, text: '资料' + n + 'x'.repeat(15000), tokenCost: 10 }))
+  const candidates = Array.from({ length: 6 }, (_, n) => ({ ref: 'entry:' + n, text: '资料' + n + 'x'.repeat(15000), tokenCost: 1100 }))
   const first = await filter({ chat, userText: '首次筛选', candidates })
   const settlement = await tasks.begin(chat, 'settlement')
   const second = await runner.run({ sessionId: 'parent', task: 'settlement', persistent: true, selection,
@@ -79,18 +81,25 @@ test('原生 DSH 筛选工具、结算与重启恢复使用同一后台 Session 
   assert.match(JSON.stringify(requests.at(-1).messages.at(-1)), /少林门规只读快照/)
   assert.ok(!requests.at(-1).system.includes('少林门规只读快照'))
   assert.equal(second.traceSessionId, first.traceSessionId)
+  // Filter and settlement share one cached prefix: same system (incl. constant worldbook) and same tools.
+  assert.equal(requests[1].system, requests[0].system)
+  assert.match(requests[0].system, /常驻：旅店规矩/)
+  assert.deepEqual(requests[1].tools, requests[0].tools)
   await ctx.sessions.flush(runner.requestSession(first.traceSessionId))
   await runner.dispose()
   runner = makeRunner()
   const third = await filter({ chat, userText: '恢复后筛选', candidates })
   assert.equal(third.traceSessionId, first.traceSessionId)
   assert.equal(requests.length, 3)
+  assert.equal(requests[2].system, requests[1].system)
+  assert.deepEqual(requests[2].tools, requests[1].tools)
   assert.ok(requests.every(request => request.system.includes('固定背景：雨夜旅店')))
   assert.match(JSON.stringify(requests[2].messages), /首次筛选/)
   assert.match(JSON.stringify(requests[2].messages), /结算完成/)
   assert.deepEqual(third.selected, ['entry:0'])
   const fourth = await filter({ chat, userText: '继续筛选', candidates })
   assert.equal(fourth.traceSessionId, first.traceSessionId)
+  assert.deepEqual(worldbookProjections, ['worldbook-filter', 'settlement', 'worldbook-filter'], 'the filter projects only when no projection is held')
   const currentText = request => request.messages.filter(m => m.role === 'user').at(-1).content.map(b => b.text || '').join('')
   assert.doesNotMatch(currentText(requests[2]), /x{100}/, 'restart must reuse still-visible bodies')
   assert.doesNotMatch(currentText(requests[3]), /x{100}/)
@@ -129,8 +138,15 @@ test('原生 DSH 筛选工具、结算与重启恢复使用同一后台 Session 
   console.log('script-window task bytes:', Buffer.byteLength(currentText(scriptFirst)), Buffer.byteLength(currentText(scriptSecond)))
   for (const task of ['settlement', 'candidate', 'character-design', 'worldbook-filter']) {
     searchPhase = 0
+    // The filter task submits through its own tools; mirror createWorldbookFilter so the run can finish.
+    const filterRun = { selected: undefined }
+    const filterTask = task === 'worldbook-filter'
     await runner.run({ sessionId: 'parent', task, persistent: true, selection, persistentSessionId: first.traceSessionId,
-      messages: [{ role: 'user', content: [{ type: 'text', text: '读取少林资料' }] }], tools: [] })
+      messages: [{ role: 'user', content: [{ type: 'text', text: '读取少林资料' }] }],
+      tools: filterTask ? WORLD_BOOK_FILTER_TOOLS : [],
+      stopToolsWhen: filterTask ? () => filterRun.selected !== undefined : undefined,
+      acceptWithoutText: filterTask ? () => filterRun.selected !== undefined : undefined,
+      onToolCall: filterTask ? async () => { filterRun.selected = ['entry:0']; return JSON.stringify({ ok: true, selected: filterRun.selected }) } : undefined })
     assert.ok(searchPhase >= 3)
     assert.match(JSON.stringify(requests.at(-1).messages), /少林门规原文/)
   }

@@ -1,4 +1,4 @@
-import { sessionEvents, appendSessionEvent } from './session-events.js'
+import { closeOpeningTurn, ensureOpeningTurn, sessionEvents, appendSessionEvent } from './session-events.js'
 import { createHash } from 'node:crypto'
 import { cardOpeningChoices, resolveCardOpening } from './card-openings.js'
 import { projectAgentContent, projectOpeningCommit } from './runtime-content-projection.js'
@@ -263,11 +263,12 @@ export function createConversationInitialization(options) {
   function appendOpeningEvents(session, chat, text, recovering) {
     // DSH adds a seed boundary on restore; it is not part of the opening turn.
     const openingEvents = () => sessionEvents(session).filter(event => event.type !== 'session/end-seed')
+    // The reserved opening turn/step was opened with the system head on V3+;
+    // a legacy archive without that head opens it here, before the greeting.
+    ensureOpeningTurn(session)
     const events = openingEvents()
     const messageId = openingId(chat)
     const stages = [
-      ['turn/start', { turn: 1 }],
-      ['step/start', { turn: 1, step: 1 }],
       ['assistant/message', { turn: 1, step: 1, message: {
         id: messageId,
         role: 'assistant',
@@ -286,17 +287,11 @@ export function createConversationInitialization(options) {
         return event.type === 'assistant/message' && event.data.turn === 1 && event.data.step === 1
           && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(str(message?.id)) && message.role === 'assistant'
           && message.source?.kind === 'model' && message.content?.length === 1 && message.content[0].type === 'text' && message.content[0].text === text
-          && events[index - 2]?.type === 'turn/start' && events[index - 2]?.data.turn === 1
-          && events[index - 1]?.type === 'step/start' && events[index - 1]?.data.step === 1
           && events[index + 1]?.type === 'step/end' && events[index + 1]?.data.turn === 1
           && events[index + 2]?.type === 'turn/end' && events[index + 2]?.data.turn === 1
       })
     }
-    let start = messageIndex >= 0 ? messageIndex - 2 : events.length
-    // An append can fail synchronously before the message. Only reuse the
-    // unfinished trailing opening prefix, never delete or rewrite DSH history.
-    if (messageIndex < 0 && events.at(-1)?.type === 'step/start' && events.at(-1)?.data.turn === 1 && events.at(-1)?.data.step === 1 && events.at(-2)?.type === 'turn/start' && events.at(-2)?.data.turn === 1) start -= 2
-    else if (messageIndex < 0 && events.at(-1)?.type === 'turn/start' && events.at(-1)?.data.turn === 1) start -= 1
+    const start = messageIndex >= 0 ? messageIndex : events.length
     for (let index = 0; index < stages.length; index++) {
       const [type, data, intent] = stages[index]
       const existing = openingEvents()[start + index]
@@ -328,6 +323,11 @@ export function createConversationInitialization(options) {
       if (target.agent === undefined) logger.warn('dsh-tavern: Agent 尚未注册，直接使用已绑定 Session 写入开场白', { sessionId })
       appendOpeningEvents(target.session, chat, text, recovering)
       if (target.agent?.phase?.kind === 'idle') target.agent.phase.lastTurn = Math.max(Number(target.agent.phase.lastTurn) || 0, 1)
+      await native.flush(target.session)
+    } else {
+      // No greeting fills the reserved opening turn, so close it here; the Agent
+      // opens its own first turn and must not collide with a turn left open.
+      closeOpeningTurn(target.session)
       await native.flush(target.session)
     }
     // Publish the marker in memory only after durable save succeeds.

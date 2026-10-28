@@ -19,7 +19,7 @@ test('custom opening text reaches the append-only native surface once, without s
   assert.equal(session.deriveMessages().at(-1).content[0].text, chat.messages[1].sourceText)
   assert.equal(events[1].data.content[0].text, chat.messages[1].sourceText)
   assert.equal(events[1].surfaceOp, 'append')
-  assert.equal(events[1].data.source.kind, 'plugin')
+  assert.equal(events[1].data.source.kind, 'plugin:dsh-tavern-helper')
   assert.equal(appendHelperUserSessionContext(session, chat, targets), 0)
   assert.equal(sessionEvents(session).length, 2)
   assert.equal(events[0].data.id, 'prior')
