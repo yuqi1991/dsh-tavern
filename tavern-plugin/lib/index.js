@@ -3523,8 +3523,9 @@ export async function apply(ctx) {
         if (typeof args.path !== 'string') throw new Error('请选择预设')
         if ((await sessionActivity(sessionId))?.busy || agentRegistry.get(sessionId)?.phase?.kind === 'running') throw new Error('请等待当前生成和后台任务完成后再应用预设')
         const snapshot = args.path === '' ? null : await runtimePresets.fullSnapshot(args.path)
+        // Only a new turn while the preset loaded is a conflict; display receipts and the like keep writing the save.
         const saved = await updateChat(chat.id, current => {
-          if (current._storageRevision !== chat._storageRevision) throw new Error('当前游戏已变化，请刷新后重试')
+          if ((current.messages || []).length !== (chat.messages || []).length) throw new Error('当前游戏已变化，请刷新后重试')
           current.runtimePresetSnapshot = snapshot
           return current
         }, { source: 'preset.apply-conversation' })
