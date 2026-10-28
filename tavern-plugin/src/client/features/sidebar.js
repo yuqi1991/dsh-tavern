@@ -50,6 +50,8 @@
 			const [cardEntry, setCardEntry] = React.useState("");
 			const [openingPicker, setOpeningPicker] = React.useState(null);
 			const [chatImport, setChatImport] = React.useState(null);
+			// 批量导入逐份进行，用它告诉用户停在第几份。
+			const [importProgress, setImportProgress] = React.useState("");
 			const chatImportFile = React.useRef(null);
 			const saveImportFile = React.useRef(null);
 			const [pendingOpen, setPendingOpen] = React.useState(null);
@@ -468,16 +470,37 @@
 				catch (err) { setError("重新连接 Session 失败：" + String(err && err.message || err)); }
 				finally { setBusy(false); }
 			}
-			async function previewChatImport(file) {
-				if (!file || !openingPicker) return;
-				setBusy(true); setError("");
+			async function readChatImportFile(file) {
+				if (file.size > 8 * 1024 * 1024) throw new Error("聊天文件最大支持 8 MB");
+				return await file.text();
+			}
+			// 多份记录共用这张人物卡与同一个玩家称呼，预览合并成一次确认。
+			async function loadChatImportPreview(card, sources) {
+				setBusy(true); setError(""); setImportProgress("");
 				try {
-					if (file.size > 8 * 1024 * 1024) throw new Error("聊天文件最大支持 8 MB");
-					const text = await file.text();
-					const preview = await call("previewChatImport", { cardPath: openingPicker.card.path, text: text });
-					setChatImport({ cardPath: openingPicker.card.path, text: text, fileName: file.name, preview: preview, userName: preview.userName, textOnly: false });
+					const entries = [];
+					for (const source of sources) {
+						setImportProgress(sources.length > 1 ? "正在读取 " + (entries.length + 1) + "/" + sources.length + "：" + source.fileName : "");
+						// 一份读不了就整批停下：这一批共用人物卡，先让用户改选文件再来。
+						let preview;
+						try { preview = await call("previewChatImport", { cardPath: card.path, text: source.text }); }
+						catch (error) { throw new Error(sources.length > 1 ? source.fileName + "：" + String(error.message || error) : String(error.message || error)); }
+						entries.push({ fileName: source.fileName, text: source.text, preview: preview });
+					}
+					const merged = chatImportMergedPreview(entries);
+					setChatImport({ cardPath: card.path, entries: entries, preview: merged, userName: merged.userName, textOnly: false });
 				} catch (error) { setError(String(error.message || error)); }
-				finally { setBusy(false); }
+				finally { setImportProgress(""); setBusy(false); }
+			}
+			async function previewChatImport(files) {
+				const chosen = Array.prototype.slice.call(files || []);
+				if (!chosen.length || !openingPicker) return;
+				const sources = [];
+				for (const file of chosen) {
+					try { sources.push({ fileName: file.name, text: await readChatImportFile(file) }); }
+					catch (error) { setError((chosen.length > 1 ? file.name + "：" : "") + String(error.message || error)); return; }
+				}
+				await loadChatImportPreview(openingPicker.card, sources);
 			}
 			// A save from another install becomes a new game here; the card comes with it.
 			async function importGameSave(file) {
@@ -496,29 +519,48 @@
 				} catch (error) { setError("导入存档失败：" + String(error.message || error)); }
 				finally { setBusy(false); }
 			}
+			// 一份记录一个新对话；人物卡、称呼与“仅导入正文”对这一批里的每份都一样。
+			async function importConversationEntry(request, entry) {
+				const key = "dsh-tavern:chat-import:" + JSON.stringify([entry.preview.digest, request.cardPath, request.userName, request.textOnly]);
+				let attempt;
+				try { attempt = JSON.parse(localStorage.getItem(key) || "null"); } catch (_) {}
+				if (!attempt) {
+					const targetWorkspaceId = await playWorkspaceResolverRef.current();
+					attempt = { operationId: window.crypto && typeof window.crypto.randomUUID === "function" ? window.crypto.randomUUID() : String(Date.now()) + ":" + String(Math.random()), sessionId: await props.conversationHost.connectWorkspace(targetWorkspaceId) };
+					localStorage.setItem(key, JSON.stringify(attempt));
+				}
+				await waitForSessionSummary(attempt.sessionId);
+				await ensureTavernPreset(attempt.sessionId, { kind: "play" });
+				const imported = await call("importChatHistory", Object.assign({}, attempt, { cardPath: request.cardPath, text: entry.text, fileName: entry.fileName, userName: request.userName, textOnly: request.textOnly }));
+				localStorage.removeItem(key);
+				return { sessionId: attempt.sessionId, targetMode: imported.mode || "story" };
+			}
 			async function importConversation() {
 				if (busy || !chatImport || !openingPicker || chatImport.cardPath !== openingPicker.card.path) return;
-				setBusy(true); setError("");
-				const key = "dsh-tavern:chat-import:" + JSON.stringify([chatImport.preview.digest, chatImport.cardPath, chatImport.userName, chatImport.textOnly]);
+				setBusy(true); setError(""); setImportProgress("");
+				const request = { cardPath: chatImport.cardPath, userName: chatImport.userName, textOnly: chatImport.textOnly };
+				const entries = chatImport.entries;
 				try {
 					await playPrewarmRef.current.cancel();
-					let attempt;
-					try { attempt = JSON.parse(localStorage.getItem(key) || "null"); } catch (_) { }
-					if (!attempt) {
-						const targetWorkspaceId = await playWorkspaceResolverRef.current();
-						attempt = { operationId: window.crypto && typeof window.crypto.randomUUID === "function" ? window.crypto.randomUUID() : String(Date.now()) + ":" + String(Math.random()), sessionId: await props.conversationHost.connectWorkspace(targetWorkspaceId) };
-						localStorage.setItem(key, JSON.stringify(attempt));
+					const batch = await chatImportBatchRun(entries, function (entry) { return importConversationEntry(request, entry); }, function (step) {
+						setImportProgress(step.total > 1 ? "正在导入 " + (step.index + 1) + "/" + step.total + "：" + step.entry.fileName : "");
+					});
+					setImportProgress("");
+					notifyDataChanged(["sessions"]);
+					const summary = chatImportBatchSummary(batch);
+					// 批量导入不抢走当前视图：只有单份导入才直接打开那个对话。
+					if (entries.length === 1 && batch.succeeded.length === 1) {
+						const pending = batch.succeeded[0].result;
+						setPendingOpen(pending);
+						setChatImport(null);
+						await finishPendingOpen(pending);
+					} else {
+						setChatImport(null);
+						closePicker();
 					}
-					await waitForSessionSummary(attempt.sessionId);
-					await ensureTavernPreset(attempt.sessionId, { kind: "play" });
-					const imported = await call("importChatHistory", Object.assign({}, attempt, { cardPath: chatImport.cardPath, text: chatImport.text, fileName: chatImport.fileName, userName: chatImport.userName, textOnly: chatImport.textOnly }));
-					const pending = { sessionId: attempt.sessionId, targetMode: imported.mode || "story" };
-					setPendingOpen(pending);
-					localStorage.removeItem(key);
-					await finishPendingOpen(pending);
-					setChatImport(null);
+					if (summary) setError(summary);
 				} catch (error) { setError("导入失败：" + String(error.message || error)); }
-				finally { setBusy(false); }
+				finally { setImportProgress(""); setBusy(false); }
 			}
 			async function newConversation(card, requestedMode, openingId, userName, initialMessage) {
 				const targetMode = requestedMode || (uiMode === "play" ? playModeOfCard(card) : "card");
@@ -827,15 +869,19 @@
 			const importChoice = chatImport && openingPicker && chatImport.cardPath === openingPicker.card.path ? h(React.Fragment, null,
 				h("div", { className: "dsh-tavern-card-picker-head" }, h("span", null, "导入到：" + openingPicker.card.name)),
 				h("div", { className: "dsh-tavern-greeting-preview" },
-					h("p", null, "文件：" + chatImport.fileName), h("p", null, "共 " + chatImport.preview.count + " 条消息"),
+					chatImport.entries.length === 1
+						? h("p", null, "文件：" + chatImport.entries[0].fileName)
+						: h("p", null, "共 " + chatImport.entries.length + " 份记录，各自成为独立对话：" + chatImport.entries.map(function (entry) { return entry.fileName + "（" + entry.preview.count + " 条）"; }).join("、")),
+					h("p", null, "共 " + chatImport.preview.count + " 条消息"),
 					h("label", null, "玩家称呼", h("input", { value: chatImport.userName, maxLength: 80, disabled: busy, onChange: function (event) { setChatImport(Object.assign({}, chatImport, { userName: event.target.value })); } })),
-					h("p", null, "最后一条消息："), h("pre", { style: { whiteSpace: "pre-wrap", overflowWrap: "anywhere" } }, chatImport.preview.lastMessage),
-					h("p", null, "将创建独立对话，使用这张人物卡及其关联世界书。"),
+					chatImport.preview.lastMessage ? h(React.Fragment, null, h("p", null, "最后一条消息："), h("pre", { style: { whiteSpace: "pre-wrap", overflowWrap: "anywhere" } }, chatImport.preview.lastMessage)) : null,
+					h("p", null, chatImport.entries.length === 1 ? "将创建独立对话，使用这张人物卡及其关联世界书。" : "每份记录各创建一个独立对话，都使用这张人物卡及其关联世界书；导入后不会自动打开，请在左侧列表中选择。"),
 					chatImport.preview.warnings.map(function (warning, index) { return h("p", { key: index }, warning); }),
 					chatImport.preview.incompatible ? h("label", null, h("input", { type: "checkbox", checked: chatImport.textOnly, disabled: busy, onChange: function (event) { setChatImport(Object.assign({}, chatImport, { textOnly: event.target.checked })); } }), "变量结构不兼容：仅导入正文，使用人物卡初值（也可返回换卡）") : h("p", null, chatImport.preview.hasMvu ? "将恢复 MVU 状态" : "将导入聊天正文")),
 				h("div", { className: "dsh-tavern-picker-foot" },
 					h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: function () { setChatImport(null); setError(""); } }, "返回"),
-					h("button", { className: "dsh-tavern-question-primary", disabled: busy || Boolean(pendingOpen) || (chatImport.preview.incompatible && !chatImport.textOnly), onClick: importConversation }, busy ? "正在导入…" : "导入并打开"))) : null;
+					h("button", { className: "dsh-tavern-question-primary", disabled: busy || Boolean(pendingOpen) || (chatImport.preview.incompatible && !chatImport.textOnly), onClick: importConversation },
+						busy ? (importProgress || "正在导入…") : (chatImport.entries.length === 1 ? "导入并打开" : "导入这 " + chatImport.entries.length + " 份")))) : null;
 			const openingChoice = openingPicker ? h(React.Fragment, null,
 				h("div", { className: "dsh-tavern-card-picker-head" }, h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: discardOpening }, "放弃开局"), h("span", null, openingPicker.card.name + " · 游戏准备"), h("span", { className: "dsh-tavern-spacer" }), h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: closePicker }, "暂时收起")),
 				busy ? h("div", { className: "dsh-tavern-session-switching", role: "status", "aria-live": "polite" }, openingPicker.preparing ? "正在准备开场与脚本资源…" : "正在完成游戏初始化…", openingPicker.preparing ? h("div", { style: { marginTop: "8px", fontSize: "13px", opacity: .75 } }, "首次打开可能需要下载资源，请稍候；后续打开通常更快。") : null) : null,
@@ -871,7 +917,7 @@
 					},
 					trustedCardMode: openingPicker.trustedCardMode
 				})) : null,
-				h("div", { className: "dsh-tavern-picker-foot", style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "24px", flexWrap: "wrap" } }, h("input", { ref: chatImportFile, type: "file", accept: ".jsonl", style: { display: "none" }, onChange: function (event) { previewChatImport(event.target.files && event.target.files[0]); event.target.value = ""; } }), h("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "6px" } }, h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: function () { chatImportFile.current.click(); } }, "导入聊天记录"), h("small", { style: { opacity: .7 } }, "（必须和人物卡匹配）")), h("button", { className: "dsh-tavern-question-primary", disabled: busy || openingPicker.preparing || (openingPicker.openings.length > 0 && !selectedOpening), onClick: function () { newConversation(openingPicker.card, null, selectedOpening ? selectedOpening.id : "", openingPicker.userName || "你"); } }, "开始新游戏"))
+				h("div", { className: "dsh-tavern-picker-foot", style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "24px", flexWrap: "wrap" } }, h("input", { ref: chatImportFile, type: "file", accept: ".jsonl", multiple: true, style: { display: "none" }, onChange: function (event) { const files = Array.prototype.slice.call(event.target.files || []); event.target.value = ""; void previewChatImport(files); } }), h("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "6px" } }, h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: function () { chatImportFile.current.click(); } }, busy && importProgress ? importProgress : "导入 SillyTavern 聊天记录"), h("small", { style: { opacity: .7 } }, "（可多选，必须都和这张人物卡匹配）")), h("button", { className: "dsh-tavern-question-primary", disabled: busy || openingPicker.preparing || (openingPicker.openings.length > 0 && !selectedOpening), onClick: function () { newConversation(openingPicker.card, null, selectedOpening ? selectedOpening.id : "", openingPicker.userName || "你"); } }, "开始新游戏"))
 			) : null;
 			const playPicker = h("div", { className: "dsh-tavern-card-picker", role: "dialog", "aria-modal": "true", "aria-label": openingPicker ? "游戏准备" : "选择人物卡开始游玩" }, pickerError, openingPicker ? h(React.Fragment, null, importChoice, h("div", { style: { display: importChoice ? "none" : "contents" } }, openingChoice)) : h(React.Fragment, null,
 				h("div", { className: "dsh-tavern-card-picker-head" }, h("span", null, "选择人物卡 · 开始游玩"), h("span", { className: "dsh-tavern-spacer" }), h("button", { className: "dsh-tavern-btn", disabled: busy || (!cardBatch.managing && !cards.length), onClick: function () { if (cardBatch.managing) cardBatch.reset(); else cardBatch.begin(); } }, cardBatch.managing ? "取消" : "批量删除"), h(MobileCardImportButton, { inputRef: fileRef, disabled: busy, onImported: async function () { await refresh(); notifyDataChanged(["cards"]); } }),

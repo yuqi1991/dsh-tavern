@@ -173,6 +173,7 @@ window.__ModuleLoader__.load({
 
 		// @include-domain indexed-array.js
 		// @include-domain ordered-numeric-index.js
+		// @include-domain chat-import-batch.js
 		// @include modules/session-view-sync.js
 		const beginSessionViewRead = createSessionViewReader();
 
