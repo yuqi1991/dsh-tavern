@@ -6,15 +6,15 @@
   "main": "lib/index.js",
   "dependencies": {
     "jsdom": "26.1.0",
-    "@deepseek-ai/dsh-subagent": ">=0.1.0-rc.7",
-    "@deepseek-ai/dsh-tools": "0.1.5-rc.2",
-    "@deepseek-ai/dsh-typert-protocol": ">=0.1.2-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-subagent": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.2.0-rc.1 <0.3.0",
     "chevrotain": "^11.2.0",
     "marked": "16.3.0",
     "yaml": "2.9.0",
     "acorn": "8.15.0",
-    "@deepseek-ai/dsh-agent": ">=0.1.2-rc.1 <0.2.0",
-    "@deepseek-ai/dsh-skill-filesystem": ">=0.1.2-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-agent": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-skill-filesystem": ">=0.2.0-rc.1 <0.3.0",
     "dsh-mnemon": "0.5.15",
     "dsh-mnemon-source-runtime": "0.5.9",
     "dsh-mnemon-source-documents": "0.5.6"
@@ -24,7 +24,8 @@
     "./client": "./lib/client.js",
     "./cordis-inspect": "./lib/cordis-inspect.js",
     "./package.json": "./package.json",
-    "./compaction": "./lib/agent-compaction.js"
+    "./compaction": "./lib/agent-compaction.js",
+    "./user-tools-bridge": "./lib/user-tools-bridge.js"
   },
   "dsh": {
     "bundle": {
@@ -50,5 +51,12 @@
         "dsh-tavern-remote"
       ]
     }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-agent": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-skill-filesystem": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-subagent": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.0-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.2.0-rc.1 <0.3.0"
   }
 }
