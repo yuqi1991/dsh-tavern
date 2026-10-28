@@ -18,6 +18,21 @@ function str(value) {
 }
 
 /** Edited input text, or null when unchanged. Empty text never clears input. */
+/**
+ * The input of a regeneration attempt. The provider never sees the replaced body
+ * (the request projection drops it), so without guidance this is a fresh sample
+ * of the round. Guidance ("写得更长", "加快节奏") is relative to the current body,
+ * so it comes with that body as the draft to revise.
+ */
+export function regenerationInputText(userText, guidance, rewriteBody) {
+  const input = str(userText).trim(), guide = str(guidance).trim(), draft = str(rewriteBody).trim()
+  if (draft !== '' && guide !== '') return input + '\n\n【当前正文】\n' + draft + '\n\n【改写要求】\n在当前正文基础上改写本轮正文：' + guide
+  return input + (guide !== '' ? '\n\n【本轮补充要求】\n' + guide : '')
+}
+
+// What the model saw of a stored reply (same precedence as the body editor).
+function replyTextOf(message) { return str(message && (message.projectionText ?? message.sourceText ?? message.text)) }
+
 export function normalizeEditedInput(value, originalUserText) {
   const text = str(value).trim()
   if (text === '' || text === str(originalUserText).trim()) return null
@@ -286,7 +301,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const rolledMessageCount = (chat.messages || []).length
     const guide = str(guidance).trim()
     // Edited input replaces the original text; guidance still appends as a supplement.
-    const syntheticText = (editedInput !== null ? editedInput : originalUserText) + (guide !== '' ? '\n\n【本轮补充要求】\n' + guide : '')
+    const syntheticText = regenerationInputText(editedInput !== null ? editedInput : originalUserText, guide, replyTextOf(msgs0[oldAssistantIndex]))
     const beforeLastTurn = agent.phase !== undefined && agent.phase !== null && Number.isFinite(Number(agent.phase.lastTurn)) ? Number(agent.phase.lastTurn) : 0
     let committedChat, body, syntheticTurn
     try {

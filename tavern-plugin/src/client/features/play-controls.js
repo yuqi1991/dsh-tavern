@@ -1204,11 +1204,15 @@
 			);
 		}
 
+		// The last guidance per game, offered again when the player regenerates once more.
+		const regenGuidance = new Map();
 		function RegenPanel(props) {
 			const panel = useRegenPanel();
 			const sessionMode = useTavernSessionMode(props.sessionId);
 			const running = props.useSession(function (snapshot) { return snapshot.running; });
-			const [guidance, setGuidance] = React.useState("");
+			const [guidance, setGuidance] = React.useState(function () { return regenGuidance.get(props.sessionId) || ""; });
+			const opened = panel && panel.sessionId === props.sessionId && panel.phase === "input";
+			React.useEffect(function () { if (opened) setGuidance(regenGuidance.get(props.sessionId) || ""); }, [opened, props.sessionId]);
 			// null = 本轮输入尚未读到；预填只在面板每次打开时拉取一次，
 			// 后续 phase 更新不重置，避免覆盖用户正在编辑的文本。
 			const [input, setInput] = React.useState(null);
@@ -1228,7 +1232,8 @@
 			if (!isPlayMode(sessionMode) || running || !panel || panel.sessionId !== props.sessionId) return null;
 			async function generate() {
 				const guide = guidance.trim();
-				setRegenPanel(Object.assign({}, panel, { phase: "loading", error: "" }));
+				if (guide) regenGuidance.set(props.sessionId, guide); else regenGuidance.delete(props.sessionId);
+				setRegenPanel(Object.assign({}, panel, { phase: "loading", error: "", rewrite: guide !== "" }));
 				try {
 					await submitBodyRegeneration(props.sessionId, panel, guide, input === null ? "" : input);
 					setRegenPanel(null);
@@ -1238,7 +1243,7 @@
 				}
 			}
 			const body = panel.phase === "loading"
-				? h("div", { className: "dsh-tavern-question-sub" }, "正在重新生成正文…")
+				? h("div", { className: "dsh-tavern-question-sub" }, panel.rewrite ? "正在按意见改写正文…" : "正在重新生成正文…")
 				: h(React.Fragment, null,
 						panel.error ? h("div", { className: "dsh-tavern-choice-error" }, panel.error) : null,
 						h("textarea", {
@@ -1261,7 +1266,7 @@
 						)
 					);
 			return h("div", { className: "dsh-tavern-question" },
-				h("div", { className: "dsh-tavern-question-head" }, h("span", null, "重新生成正文"), h("span", { className: "dsh-tavern-question-sub" }, "可先修改本轮输入再生成；生成后直接替换当前正文")),
+				h("div", { className: "dsh-tavern-question-head" }, h("span", null, "重新生成正文"), h("span", { className: "dsh-tavern-question-sub" }, "可先修改本轮输入再生成；不填意见是重新来一次，填了意见就在当前正文基础上改")),
 				body
 			);
 		}
