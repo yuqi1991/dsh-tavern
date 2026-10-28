@@ -139,6 +139,11 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
   - 同理 09701afe（模板同步改写压缩检查点，#202）不适用：我们的模板同步只按精确文字匹配，没有轮次锚点，摘要文字不会等于玩家原文。
   - 若以后在真实使用里遇到"存档报废"，再带着具体现场重开这一项。
 
+- **stage 验收（2026-10-28）**：用户在 stage 上验收批 1–4 现有改动，MVU 结算、回退、切换变体及其他功能均正常。
+  - 验收中发现的问题：stage 的运行时是独立副本，`defaultHostRequire` 原来只能解析到插件旁边（生产）的宿主包，与正在运行的会话存储不是同一份，会话补丁没装上，导致后台历史回退被宿主原版校验拒绝（"assistant/message embeds its source stream…"）。修复：`bin/dsh` 符号链接按真实路径查找（bfa971a7，带测试）。生产布局下不受影响。
+  - 同时保留了两项诊断：后台历史回退失败时错误信息带原因、日志输出堆栈（7f10021d 等）。
+  - 以后在 stage 上验证任何依赖会话补丁的功能前，先确认补丁已装上（`getSessionPatchStatus`）。
+
 ## 摘取流程（每个提交）
 1. `git cherry-pick -x --no-commit <hash>`；2. `lib/client.js` 冲突不手合，`node bin/build-tavern-client.mjs` 重建；
 3. `tavern.css` 末尾追加冲突：保留我们的 Story View 规则，再追加该提交自己的新增行；
