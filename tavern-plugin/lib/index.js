@@ -65,7 +65,7 @@ import { sessionOpeningDescriptor, prepareSessionOpening } from './domain/sessio
 import { scriptPromptScanText } from './domain/tavern-script-prompts.js'
 import { createOpeningPreparation } from './domain/opening-preparation.js'
 import { createChatHistoryImportService } from './domain/chat-history-import-service.js'
-import { createImportContextPreparation, needsImportContextPreparation } from './domain/import-context-preparation.js'
+import { createImportContextPreparation } from './domain/import-context-preparation.js'
 import { sessionEvents, appendSessionEvent } from './domain/session-events.js'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { createHash, randomUUID } from 'node:crypto'
@@ -4703,7 +4703,8 @@ export async function apply(ctx) {
           yield * fallback
           return
         }
-        if (needsImportContextPreparation(chat)) throw new Error('导入对话尚未完成首次上下文容量检查，暂不调用摘要模型')
+        // An imported game compacts right away: an oversized history is summarized in segments
+        // (bounded-compaction.js), so the first-play capacity check is not a precondition.
         const request = createStoryCompactionRequest(options, runtimePrompt('story-compaction'))
         if (request === options) {
           yield * fallback
