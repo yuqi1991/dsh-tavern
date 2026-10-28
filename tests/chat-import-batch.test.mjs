@@ -41,7 +41,9 @@ test('多份记录合并为一次确认：条数相加，不兼容与 MVU 任一
   assert.equal(merged.count, 7)
   assert.equal(merged.hasMvu, true)
   assert.equal(merged.incompatible, true)
-  assert.equal(merged.userName, '阿九')
+  // 称呼不同：留空，导入时每份沿用自己的称呼
+  assert.equal(merged.userName, '')
+  assert.equal(chatImportMergedPreview([entry('a.jsonl', { userName: '阿九' }), entry('b.jsonl', { userName: '阿九' })]).userName, '阿九')
   assert.equal(merged.lastMessage, '')
   assert.deepEqual(merged.warnings, ['b.jsonl：缺少快照'])
 })

@@ -519,8 +519,10 @@
 				} catch (error) { setError("导入存档失败：" + String(error.message || error)); }
 				finally { setBusy(false); }
 			}
-			// 一份记录一个新对话；人物卡、称呼与“仅导入正文”对这一批里的每份都一样。
+			// 一份记录一个新对话。“仅导入正文”只作用于变量不兼容的那几份，其余照常恢复 MVU 状态；
+			// 称呼留空时由服务端沿用每份记录自己的称呼。
 			async function importConversationEntry(request, entry) {
+				request = Object.assign({}, request, { textOnly: request.textOnly && Boolean(entry.preview.incompatible) });
 				const key = "dsh-tavern:chat-import:" + JSON.stringify([entry.preview.digest, request.cardPath, request.userName, request.textOnly]);
 				let attempt;
 				try { attempt = JSON.parse(localStorage.getItem(key) || "null"); } catch (_) {}
@@ -873,11 +875,11 @@
 						? h("p", null, "文件：" + chatImport.entries[0].fileName)
 						: h("p", null, "共 " + chatImport.entries.length + " 份记录，各自成为独立对话：" + chatImport.entries.map(function (entry) { return entry.fileName + "（" + entry.preview.count + " 条）"; }).join("、")),
 					h("p", null, "共 " + chatImport.preview.count + " 条消息"),
-					h("label", null, "玩家称呼", h("input", { value: chatImport.userName, maxLength: 80, disabled: busy, onChange: function (event) { setChatImport(Object.assign({}, chatImport, { userName: event.target.value })); } })),
+					h("label", null, "玩家称呼", h("input", { value: chatImport.userName, maxLength: 80, disabled: busy, placeholder: chatImport.entries.length > 1 ? "沿用各份记录里的称呼" : undefined, onChange: function (event) { setChatImport(Object.assign({}, chatImport, { userName: event.target.value })); } })),
 					chatImport.preview.lastMessage ? h(React.Fragment, null, h("p", null, "最后一条消息："), h("pre", { style: { whiteSpace: "pre-wrap", overflowWrap: "anywhere" } }, chatImport.preview.lastMessage)) : null,
 					h("p", null, chatImport.entries.length === 1 ? "将创建独立对话，使用这张人物卡及其关联世界书。" : "每份记录各创建一个独立对话，都使用这张人物卡及其关联世界书；导入后不会自动打开，请在左侧列表中选择。"),
 					chatImport.preview.warnings.map(function (warning, index) { return h("p", { key: index }, warning); }),
-					chatImport.preview.incompatible ? h("label", null, h("input", { type: "checkbox", checked: chatImport.textOnly, disabled: busy, onChange: function (event) { setChatImport(Object.assign({}, chatImport, { textOnly: event.target.checked })); } }), "变量结构不兼容：仅导入正文，使用人物卡初值（也可返回换卡）") : h("p", null, chatImport.preview.hasMvu ? "将恢复 MVU 状态" : "将导入聊天正文")),
+					chatImport.preview.incompatible ? h("label", null, h("input", { type: "checkbox", checked: chatImport.textOnly, disabled: busy, onChange: function (event) { setChatImport(Object.assign({}, chatImport, { textOnly: event.target.checked })); } }), chatImport.entries.length === 1 ? "变量结构不兼容：仅导入正文，使用人物卡初值（也可返回换卡）" : "变量结构不兼容（" + chatImport.entries.filter(function (entry) { return entry.preview.incompatible; }).map(function (entry) { return entry.fileName; }).join("、") + "）：这几份仅导入正文，使用人物卡初值；其余照常导入") : h("p", null, chatImport.preview.hasMvu ? "将恢复 MVU 状态" : "将导入聊天正文")),
 				h("div", { className: "dsh-tavern-picker-foot" },
 					h("button", { className: "dsh-tavern-btn", disabled: busy, onClick: function () { setChatImport(null); setError(""); } }, "返回"),
 					h("button", { className: "dsh-tavern-question-primary", disabled: busy || Boolean(pendingOpen) || (chatImport.preview.incompatible && !chatImport.textOnly), onClick: importConversation },

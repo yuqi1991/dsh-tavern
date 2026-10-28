@@ -43,7 +43,8 @@ function chatImportMergedPreview(entries) {
     count: entries.reduce((total, entry) => total + (entry.preview.count || 0), 0),
     hasMvu: entries.some(entry => entry.preview.hasMvu),
     incompatible: entries.some(entry => entry.preview.incompatible),
-    userName: (entries.find(entry => entry.preview.userName) || entries[0]).preview.userName,
+    // 各份称呼不同时留空：导入时每份沿用自己记录里的称呼，不被第一份覆盖。
+    userName: entries.every(entry => entry.preview.userName === entries[0].preview.userName) ? entries[0].preview.userName : '',
     // 多份记录没有共同的“最后一条消息”，预览改为只报每份的条数。
     lastMessage: entries.length === 1 ? entries[0].preview.lastMessage : '',
     warnings: chatImportMergedWarnings(entries)
