@@ -5,6 +5,7 @@ import {
   constantWorldBookContext,
   mvuUpdateRulesFromWorldBook,
   projectWorldBookTemplates,
+  prepareTemplateWorldbook,
   prepareWorldBookRecall
 } from '../tavern-plugin/lib/domain/worldbook-recall.js'
 import { UpstreamTemplateRuntime } from './fixtures/upstream-template-runtime.mjs'
@@ -226,4 +227,14 @@ test('批量结果缺失或执行失败不回退重跑，纯文本不派发模�
     render:()=>assert.fail('no template'),renderProjections:()=>assert.fail('no template')
   }})
   assert.equal(plain.context,'纯文本')
+})
+
+test('only leading @@ lines are template decorators; @@ inside prose stays plain', async () => {
+  const calls = []
+  const runtime = { prepareWorldbook: async entries => { calls.push(entries.length); return { entries: [], scopes: {} } } }
+  const book = (...entries) => ({ view: { displayName: 'book', entries } })
+  await prepareTemplateWorldbook(book(entry('lora', '<lora:style@@@2@@@>')), runtime, {})
+  assert.deepEqual(calls, [], 'inline @@ does not start the template runtime')
+  await prepareTemplateWorldbook(book(entry('ctl', '@@generate_before\nbody', { enabled: false })), runtime, {})
+  assert.deepEqual(calls, [1], 'a disabled decorator entry is still a template controller')
 })

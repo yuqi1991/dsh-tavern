@@ -138,7 +138,9 @@ export function constantWorldBookContext(input = {}) {
 export async function prepareTemplateWorldbook(worldBook, runtime, chat, globals = {}) {
   if (!worldBook?.view || worldBook.templatePrepared || !runtime.prepareWorldbook) return worldBook
   const entries = allEntries(worldBook)
-  if (!entries.some(entry => /@@|\[(?:GENERATE:|RENDER:|InitialVariables|Preprocessing)|@INJECT/.test(entry.content + '\n' + (entry.comment || entry.title)))) return worldBook
+  // The engine reads decorators only from leading @@ lines, so `lora@@@2@@@` in prose is plain text.
+  // Disabled entries still count: [GENERATE:] controllers are usually disabled in the source book.
+  if (!entries.some(entry => /^@@/.test(str(entry.content)) || /\[(?:GENERATE:|RENDER:|InitialVariables|Preprocessing)|@INJECT/.test(entry.content + '\n' + (entry.comment || entry.title)))) return worldBook
   const result = await runtime.prepareWorldbook(entries.map(entry => templateResource(entry, worldBook.view.displayName)), {
     worldBookEntries: entries.map(entry => templateResource(entry, worldBook.view.displayName)),
     scopes: {global: globals, local: chat.variables || {}, initial: chat.promptTemplateInitialVariables || {}, message: lastTavernHelperVariables(chat.promptTemplateInput?.message ? [chat.promptTemplateInput.message] : chat.messages) || {}}

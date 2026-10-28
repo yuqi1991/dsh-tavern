@@ -355,3 +355,16 @@ test('世界书目录行可由宿主按文件版本缓存，结果与直接解�
   assert.deepEqual(await run.library.catalog(), first)
   assert.deepEqual(computed.sort(), ['cards/命运.json', 'cards/空白.json', 'worldbooks/王都.json'])
 })
+
+for (const source of [{ kind: 'standalone', path: 'worldbooks/王都.json' }, { kind: 'card', cardPath: 'cards/命运.json' }]) {
+  test('同一世界书并发新增保留双方条目，失败后仍可更新：' + source.kind, async () => {
+    const { library } = harness()
+    await Promise.all(['甲', '乙'].map(name => library.update(source, { operations: [{ op: 'add', entry: { comment: name, content: name, primaryKeys: [name] } }] })))
+    const entries = (await library.get(source)).view.entries
+    assert.ok(entries.some(entry => entry.content === '甲'))
+    assert.ok(entries.some(entry => entry.content === '乙'))
+    await assert.rejects(library.update(source, { operations: [{ op: 'delete', ref: 'entry:9999' }] }))
+    await library.update(source, { operations: [{ op: 'add', entry: { content: '丙' } }] })
+    assert.ok((await library.get(source)).view.entries.some(entry => entry.content === '丙'))
+  })
+}
