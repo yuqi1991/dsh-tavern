@@ -1,22 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
-import { Context } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
-import Persistence from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Context } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
+import Persistence from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import { SURFACE_SELECT_TYPE } from '../../lib/domain/surface-selection.js'
-import { TokenMeter } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-token-meter/lib/index.js'
+import { TokenMeter } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-token-meter/lib/index.js'
 import { installTavernTokenMeter } from '../../lib/domain/tavern-token-meter.js'
 import { computeFold, committedMetadata } from '../../lib/domain/conversation-algebra/index.js'
 import { user, assistant, toolResult } from './helpers.mjs'
 
-const RUNTIME = '/home/claw/workspace/dsh-tarvern/runtime/lib'
+const RUNTIME = '/home/claw/dsh-stage-021/runtime/lib'
 const system = { turn: 1, step: 1, message: { id: 'system', role: 'system', content: [{ type: 'text', text: 'rules' }], source: { kind: 'plugin', plugin: 'fixture' } } }
 
 function withPatch(run) {
   return async () => {
-    const patch = await prepareExpandedPatch(RUNTIME, { version: '0.1.5-rc.2' })
+    const patch = await prepareExpandedPatch(RUNTIME, { version: '0.2.1-rc.2' })
     try { await run(patch) } finally { patch.dispose() }
   }
 }
@@ -101,7 +101,7 @@ test('selection survives persistence and reload', withPatch(async patch => {
 test('a host without the patch refuses to load a selection log', async () => {
   const root = await mkdtemp('/home/claw/dsh-tavern-dev/surface-select-')
   try {
-    const patch = await prepareExpandedPatch(RUNTIME, { version: '0.1.5-rc.2' })
+    const patch = await prepareExpandedPatch(RUNTIME, { version: '0.2.1-rc.2' })
     const s = Session.create('select-unpatched')
     try {
       const writer = new Persistence(new Context(), { root, compression: 'zstd' })

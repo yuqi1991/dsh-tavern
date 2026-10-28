@@ -10,7 +10,7 @@ import { createStoryTimeline } from '../../lib/domain/story-timeline.js'
 import { createChatPersistence } from '../../lib/domain/chat-persistence.js'
 import { createChatJournalStore } from '../../lib/domain/chat-journal-store.js'
 import { createMvuDiagnosticStore, createMvuDiagnosticExport } from '../../lib/domain/mvu-diagnostics.js'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { createConversationHistory } from '../../lib/domain/conversation-algebra-history.js'
 import { computeFold } from '../../lib/domain/conversation-algebra/index.js'
 import { appendSessionEvent, sessionEvents } from '../../lib/domain/session-events.js'
@@ -89,7 +89,7 @@ function harness({ checkpoint = false, mode = 'story', journal = false } = {}) {
 
 test('product rollback saves a branch and clears only the last round via checkout',async()=>{
  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try{
  const h=harness({checkpoint:true,journal:true});const before=h.session.snapshotEvents().length
  await h.create().rollback('session','chat',2)
@@ -105,7 +105,7 @@ test('product rollback saves a branch and clears only the last round via checkou
 
 test('product undo returns to the saved branch without appending duplicate player input',async()=>{
  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try{
   const h=harness({checkpoint:true,journal:true}),history=h.create()
   await history.rollback('session','chat',2)
@@ -119,7 +119,7 @@ test('product undo returns to the saved branch without appending duplicate playe
 
 test('rollback native flush failure keeps durable intent and recovers rather than reverting Chat',async()=>{
  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try{
  const h=harness({checkpoint:true,journal:true});let broken=true
  const flush=async()=>{if(broken)throw new Error('disk unavailable')}
@@ -141,7 +141,7 @@ test('rollback preflight rejection leaves Chat and Session untouched',async()=>{
 
 test('foreground rollback recovered after flush failure still provides a usable undo branch',async()=>{
  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try {
   const h=harness({checkpoint:true,journal:true});let broken=true
   const flush=async()=>{if(broken)throw new Error('disk unavailable')}
@@ -155,7 +155,7 @@ test('foreground rollback recovered after flush failure still provides a usable 
 
 test('product failed regenerate restores edited prose and archives the aborted attempt',async()=>{
  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try{
   const h=harness({checkpoint:true,journal:true}),before=structuredClone(h.chat)
   h.beforeGenerate(()=>{
@@ -180,7 +180,7 @@ test('product failed regenerate restores edited prose and archives the aborted a
 test('product reroll succeeds after checkout left empty control rows behind the old body',async()=>{
  const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
  const {createConversationBranches}=await import('../../lib/domain/conversation-algebra-branches.js')
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try{
   const h=harness({checkpoint:true,journal:true})
   appendSessionEvent(h.session,'user/message',{id:'discarded',role:'user',source:{kind:'user'},content:[{type:'text',text:'later'}]},{surfaceOp:'append'})
@@ -208,7 +208,7 @@ test('product reroll succeeds after checkout left empty control rows behind the 
 
 test('replaying a failed turn reports how many interrupted nodes it cleared', async () => {
   const {prepareExpandedPatch}=await import('../../lib/domain/host-session-patch.js')
-  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+  const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
   try {
   const h = harness()
   h.session.append('turn/start', { turn: 3 })

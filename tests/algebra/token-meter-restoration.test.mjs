@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {Session} from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
-import {TokenMeter} from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-token-meter/lib/index.js'
+import {Session} from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import {TokenMeter} from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-token-meter/lib/index.js'
 import {prepareExpandedPatch} from '../../lib/domain/host-session-patch.js'
 import {installTavernTokenMeter} from '../../lib/domain/tavern-token-meter.js'
 import {createConversationAlgebraHostAdapter} from '../../lib/domain/conversation-algebra-host-adapter.js'
@@ -39,7 +39,7 @@ async function leaveAndReturn(s) {
 }
 
 test('token meter accepts a legacy transaction-stamped restored model reply', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', {version: '0.1.5-rc.2'})
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', {version: '0.2.1-rc.2'})
   const {meter, dispose} = meterFor()
   try {
     // Logs written before ADR-0009 restored a branch by copying each reply
@@ -60,7 +60,7 @@ test('token meter accepts a legacy transaction-stamped restored model reply', as
 })
 
 test('token meter follows a leave-and-return checkout by selection', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', {version: '0.1.5-rc.2'})
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', {version: '0.2.1-rc.2'})
   const {meter, dispose} = meterFor()
   try {
     const s = playedSession('meter-restore')
@@ -73,7 +73,7 @@ test('token meter follows a leave-and-return checkout by selection', async () =>
 })
 
 test('token meter accepts in-place edits and tombstones that keep provider usage', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', {version: '0.1.5-rc.2'})
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', {version: '0.2.1-rc.2'})
   try {
     // editStep (same id, new content) and dropTagged tombstones (tombstone id,
     // empty content and stream) replace a model reply with itself, carrying

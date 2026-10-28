@@ -1,14 +1,14 @@
 import test, { before, after } from 'node:test'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import assert from 'node:assert/strict'
-import {Session} from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import {Session} from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import {createConversationHistory} from '../../lib/domain/conversation-algebra-history.js'
 import {user} from './helpers.mjs'
 import {committedMetadata} from '../../lib/domain/conversation-algebra/index.js'
 
 // Checkouts write surface selections (ADR-0009); the host patch applies them.
 let patch
-before(async () => { patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' }) })
+before(async () => { patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' }) })
 after(() => patch.dispose())
 for(const fail of ['before-native','after-native'])test('durable history intent recovers '+fail,async()=>{
  let session=Session.create('history-intent');for(const id of ['a','b'])session.append('user/message',user(id,id).data,{surfaceOp:'append'})

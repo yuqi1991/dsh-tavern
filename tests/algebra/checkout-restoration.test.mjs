@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {Session} from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import {Session} from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import {prepareExpandedPatch} from '../../lib/domain/host-session-patch.js'
 import {createConversationAlgebraHostAdapter} from '../../lib/domain/conversation-algebra-host-adapter.js'
 import {branch,checkout,committedMetadata,computeFold,runTransaction,recoverTransaction} from '../../lib/domain/conversation-algebra/index.js'
@@ -9,7 +9,7 @@ import {user,assistant,toolResult} from './helpers.mjs'
 // ADR-0009: a checkout is one selection event. A crash before it lands
 // leaves the log untouched; there is no partial restoration to recover.
 test('checkout returns to a saved tool-step branch atomically',async()=>{
- const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+ const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
  try {
   const s=Session.create('restore-tool-step')
   const rows=[user('prefix','prefix'),user('player','input'),assistant('call',[{type:'tool-call',id:'c',name:'skill',arguments:'{}'}],1),toolResult('tool','c',1),assistant('body','body',1,2)]

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import { projectVariantBodies } from '../../lib/domain/floor-projection.js'
 import { projectTavernHelperContext } from '../../lib/domain/tavern-helper-context.js'
@@ -10,7 +10,7 @@ import { createSessionSurfaceMutator } from '../../lib/domain/session-surface-mu
 const MODEL = { kind: 'model', provider: 'fixture', model: 'fixture' }
 
 test('variant bodies materialize from turn-tagged branches', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const session = Session.create('variant-bodies')
     appendSessionEvent(session, 'user/message', { id: 'input', role: 'user', content: [{ type: 'text', text: '推门' }], source: { kind: 'user' } }, { surfaceOp: 'append' })

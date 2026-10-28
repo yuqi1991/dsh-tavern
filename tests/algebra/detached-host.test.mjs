@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { createConversationAlgebraHostAdapter } from '../../lib/domain/conversation-algebra-host-adapter.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import { appendStep, branch, checkout, committedMetadata, computeFold, runTransaction, recoverTransaction } from '../../lib/domain/conversation-algebra/index.js'
@@ -36,7 +36,7 @@ test('host rejects an invalid replacement during preflight with zero live writes
 })
 
 test('real host checkout shortens a prefix and returns to the archived branch', async () => {
-  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+  const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
   try {
   const session = Session.create('algebra-checkout')
   for (const id of ['a','b','c']) session.append('user/message', user(id,id).data, {surfaceOp:'append'})
@@ -55,7 +55,7 @@ test('real host checkout shortens a prefix and returns to the archived branch', 
 })
 
 test('checkout crash before its selection lands leaves the log unchanged', async () => {
-  const patch=await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib',{version:'0.1.5-rc.2'})
+  const patch=await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib',{version:'0.1.5-rc.2'})
   try {
   const session = Session.create('algebra-checkout-cut')
   for (const id of ['a','b']) session.append('user/message',user(id,id).data,{surfaceOp:'append'})

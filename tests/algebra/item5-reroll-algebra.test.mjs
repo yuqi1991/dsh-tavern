@@ -5,7 +5,7 @@
 // and after the migration (behavior-preserving cutover).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import { createRoundHistory } from '../../lib/domain/round-history.js'
 import { createStoryTimeline } from '../../lib/domain/story-timeline.js'
@@ -82,7 +82,7 @@ function harness({ mvu = false } = {}) {
 function foldOf(h) { return computeFold(h.session.snapshotEvents()) }
 
 test('algebra reroll tags the saved variant branch with the replaced turn', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -96,7 +96,7 @@ test('algebra reroll tags the saved variant branch with the replaced turn', asyn
 })
 
 test('variant switcher checks out the archived body and back to the live line', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -143,7 +143,7 @@ test('variant switcher checks out the archived body and back to the live line', 
 })
 
 test('algebra reroll keeps one visible round and a saved variant branch', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     const result = await h.create().regenerate('chat', '', 'session')
@@ -165,7 +165,7 @@ test('algebra reroll keeps one visible round and a saved variant branch', async 
 })
 
 test('algebra reroll failure restores the original round and archives the attempt', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     h.setGeneration('throw')
@@ -184,7 +184,7 @@ test('algebra reroll failure restores the original round and archives the attemp
 })
 
 test('algebra reroll with edited input rewrites the original input node', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session', '改成敲窗')
@@ -198,7 +198,7 @@ test('algebra reroll with edited input rewrites the original input node', async 
 })
 
 test('rollback remains available after an algebra reroll', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -221,7 +221,7 @@ test('rollback remains available after an algebra reroll', async () => {
 })
 
 test('a second reroll finds the native turn left by the first', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -241,7 +241,7 @@ test('a second reroll finds the native turn left by the first', async () => {
 })
 
 test('rollback remains available after switching to the middle of three variants', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -265,7 +265,7 @@ test('rollback remains available after switching to the middle of three variants
   } finally { patch.dispose() }
 })
 test('each variant switch is one selection event and rollback still follows it', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -290,7 +290,7 @@ test('each variant switch is one selection event and rollback still follows it',
 })
 
 test('undo rollback makes the restored round a floor again', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -306,7 +306,7 @@ test('undo rollback makes the restored round a floor again', async () => {
 })
 
 test('reroll after rollback+undo finds the restored original row', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')      // round now native turn 3
@@ -322,7 +322,7 @@ test('reroll after rollback+undo finds the restored original row', async () => {
 })
 
 test('interleaved reroll, switch, rollback and undo grow the log only by generated content', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const seen = new Set()
     for (const seed of [1, 7, 42]) {
@@ -372,7 +372,7 @@ function floorViews(h) {
 }
 
 test('floor projection follows the history operations', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     // Native turn hosting the last floor's body, per operation.
     const expected = {
@@ -410,7 +410,7 @@ test('floor projection follows the history operations', async () => {
 })
 
 test('switching variants brings back each variant own MVU state', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness({ mvu: true })
     await h.create().regenerate('chat', '', 'session')
@@ -432,7 +432,7 @@ test('switching variants brings back each variant own MVU state', async () => {
 })
 
 test('story floors follow rerolls, switches, rollback and undo', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     // What getStoryFloors publishes is what the story view renders.
     const page = h => pageStoryFloors(storyFloorsOf(h.chat, { projections: projectReplyHistory(h.chat.messages, {}).projections }))
@@ -456,7 +456,7 @@ test('story floors follow rerolls, switches, rollback and undo', async () => {
 })
 
 test('regenerating from a non-last variant finds the body that variant put on the surface', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')
@@ -484,7 +484,7 @@ test('regenerating from a non-last variant finds the body that variant put on th
 })
 
 test('the latest body stays editable after rerolls, whichever native turn hosts it', async () => {
-  const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
   try {
     const h = harness()
     await h.create().regenerate('chat', '', 'session')

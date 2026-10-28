@@ -4,7 +4,7 @@ import vm from 'node:vm'
 import { readFileSync } from 'node:fs'
 
 // Real host Trajectory Definitions and snapshot builder, plus Tavern's overlay.
-const root = '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/'
+const root = '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/'
 function region(s, name) { const start = s.indexOf('//#region ' + name); assert.ok(start >= 0, name); return s.slice(start, s.indexOf('//#endregion', start)) }
 function fixture() {
   const c = readFileSync(root + 'dsh-client-ui-conversation/lib/client.js', 'utf8'), t = readFileSync(root + 'dsh-client-ui-trajectory/lib/client.js', 'utf8')

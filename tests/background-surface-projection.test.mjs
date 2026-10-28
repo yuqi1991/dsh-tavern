@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { rewindBackgroundSurface } from '../tavern-plugin/lib/domain/background-surface.js'
 
 const MODEL = { kind: 'model', provider: 'fixture', model: 'fixture' }

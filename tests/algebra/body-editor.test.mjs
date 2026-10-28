@@ -1,9 +1,9 @@
 import { toolResult } from './helpers.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
-const hostPatch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', {version:'0.1.5-rc.2'})
+const hostPatch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', {version:'0.1.5-rc.2'})
 test.after(() => hostPatch.dispose())
 import { createBodyEditor, synchronizeBodyEdits } from '../../lib/domain/body-editor.js'
 import { editableReplyParts, projectReplyLayers, projectReplyHistory } from '../../lib/domain/reply-presentation.js'

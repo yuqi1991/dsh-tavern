@@ -1,7 +1,7 @@
 import './runtime-loader.mjs'
 import assert from 'node:assert/strict'
-import { Context } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
-import { SessionHistoryController } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-api-session-controller/lib/types/history.js'
+import { Context } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
+import { SessionHistoryController } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-api-session-controller/lib/types/history.js'
 import { createPluginHost } from './plugin-host.mjs'
 
 const ctx=new Context()

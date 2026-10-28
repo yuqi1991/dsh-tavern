@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import { createRegenerationRecovery } from '../../lib/domain/regeneration-recovery.js'
 import { createConversationHistory } from '../../lib/domain/conversation-algebra-history.js'
@@ -11,7 +11,7 @@ import { branchRegistryOf } from '../../lib/domain/floor-projection.js'
 
 // Checkouts write surface selections (ADR-0009); the host patch applies them.
 let patch
-before(async () => { patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' }) })
+before(async () => { patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' }) })
 after(() => patch.dispose())
 
 // Fixture follows the product reroll: the old body is saved as a branch and
@@ -82,8 +82,8 @@ test('foreign later player input refuses abort before any writes',async()=>{
 
 test('actual Chat journal and host zstd persistence reopen a partially written abort',async()=>{
  const {mkdtemp}=await import('node:fs/promises')
- const {Context}=await import('/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js')
- const {default:Persistence}=await import('/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js')
+ const {Context}=await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js')
+ const {default:Persistence}=await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js')
  const {createChatPersistence}=await import('../../lib/domain/chat-persistence.js')
  const {createChatJournalStore}=await import('../../lib/domain/chat-journal-store.js')
  const root=await mkdtemp('/home/claw/dsh-tavern-dev/regen-abort-persistence-'),h=await fixture()

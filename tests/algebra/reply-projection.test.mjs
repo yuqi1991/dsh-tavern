@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { randomUUID } from 'node:crypto'
-import { Session } from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import { Session } from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import { prepareExpandedPatch } from '../../tavern-plugin/lib/domain/host-session-patch.js'
 import { computeFold, runTransaction, waitForTransactionReady } from '../../tavern-plugin/lib/domain/conversation-algebra/index.js'
 import { createConversationAlgebraHostAdapter } from '../../tavern-plugin/lib/domain/conversation-algebra-host-adapter.js'
 import { sessionEvents } from '../../tavern-plugin/lib/domain/session-events.js'
 
-const patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' })
+const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
 test.after(() => patch.dispose())
 
 const MODEL = { kind: 'model', provider: 'fixture', model: 'fixture' }

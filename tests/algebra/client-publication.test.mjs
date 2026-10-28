@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
-import * as cordis from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
+import * as cordis from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/cordis/lib/index.js'
 
-const runtime='/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/'
+const runtime='/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/'
 function client() {
   const modules=new Map([['@deepseek-ai/cordis',cordis],['@deepseek-ai/dsh-client-store',{}]])
   const context=vm.createContext({window:{__ModuleLoader__:{load(descriptor){modules.set(descriptor.id+'/client',descriptor.factory(name=>modules.get(name)))}}},console,AbortController,queueMicrotask,setTimeout,clearTimeout})

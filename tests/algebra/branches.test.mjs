@@ -1,13 +1,13 @@
 import test, { before, after } from 'node:test'
 import { prepareExpandedPatch } from '../../lib/domain/host-session-patch.js'
 import assert from 'node:assert/strict'
-import {Session} from '/home/claw/workspace/dsh-tarvern/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
+import {Session} from '/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session/lib/index.js'
 import {createConversationBranches} from '../../lib/domain/conversation-algebra-branches.js'
 import {user} from './helpers.mjs'
 
 // Checkouts write surface selections (ADR-0009); the host patch applies them.
 let patch
-before(async () => { patch = await prepareExpandedPatch('/home/claw/workspace/dsh-tarvern/runtime/lib', { version: '0.1.5-rc.2' }) })
+before(async () => { patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' }) })
 after(() => patch.dispose())
 test('branch seam saves old line, retries idempotently, and keeps the registry in the log',async()=>{
  const s=Session.create('branches-seam')
