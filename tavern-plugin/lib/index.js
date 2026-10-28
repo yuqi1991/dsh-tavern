@@ -1420,6 +1420,10 @@ export async function apply(ctx) {
     }
     throw new Error('状态栏诊断保存时对话持续变化，请稍后重试')
   }
+  // A history import builds its frames before the draft Chat is published, so the
+  // template runtime cannot find that Session on disk yet. The import service holds
+  // the draft here while frames are built and releases it on success or failure.
+  const importDrafts = new Map()
   const tavernScriptHostAdapter = createTavernScriptHostAdapter({
     recordResourceSave: (sessionId, summary) => apiDiagnostics.recordResourceSave(sessionId, summary),
     publishCreatedMessages: async function (chat, targets) {
@@ -1427,7 +1431,10 @@ export async function apply(ctx) {
       appendHelperUserSessionContext(session, chat, targets)
       await sessionStore.flush(session)
     },
-    resolveChat: chatForSession,
+    resolveChat: async function (sessionId) {
+      const id = str(sessionId)
+      return importDrafts.get(id) ?? await chatForSession(id)
+    },
     variantBodiesOf: chat => {
       const session = sessionForId(chat?.sessionId)
       return projectVariantBodies(session)
@@ -1992,6 +1999,11 @@ export async function apply(ctx) {
   const chatHistoryImporter = createChatHistoryImportService({
     projectWorldBookTemplates: nativeWorldBookTemplateContext,
     projectForegroundWorldbook,
+    drafts: {
+      hold: function (sessionId, chat) { importDrafts.set(str(sessionId), chat) },
+      // The worker was initialized from the draft; the published Chat starts a fresh one.
+      clear: function (sessionId) { importDrafts.delete(str(sessionId)); fullTemplateRuntime.cancel(str(sessionId)) }
+    },
     planner: contextPlanner,
     initialization: conversationInitialization,
     cards: { read: readCard }, worldBooks, store: profileData,
