@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { accessSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { accessSync, cpSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { mkdtemp, readFile } from 'node:fs/promises'
@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import { createBodyEditor } from '../tavern-plugin/lib/domain/body-editor.js'
 import { createRoundHistory } from '../tavern-plugin/lib/domain/round-history.js'
-import { installHostSessionPatch } from '../tavern-plugin/lib/domain/host-session-patch.js'
+import { defaultHostRequire, installHostSessionPatch } from '../tavern-plugin/lib/domain/host-session-patch.js'
 
 const runtime = process.env.TAVERN_DSH_015_RUNTIME || '/tmp/tavern-session-patch-npm-015.jv9SRv'
 const runtimeReady = (() => { try { accessSync(join(runtime, 'package.json')); return true } catch { return false } })()
@@ -172,4 +172,23 @@ test('DSHA v0.1.5-rc2 改写的两份宿主文件仍可安装补丁并完成替�
     assert.equal(restored.deriveMessages().at(-1).content.find(part => part.type === 'text').text, 'edited')
   } finally { await reader.close() }
   await ctx.fiber.dispose()
+})
+
+test('宿主启动脚本是符号链接时，按真实路径找到运行中的宿主包', async () => {
+  // A stage copy of the runtime sits beside neither the plugin nor bin/, only behind the bin/dsh symlink.
+  const root = await mkdtemp(join(tmpdir(), 'tavern-host-require-'))
+  const modules = join(root, 'runtime/lib/node_modules/@deepseek-ai')
+  const write = (name, files) => { mkdirSync(join(modules, name, 'lib'), { recursive: true }); for (const [file, text] of Object.entries(files)) writeFileSync(join(modules, name, file), text) }
+  write('dsh-tools', { 'package.json': '{"name":"@deepseek-ai/dsh-tools","main":"lib/index.js"}', 'lib/index.js': 'module.exports = {}' })
+  write('dsh-session-persistence', { 'package.json': '{"name":"@deepseek-ai/dsh-session-persistence","main":"lib/index.js"}', 'lib/index.js': 'class StagePersistence {}\nmodule.exports = { StagePersistence }' })
+  write('dsh', { 'package.json': '{"name":"@deepseek-ai/dsh"}', 'lib/bin.js': '' })
+  mkdirSync(join(root, 'runtime/bin'), { recursive: true })
+  symlinkSync('../lib/node_modules/@deepseek-ai/dsh/lib/bin.js', join(root, 'runtime/bin/dsh'))
+  const { StagePersistence } = createRequire(join(modules, 'dsh-session-persistence/lib/index.js'))('./index.js')
+  const argv = process.argv[1]
+  process.argv[1] = join(root, 'runtime/bin/dsh')
+  try {
+    const found = await defaultHostRequire(new StagePersistence())
+    assert.ok(found.resolve('@deepseek-ai/dsh-session-persistence').startsWith(root))
+  } finally { process.argv[1] = argv }
 })

@@ -1,6 +1,6 @@
 // In-memory host/client patch for DSH 0.1.5-rc.2. Official package files stay unchanged.
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -223,7 +223,12 @@ function hostRequireFrom(anchor) {
 // the dsh launcher. Pick the copy that actually constructed the live store.
 export async function defaultHostRequire(persistence) {
   const anchors = [fileURLToPath(new URL('../../package.json', import.meta.url))]
-  if (process.argv[1]) anchors.push(process.argv[1])
+  if (process.argv[1]) {
+    anchors.push(process.argv[1])
+    // bin/dsh is a symlink into the package tree; module lookup must start from the real file,
+    // otherwise a runtime that is not the plugin's neighbour (e.g. a stage copy) cannot be found.
+    try { const real = realpathSync(process.argv[1]); if (real !== process.argv[1]) anchors.push(real) } catch { /* keep the plain anchor */ }
+  }
   const found = []
   const errors = []
   for (const anchor of anchors) {
