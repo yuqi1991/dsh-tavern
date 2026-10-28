@@ -10,6 +10,99 @@ function promptOverride(document, name) {
   return typeof value === 'string' && (value.trim() !== '' || name === 'system-append') ? value : null
 }
 
+// System prompt sets: the active set's content stays in the top-level
+// promptOverrides/systemAppendEnabled fields (what every reader uses, and what
+// older versions read); promptSets only stores names plus inactive sets' content.
+const DEFAULT_PROMPT_SET = Object.freeze({ id: 'default', name: '默认方案' })
+
+function promptSetName(value) {
+  const name = typeof value === 'string' ? value.trim() : ''
+  if (name === '' || name.length > 80) throw new Error('方案名称需为 1–80 字')
+  return name
+}
+
+export function uniqueName(names, base) {
+  const taken = new Set(names)
+  if (!taken.has(base)) return base
+  for (let index = 2; ; index += 1) if (!taken.has(base + ' (' + index + ')')) return base + ' (' + index + ')'
+}
+
+export function promptSetLibrary(document) {
+  const source = Array.isArray(object(document).promptSets) ? document.promptSets : []
+  const sets = []
+  for (const item of source) {
+    const entry = object(item)
+    if (typeof entry.id !== 'string' || entry.id === '' || typeof entry.name !== 'string' || sets.some(set => set.id === entry.id)) continue
+    sets.push(entry)
+  }
+  if (sets.length === 0) sets.push({ ...DEFAULT_PROMPT_SET })
+  const activeId = sets.some(set => set.id === object(document).activePromptSetId) ? document.activePromptSetId : sets[0].id
+  return { activeId, sets }
+}
+
+function storedPromptSetContent(value) {
+  const overrides = {}
+  for (const [name, text] of Object.entries(object(value))) if (typeof text === 'string' && text.length <= 100000) overrides[name] = text.trim()
+  return overrides
+}
+
+function writeActivePromptContent(next, overrides, systemAppendEnabled) {
+  if (Object.keys(overrides).length === 0) delete next.promptOverrides
+  else next.promptOverrides = overrides
+  next.systemAppendEnabled = systemAppendEnabled !== false
+}
+
+function applyPromptSetChange(next, change) {
+  const { activeId, sets } = promptSetLibrary(next)
+  const action = change.action
+  const nameOf = id => sets.find(set => set.id === id)
+  const names = sets.map(set => set.name)
+  const newId = () => 'set-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
+  // Snapshot the live content into its entry before any switch.
+  const stash = list => list.map(set => set.id === activeId ? { id: set.id, name: set.name, promptOverrides: storedPromptSetContent(next.promptOverrides), systemAppendEnabled: next.systemAppendEnabled !== false } : set)
+  const activate = (list, id) => {
+    const target = list.find(set => set.id === id)
+    writeActivePromptContent(next, storedPromptSetContent(target.promptOverrides), target.systemAppendEnabled)
+    next.promptSets = list.map(set => set.id === id ? { id: set.id, name: set.name } : set)
+    next.activePromptSetId = id
+  }
+  if (action === 'select') {
+    if (!nameOf(change.id)) throw new Error('系统提示词方案不存在')
+    if (change.id !== activeId) activate(stash(sets), change.id)
+    return
+  }
+  if (action === 'rename') {
+    if (!nameOf(change.id)) throw new Error('系统提示词方案不存在')
+    const name = uniqueName(names.filter((value, index) => sets[index].id !== change.id), promptSetName(change.name))
+    next.promptSets = sets.map(set => set.id === change.id ? { ...set, name } : set)
+    next.activePromptSetId = activeId
+    return
+  }
+  if (action === 'delete') {
+    if (!nameOf(change.id)) throw new Error('系统提示词方案不存在')
+    if (change.id === activeId) throw new Error('不能删除正在使用的方案，请先切换到其他方案')
+    next.promptSets = sets.filter(set => set.id !== change.id)
+    next.activePromptSetId = activeId
+    return
+  }
+  if (action === 'create' || action === 'duplicate' || action === 'add') {
+    const id = newId()
+    const name = uniqueName(names, promptSetName(change.name))
+    let content
+    if (action === 'duplicate') content = { promptOverrides: storedPromptSetContent(next.promptOverrides), systemAppendEnabled: next.systemAppendEnabled !== false }
+    else if (action === 'add') content = { promptOverrides: storedPromptSetContent(change.promptOverrides), systemAppendEnabled: change.systemAppendEnabled !== false }
+    else content = { promptOverrides: {}, systemAppendEnabled: true }
+    activate([...stash(sets), { id, name, ...content }], id)
+    return
+  }
+  throw new Error('未知的系统提示词方案操作')
+}
+
+export function presentPromptSets(document) {
+  const { activeId, sets } = promptSetLibrary(document)
+  return { activeId, sets: sets.map(set => ({ id: set.id, name: set.name, active: set.id === activeId })) }
+}
+
 export function normalizeBackgroundTasks(value) {
   const tasks = object(value)
   // variableFeedback: hand the last round's changed variables back to the foreground.
@@ -48,6 +141,7 @@ export function applyTavernSettingsPatch(current, patch) {
   }
   if (Object.prototype.hasOwnProperty.call(input, 'compatibilityMode')) next.compatibilityMode = input.compatibilityMode === true
   if (Object.hasOwn(input, 'defaultStatusPanel')) next.defaultStatusPanel = input.defaultStatusPanel === true
+  if (Object.hasOwn(input, 'promptSet')) applyPromptSetChange(next, object(input.promptSet))
   if (Object.hasOwn(input, 'systemAppendEnabled')) next.systemAppendEnabled = input.systemAppendEnabled === true
   if (Object.prototype.hasOwnProperty.call(input, 'webSearchEnabled')) next.webSearchEnabled = input.webSearchEnabled === true
   if (Object.prototype.hasOwnProperty.call(input, 'backgroundModel')) {
@@ -122,6 +216,7 @@ export function presentTavernSettings(document, defaults) {
     // Card rendering uses a fixed trusted policy; legacy preferences are no longer applied.
     trustedCardMode: true,
     systemPrompts: prompts,
+    promptSets: presentPromptSets(object(document)),
     storyPrompt: story.text,
     storyPromptCustomized: story.customized
   }

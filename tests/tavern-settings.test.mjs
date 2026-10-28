@@ -153,9 +153,14 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
     systemAppendEnabled: true,
     defaultDisabledWritingSkills: [],
     defaultForegroundModel: null,
+    defaultImageModel: null,
+    defaultStatusPanel: true,
+    promptSets: { activeId: 'default', sets: [{ active: true, id: 'default', name: '默认方案' }] },
+    renderDepth: 3,
+    scaffoldingInjectionExperiment: false,
     defaultBackgroundModel: null,
     backgroundModel: null,
-    backgroundTasks: { posture: true, characterDesign: false, variables: true, ledger: false },
+    backgroundTasks: { posture: true, characterDesign: false, variables: true, ledger: false, variableFeedback: true },
     trustedCardMode: true,
     systemPrompts: [{ name: 'story', text: '内置正文提示词', customized: false }],
     storyPrompt: '内置正文提示词',
@@ -173,9 +178,14 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
     systemAppendEnabled: true,
     defaultDisabledWritingSkills: [],
     defaultForegroundModel: null,
+    defaultImageModel: null,
+    defaultStatusPanel: true,
+    promptSets: { activeId: 'default', sets: [{ active: true, id: 'default', name: '默认方案' }] },
+    renderDepth: 3,
+    scaffoldingInjectionExperiment: false,
     defaultBackgroundModel: null,
     backgroundModel: null,
-    backgroundTasks: { posture: true, characterDesign: false, variables: true, ledger: false },
+    backgroundTasks: { posture: true, characterDesign: false, variables: true, ledger: false, variableFeedback: true },
     trustedCardMode: true,
     systemPrompts: [{ name: 'story', text: '用户正文提示词', customized: true }],
     storyPrompt: '用户正文提示词',
@@ -298,4 +308,31 @@ test('候选项默认发送后才隐藏，保存后持久化且不覆盖其他�
   assert.equal((await h.read()).systemAppendEnabled, true)
   await assert.rejects(h.update({ candidateDismissMode: 'invalid' }), /无效的候选项/)
   assert.equal((await h.read()).candidateDismissMode, 'after-send')
+})
+
+test('系统提示词方案：切换时保存当前内容，生效内容始终在顶层字段', () => {
+  let document = applyTavernSettingsPatch({ promptOverrides: { story: 'A' }, systemAppendEnabled: false }, { promptSet: { action: 'create', name: '快节奏' } })
+  assert.equal(document.promptOverrides, undefined)
+  assert.equal(document.systemAppendEnabled, true)
+  document = applyTavernSettingsPatch(document, { systemPrompt: { name: 'story', text: 'B' } })
+  const fast = document.activePromptSetId
+  document = applyTavernSettingsPatch(document, { promptSet: { action: 'select', id: 'default' } })
+  assert.deepEqual(document.promptOverrides, { story: 'A' })
+  assert.equal(document.systemAppendEnabled, false)
+  assert.equal(presentTavernSettings(document, { story: 'def' }).systemPrompts[0].text, 'A')
+  document = applyTavernSettingsPatch(document, { promptSet: { action: 'select', id: fast } })
+  assert.deepEqual(document.promptOverrides, { story: 'B' })
+  assert.deepEqual(presentTavernSettings(document, {}).promptSets.sets.map(set => [set.name, set.active]), [['默认方案', false], ['快节奏', true]])
+})
+
+test('系统提示词方案：复制、重名加后缀、不能删除正在使用的方案', () => {
+  let document = applyTavernSettingsPatch({ promptOverrides: { story: 'A' } }, { promptSet: { action: 'duplicate', name: '默认方案' } })
+  assert.deepEqual(document.promptOverrides, { story: 'A' })
+  assert.deepEqual(document.promptSets.map(set => set.name), ['默认方案', '默认方案 (2)'])
+  assert.throws(() => applyTavernSettingsPatch(document, { promptSet: { action: 'delete', id: document.activePromptSetId } }), /正在使用/)
+  document = applyTavernSettingsPatch(document, { promptSet: { action: 'delete', id: 'default' } })
+  assert.equal(document.promptSets.length, 1)
+  document = applyTavernSettingsPatch(document, { promptSet: { action: 'add', name: '导入', promptOverrides: { story: 'C' }, systemAppendEnabled: false } })
+  assert.deepEqual(document.promptOverrides, { story: 'C' })
+  assert.equal(document.systemAppendEnabled, false)
 })

@@ -208,7 +208,8 @@ import { createChatPersistence } from './domain/chat-persistence.js'
 import { createChatJournalStore } from './domain/chat-journal-store.js'
 import { createResourceGraph } from './domain/resource-graph.js'
 import { normalizeBackgroundTasks, applyTavernSettingsPatch, presentTavernSettings, resolveSystemPrompt } from './domain/tavern-settings.js'
-import { prompt, SYSTEM_PROMPT_DEFINITIONS, SYSTEM_PROMPT_NAMES } from './prompt-catalog.js'
+import { safeExportFileName } from './domain/settings-bundle.js'
+import { prompt, prompt as promptFile, SYSTEM_PROMPT_DEFINITIONS, SYSTEM_PROMPT_NAMES } from './prompt-catalog.js'
 
 // dsh-tavern 宿主插件（profile 组合行）
 // RPC：同源 HTTP 路由 /api/dsh-tavern/<method>（客户端 fetch 调用）
@@ -431,15 +432,13 @@ export async function apply(ctx) {
       spec: 'dsh-tavern.system-prompts',
       version: 1,
       systemAppendEnabled: settings.systemAppendEnabled === true,
+      promptSets: settings.promptSets,
       prompts: SYSTEM_PROMPT_DEFINITIONS.map(function (definition) {
         return Object.assign({}, definition, byName[definition.name] || { text: prompt(definition.name), customized: false })
       })
     }
   }
-  function importSystemPromptDocument(payload) {
-    const prepared = prepareTextImport(payload, '系统提示词文件为空')
-    let document
-    try { document = JSON.parse(prepared.text) } catch (error) { throw new Error('系统提示词 JSON 无效: ' + str(error && error.message || error)) }
+  function systemPromptSetFromDocument(document, fallbackName) {
     if (!document || document.spec !== 'dsh-tavern.system-prompts') throw new Error('不是 DSH Tavern 系统提示词文件')
     if (Number(document.version) !== 1) throw new Error('不支持的系统提示词版本: ' + String(document.version))
     const source = document.prompts && typeof document.prompts === 'object' && !Array.isArray(document.prompts) ? document.prompts : {}
@@ -447,9 +446,24 @@ export async function apply(ctx) {
     for (const name of SYSTEM_PROMPT_NAMES) {
       if (name === 'system-append' && source[name] === undefined) continue
       if (typeof source[name] !== 'string' || (source[name].trim() === '' && name !== 'system-append' && name !== 'card-system')) throw new Error('系统提示词文件缺少有效内容: ' + name)
-      values[name] = source[name]
+      if (source[name].length > 100000) throw new Error('系统提示词不能超过 100000 字符: ' + name)
+      // Store only what differs from this version's defaults, so later default updates still apply.
+      if (source[name].trim() !== promptFile(name).trim()) values[name] = source[name]
     }
-    return values
+    const name = typeof document.name === 'string' && document.name.trim() ? document.name.trim().slice(0, 80) : fallbackName
+    return { action: 'add', name, promptOverrides: values, systemAppendEnabled: document.systemAppendEnabled !== false }
+  }
+  function importSystemPromptDocument(payload) {
+    const prepared = prepareTextImport(payload, '系统提示词文件为空')
+    let document
+    try { document = JSON.parse(prepared.text) } catch (error) { throw new Error('系统提示词 JSON 无效: ' + str(error && error.message || error)) }
+    const fallback = str(prepared.name || '').replace(/\.json$/i, '').trim().slice(0, 80) || '导入的方案'
+    return systemPromptSetFromDocument(document, fallback)
+  }
+  function exportSystemPromptDocument(settings) {
+    const current = presentSystemPrompts(settings)
+    const active = settings.promptSets.sets.find(set => set.active)
+    return { spec: current.spec, version: current.version, name: active ? active.name : '系统提示词', systemAppendEnabled: current.systemAppendEnabled, prompts: Object.fromEntries(current.prompts.map(function (item) { return [item.name, item.text] })) }
   }
   const applicationUpdater = createApplicationUpdater({
     dataRoot,
@@ -3720,11 +3734,15 @@ export async function apply(ctx) {
         return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ systemPrompt: { name, text: args && args.text } })) }
       }
       case 'resetSystemPrompts': return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ resetSystemPrompts: SYSTEM_PROMPT_NAMES })) }
-      case 'importSystemPrompts': return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ systemPrompts: importSystemPromptDocument(args && args.payload) })) }
+      case 'importSystemPrompts': return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ promptSet: importSystemPromptDocument(args && args.payload) })) }
+      case 'manageSystemPromptSet': {
+        const action = str(args && args.action)
+        if (!['create', 'duplicate', 'select', 'rename', 'delete'].includes(action)) throw new Error('未知的系统提示词方案操作')
+        return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ promptSet: { action, id: args.id, name: args.name } })) }
+      }
       case 'exportSystemPrompts': {
-        const current = presentSystemPrompts(await readTavernSettings())
-        const document = { spec: current.spec, version: current.version, prompts: Object.fromEntries(current.prompts.map(function (item) { return [item.name, item.text] })) }
-        return { name: 'dsh-tavern-system-prompts.json', text: JSON.stringify(document, null, 2) + '\n' }
+        const document = exportSystemPromptDocument(await readTavernSettings())
+        return { name: safeExportFileName(document.name, 'dsh-tavern-system-prompts') + '.json', text: JSON.stringify(document, null, 2) + '\n' }
       }
       case 'listSessions': {
         const settings = await readTavernSettings()
