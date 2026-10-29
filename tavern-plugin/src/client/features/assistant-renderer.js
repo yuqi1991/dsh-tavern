@@ -1,6 +1,19 @@
 		function createTavernFrameSlashExecutor(ctx, hostWindow) {
 			hostWindow = hostWindow || window;
-			return function (line, sessionId, options) {
+			// The live composer draft of a session, for native #send_textarea
+			// scripts that append to what the player already typed.
+			function readInputDraft(sessionId) {
+				const actx = ctx.sessions.scope(sessionId);
+				const conversation = ctx.get("conversation");
+				if (!actx || !conversation) return "";
+				try {
+					const state = conversation.input.for(actx).state;
+					const snapshot = state && typeof state.getSnapshot === "function" ? state.getSnapshot() : null;
+					if (snapshot && typeof snapshot.draft === "string") return snapshot.draft;
+				} catch (_) {}
+				return "";
+			}
+			const execute = function (line, sessionId, options) {
 				if (/^\/ejs(?:-refresh)?(?:\s|$)/.test(String(line))) return rpc("executeFullTemplateCommand", { text: line }, sessionId).then(function (result) { return result.pipe; });
 				const draftMatch = /^\/setinput(?: ([\s\S]*))?$/.exec(String(line || ""));
                 // Preflight before touching the composer: otherwise the greedy
@@ -76,6 +89,8 @@
 					} catch (error) { finish(error); }
 				});
 			};
+			execute.readInput = readInputDraft;
+			return execute;
 		}
 
 		const tavernSessionTransition = (function () {

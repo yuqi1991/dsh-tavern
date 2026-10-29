@@ -3498,7 +3498,7 @@ window.__ModuleLoader__.load({
 		  button.type = 'button';
 		  controls.append(area, button);
 		  document.body.append(controls);
-		  area.addEventListener('input', function () {
+		  function fillInput() {
 		    Promise.resolve().then(function () {
 		      if (typeof window.triggerSlash !== 'function') throw new Error('当前对话输入框尚未就绪');
 		      return window.triggerSlash('/setinput ' + String(area.value || ''));
@@ -3508,7 +3508,9 @@ window.__ModuleLoader__.load({
 		      notice.textContent = '开场文字填入失败：' + String(error && error.message || error);
 		      document.body.append(notice);
 		    });
-		  });
+		  }
+		  area.addEventListener('input', fillInput);
+		  area.addEventListener('change', fillInput);
 		  let pending = false;
 		  button.addEventListener('click', function () {
 		    const text = String(area.value || '').trim();
@@ -3559,21 +3561,83 @@ window.__ModuleLoader__.load({
 		// Parent DOM IDs are shared, but the focused iframe identifies the sender even
 		// after document.write replaces its document. Never fall back to the active chat.
 		const tavernHostComposers = new WeakMap();
-		function installFrameHostComposer(doc, ownsFrame, submit, report) {
+		function installFrameHostComposer(doc, ownsFrame, submit, report, fill, read) {
 		  let state = tavernHostComposers.get(doc);
+		  // The player-visible composer is shared by every mounted card of the host
+		  // document. Native regexes focus the offscreen textarea (moving focus out of
+		  // the iframe) before they click #send_but, so the last card that held focus
+		  // identifies the sender when no frame is focused any more.
+		  function resolveOwner(allowFallback) {
+		    const owners = Array.from(state.owners);
+		    if (!owners.length) throw new Error('卡片页面尚未就绪，请稍后再试');
+		    const focused = owners.filter(function (owner) { return owner.ownsFrame(doc.activeElement); });
+		    if (focused.length === 1) { state.lastOwner = focused[0]; return focused[0]; }
+		    if (state.lastOwner && state.owners.has(state.lastOwner)) return state.lastOwner;
+		    if (owners.length === 1) { state.lastOwner = owners[0]; return owners[0]; }
+		    if (allowFallback) {
+		      // Draft sync is conversation-wide, so any mounted owner can read or fill
+		      // it; sending still requires an unambiguous focused frame.
+		      state.lastOwner = owners[owners.length - 1];
+		      return state.lastOwner;
+		    }
+		    throw new Error('无法确定输入框所属的卡片，请重新点击卡片内的选项');
+		  }
+		  function sync() {
+		    if (!state.area) return;
+		    let owner;
+		    try { owner = resolveOwner(true); } catch (_) { return; }
+		    if (typeof owner.read !== 'function') return;
+		    try {
+		      const value = owner.read();
+		      if (typeof value === 'string' && state.area.value !== value) state.area.value = value;
+		    } catch (_) {}
+		  }
+		  function commit() {
+		    if (!state.area) return;
+		    let owner;
+		    try { owner = resolveOwner(true); } catch (error) { report(error); return; }
+		    if (typeof owner.fill !== 'function') return;
+		    try { Promise.resolve(owner.fill(String(state.area.value || ''))).catch(owner.report); }
+		    catch (error) { owner.report(error); }
+		  }
 		  if (!state) {
 		    if (doc.getElementById('send_textarea') || doc.getElementById('send_but')) return function () {};
 		    const controls = doc.createElement('div');
-		    controls.hidden = true;
+		    // Native regexes call focus() before reading #send_textarea.value. A
+		    // hidden element cannot take focus, so park the controls offscreen
+		    // instead of using the hidden attribute.
+		    controls.setAttribute('aria-hidden', 'true');
+		    controls.setAttribute('style', 'position:fixed;left:-10000px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;');
 		    const area = doc.createElement('textarea'), button = doc.createElement('button');
-		    area.id = 'send_textarea'; button.id = 'send_but'; button.type = 'button';
+		    // Card scripts focus() this field programmatically; on phones that would pop
+		    // the soft keyboard for an invisible box, so ask for no virtual keyboard.
+		    area.id = 'send_textarea'; area.tabIndex = -1; area.setAttribute('inputmode', 'none'); button.id = 'send_but'; button.type = 'button';
 		    controls.append(area, button); doc.body.append(controls);
-		    state = { controls, owners: new Set() };
+		    state = { controls, area, owners: new Set(), lastOwner: null };
 		    tavernHostComposers.set(doc, state);
+		    // Native tavern regexes focus #send_textarea, read its value, append their
+		    // option text and fire input. Mirror the live draft on focus so append mode
+		    // keeps whatever the player already typed; input writes it back.
+		    area.addEventListener('focus', sync);
+		    area.addEventListener('input', commit);
+		    area.addEventListener('change', commit);
+		    function noteFrameFocus(event) {
+		      for (const owner of state.owners) if (owner.ownsFrame(event.target)) state.lastOwner = owner;
+		    }
+		    if (typeof doc.addEventListener === 'function') {
+		      doc.addEventListener('focusin', noteFrameFocus);
+		      // focusout fires on the iframe before focus reaches the offscreen textarea.
+		      doc.addEventListener('focusout', noteFrameFocus);
+		    }
+		    state.cleanup = function () {
+		      if (typeof doc.removeEventListener !== 'function') return;
+		      doc.removeEventListener('focusin', noteFrameFocus);
+		      doc.removeEventListener('focusout', noteFrameFocus);
+		    };
 		    button.addEventListener('click', function () {
-		      const owners = Array.from(state.owners).filter(function (owner) { return owner.ownsFrame(doc.activeElement); });
-		      if (owners.length !== 1) throw new Error('无法确定开局消息所属的卡片，请重新点击卡片内的开始按钮');
-		      const owner = owners[0], text = String(area.value || '').trim();
+		      let owner;
+		      try { owner = resolveOwner(); } catch (error) { report(error); return; }
+		      const text = String(area.value || '').trim();
 		      if (owner.pending || !text) return;
 		      owner.pending = true;
 		      Promise.resolve().then(function () {
@@ -3583,11 +3647,16 @@ window.__ModuleLoader__.load({
 		        .finally(function () { owner.pending = false; });
 		    });
 		  }
-		  const owner = { ownsFrame, submit, report, pending: false };
+		  const owner = { ownsFrame, submit, report, fill, read, pending: false };
 		  state.owners.add(owner);
 		  return function () {
 		    state.owners.delete(owner);
-		    if (!state.owners.size) { state.controls.remove(); tavernHostComposers.delete(doc); }
+		    if (state.lastOwner === owner) state.lastOwner = null;
+		    if (!state.owners.size) {
+		      if (typeof state.cleanup === 'function') state.cleanup();
+		      state.controls.remove();
+		      tavernHostComposers.delete(doc);
+		    }
 		  };
 		}
 		// The native conversation root survives hero -> active transitions. Derive the
@@ -8086,6 +8155,25 @@ function subscribeTavernHostTheme(win, listener) {
 				height = value;
 				try { hostWindow.sessionStorage.setItem(document.heightKey, value); } catch (_) { }
             }
+            // A native tavern regex UI reads and writes #send_textarea in the host
+            // document. In trusted mode that element exists here, so its value and
+            // input events must reach the real composer draft.
+            function composerApi() { return configuredSlashExecutor || props.executeSlash; }
+            function writeComposerInput(text, sessionId) {
+                const target = String(sessionId || props.sessionId || "");
+                // An opening preview has no conversation yet; its text is submitted from #send_but.
+                if (!target && props.openingPreview) return undefined;
+                if (!target) throw new Error("当前界面无法写入输入框，请刷新页面后重试");
+                const api = composerApi();
+                if (typeof api === "function") return api("/setinput " + String(text == null ? "" : text), target);
+                throw new Error("当前界面无法写入输入框，请刷新页面后重试");
+            }
+            function readComposerInput(sessionId) {
+                const target = String(sessionId || props.sessionId || "");
+                const api = composerApi();
+                if (!api || !target || typeof api.readInput !== "function") return "";
+                try { return api.readInput(target); } catch (_) { return ""; }
+            }
 			function receive(event) {
 				const data = event && event.data;
 				const channel = data && channels.get(data.token);
@@ -8242,7 +8330,8 @@ function subscribeTavernHostTheme(win, listener) {
                             const executeSlash = configuredSlashExecutor || props.executeSlash;
                             if (!props.sessionId || typeof executeSlash !== "function") throw new Error("当前界面无法触发生成，请刷新页面后重试");
                             return executeSlash("/send " + text + "|/trigger", props.sessionId);
-						}, function (error) { tavernErrorHub.report("开始旅程", error); }) : function () { };
+						}, function (error) { tavernErrorHub.report("填写输入框", error); },
+						writeComposerInput, readComposerInput) : function () { };
 
 					const unsubscribeTheme = hostWindow.document && typeof hostWindow.MutationObserver === "function"
 						? subscribeTavernHostTheme(hostWindow, function () { sendFontSize(); }) : null;
@@ -9087,7 +9176,20 @@ function subscribeTavernHostTheme(win, listener) {
 
 		function createTavernFrameSlashExecutor(ctx, hostWindow) {
 			hostWindow = hostWindow || window;
-			return function (line, sessionId, options) {
+			// The live composer draft of a session, for native #send_textarea
+			// scripts that append to what the player already typed.
+			function readInputDraft(sessionId) {
+				const actx = ctx.sessions.scope(sessionId);
+				const conversation = ctx.get("conversation");
+				if (!actx || !conversation) return "";
+				try {
+					const state = conversation.input.for(actx).state;
+					const snapshot = state && typeof state.getSnapshot === "function" ? state.getSnapshot() : null;
+					if (snapshot && typeof snapshot.draft === "string") return snapshot.draft;
+				} catch (_) {}
+				return "";
+			}
+			const execute = function (line, sessionId, options) {
 				if (/^\/ejs(?:-refresh)?(?:\s|$)/.test(String(line))) return rpc("executeFullTemplateCommand", { text: line }, sessionId).then(function (result) { return result.pipe; });
 				const draftMatch = /^\/setinput(?: ([\s\S]*))?$/.exec(String(line || ""));
                 // Preflight before touching the composer: otherwise the greedy
@@ -9163,6 +9265,8 @@ function subscribeTavernHostTheme(win, listener) {
 					} catch (error) { finish(error); }
 				});
 			};
+			execute.readInput = readInputDraft;
+			return execute;
 		}
 
 		const tavernSessionTransition = (function () {

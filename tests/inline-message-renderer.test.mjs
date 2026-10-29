@@ -1671,6 +1671,14 @@ test('frame setinput updates the owning session draft without submitting', async
   await execute('/setinput 开场\n| /trigger', 'opening')
   assert.deepEqual(writes, [['opening', '开场\n| /trigger']])
 })
+test('frame executor reads the live composer draft of the owning session', () => {
+  const ctx = { sessions: { scope: id => id === 'gone' ? null : ({ id }) }, get: () => ({ input: { for: scope => ({ state: { getSnapshot: () => ({ draft: '草稿 ' + scope.id }) } }) } }) }
+  const execute = client.createTavernFrameSlashExecutor(ctx, {})
+  assert.equal(execute.readInput('s1'), '草稿 s1')
+  assert.equal(execute.readInput('gone'), '')
+  const broken = client.createTavernFrameSlashExecutor({ sessions: ctx.sessions, get: () => ({ input: { for: () => { throw new Error('x') } } }) }, {})
+  assert.equal(broken.readInput('s1'), '')
+})
 test('trusted parent toastr survives a card forwarding its local toastr to parent', () => {
   const host = {}, notices = [], toast = { success: text => notices.push(text) }, frame = { toastr: toast }
   const release = client.installTavernTrustedHostFacade(host, frame)

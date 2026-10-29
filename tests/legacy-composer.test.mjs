@@ -62,7 +62,7 @@ test('legacy input event fills the real composer without triggering generation',
 
 test('parent composer routes to the focused card, survives replacement and releases owners', async () => {
   const nodes = [], calls = [], errors = [];
-  function element() { return { value: '', append(...items) { nodes.push(...items) }, remove() { this.removed = true }, addEventListener(name, fn) { this[name] = fn } } }
+  function element() { return { value: '', append(...items) { nodes.push(...items) }, setAttribute() {}, remove() { this.removed = true }, addEventListener(name, fn) { this[name] = fn } } }
   const doc = { body: element(), createElement: element, getElementById: id => nodes.find(n => n.id === id) };
   const a = {}, b = {};
   let finish;
@@ -76,7 +76,22 @@ test('parent composer routes to the focused card, survives replacement and relea
   area.value = 'B 的开局'; button.click(); await tick();
   assert.deepEqual(errors, ['失败可重试']); assert.equal(area.value, 'B 的开局');
   button.click(); await tick(); assert.equal(calls.length, 3);
-  releaseB(); assert.throws(() => button.click(), /无法确定/);
+  releaseB(); doc.activeElement = null; button.click(); await tick();
+  // 只剩一张卡片时，焦点已被原生脚本移到屏幕外输入框，仍归这张卡片。
+  assert.equal(calls.length, 4); finish(); await tick();
   doc.activeElement = a; area.value = '已经卸载'; button.click(); releaseA(); await tick();
-  assert.equal(calls.length, 3); assert.ok(errors.includes('卡片已关闭，请重新打开'));
+  assert.equal(calls.length, 4); assert.ok(errors.includes('卡片已关闭，请重新打开'));
+});
+
+test('parent composer refuses to send when several cards exist and none was ever focused', async () => {
+  const nodes = [], errors = [];
+  function element() { return { value: '', append(...items) { nodes.push(...items) }, setAttribute() {}, remove() { this.removed = true }, addEventListener(name, fn) { this[name] = fn } } }
+  const doc = { body: element(), createElement: element, getElementById: id => nodes.find(n => n.id === id) };
+  const a = {}, b = {};
+  const releaseA = helperClient.installFrameHostComposer(doc, n => n === a, () => assert.fail('不应发送'), e => errors.push(e.message));
+  const releaseB = helperClient.installFrameHostComposer(doc, n => n === b, () => assert.fail('不应发送'), e => errors.push(e.message));
+  const area = doc.getElementById('send_textarea'), button = doc.getElementById('send_but');
+  doc.activeElement = null; area.value = '无法确定'; button.click(); await tick();
+  assert.deepEqual(errors, ['无法确定输入框所属的卡片，请重新点击卡片内的选项']);
+  releaseA(); releaseB();
 });
