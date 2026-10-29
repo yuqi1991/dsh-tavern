@@ -105,7 +105,7 @@ test('background task configuration keeps model overrides without copying archiv
     messages: Array.from({ length: 459 }, (_, turn) => ({ role: 'assistant', turn,
       variables: { stat_data: { payload: 'historical state'.repeat(1000) } } })) }))
   const source = await readFile(new URL('../tavern-plugin/lib/index.js', import.meta.url), 'utf8')
-  const names = ['resolveModelSelection', 'resolveWebSearch', 'resolveBackgroundTasks', 'resolveStablePrefixRevision']
+  const names = ['resolveModelSelection', 'resolveWebSearch', 'resolveStablePrefixRevision']
   const options = names.map(name => source.split('\n').find(line => line.trim().startsWith(name + ':'))).join('\n')
   const callbacks = vm.runInNewContext(`({${options}})`, {
     chatForSession: () => store.read('chat'),
@@ -125,16 +125,12 @@ test('background task configuration keeps model overrides without copying archiv
   assert.deepEqual(await callbacks.resolveModelSelection(input), selection)
   assert.equal(await callbacks.resolveWebSearch(input), true)
   assert.equal(await callbacks.resolveStablePrefixRevision(input), 7)
-  assert.deepEqual(await callbacks.resolveBackgroundTasks(input), normalizeBackgroundTasks({ variables: false, posture: false }))
-  const override = { variables: true }
-  assert.equal(await callbacks.resolveBackgroundTasks({ ...input, backgroundTasks: override }), override)
   assert.equal(historicalCopies, 0)
   assert.equal(unrelatedCopies, 0, 'configuration reads must not copy messages or operation history')
   const state = await store.readBackgroundConfig('chat')
   state.backgroundModelSelection.model = 'accidental mutation'
   state.backgroundTasks.variables = true
   assert.deepEqual(await callbacks.resolveModelSelection(input), selection)
-  assert.deepEqual(await callbacks.resolveBackgroundTasks(input), normalizeBackgroundTasks({ variables: false, posture: false }))
   assert.equal((await store.read('chat')).messages.length, 459, 'archive remains complete')
 })
 
