@@ -2139,7 +2139,6 @@ export async function apply(ctx) {
     imageSystemPrompt: () => runtimePrompt('scene-image-system'),
     resolveModelSelection: async input => backgroundModelSelection(await backgroundConfigForSession(input.sessionId)) || input.selection,
     resolveWebSearch: async input => (await backgroundConfigForSession(input.sessionId))?.webSearchEnabled === true,
-    resolveBackgroundTasks: async input => input.backgroundTasks || normalizeBackgroundTasks((await backgroundConfigForSession(input.sessionId))?.backgroundTasks),
     backgroundTools: [...WORLD_BOOK_FILTER_TOOLS, POSTURE_SUBMIT_TOOL, CHARACTER_DESIGN_READ_TOOL, CHARACTER_DESIGN_SAVE_TOOL, MVU_SUBMIT_UPDATE_TOOL, CANDIDATE_SUBMIT_TOOL, SCRIPT_READ_TOOL, SCRIPT_POINT_TOOL, LEDGER_SUBMIT_TOOL],
     sharedTools: [sharedWorldbookSearch(searchWorldbook), {
       tool: HISTORY_RECALL_TOOL,
@@ -2161,7 +2160,6 @@ export async function apply(ctx) {
       return foregroundWorldbookReads(chat, session)
     },
     resolveCurrentWorldbook: async function (input) {
-      if (input.task === 'worldbook-filter') return ''
       if (input.task === 'image') return undefined
       const chat = await chatForSession(input.sessionId)
       return chat ? await nativeWorldBookTemplateContext(chat, await readChatCard(chat)) : undefined

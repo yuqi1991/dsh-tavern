@@ -179,9 +179,6 @@ export function createBackgroundAgentSessions(options, task) {
     const parent = agents.get(input.sessionId)
     if (parent === undefined || parent.session === undefined) throw new Error('无法创建后台 Agent：前台会话不可用')
     const runtimeInput = Object.assign({}, input)
-    if (options.resolveBackgroundTasks && input.task !== 'image') {
-      runtimeInput.backgroundTasksSnapshot = await options.resolveBackgroundTasks(input)
-    }
     if (options.resolveWebSearch && input.task !== 'image' && input.task !== 'phone') {
       runtimeInput.webSearchEnabled = await options.resolveWebSearch(input)
     }

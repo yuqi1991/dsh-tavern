@@ -1211,40 +1211,6 @@ test('manual stop cancels the active background agent belonging to this game onl
   await runner.dispose();
 });
 
-test('persistent background tools change with configuration without creating another agent', async () => {
-  const registered = new Map(), requests = [];
-  let assemble, work, creates = 0;
-  let configured = { variables: false, ledger: true, posture: true, characterDesign: false };
-  const session = { id: 'task-tools', header: {}, events: [], append(type, data) { this.events.push({ type, data }); } };
-  const catalog = ['ledger_submit', 'posture_submit', 'mvu_submit_update', 'candidate_submit_choices'].map(name => ({ name, description: name, parameters: { type: 'object' } }));
-  const runner = createBackgroundAgentRunner({ resolveBackgroundTasks: async () => configured, backgroundTools: catalog, id: () => session.id, agents: {
-    get: () => ({ session: { header: {} } }),
-    async create(options) {
-      creates++;
-      await options.setup({ systemPrompt: { section() {}, suppressRuntimeContext() {} }, on(event, callback) { if (event === 'system-prompt/assemble') assemble = callback; },
-        tools: { restrict() {}, register(tool) { registered.set(tool.name, tool); return () => registered.delete(tool.name); } }
-      });
-      return { agent: { session, followup() { work = (async () => {
-        const result = await assemble({}, {}, async () => ({ tools: [...registered.values()], sections: [...registered.keys()].map(name => ({ name: 'tool:' + name, text: name })) }));
-        requests.push(result);
-
-        session.append('assistant/message', { message: { content: [{ type: 'text', text: '完成' }] } });
-      })(); }, async whenIdle() { await work; } }, async dispose() {} };
-    }
-  } });
-  const selections = [['ledger_submit', 'posture_submit'], ['candidate_submit_choices']];
-  for (const names of selections) await runner.run({ sessionId: 'game', backgroundTasksSnapshot: { variables: false, ledger: true, posture: true, characterDesign: false }, persistent: true, task: names.includes('ledger_submit') ? 'settlement' : 'candidate', selection: { provider: 'fake', model: 'fake' }, messages: [], tools: catalog.filter(tool => names.includes(tool.name)), onToolCall: async () => 'accepted' });
-  requests.forEach((request, i) => {
-    assert.deepEqual(request.tools.map(tool => tool.name), ['posture_submit', 'candidate_submit_choices']);
-    assert.deepEqual(request.sections.filter(s => s.name.startsWith('tool:')).map(s => s.name.slice(5)), ['posture_submit', 'candidate_submit_choices']);
-  });
-  configured = { variables: true, ledger: false, posture: false, characterDesign: false };
-  await runner.run({ sessionId: 'game', persistent: true, task: 'settlement', selection: { provider: 'fake', model: 'fake' }, messages: [], tools: [catalog[2]], onToolCall: async () => 'accepted' });
-  assert.equal(creates, 1);
-  assert.deepEqual(requests.at(-1).tools.map(t => t.name), ['mvu_submit_update', 'candidate_submit_choices']);
-  await runner.dispose();
-});
-
 test('常驻后台会话在下一任务替换世界书，任务内固定且不改历史', async () => {
   let assemble, pending, current = '当前DLC', creates = 0
   const seen = [], prompts = [], sections = []

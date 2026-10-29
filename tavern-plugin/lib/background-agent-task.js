@@ -195,28 +195,10 @@ export function createBackgroundAgentTask(options) {
         return assembly
       })
       state.refreshConfiguredTools = function () {
-        if (state.input.task === 'image') return
-        // Foreground-only switches must not re-register background tools.
-        const key = JSON.stringify([state.input.task, state.input.backgroundTasksSnapshot ? { ...state.input.backgroundTasksSnapshot, variableFeedback: undefined } : null])
-        if (state.configuredToolsKey === key) return
-        for (const dispose of state.stableToolDisposers || []) dispose()
-        state.configuredToolsKey = key
-        state.stableToolDisposers = stableBackgroundTools.filter(function (tool) {
-          const shared = sharedByName.get(tool.name)
-          if (shared && (state.input.task !== 'character-design' || shared.allowDuringCharacterDesign === true)) return state.input.task !== 'worldbook-filter' || shared.allowDuringWorldbookFilter === true
-          if (state.input.task === 'character-design') return tool.name.startsWith('character_design_')
-          // The ledger is a player-triggered memo; no other task may submit it.
-          if (state.input.task === 'ledger') return tool.name === 'ledger_submit'
-          if (state.input.task === 'worldbook-filter') return tool.name.startsWith('worldbook_')
-          if (tool.name.startsWith('worldbook_')) return false
-          const tasks = state.input.backgroundTasksSnapshot
-          if (tool.name === 'ledger_submit') return false // Only the manual ledger task, never settlements.
-          if (!tasks) return true
-          if (tool.name === 'mvu_submit_update') return tasks.variables === true
-          if (tool.name === 'posture_submit') return tasks.posture === true
-          if (tool.name.startsWith('character_design_')) return tasks.characterDesign === true
-          return true
-        }).map(function (tool) {
+        if (state.input.task === 'image' || state.stableToolDisposers) return
+        // Every task sharing this Session sees one fixed tool list: tool definitions sit in the
+        // cached request prefix. What a task may call is enforced when the tool executes.
+        state.stableToolDisposers = stableBackgroundTools.map(function (tool) {
           return childCtx.tools.register({
             name: tool.name,
             description: tool.description,
@@ -240,7 +222,6 @@ export function createBackgroundAgentTask(options) {
         const input = state.input || {}
         const inherited = await next()
         const { maxTokens: _oldLimit, ...request } = inherited
-        if (input.task === 'worldbook-filter' && request.tools) request.tools = request.tools.filter(tool => ['worldbook_candidate_read', 'worldbook_filter_submit'].includes(tool.name) || sharedByName.get(tool.name)?.allowDuringWorldbookFilter === true)
         const limit = Number.isSafeInteger(input.maxTokens) && input.maxTokens > 0 ? input.maxTokens : maximumBackgroundTokens(input.selection)
         if (limit !== undefined) request.maxTokens = limit
         const temperature = state.characterDesignStage
@@ -278,7 +259,8 @@ export function createBackgroundAgentTask(options) {
       state.activeToolTask = {
         async execute(tool, args, execution) {
           const registeredShared = sharedByName.get(tool.name)
-          const shared = input.task !== 'worldbook-filter' || registeredShared?.allowDuringWorldbookFilter === true ? registeredShared : undefined
+          const shared = (input.task !== 'worldbook-filter' || registeredShared?.allowDuringWorldbookFilter === true) &&
+            (input.task !== 'character-design' || registeredShared?.allowDuringCharacterDesign === true) ? registeredShared : undefined
           const current = allowed.get(tool.name) || (shared && shared.tool)
           if (current === undefined) {
             // Refused calls cost no budget, so a model repeating one must still be stopped.
@@ -395,16 +377,20 @@ export function createBackgroundAgentTask(options) {
         releaseOpeningTurn(agent.session, agent)
         if (prefix && prefix.event !== existing?.event && typeof options.flushSession === 'function') await options.flushSession(agent.session)
       }
-      const worldbook = typeof options.resolveCurrentWorldbook === 'function'
+      // The filter reuses the last projection (or makes the first one after a restart) so the
+      // shared system prefix stays byte-identical and the filter reads settlement's cache.
+      const projectsWorldbook = input.task !== 'worldbook-filter' || state.currentWorldbook === undefined
+      const worldbook = projectsWorldbook && typeof options.resolveCurrentWorldbook === 'function'
         ? await options.resolveCurrentWorldbook(input) : undefined
-      state.currentWorldbook = worldbook && typeof worldbook === 'object' ? worldbook.prefixContext : worldbook
-      const turnWorldbook = worldbook && typeof worldbook === 'object' ? str(worldbook.foregroundContext).trim() : ''
+      if (projectsWorldbook) state.currentWorldbook = worldbook && typeof worldbook === 'object' ? worldbook.prefixContext : worldbook
+      const turnWorldbookSource = input.task === 'worldbook-filter' ? undefined : worldbook
+      const turnWorldbook = turnWorldbookSource && typeof turnWorldbookSource === 'object' ? str(turnWorldbookSource.foregroundContext).trim() : ''
       const eventStart = sessionEvents(agent.session).length
       const filterContext = projectWorldbookFilterContext(agent.session, input)
       const scriptContext = projectCandidateScriptContext(agent.session, input)
       const foregroundReads = typeof options.resolveForegroundWorldbookReads === 'function'
         ? await options.resolveForegroundWorldbookReads(input) : ''
-      const snapshot = worldbook && typeof worldbook === 'object'
+      const snapshot = turnWorldbookSource && typeof turnWorldbookSource === 'object'
         ? worldbookSnapshot(agent.session, turnWorldbook) : null
       const taskText = [foregroundReads, snapshot?.rendered,
         backgroundPrompt(filterContext?.messages || input.messages, scriptContext?.turnContext ?? input.turnContext, input.task, input.system, input)].filter(Boolean).join('\n\n')
