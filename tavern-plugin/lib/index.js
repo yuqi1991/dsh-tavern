@@ -1,6 +1,7 @@
 import { producerSource, isProducerSource } from './domain/message-source.js'
 import {registerVariableReadTool} from './domain/read-variables.js'
 import { createBackgroundSessionRetirement, installRetiredBackgroundFilter } from './domain/background-session-retirement.js'
+import { createBackgroundCatalogBackfill } from './domain/background-catalog.js'
 import { createCardMemory, CARD_MEMORY_TOOLS } from '../packages/dsh-tavern-card-memory/index.js'
 import { inputAttachments, projectPlayerContent } from './domain/player-input-content.js'
 import { installSkillCatalogSessionScope } from './domain/skill-catalog-session-scope.js'
@@ -2125,8 +2126,13 @@ export async function apply(ctx) {
   const backgroundRetirement = createBackgroundSessionRetirement(profileData, { readState: sessionStateForSession, isRunning: id => agentRegistry.get(id)?.status === 'running' })
   ctx.effect(() => installRetiredBackgroundFilter(ctx.get('subagents'), backgroundRetirement, ctx.get('sessionQuery')))
   const runtimePresetSnapshots = new Map()
+  const subagentsSignal = parentId => sessionSignals.publish(parentId, { kind: 'subagents', version: String(Date.now()) + ':' + Math.random().toString(36).slice(2) })
+  // Games whose background agents predate their catalog entry get them listed when opened.
+  const backgroundCatalog = createBackgroundCatalogBackfill({ agents: agentRegistry, sessionQuery: ctx.get('sessionQuery'), onListed: subagentsSignal })
   const backgroundAgentRunner = createBackgroundAgentRunner({
     retirement: backgroundRetirement,
+    // The browser's session list does not learn of a new worker by itself; the signal reloads it so the header counts it.
+    onCreated: (_id, parentId) => subagentsSignal(parentId),
     systemAppend: () => runtimePrompt('system-append'),
     imageSystemPrompt: () => runtimePrompt('scene-image-system'),
     resolveModelSelection: async input => backgroundModelSelection(await backgroundConfigForSession(input.sessionId)) || input.selection,
@@ -3986,7 +3992,7 @@ export async function apply(ctx) {
         throw conflict
       }
       case 'getFullTemplateRuntimeInfo': throw new Error('提示词模板已迁移到服务端，请刷新页面');
-      case 'getSession': return sessionViews.response(args || {})
+      case 'getSession': void backgroundCatalog(str(args && args.sessionId)); return sessionViews.response(args || {})
       case 'getStoryFloors': return await storyFloors(args && args.sessionId, args || {})
       case 'hydrateTavernHelperMessages': {
         const chat = await chatForSession(args && args.sessionId)

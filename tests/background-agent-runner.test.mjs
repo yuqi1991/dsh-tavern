@@ -14,9 +14,10 @@ import { readSceneImageSystemInstruction, readScenePlanInstruction } from '../ta
 test('人物设计读取工具在生图会话中只注册一次，跨任务保持稳定且不泄漏上一任务', async () => {
   const registered = new Map(), counts = new Map(), answers = []
   let pending
-  const session = { id: 'image-reader', header: {}, events: [], append(type, data) { this.events.push({ type, data }) } }
+  const session = { id: 'image-reader', header: { id: 'image-reader', createdAt: 5 }, events: [], append(type, data) { this.events.push({ type, data }) } }
+  const parentEvents = []
   const agents = {
-    get: () => ({ session: { header: {} } }),
+    get: () => ({ id: 'parent', session: { header: {}, events: parentEvents, append(type, data) { parentEvents.push({ type, data }) } } }),
     async create(options) {
       await options.setup({
         systemPrompt: { section() {}, suppressRuntimeContext() {} }, on() {},
@@ -48,6 +49,7 @@ test('人物设计读取工具在生图会话中只注册一次，跨任务保�
       assert.equal(JSON.parse(await registered.get('character_design_read').execute({})).ok, false, '空闲时不能继续读取旧快照')
     }
     assert.deepEqual(answers, ['第一轮资料', '第二轮资料'])
+    assert.deepEqual(parentEvents, [{ type: 'subagent/catalog', data: { version: 0, childId: 'image-reader', childCreatedAt: 5, mode: 'continuable', label: parentEvents[0].data.label } }], '后台会话登记进父会话的子智能体列表，只登记一次')
     assert.equal(counts.get('character_design_read'), 1)
     assert.equal(registered.has('character_design_save'), false)
   } finally { await runner.dispose() }

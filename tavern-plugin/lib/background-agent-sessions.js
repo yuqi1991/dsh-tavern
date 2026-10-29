@@ -61,6 +61,25 @@ export function createBackgroundAgentSessions(options, task) {
   const requestContexts = new Map()
   const requestSessions = new Map()
   const residentHandles = new Map()
+  // Children already listed in their parent's subagent catalog, checked once per process.
+  const catalogued = new Set()
+  /**
+   * List the worker in its game's subagent catalog, as DSH's own subagent runtime does when it
+   * creates a child: the session header counts and lists children from these parent events.
+   */
+  function catalogChild(parent, child, descriptor) {
+    const id = str(child?.header?.id)
+    if (!id || catalogued.has(id) || typeof parent?.session?.append !== 'function') return
+    catalogued.add(id)
+    try {
+      if (sessionEvents(parent.session).some(event => event.type === 'subagent/catalog' && event.data?.childId === id)) return
+      parent.session.append('subagent/catalog', { version: 0, childId: id, childCreatedAt: Math.max(0, Math.floor(Number(child.header.createdAt) || now())), mode: descriptor.mode, label: descriptor.label })
+      options.onCreated?.(id, str(parent.id))
+    } catch (error) {
+      catalogued.delete(id)
+      console.warn('dsh-tavern: 后台 Agent 未能登记到会话的子智能体列表', error?.message || error)
+    }
+  }
   const residentSessionByParent = new Map()
   const queues = new Map()
 
@@ -252,6 +271,7 @@ export function createBackgroundAgentSessions(options, task) {
         }
         throw wrapped
       }
+      catalogChild(parent, handle.agent.session, descriptor)
       if (persistent) {
         resident = { handle, state, parentSessionId: str(input.sessionId), key, lastUsedAt: now() }
         residentHandles.set(traceSessionId, resident)
