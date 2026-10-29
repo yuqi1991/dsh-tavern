@@ -42,7 +42,7 @@ export function stateInventory(data, sourceFields = []) {
   }
   return fields
 }
-function leaves(value,path='') {
+export function leaves(value,path='') {
   if (value && typeof value==='object' && Object.keys(value).length) return Object.entries(value).flatMap(([key,child])=>leaves(child,path+'/'+escapePointer(key)))
   return [{path,type:value===null?'null':Array.isArray(value)?'array':typeof value,value:structuredClone(value)}]
 }

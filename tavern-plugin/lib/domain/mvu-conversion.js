@@ -12,7 +12,7 @@ import { exportCharacterBook } from './worldbook-resource.js'
 import { validateCardText } from './card-validation.js'
 import { buildMvuArtifacts, isObject, pointerKeys, MVU_CONVERSION_KEY, MVU_MARKER } from './mvu-conversion-artifacts.js'
 import { validateMvuConversion } from './mvu-conversion-validation.js'
-import { managedMvuDigest, selfSourcedMeta, stripManagedMvu } from './mvu-self-source.js'
+import { liveSelfSourcedMeta, selfSourcedMeta, stripManagedMvu } from './mvu-self-source.js'
 import { catalog, readConversionValue, readConversionBatch, conversionReading, searchConversionValue, cleanupAudit } from './mvu-conversion-inspection.js'
 
 function cleanupError(code, message, details) {
@@ -28,11 +28,16 @@ export function cardData(document) {
   return data
 }
 function outputDigest(document) {
-  if (selfSourcedMeta(cardData(document))) return managedMvuDigest(cardData(document))
   const copy = clone(document)
   const metadata = cardData(copy).extensions?.[MVU_CONVERSION_KEY]
   if (metadata) delete metadata.outputDigest
   return digest(copy)
+}
+
+// Copies keep a whole-card fingerprint to detect edits outside the plan. A
+// self-sourced card is read like a source file: whatever it contains is the truth.
+function untouched(document, meta) {
+  return meta?.selfSourced === true || meta?.outputDigest === outputDigest(document)
 }
 
 // Paths and text ranges refer to the same revision-checked source snapshot.
@@ -160,7 +165,7 @@ export function createMvuConversion({ resources }) {
       ...(args.detail === undefined || args.detail === 'reading' ? {reading:conversionReading(source.data)} : {}),
       destination: await resources.inspectMvuDestination(target.path),
       target: existing === undefined ? null : { catalog: existingTarget ? catalog(existingTarget) : [], error: targetError,
-        hasSavedPlan: Array.isArray(metadata?.cleanup), externallyModified: existingTarget ? (metadata ? metadata.outputDigest !== outputDigest(JSON.parse(existing)) : !source.self) : true },
+        hasSavedPlan: Array.isArray(metadata?.cleanup), externallyModified: existingTarget ? (metadata ? !untouched(JSON.parse(existing), metadata) : !source.self) : true },
       ...(source.self ? { inPlace: true } : {}),
       ...(args.detail === 'full' ? {card:source.data, existingTarget, preservedInactiveWorldbook:source.preservedBook ?? null} : {}),
       stateInventory: stateInventory(source.data,args.sourceFields),
@@ -204,11 +209,12 @@ export function createMvuConversion({ resources }) {
     if (existingText !== undefined) {
       try { existing = JSON.parse(existingText) } catch { throw Error('目标 JSON 已损坏，请恢复资源后重新 inspect') }
       metadata = cardData(existing).extensions?.[MVU_CONVERSION_KEY]
+      if (source.self && metadata) metadata = liveSelfSourcedMeta(cardData(existing))
       if (metadata ? metadata.sourcePath !== source.sourcePath || metadata.version !== 1 : !source.self) throw Error('目标名称已被其他资源占用，请换名')
       if (args.planMode !== 'replace') {
         if (!Array.isArray(metadata.cleanup)) throw Error('旧副本没有保存完整方案；读取来源后以 planMode=replace 提交完整定义和清理')
         if (metadata.sourceRevision !== source.revision) throw Error('原卡已变化，旧清理路径不能合并；重新读取后以 planMode=replace 提交完整方案')
-        if (metadata.outputDigest !== outputDigest(existing)) throw Error('目标副本已有变更，含方案外修改；读取 scope=target 后将保留修改纳入 planMode=replace 完整方案')
+        if (!untouched(existing, metadata)) throw Error('目标副本已有变更，含方案外修改；读取 scope=target 后将保留修改纳入 planMode=replace 完整方案')
         const reset = args.cleanupResetPaths ?? []
         if (!Array.isArray(reset)) throw Error('cleanupResetPaths 必须是路径数组')
         for (const path of reset) pointerKeys(path)
@@ -248,7 +254,7 @@ export function createMvuConversion({ resources }) {
     const frozenAppearance = args.appearance ? freezeMvuAppearance(source.data,args.appearance) : undefined
     if (args.cleanupOrphanEntrances) args.cleanup=resolveMvuCleanup(source.data,args,applyMvuCleanup).effectiveCleanup
     const requestHash = digest({ sourceRevision:source.revision,name:target.name,definitionRevision,appearance:args.appearance,initialState:args.initialState,updateRules:args.updateRules,displayFields:args.displayFields || [],cleanup:args.cleanup || [] })
-    if (existingText !== undefined) {
+    if (existingText !== undefined && !source.self) {
       if (metadata?.requestHash === requestHash && metadata.outputDigest === outputDigest(existing)) {
         if (input.action === 'preview') return {path:target.path,saved:false,changed:false,validation:await verify({path:target.path}),nextAction:mvuDeliveryGuide}
         const saved = await resources.saveMvuCard({sourcePath:source.sourcePath,targetPath:target.path,inPlace:source.self === true,document:existing,expectedSourceText:source.text,expectedTargetText:existingText})
@@ -293,6 +299,11 @@ export function createMvuConversion({ resources }) {
       ...(definition ? {definitionRevision,definition:clone(definition),openingStates:clone(definition.openingStates)} : {}),
       initialState: clone(args.initialState), updateRules: args.updateRules, displayFields: clone(args.displayFields || []), cleanup: clone(args.cleanup || []),
       ...(source.preservedBook ? { preservedWorldbook: source.preservedBook } : {}) }
+    if (source.self) {
+      // Regenerating is deterministic: an identical card means a retried commit already landed.
+      if (existing && isDeepStrictEqual(JSON.parse(JSON.stringify(document)), existing)) return {path:target.path,changed:false,validation:await verify({path:target.path}),nextAction:mvuDeliveryGuide}
+      if (existingText !== undefined && (!args.targetRevision || args.targetRevision !== digest(existingText))) throw Error('人物卡已有新修改，请重新读取后再提交')
+    }
     const staticCheck = validateCardText(JSON.stringify(document))
     if (!staticCheck.valid) throw Error('成品校验失败: ' + JSON.stringify(staticCheck.errors))
     const check = await validateMvuConversion(data)
@@ -302,7 +313,7 @@ export function createMvuConversion({ resources }) {
     if (input.action === 'preview') return {path:target.path,saved:false,validation:check}
     if (!check.valid) throw Error('转换预检失败: ' + JSON.stringify(check.checks.filter(item => item.status === 'failed')))
     if ((await snapshot(source.sourcePath, source.self)).revision !== source.revision) throw Error('转换期间来源发生变化，请重新 inspect')
-    const saved = await resources.saveMvuCard({ sourcePath: source.sourcePath, targetPath: target.path, inPlace: source.self === true, document, expectedSourceText: source.text, expectedTargetText: existingText, finalize: output => { cardData(output).extensions[MVU_CONVERSION_KEY].outputDigest = outputDigest(output) } })
+    const saved = await resources.saveMvuCard({ sourcePath: source.sourcePath, targetPath: target.path, inPlace: source.self === true, document, expectedSourceText: source.text, expectedTargetText: existingText, finalize: output => { if (!source.self) cardData(output).extensions[MVU_CONVERSION_KEY].outputDigest = outputDigest(output) } })
     return { path: target.path, changed: saved.changed, imageCopied: saved.imageCopied, validation: await verify({ path: target.path }), nextAction: mvuDeliveryGuide }
   }
   async function verify({ path }) {
@@ -313,7 +324,9 @@ export function createMvuConversion({ resources }) {
     const document = JSON.parse(text), data = cardData(document)
     const result = await validateMvuConversion(data)
     const meta = data.extensions?.[MVU_CONVERSION_KEY]
-    if (Array.isArray(meta?.cleanup)) {
+    if (meta?.selfSourced === true) {
+      // The card carries its own definition; no separate base or stored plan to audit.
+    } else if (Array.isArray(meta?.cleanup)) {
       const intact = meta.outputDigest === outputDigest(document)
       result.checks.push({name:'planIntegrity',status:intact ? 'passed' : 'failed',detail:intact ? '成品与保存方案一致，未发现方案外修改' : '成品存在方案外修改，需重新纳入转换方案'})
       result.valid &&= intact
@@ -389,15 +402,22 @@ export function createMvuConversion({ resources }) {
     const path = normalizeResourcePath(input.path, 'card')
     const text = await resources.readText(path)
     if (text === undefined) throw Error('人物卡不存在，请重新选择目标: ' + path)
-    const document = JSON.parse(text), meta = cardData(document).extensions?.[MVU_CONVERSION_KEY]
+    const document = JSON.parse(text), data = cardData(document)
+    const meta = selfSourcedMeta(data, path) ? liveSelfSourcedMeta(data) : data.extensions?.[MVU_CONVERSION_KEY]
     return { path, text, document, meta, revision:digest(text) }
+  }
+  // A self-sourced card carries its definition; copies use the stored plan.
+  async function savedDefinition(meta) {
+    if (meta?.selfSourced === true) return meta.definition
+    const saved = await resources.readMvuDefinition(meta.definitionRevision)
+    return saved && definitionDigest(saved) === meta.definitionRevision ? saved : undefined
   }
   async function readAppearance(input) {
     const target = await appearanceTarget(input)
     if (input.revision && input.revision !== target.revision) throw Error('美化版本已变化，请重新读取')
     const appearance = target.meta?.appearance
     const editable = target.meta?.version === 1 && typeof appearance?.html === 'string'
-      && !!target.meta.definitionRevision && target.meta.outputDigest === outputDigest(target.document)
+      && !!target.meta.definitionRevision && untouched(target.document, target.meta)
     return { path:target.path, revision:target.revision, editable,
       ...(typeof appearance?.html === 'string' ? {html:readConversionValue(appearance.html,{offset:input.offset,limit:input.limit}),bindings:appearance.bindings || [],...(appearance.collectionPath ? {collectionPath:appearance.collectionPath} : {})} : {}),
       instruction:editable ? '只提交 replacements 中的唯一原文片段与新文本。工具同步定义、面板及校验；保留 $N 占位和绑定，无需读取初值或手工维护摘要。'
@@ -409,14 +429,14 @@ export function createMvuConversion({ resources }) {
       if (!input.revision || input.revision !== target.revision) throw Error('美化版本已变化，请重新读取')
       const {meta} = target
       if (meta?.version !== 1 || typeof meta.appearance?.html !== 'string' || !meta.definitionRevision) throw Error('仅支持已保存定义的托管 HTML 美化')
-      if (meta.outputDigest !== outputDigest(target.document)) throw Error('目标已有方案外修改，不能覆盖；请读取目标卡核对')
+      if (!untouched(target.document, meta)) throw Error('目标已有方案外修改，不能覆盖；请读取目标卡核对')
       if (!Array.isArray(input.replacements) || !input.replacements.length || input.replacements.length > 50) throw Error('replacements 必须包含 1–50 项局部替换')
       const source = await snapshot(meta.sourcePath)
       if (source.revision !== meta.sourceRevision) throw Error('来源或世界书已变化，不能用旧方案覆盖目标')
       const name = target.path.slice('cards/'.length, -'.json'.length)
       if (targetFor(source,name).path !== target.path) throw Error('目标路径不支持原位编辑')
-      const saved = await resources.readMvuDefinition(meta.definitionRevision)
-      if (!saved || definitionDigest(saved) !== meta.definitionRevision) throw Error('已保存定义不存在或被修改')
+      const saved = await savedDefinition(meta)
+      if (!saved) throw Error('已保存定义不存在或被修改')
       assertDefinition(saved,meta,source)
       const html = saved.appearance.html
       const edits = input.replacements.map((edit,index) => {
@@ -446,10 +466,10 @@ export function createMvuConversion({ resources }) {
   async function resolveDraftTarget(path) {
     const target = await appearanceTarget({path})
     if (target.meta?.version !== 1 || !target.meta.definitionRevision || !target.meta.sourcePath) throw Error('目标缺少完整托管 MVU 定义，无法局部修改变量')
-    if (target.meta.outputDigest !== outputDigest(target.document)) throw Error('目标存在方案外修改，不能覆盖；请先核对目标卡')
+    if (!untouched(target.document, target.meta)) throw Error('目标存在方案外修改，不能覆盖；请先核对目标卡')
     return {sourcePath:target.meta.sourcePath,name:target.path.slice(6,-5),revision:target.revision,...(target.meta.selfSourced===true?{inPlace:true}:{})}
   }
-  const conversion = { convert, verify, readAppearance, updateAppearance, resolveDraftTarget }
+  const conversion = { convert, verify, readAppearance, updateAppearance, resolveDraftTarget, savedDefinition }
   conversion.draft = createMvuDrafts({resources,conversion}).run
   return conversion
 }

@@ -3,6 +3,7 @@ import {createMvuDraftSession} from './mvu-draft-session.js'
 import {createHash} from 'node:crypto'
 import {normalizeResourcePath} from './file-resources.js'
 import {isObject, MVU_CONVERSION_KEY} from './mvu-conversion-artifacts.js'
+import {liveSelfSourcedMeta} from './mvu-self-source.js'
 import {readConversionValue,conversionReading} from './mvu-conversion-inspection.js'
 import {ensureFieldSchema,openingIssues,appearanceIssues,patchOpening,patchFields,DRAFT_FIELD_CHANGES} from './mvu-draft-fields.js'
 
@@ -118,10 +119,10 @@ export function createMvuDrafts({resources,conversion}) {
     if(previous) {if(previous.beginHash!==requestHash)fail('DRAFT_REQUEST_REUSED','同一 requestId 不能用于不同参数');return summary(previous)}
     info ||= await conversion.convert({action:'inspect',sourcePath,name:args.name,inPlace:args.inPlace,detail:'full'})
     if(info.target?.externallyModified||info.target?.error)fail('DRAFT_TARGET_CHANGED','已有副本包含方案外修改；先核对，不能覆盖')
-    const meta=info.existingTarget?.extensions?.[MVU_CONVERSION_KEY]
+    const meta=info.existingTarget?.extensions?.[MVU_CONVERSION_KEY]?.selfSourced===true?liveSelfSourcedMeta(info.existingTarget):info.existingTarget?.extensions?.[MVU_CONVERSION_KEY]
     if(info.existingTarget&&(meta||!args.inPlace)&&(!meta?.definitionRevision||meta.sourcePath!==sourcePath||meta.sourceRevision!==info.sourceRevision))fail('DRAFT_TARGET_UNSUPPORTED','已有副本缺少当前来源的完整定义；需先核对转换方案')
-    const saved=meta?await resources.readMvuDefinition(meta.definitionRevision):null
-    if(meta&&(!saved||hash(saved)!==meta.definitionRevision))fail('DRAFT_DEFINITION_INVALID','已保存定义缺失或被改动')
+    const saved=meta?await conversion.savedDefinition(meta):null
+    if(meta&&!saved)fail('DRAFT_DEFINITION_INVALID','已保存定义缺失或被改动')
     const requirement=args.appearanceRequirement||(info.appearanceSources.some(x=>x.enabled)?'preserve':saved?.appearance?.sourcePath?'preserve':saved&&!saved.appearance?.html?'basic':'custom')
     if(!['custom','preserve','basic'].includes(requirement))fail('DRAFT_REQUIREMENT_INVALID','无效美化要求')
     const basicReason=args.basicReason||(saved&&requirement==='basic'?'保留已有基础面板':'')

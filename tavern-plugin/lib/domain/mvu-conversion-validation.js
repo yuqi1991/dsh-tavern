@@ -7,6 +7,7 @@ import { projectReplyLayers } from './reply-presentation.js'
 import { projectPersistentStatusView } from './persistent-status-view.js'
 import { inspectCardExtensions } from './card-extension-reading.js'
 import { inspectWorldBookDocument } from './worldbook-resource.js'
+import { liveSelfSourcedMeta } from './mvu-self-source.js'
 import { constantWorldBookContext, mvuUpdateRulesFromWorldBook } from './worldbook-recall.js'
 
 // Only the exact host-owned template is executed. Imported card JS/EJS never runs
@@ -81,7 +82,12 @@ export async function validateMvuConversion(data) {
     try { checks.push({ name, status: 'passed', detail: await run() }) }
     catch (error) { checks.push({ name, status: 'failed', detail: error.message }) }
   }
-  const meta = data.extensions?.[MVU_CONVERSION_KEY]
+  let meta = data.extensions?.[MVU_CONVERSION_KEY]
+  // Self-sourced cards are validated against what the card text says now.
+  if (meta?.selfSourced === true) {
+    try { meta = liveSelfSourcedMeta(data) }
+    catch (error) { return { valid: false, checks: [{ name: 'cardText', status: 'failed', detail: error.message }], limitations: [] } }
+  }
   if (meta?.version !== 1) return { valid: false, checks: [{ name: 'managedConversion', status: 'failed', detail: '不是专用工具生成的 MVU 副本；未执行未知卡片代码' }] }
   let expected
   await check('definition', () => { expected = buildMvuArtifacts(meta); return '初值与展示路径有效' })

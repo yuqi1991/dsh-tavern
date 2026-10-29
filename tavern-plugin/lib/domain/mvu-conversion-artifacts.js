@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 export const MVU_CONVERSION_KEY = 'dsh_mvu_conversion'
 export const MVU_MARKER = '<mvu-status/>'
 export const MVU_RULE_IDS = ['dsh-mvu-status-view', 'dsh-mvu-hide-marker']
+export const MVU_RULE_TAIL = '\n\n依据本轮已经发生的正文事实和当前变量快照，用 mvu_submit_update 提交。路径相对于 stat_data；无变化提交空 operations。'
 const template = await readFile(new URL('./assets/mvu-status.html', import.meta.url), 'utf8')
 export const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 export function pointerKeys(path) {
@@ -32,7 +33,7 @@ export function buildMvuArtifacts({ initialState, updateRules, displayFields = [
   const entries = [
     { keys: [], comment: '[initvar]状态初值', enabled: false, constant: false, insertion_order: 100, content: JSON.stringify(initialState, null, 2), extensions: {} },
     { keys: [], comment: '[mvu_update]状态更新规则', enabled: true, constant: true, insertion_order: 100,
-      content: updateRules.trim() + '\n\n依据本轮已经发生的正文事实和当前变量快照，用 mvu_submit_update 提交。路径相对于 stat_data；无变化提交空 operations。', extensions: {} }
+      content: updateRules.trim() + MVU_RULE_TAIL, extensions: {} }
   ]
   const regexScripts = [
     { id: MVU_RULE_IDS[0], scriptName: 'MVU 状态视图', findRegex: '/<mvu-status\\s*\\/>/g', replaceString: '```html\n' + statusHtml + '\n```', placement: [2], disabled: false, markdownOnly: true, promptOnly: false, runOnEdit: true },

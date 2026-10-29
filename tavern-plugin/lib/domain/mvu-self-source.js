@@ -1,12 +1,11 @@
-import { createHash } from 'node:crypto'
-import { MVU_CONVERSION_KEY, MVU_MARKER, MVU_RULE_IDS, isObject } from './mvu-conversion-artifacts.js'
+import { MVU_CONVERSION_KEY, MVU_MARKER, MVU_RULE_IDS, MVU_RULE_TAIL, isObject } from './mvu-conversion-artifacts.js'
+import { definitionDigest, leaves } from './mvu-conversion-definition.js'
 
 // A self-sourced MVU card is its own story source: the conversion owns only the
 // generated parts (initvar/update entries, status regexes, opening suffixes and
 // metadata). Stripping those parts yields the base the conversion regenerates from,
 // so story fields can be edited in place without a separate base card.
 const INITVAR_OPEN = '\n\n<initvar>\n', INITVAR_CLOSE = '\n</initvar>'
-const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 
 export function isManagedMvuEntry(entry) {
   return /^\s*\[(?:initvar|mvu_update)\]/i.test(String(entry?.comment || entry?.name || ''))
@@ -40,16 +39,37 @@ export function stripManagedMvu(data) {
   return base
 }
 
-// Integrity covers only what the conversion generated; story edits stay legal.
-export function managedMvuDigest(data) {
-  const meta = structuredClone(data?.extensions?.[MVU_CONVERSION_KEY] || null)
-  if (meta) delete meta.outputDigest
-  return digest({
-    meta,
-    entries: (data?.character_book?.entries || []).filter(isManagedMvuEntry),
-    regex: (data?.extensions?.regex_scripts || []).filter(rule => MVU_RULE_IDS.includes(rule?.id)),
-    greetings: [data?.first_mes, ...(data?.alternate_greetings || [])].map(text => splitMvuGreeting(text).suffix)
+// The file is the only truth: opening values, the initial template and update
+// rules are read back from the card text itself, so hand edits are honoured.
+// Only the panel design (meta.appearance) lives solely in metadata.
+export function liveSelfSourcedMeta(data) {
+  const meta = selfSourcedMeta(data)
+  if (!meta) return null
+  const greetings = [data.first_mes, ...(Array.isArray(data.alternate_greetings) ? data.alternate_greetings : [])]
+  const openingStates = greetings.map((text, index) => {
+    const suffix = splitMvuGreeting(text).suffix
+    const open = suffix.indexOf('<initvar>'), close = suffix.lastIndexOf('</initvar>')
+    if (open < 0 || close < open) throw Error('开场 ' + index + ' 缺少 <initvar> 初值块')
+    let state
+    try { state = JSON.parse(suffix.slice(open + 9, close)) } catch (error) { throw Error('开场 ' + index + ' 的 <initvar> 不是有效 JSON: ' + error.message) }
+    if (!isObject(state)) throw Error('开场 ' + index + ' 的 <initvar> 必须是对象')
+    return state
   })
+  const entries = Array.isArray(data.character_book?.entries) ? data.character_book.entries : []
+  const init = entries.filter(entry => /^\s*\[initvar\]/i.test(String(entry?.comment || '')))
+  const rule = entries.filter(entry => /^\s*\[mvu_update\]/i.test(String(entry?.comment || '')))
+  let initialState = openingStates[0]
+  if (init.length === 1) {
+    try { initialState = JSON.parse(init[0].content) } catch (error) { throw Error('[initvar] 条目不是有效 JSON: ' + error.message) }
+  }
+  const ruleText = rule.length === 1 ? String(rule[0].content || '') : String(meta.updateRules || '')
+  const updateRules = ruleText.endsWith(MVU_RULE_TAIL) ? ruleText.slice(0, -MVU_RULE_TAIL.length) : ruleText
+  const live = { ...structuredClone(meta), initialState, openingStates, updateRules }
+  if (isObject(meta.definition)) {
+    live.definition = { ...structuredClone(meta.definition), initialState, openingStates, updateRules, fields: openingStates.map(state => leaves(state)) }
+    live.definitionRevision = definitionDigest(live.definition)
+  }
+  return live
 }
 
 // Ordinary card saves may rewrite opening text; keep each opening's generated
