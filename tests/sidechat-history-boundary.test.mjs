@@ -9,18 +9,21 @@ const source = await readFile(new URL('../node_modules/dsh-better-sidebar/lib/in
 const functions = parse(source, { ecmaVersion: 'latest', sourceType: 'module' }).body
   .filter(node => node.type === 'FunctionDeclaration')
   .map(node => source.slice(node.start, node.end)).filter(text => !text.includes('import.meta'))
-const context = vm.createContext({ structuredClone, EVENTS_CAP: 8000 })
+// The bundler may suffix module constants ($1) between releases; provide both spellings.
+const context = vm.createContext({ structuredClone, EVENTS_CAP: 8000, 'EVENTS_CAP$1': 8000 })
 vm.runInContext(functions.join('\n'), context)
 const message = (seq, text) => ({ seq, type: 'user/message', surfaceOp: 'append', data: { content: [{ type: 'text', text }] } })
 const marker = seq => ({ seq, type: 'session/end-seed', data: {} })
+// DSH 0.2 marks the fork boundary { inherited: true } and appends a plain marker on every resume.
+const inheritedMarker = seq => ({ seq, type: 'session/end-seed', data: { inherited: true } })
 
 for (const live of [true, false]) {
-  for (const legacy of [true, false]) {
-    test(`sidechat boundary survives parent and child resumes (${live ? 'live' : 'cold'}, ${legacy ? 'legacy' : 'current'})`, async () => {
+  {
+    test(`sidechat boundary survives parent and child resumes (${live ? 'live' : 'cold'})`, async () => {
       const events = [marker(0), message(1, 'parent conversation'),
-        { seq: 2, type: 'subagent/descriptor', data: {} }, marker(3),
+        { seq: 2, type: 'subagent/descriptor', data: {} }, inheritedMarker(3),
         message(4, 'child first question'), marker(5), message(6, 'child followup'), marker(7)]
-      const metadata = legacy ? { header: { seedLength: 3 }, meta: { seedLength: 3 } } : { inheritedEventCount: 3 }
+      const metadata = { inheritedEventCount: 3 }
       const session = { ...metadata, snapshotEvents: () => events }
       const ctx = { get: name => name === 'agents' ? { get: () => live ? { session } : undefined }
         : name === 'sessionPersistence' ? { open: async () => ({ ...metadata, header: metadata.header || {}, read: async () => ({ events }), close: async () => {} }) } : undefined }

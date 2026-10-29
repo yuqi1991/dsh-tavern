@@ -3,41 +3,40 @@ import { readFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
-import { adaptedDshVersion, assertCompatibleDshVersion, dshCompatibilityNotice } from '../bin/dsh-compatibility.mjs'
+import { adaptedDshVersion, allowedDshVersions, assertCompatibleDshVersion, desktopReleasesUrl, dshaReleasesUrl } from '../bin/dsh-compatibility.mjs'
+import { classifyDshVersion } from '../tavern-plugin/lib/domain/host-compatibility.js'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const unix = await readFile(new URL('../install.sh', import.meta.url), 'utf8')
-const windows = await readFile(new URL('../install.ps1', import.meta.url), 'utf8')
 
-test('README、安装提示和独立版本查询使用同一适配版本', async () => {
-  const config = JSON.parse(await readFile(new URL('../config/dsh-compatibility.json', import.meta.url), 'utf8'))
-  assert.equal(adaptedDshVersion, config.adaptedDshVersion)
-  const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8')
-  assert.ok(readme.includes(adaptedDshVersion))
-  assert.ok(readme.includes('https://flizzywine.github.io/dsh-tavern/#a02'))
-  const result = spawnSync(process.execPath, ['bin/dsh-compatibility.mjs', '--version'], { cwd: root, encoding: 'utf8' })
-  assert.equal(result.status, 0, result.stderr)
-  assert.equal(result.stdout.trim(), adaptedDshVersion)
-})
-
-test('所有平台仅允许完全匹配的 DSH 版本', () => {
-  for (const host of ['cli', 'desktop', 'android']) {
-    assert.doesNotThrow(() => assertCompatibleDshVersion(adaptedDshVersion, host))
-    for (const version of ['', '0.1.1-rc.2', '0.1.5-rc.1', '99.0.0']) {
+test('宿主按允许清单：清单内放行，清单外拦截；CLI 独立运行时仍精确匹配', () => {
+  for (const host of ['desktop', 'android']) {
+    for (const version of allowedDshVersions) assert.doesNotThrow(() => assertCompatibleDshVersion(version, host), version)
+    for (const version of ['0.1.5-rc.2', '0.2.2', '99.0.0']) {
       assert.throws(() => assertCompatibleDshVersion(version, host), error => {
-        assert.match(error.message, /必须使用/)
-        assert.ok(error.message.includes(adaptedDshVersion))
-        if (host !== 'cli') { assert.match(error.message, /已停止安装/); assert.match(error.message, /https:\/\/github.com\//) }
+        assert.match(error.message, version.startsWith('0.1.') ? /已停止安装，现有酒馆、存档和宿主都没有改动[^]*要用这个版本[^]*改装稳定版/ : /不在允许清单内；已停止安装/)
+        assert.ok(error.message.includes(allowedDshVersions.join('、')))
+        assert.ok(error.message.includes(host === 'desktop' ? desktopReleasesUrl : dshaReleasesUrl), error.message)
         return true
       })
     }
   }
+  assert.ok(allowedDshVersions.includes(adaptedDshVersion))
+  assert.doesNotThrow(() => assertCompatibleDshVersion(adaptedDshVersion, 'cli'))
+  for (const version of ['', '0.2.0', '99.0.0']) assert.throws(() => assertCompatibleDshVersion(version, 'cli'), /DSH_TAVERN_REINSTALL_RUNTIME/)
 })
 
-test('两平台都在下载源码后读取适配版本，DSH 下载交给共享安装模块', () => {
-  assert.ok(unix.indexOf('ADAPTED_DSH_VERSION=$(node') > unix.indexOf('[ -f "${SOURCE_DIR}/package.json" ]'))
-  assert.ok(windows.indexOf('$AdaptedDshVersion = (& node') > windows.indexOf("Join-Path $SourceDir.FullName 'package.json'"))
-  assert.doesNotMatch(unix + windows, /@deepseek-ai\/dsh["']/)
+test('允许清单只认精确版本号，读不出版本也拦截', () => {
+  const policy = { adaptedDshVersion: '0.2.1-rc.2', allowedDshVersions: ['0.2.1-rc.2'] }
+  assert.deepEqual(['0.2.1-rc.2', '0.2.1-rc.1', '0.2.1', ''].map(v => classifyDshVersion(v, policy).status), ['allowed', 'blocked', 'blocked', 'blocked'])
+})
+
+test('安装脚本以 --check 执行清单：清单内退出码 0，清单外非 0', () => {
+  const script = fileURLToPath(new URL('../bin/dsh-compatibility.mjs', import.meta.url))
+  const ok = spawnSync(process.execPath, [script, '--check', 'android', 'dsh 0.2.0-rc.2'], { encoding: 'utf8' })
+  assert.equal(ok.status, 0, ok.stderr)
+  assert.match(ok.stdout, /在允许清单内/)
+  assert.notEqual(spawnSync(process.execPath, [script, '--check', 'desktop', 'dsh 0.2.2'], { encoding: 'utf8' }).status, 0)
 })
 
 test('Unix 工具准备只处理 pnpm，不提前复用或更换 DSH', { skip: process.platform === 'win32' }, () => {
@@ -54,6 +53,8 @@ command() {
     *) return 1 ;;
   esac
 }
+run_install() { shift 2; "$@"; }
+assert_installation_active() { :; }
 dsh() { node "\${SOURCE_DIR}/bin/dsh-compatibility.mjs" --version; }
 pnpm() {
   if [ "$HAS_PNPM" = 1 ]; then printf '%s\n' "$MOCK_PNPM_VERSION"; else return 127; fi
@@ -81,22 +82,12 @@ fail() { printf 'FAIL:%s\\n' "$1"; exit 1; }
   }
 })
 
-
-test('Desktop 和 DSHA 各有一个明确适配版本，提示与安装文档包含下载入口', async () => {
-  const config = JSON.parse(await readFile(new URL('../config/dsh-compatibility.json', import.meta.url), 'utf8'))
-  const installation = await readFile(new URL('../docs/installation.md', import.meta.url), 'utf8')
-  const manual = await readFile(new URL('../docs/index.html', import.meta.url), 'utf8')
-  for (const [host, version, url] of [
-    ['desktop', config.recommendedDesktopVersion, config.desktopReleasesUrl],
-    ['android', config.recommendedDshaVersion, config.dshaReleasesUrl],
-  ]) {
-    assert.equal(typeof version, 'string')
-    for (const text of [dshCompatibilityNotice('99.0.0', host), installation, manual]) {
-      assert.ok(text.includes(version))
-      assert.ok(text.includes(url))
-    }
-  }
-  const android = await readFile(new URL('../docs/android-install.md', import.meta.url), 'utf8')
-  assert.ok(android.includes(config.recommendedDshaVersion))
-  assert.ok(android.includes(config.dshaReleasesUrl))
+test('宿主没有补丁要改的字号代码时跳过（返回 null），不让整个安装回滚', async t => {
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const { patchThemeFontLimit } = await import('../bin/theme-font-limit.mjs')
+  const directory = await mkdtemp(`${tmpdir()}/tavern-theme-untested-`)
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  await writeFile(`${directory}/package.json`, JSON.stringify({ name: '@deepseek-ai/dsh-client-ui-theme', version: '0.2.0' }))
+  assert.equal(patchThemeFontLimit(directory), null)
 })

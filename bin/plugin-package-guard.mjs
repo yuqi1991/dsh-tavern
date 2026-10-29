@@ -6,6 +6,6 @@ import { ensureUserExtensions } from '../tavern-plugin/lib/domain/user-extension
 // the selected host before installation and retain their existing behavior.
 export async function apply() {
   const compatibility = readHostCompatibility()
-  if (compatibility.status !== 'verified') throw new Error(compatibility.message)
+  if (compatibility.status !== 'allowed') throw new Error(compatibility.message)
   await ensureUserExtensions(resolveTavernDataRoot())
 }

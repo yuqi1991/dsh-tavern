@@ -18,7 +18,7 @@
 
 > 不同手机系统、DSHA 版本、网络和后台限制都可能导致安装或运行失败；当前安装脚本只能修复项目已知问题。
 
-> v2.1 要求宿主 DSH `0.1.5-rc.2`。请安装 **[DSHA v0.1.5-rc2](https://github.com/DSH-APP/DSHA/releases/tag/v0.1.5-rc2)**（内置这个版本）。Android 11 及以上用标准包 `dsha-0.1.5-rc2.apk`，更早的系统用兼容包 `dsha-0.1.5-rc2low.apk`。旧的 DSHA 1.2.0-rc1.4 内置的不是这个版本，安装会停止。历史包见 [DSHA 历史版本下载页面](https://github.com/DSH-APP/DSHA/releases)。
+> v2.1 要求宿主 DSH `0.2.0-rc.2` 或 `0.2.1-rc.2`。请安装 **[DSHA v0.2.0-rc2](https://github.com/DSH-APP/DSHA/releases/tag/v0.2.0-rc2)**（内置这个版本）。Android 11 及以上用标准包 `dsha-0.2.0-rc2.apk`，更早的系统用兼容包 `dsha-0.2.0-rc2low.apk`。旧的 DSHA 1.2.0-rc1.4 内置的不是这个版本，安装会停止。历史包见 [DSHA 历史版本下载页面](https://github.com/DSH-APP/DSHA/releases)。
 
 dsh-tavern 可以借助 [DSHA](https://github.com/DSH-APP/DSHA) 尝试在 Android 手机上安装和使用。
 

@@ -2,12 +2,20 @@ import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-export function classifyHostVersion(version, adaptedVersion) {
-  const status = version && version === adaptedVersion ? 'verified' : 'incompatible'
-  return Object.freeze({ version: version || '', adaptedVersion, status,
-    packageName: '@deepseek-ai/dsh-session',
-    message: status === 'verified' ? '' : (version ? '当前 DSH 版本不适配。' : '无法识别当前 DSH 版本，按不适配处理。')
-      + '本酒馆仅适配 DSH ' + adaptedVersion + '，请使用此版本；其他版本的重新生成、回退等功能可能无法使用。' })
+// Allowlist: listed DSH versions run; any other (or unreadable) version is blocked.
+// Maintained by hand in config/dsh-compatibility.json when a new DSH release is checked.
+export function classifyDshVersion(version, policy) {
+  const allowed = policy.allowedDshVersions || [policy.adaptedDshVersion]
+  const base = { version: version || '', allowedVersions: allowed }
+  if (version && allowed.includes(version)) return { ...base, status: 'allowed', reason: '' }
+  return { ...base, status: 'blocked', reason: version ? `DSH ${version} 不在允许清单` : '无法识别当前 DSH 版本' }
+}
+
+export function classifyHostVersion(version, policy) {
+  const result = classifyDshVersion(version, policy)
+  const message = result.status === 'allowed' ? ''
+    : `${result.reason}，酒馆可能无法正常使用。允许的版本：${result.allowedVersions.join('、')}。`
+  return Object.freeze({ ...result, packageName: '@deepseek-ai/dsh-session', message })
 }
 
 // Resolve from the actual host dependency, not PATH or another installed CLI.
@@ -31,5 +39,5 @@ export function readHostCompatibility({ resolveHost, read = readFileSync } = {})
       dir = parent
     }
   } catch { /* Unknown must not prevent starting the user's game. */ }
-  return classifyHostVersion(version, policy.adaptedDshVersion)
+  return classifyHostVersion(version, policy)
 }

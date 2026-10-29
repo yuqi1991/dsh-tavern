@@ -188,7 +188,7 @@ test('Windows UI 更新隐藏 PowerShell 窗口并保持 UTF-8 输出', () => {
 })
 
 test('Tavern profile installs Better Sidebar as its right-panel foundation', () => {
-  assert.equal(rootManifest.devDependencies['dsh-better-sidebar'], '0.19.1')
+  assert.equal(rootManifest.devDependencies['dsh-better-sidebar'], '0.28.0')
   assert.ok(rootManifest.dsh.profile.bundles.includes('dsh-better-sidebar'))
   assert.match(profileConfigurationSource, /managedDependencies/)
 })
@@ -196,7 +196,7 @@ test('Tavern profile installs Better Sidebar as its right-panel foundation', () 
 test('Tavern profile also installs the pinned mobile adaptation plugin', () => {
   assert.equal(
     rootManifest.devDependencies['dsh-web-mobile'],
-    '2.3.0',
+    '3.1.0',
   )
   assert.ok(rootManifest.dsh.profile.bundles.includes('dsh-web-mobile'))
   assert.equal(rootManifest.dependencies['@dsh-external/dsh-mobile-nav'], undefined)

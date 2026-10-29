@@ -33,13 +33,13 @@ test('Desktop 宿主版本不兼容时在覆盖旧安装前停止', { skip: proc
   assert.ok(start > 0 && end > start)
   assert.ok(end < source.indexOf('cp -R "${SOURCE_DIR}/."'))
   const preflight = source.slice(start, end)
-  for (const version of ['0.1.2-rc.1', 'unknown', '0.1.5-rc.2']) {
+  for (const version of ['0.1.2-rc.1', 'unknown', '0.2.1-rc.2']) {
     const script = 'dsh() { echo "$TEST_VERSION"; }\n' + preflight + '\nprintf replaced > "$SENTINEL"\n'
     const result = spawnSync('sh', ['-ec', script], { encoding: 'utf8', env: {
       ...process.env, INSTALL_HOST: 'desktop', SOURCE_DIR: path.resolve(new URL('..', import.meta.url).pathname),
       TEST_VERSION: version, SENTINEL: sentinel,
     } })
-    if (version === '0.1.5-rc.2') {
+    if (version === '0.2.1-rc.2') {
       assert.equal(result.status, 0, result.stderr)
       assert.equal(readFileSync(sentinel, 'utf8'), 'replaced')
     } else {

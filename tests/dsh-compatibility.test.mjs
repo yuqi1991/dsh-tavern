@@ -8,10 +8,10 @@ const installerSource = await readFile(new URL('../bin/plugin-dependencies.mjs',
 const pluginSource = await readFile(new URL('../tavern-plugin/lib/index.js', import.meta.url), 'utf8')
 const backgroundSource = await readFile(new URL('../tavern-plugin/lib/background-agent-sessions.js', import.meta.url), 'utf8')
 
-test('Tavern pins dsh-tools to the adapted host release and reuses host packages', () => {
-  assert.equal(pluginManifest.dependencies['@deepseek-ai/dsh-tools'], '0.1.5-rc.2')
-  assert.equal(pluginManifest.dependencies['@deepseek-ai/dsh-subagent'], '>=0.1.0-rc.7')
-  assert.equal(pluginManifest.dependencies['@deepseek-ai/dsh-typert-protocol'], '>=0.1.2-rc.1 <0.2.0')
+test('Tavern requires the adapted host release line (0.2.x) and reuses host packages', () => {
+  assert.equal(pluginManifest.dependencies['@deepseek-ai/dsh-tools'], '>=0.2.0-rc.1 <0.3.0')
+  assert.equal(pluginManifest.dependencies['@deepseek-ai/dsh-subagent'], '>=0.2.0-rc.1 <0.3.0')
+  assert.equal(pluginManifest.dependencies['@deepseek-ai/dsh-typert-protocol'], '>=0.2.0-rc.1 <0.3.0')
   assert.match(pluginSource, /from '@deepseek-ai\/dsh-tools'/)
   assert.match(backgroundSource, /from '@deepseek-ai\/dsh-subagent'/)
   assert.match(launcherSource, /import \{[^}]*\binstallPluginDependencies\b[^}]*\} from '.\/plugin-dependencies.mjs'/)

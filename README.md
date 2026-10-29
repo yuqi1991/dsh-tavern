@@ -70,6 +70,8 @@
 
 ## 安装与更新
 
+> 当前版本适配 DSH **0.2.1-rc.2**。下面的 Windows 一键 EXE、Android 一键 APK、DSH Desktop 2.0.13 与 DSHA 安装方式属于上一版（宿主 DSH 0.1.5-rc.2），在本版本上不适用，待重新发布后更新；命令行版请按 [安装说明](docs/installation.md) 操作。
+
 ### Windows 一键安装
 
 **[下载 Windows 安装 EXE](https://github.com/flizzywine/dsh-tavern/releases/download/v2.2/DSH-Tavern-Desktop-2.0.13-x64-Setup3.exe)**（Windows x64，修复运行目录移动时的访问拒绝）
@@ -112,7 +114,7 @@ curl -fsSL https://cdn.jsdelivr.net/gh/flizzywine/dsh-tavern@main/install.sh | D
 
 Pocket 手机访问仅在 Desktop 版提供，CLI 安装和升级会移除 Pocket 及其开关。详见 [Pocket 手机访问](docs/pocket-access.md)。
 
-**上述安装方式的更新：**在酒馆中点击「更新到最新版」，完成后按提示重启。更新保留人物卡、聊天和设置，不同安装方式的数据各自独立。宿主适配 DSH **0.1.5-rc.2**，请按文档使用对应版本。
+**上述安装方式的更新：**在酒馆中点击「更新到最新版」，完成后按提示重启。更新保留人物卡、聊天和设置，不同安装方式的数据各自独立。宿主适配 DSH **0.2.1-rc.2**，请按文档使用对应版本。
 
 ### 已有 DSH：标准插件安装（试验）
 

@@ -1,36 +1,37 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-// Fixed DSH 0.1.5-rc.2 only. Keep its existing setting, persistence and rendering.
+// DSH 0.2.1 centralizes each font role's schema, controls and validation in
+// FONT_SIZE_SPECS. Raise only the text role; code and terminal keep host limits.
+const textSpec = indent => `variable: "--dsh-content-font-size",\n${indent}min: 10,\n${indent}max: 22,`
 const replacements = {
   'index.js': [
-    ['const FONT_SIZE_MAX = 17;', 'const FONT_SIZE_MAX = 32;'],
-    ['.min(12).max(17).default(14)', '.min(12).max(32).default(14)'],
+    ['const FONT_SIZE_MAX = 22;', 'const FONT_SIZE_MAX = 32;'],
+    [textSpec('\t\t'), textSpec('\t\t').replace('max: 22,', 'max: 32,')],
   ],
   'client.js': [
-    ['.min(12).max(17).default(14)', '.min(12).max(32).default(14)'],
-    ['disabled: fontSize >= 17,', 'disabled: fontSize >= 32,'],
-    ['px > 17) throw new Error(`font size ${px} is outside 12..17`)', 'px > 32) throw new Error(`font size ${px} is outside 12..32`)'],
-    ['parsed <= 17 ? parsed : 14', 'parsed <= 32 ? parsed : 14'],
+    [textSpec('\t\t\t\t'), textSpec('\t\t\t\t').replace('max: 22,', 'max: 32,')],
   ],
 }
 
 export function patchThemeFontLimit(directory) {
   const manifest = JSON.parse(readFileSync(path.join(directory, 'package.json'), 'utf8'))
-  if (manifest.name !== '@deepseek-ai/dsh-client-ui-theme' || manifest.version !== '0.1.5-rc.2') {
-    throw new Error('字号补丁仅适用于 dsh-client-ui-theme 0.1.5-rc.2')
-  }
-  // Validate every anchor before writing; repeated installation is a no-op.
-  const changes = Object.entries(replacements).map(([name, pairs]) => {
+  if (manifest.name !== '@deepseek-ai/dsh-client-ui-theme') throw new Error('字号补丁仅适用于 dsh-client-ui-theme')
+  // Cosmetic and version-independent: applied wherever every anchor matches,
+  // skipped (null) otherwise instead of rolling back the install. Validate every
+  // anchor before writing; repeated installation is a no-op.
+  const changes = []
+  for (const [name, pairs] of Object.entries(replacements)) {
     const file = path.join(directory, 'lib', name)
-    const before = readFileSync(file, 'utf8')
+    let before
+    try { before = readFileSync(file, 'utf8') } catch { return null }
     let after = before
     for (const [from, to] of pairs) {
       if (after.split(from).length === 2 && !after.includes(to)) after = after.replace(from, to)
-      else if (after.includes(from) || after.split(to).length !== 2) throw new Error(`字号补丁不匹配：${name}；未修改文件`)
+      else if (after.includes(from) || after.split(to).length !== 2) return null
     }
-    return { file, before, after }
-  }).filter(change => change.before !== change.after)
+    if (after !== before) changes.push({ file, before, after })
+  }
   const written = []
   try {
     for (const change of changes) {

@@ -23,8 +23,10 @@ function TavernHostCompatibility() {
         return function () { active = false; };
     }, []);
     if (!info) return null;
+    // An allowed host needs no sidebar line; blocked hosts and unread notices stay visible.
+    if (info.status === 'allowed' && !(info.message && !dismissed)) return null;
     return React.createElement('div', { className: 'dsh-tavern-update-status' },
-        React.createElement('div', null, 'DSH 核心 ' + (info.version || '版本未知') + ' · ' + (info.status === 'verified' ? '适配' : '不适配') + ' · 唯一适配版本 ' + info.adaptedVersion),
+        React.createElement('div', null, 'DSH 核心 ' + (info.version || '版本未知') + ' · ' + (info.status === 'allowed' ? '在允许清单内' : '不在允许清单内') + ' · 允许版本 ' + (info.allowedVersions || []).join('、')),
         info.message && !dismissed ? React.createElement('div', { role: 'status' }, info.message,
             React.createElement('button', { type: 'button', className: 'dsh-tavern-btn', onClick: function () { hostCompatibilityNotice.dismiss(info); setDismissed(true); } }, '此版本不再提示')) : null);
 }
