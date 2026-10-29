@@ -83,6 +83,7 @@ import { buildGameSave, collectSaveRevisions, readGameSave } from './domain/game
 import { compressSaveImage } from './domain/save-image-compression.js'
 import { sceneSaveKeyMap } from './domain/scene-save.js'
 import { SURFACE_SELECT_TYPE } from './domain/surface-selection.js'
+import { installTavernContextProjections } from './domain/tavern-context-projections.js'
 import { appendVariableChanges } from './domain/foreground-variable-changes.js'
 import { markRequestHandled, requestHandledBy } from './domain/request-lineage.js'
 import { normalizeProviderOverflow } from './domain/provider-overflow.js'
@@ -241,6 +242,8 @@ export async function apply(ctx) {
   const agentRegistry = ctx.get('agents')
   const sessionStore = ctx.get('sessions')
   ctx.effect(() => installTavernTokenMeter(ctx.get('tokenMeter')))
+  // The 0.2.1 context-pressure / breakdown projections fold only surfaceOp events; teach them selections.
+  ctx.effect(() => installTavernContextProjections(ctx.get('sessionProjections')))
   if (llm === undefined || agentRegistry === undefined || sessionStore === undefined) {
     console.error('dsh-tavern: 缺少 llm、agents 或 sessions 服务')
     return

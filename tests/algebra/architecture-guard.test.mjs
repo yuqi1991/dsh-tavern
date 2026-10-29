@@ -29,8 +29,9 @@ test('every surface replacement intent is written through a conversation transac
   // session-events.js translates an intent into the host's append shape and
   // session-surface-mutations.js is the primitive under the algebra adapter;
   // the first guard limits who may reach it.
-  // host-session-patch.js only builds a throwaway probe session for its startup self-test.
-  const translators = new Set(['domain/session-events.js', 'domain/session-surface-mutations.js', 'domain/host-session-patch.js'])
+  // host-session-patch.js only builds a throwaway probe session for its startup self-test;
+  // tavern-context-projections.js feeds its own self-test synthetic events to a pure fold.
+  const translators = new Set(['domain/session-events.js', 'domain/session-surface-mutations.js', 'domain/host-session-patch.js', 'domain/tavern-context-projections.js'])
   const writers = filesMatching(/op:\s*['"]replace['"]/).filter(file => !file.startsWith('domain/conversation-algebra/') && !translators.has(file))
   assert.ok(writers.length >= 5, 'expected the known intent writers, found ' + writers.join(','))
   for (const file of writers) {
