@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { installCliRuntime, migrateCliHome, cliRuntimeCommand } from '../bin/cli-runtime.mjs'
-import { adaptedDshVersion, dshCompatibilityNotice } from '../bin/dsh-compatibility.mjs'
+import { adaptedDshVersion, dshCompatibilityNotice, desktopReleasesUrl, dshaReleasesUrl } from '../bin/dsh-compatibility.mjs'
 
 function temporary(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'tavern-runtime-test-'))
@@ -93,7 +93,7 @@ for (const host of ['desktop', 'android']) {
     assert.equal(migrateCliHome({ source, target }), false)
     const notice = dshCompatibilityNotice('99.0.0', host)
     assert.match(notice, /已停止安装/)
-    assert.match(notice, /https:\/\/www.deepseek.com\/harness\//)
+    assert.ok(notice.includes(host === 'desktop' ? desktopReleasesUrl : dshaReleasesUrl), notice)
   })
 }
 
