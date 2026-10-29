@@ -20,7 +20,8 @@
 			}
 
 			const collapsed = props.collapsed;
-			const current = props.useSessions(function (state) { return state.current; });
+			// 0.2 hosts dropped the snapshot's top-level current; the main view's retain names it now.
+			const current = props.useSessions(function (state) { return mainSessionId(state) || ""; });
 			const summaries = props.useSessions(function (state) { return state.byId; });
 			const workspaceId = props.useWorkspaces(function (state) { return props.conversationHost.workspaceId(state, current); });
 			const [cards, setCards] = React.useState([]);
