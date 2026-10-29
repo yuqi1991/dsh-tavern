@@ -3,6 +3,7 @@ import { sessionEvents } from './session-events.js'
 import { commitConversationHistoryTransaction } from './conversation-algebra-history.js'
 import { computeFold, operationCommitted, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
 import { createConversationAlgebraHostAdapter } from './conversation-algebra-host-adapter.js'
+import { branchRegistryOf } from './floor-projection.js'
 
 /** Recover an uncommitted replacement from its durable pre-rollback revision. */
 export function createRegenerationRecovery({ chats, sessions, timeline, isActive, algebraHistory }) {
@@ -44,6 +45,14 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       const saved = current.regenRecovery || {}
       if (!saved.preCheckoutBranchId) return
       assertNoPlayerInput(sessionEvents(session), eventStart)
+      // The pre-checkout is one selection that carries its branch: when that
+      // branch is not in the log the selection never landed, the surface is still
+      // the original line, and there is nothing to return to. Drop the pending
+      // intent so it cannot land later and strand the restored Chat.
+      if (!branchRegistryOf(session)?.branches?.some(item => item.branchId === saved.preCheckoutBranchId)) {
+        if (current.conversationHistoryIntent?.transaction?.branchId === saved.preCheckoutBranchId) delete current.conversationHistoryIntent
+        return current
+      }
       const transaction = await algebraHistory.prepare(session, current, saved.preCheckoutBranchId)
       current.regenRecovery = { ...saved, abortTransaction: transaction }
       return current
@@ -137,10 +146,11 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
       if (!session) throw new Error('无法加载重新生成的原生会话，恢复点已保留')
       if (chat.regenRecovery?.phase === 'committed') return await complete({ chatId, session, operationId: chat.regenRecovery.id })
       const before = await originalState(chat)
-      const eventStart = chat.regenRecovery?.eventStart
-      if (!Number.isSafeInteger(eventStart) || eventStart < 0 || eventStart > sessionEvents(session).length) {
-        throw new Error('重新生成的原生历史边界不匹配，恢复点已保留')
-      }
+      const saved = chat.regenRecovery?.eventStart
+      if (!Number.isSafeInteger(saved) || saved < 0) throw new Error('重新生成的原生历史边界不匹配，恢复点已保留')
+      // A log that is now SHORTER than at the start lost its unflushed tail, and
+      // with it everything the reroll had written: the boundary is the log's end.
+      const eventStart = Math.min(saved, sessionEvents(session).length)
       return await abort({ chatId, originalChat: before, session, eventStart, operationId: chat.regenRecovery?.id })
     } finally {
       if (handle) await handle.dispose()

@@ -181,3 +181,35 @@ test('refusals that remain carry structural evidence in the diagnostics store', 
   assert.deepEqual(stages, [['rollback-target', 'compaction-boundary'], ['body-edit-target', 'floor-body-not-on-surface'], ['regeneration-target', 'native-target-missing']])
   assert.doesNotMatch(JSON.stringify(h.diagnosticRecords), /正文2|正文3|摘要/, 'structure only, never text')
 }))
+
+for (const operation of ['rollback', 'regenerate', 'edit']) {
+  test(`a reroll whose pre-checkout never reached the log is dropped, not retried, before ${operation}`, () => withHostPatch(async () => {
+    const h = createPlayHarness()
+    await h.play('a'); await h.play('b')
+    h.crashBefore('conversation-algebra.history-recover')   // the checkout intent is durable, the selection never landed
+    await assert.rejects(h.regenerate(), /simulated crash/)
+    assert.ok(h.chat.conversationHistoryIntent)
+    h.chat = { ...h.chat, settleStatus: 'done' }
+    const nodes = [...h.session.surface.nodes]
+    if (operation === 'rollback') { await h.rollback(); assert.deepEqual(h.surfaceInputs(), ['a']) }
+    if (operation === 'regenerate') { await h.regenerate(); assert.deepEqual(h.surfaceInputs(), ['a', 'b']); assert.equal(h.surfaceBodies().at(-1), '正文4') }
+    if (operation === 'edit') { await h.editBody('x'); assert.equal(h.surfaceBodies().at(-1), 'x'); assert.deepEqual([...h.session.surface.nodes].slice(0, nodes.length - 1), nodes.slice(0, -1)) }
+    assert.equal(Boolean(h.chat.regenInProgress), false)
+    assert.equal(h.chat.regenRecovery, undefined)
+    assert.equal(h.chat.conversationHistoryIntent, undefined, 'the abandoned pre-checkout cannot land later')
+  }))
+}
+
+test('a log that lost its unflushed tail does not strand the reroll recovery point', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  await h.play('a')
+  h.crashBefore('conversation-algebra.history-recover')
+  await assert.rejects(h.regenerate(), /simulated crash/)
+  const start = h.chat.regenRecovery.eventStart
+  h.rewriteLog(events => events.slice(0, -2))             // step/end and turn/end never reached the disk
+  assert.ok(h.events.length < start)
+  h.chat = { ...h.chat, settleStatus: 'done' }
+  await h.rollback()
+  assert.equal(Boolean(h.chat.regenInProgress), false)
+  assert.equal(h.chat.regenRecovery, undefined)
+}))

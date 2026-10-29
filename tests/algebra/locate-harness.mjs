@@ -98,7 +98,13 @@ export function createPlayHarness({ frames = false } = {}) {
       return structuredClone(chat)
     }
   }
-  const sessions = { get: () => agent, getSession: () => session, flush: async () => {} }
+  let tornTransaction = false
+  const sessions = { get: () => agent, getSession: () => session, flush: async () => {
+    // A multi-write transaction whose first write reached the log but not the rest.
+    const last = sessionEvents(session).at(-1)
+    const tag = (last?.type === 'user/message' ? last.data : last?.data?.message)?.source?.conversationTransaction
+    if (tornTransaction && tag?.phase === 'begin') { tornTransaction = false; throw new Error('simulated crash after the first write of ' + tag.operationId) }
+  } }
   const options = { chats, sessions, timeline,
     scripts: { read: async () => ({ chunks: ['一'] }), continuity: { transition: () => ({ state: { cursor: 0 } }) }, dispatchEvent: async () => {} },
     queueSettlement: async () => { calls.push('settlement'); chat = { ...chat, settleStatus: 'done' } }, cancelSettlement: async () => {},
@@ -111,6 +117,8 @@ export function createPlayHarness({ frames = false } = {}) {
     calls, agent, timeline, diagnosticRecords,
     /** The next Chat write with this `source` never happens (process death before it). */
     crashBefore(source) { crashes.add(source) },
+    /** The next multi-write transaction dies after its first write (torn log tail). */
+    tearNextTransaction() { tornTransaction = true },
     get session() { return session },
     /** Sessions edited by builds before tavernStoryTurn existed: edit-step bodies keep only their own turn. */
     stripStoryTurns() { harness.rewriteLog(events => { for (const event of events) { const source = event.data?.message?.source; if (source && source.tavernStoryTurn !== undefined) delete source.tavernStoryTurn } return events }) },
