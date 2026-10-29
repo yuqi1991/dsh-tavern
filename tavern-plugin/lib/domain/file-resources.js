@@ -578,11 +578,11 @@ export function createFileResourceStore(options = {}) {
     return { available: working !== undefined || original === null, workingExists:working !== undefined,
       originalExists:original !== null, reason:working === undefined && original !== null ? '副本原版资源已存在，请换名' : null }
   }
-  function saveMvuCard({ sourcePath, targetPath, document, expectedSourceText, expectedTargetText, finalize }) {
+  function saveMvuCard({ sourcePath, targetPath, inPlace = false, document, expectedSourceText, expectedTargetText, finalize }) {
     const operation = copyTail.then(async () => {
       await ensure()
       const source = normalizeResourcePath(sourcePath, 'card'), target = normalizeResourcePath(targetPath, 'card')
-      if (source === target) throw new Error('MVU 转换不能覆盖原卡')
+      if ((source === target) !== (inPlace === true)) throw new Error(inPlace ? '原地 MVU 只能写回原卡' : 'MVU 转换不能覆盖原卡')
       if (await readText(source) !== expectedSourceText || await readText(target) !== expectedTargetText) throw new Error('人物卡已变化，请重新读取后转换')
       if (expectedTargetText === undefined && await originalCardName(target) !== null) throw new Error('副本原版资源已存在，请换名')
       const saved = clone(document), image = await readCardImage(source)

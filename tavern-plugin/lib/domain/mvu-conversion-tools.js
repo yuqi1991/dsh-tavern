@@ -25,11 +25,12 @@ export function registerMvuConversionTools({ tools, defineTool, conversion, chat
   }
   tools.register(defineTool({
     name:'tavern_card_draft',
-    description:'MVU 转换与变量修改统一入口。修改已有托管 MVU 卡：begin 传 path，自动载入原定义；转换普通卡：begin 传 sourcePath；后续默认操作本会话当前草稿，不传 draft；多草稿时用 d1/d2 等短编号选择。patch 分组修改，source 读或搜索来源，inspect 更新来源清单，read 看进度，validate 检查，commit 提交。仅卡片工作台可用。响应丢失时原样重试，程序自动去重；冲突时 read 后核对再修改。',
+    description:'MVU 转换与变量修改统一入口。修改已有托管 MVU 卡：begin 传 path，自动载入原定义；转换普通卡为独立副本：begin 传 sourcePath；给刚新建的卡直接加 MVU：begin 传 sourcePath 与 inPlace=true，写回同一张卡；后续默认操作本会话当前草稿，不传 draft；多草稿时用 d1/d2 等短编号选择。patch 分组修改，source 读或搜索来源，inspect 更新来源清单，read 看进度，validate 检查，commit 提交。仅卡片工作台可用。响应丢失时原样重试，程序自动去重；冲突时 read 后核对再修改。',
     parameters:{
       action:{type:'string',required:true,enum:['begin','read','source','inspect','patch','validate','commit']},
       sourcePath:{type:'string',description:'begin 转换普通卡的原卡路径；修改已有 MVU 卡直接传 path'},
       name:{type:'string',description:'begin 的目标副本名；已有副本自动载入其定义、各开场和美化'},
+      inPlace:{type:'boolean',description:'begin：true 表示把 MVU 直接加到 sourcePath 这张卡上，不另建副本，之后可直接改这张卡的剧情字段。用于新建卡或没有旧状态栏、只用自身内置世界书的卡；不传 name，不做 cleanup'},
       draft:{type:'string',description:'可省略，默认当前草稿；多草稿时传本会话返回的 d1/d2 等短编号。read 不带 path 刷新已读版本与草稿列表'},
       appearanceRequirement:{type:'string',enum:['custom','preserve','basic'],description:'begin：无原美化默认 custom（需 HTML 设计）；有原美化默认 preserve。basic 仅用户要求简单面板或已说明的设计回退'},
       basicReason:{type:'string',description:'选择 basic 时必填的依据'},

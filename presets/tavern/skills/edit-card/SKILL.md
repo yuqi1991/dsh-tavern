@@ -13,7 +13,7 @@ description: "修改已有的人物卡：调整设定、开场、文风、MVU �
 
 - 已有 MVU 卡的变量增删、改名、移动或开场初值：先按下方关联世界书规则识别定义归属；托管卡读取 [变量修改配方](references/mvu-variables.md)，用 tavern_card_draft 的 begin path 载入目标定义并局部修改。
 - 仅修改已有 MVU 面板的标签、重复字段名、布局或样式，且没有进行中的变量草稿：调用 `tavern_read_mvu_appearance`，参数 `path` 为目标副本。`editable=true` 时走下方美化流程。
-- 普通设定、开场和文风：用 `tavern_read_card` 读取相关字段，通过 `tavern_update_card` 保存需要的变更，再用 `tavern_validate_card` 校验。
+- 普通设定、开场和文风：用 `tavern_read_card` 读取相关字段，通过 `tavern_update_card` 保存需要的变更，再用 `tavern_validate_card` 校验。原地 MVU 卡（元数据 `selfSourced=true`）同样直接改：改开场正文时只写剧情文字，工具自动保留末尾的 `<initvar>` 与状态入口；增删开场会改变变量定义，改用 tavern_card_draft 的 begin path。
 - 定位：不确定要改的内容在哪，或要改多处时，先用 `tavern_search_card` 一次搜遍全卡（标准字段、开场、世界书标题/关键词/正文、正则、脚本），按返回的位置读取和修改，不必写脚本翻 JSON。
 - 改名、统一措辞等同一段文字要改多处时：`tavern_replace_card_text` 一次替换全卡并保存，结果列出每处位置和全卡剩余处数；只改部分位置时用 `pointers` 限定，`expectedCount` 可防止替换范围超出预期。
 - 美化返回 `editable=false`：按返回说明读取目标卡相关扩展。普通正则美化使用通用改卡工具；已转换卡出现方案外修改、缺失定义或来源固化美化时，先说明具体限制和保留方案，不把生成元数据当普通扩展直接修改。

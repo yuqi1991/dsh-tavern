@@ -146,7 +146,8 @@ export function createDefinition(source,args) {
 }
 export function assertDefinition(definition,meta,source) {
   if (definition.version!==1) throw Error('字段定义版本不支持')
-  if(source && (definition.sourceRevision!==source.revision || !isDeepStrictEqual(definition.inventory,stateInventory(source.data,definition.sourceFields)))) throw Error('字段来源发生变化')
+  // Self-sourced cards keep editing their story; legacy-field inventory only guided the first mapping.
+  if(source && (definition.sourceRevision!==source.revision || !source.self && !isDeepStrictEqual(definition.inventory,stateInventory(source.data,definition.sourceFields)))) throw Error('字段来源发生变化')
   for(const key of definitionKeys) if(!isDeepStrictEqual(meta[key],definition[key])) throw Error('成品缺少或改动已保存定义: '+key)
   for(const [index,fields] of definition.fields.entries()) for(const field of fields) {
     if(!isDeepStrictEqual(atPath(meta.openingStates[index],field.path),field.value)) throw Error('成品字段值丢失: '+field.path)

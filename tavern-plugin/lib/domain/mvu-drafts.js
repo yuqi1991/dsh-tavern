@@ -28,7 +28,7 @@ function requestKey(args) {
 }
 function validateArguments(args) {
   const common=['action','draftId','draftRevision']
-  const allowed={begin:['action','path','sourcePath','name','requestId','appearanceRequirement','basicReason'],read:[...common,'path','offset','limit'],source:[...common,'path','query','offset','limit'],inspect:common,validate:common,commit:[...common,'requestId'],patch:[...common,'requestId','section','values']}
+  const allowed={begin:['action','path','sourcePath','name','inPlace','requestId','appearanceRequirement','basicReason'],read:[...common,'path','offset','limit'],source:[...common,'path','query','offset','limit'],inspect:common,validate:common,commit:[...common,'requestId'],patch:[...common,'requestId','section','values']}
   const keys=allowed[args.action];if(!keys)fail('DRAFT_ACTION_INVALID','未知 action')
   if(args.action==='patch'){
     if(args.section==='fields')keys.push('operation','path','toPath')
@@ -71,12 +71,12 @@ export function createMvuDrafts({resources,conversion}) {
       ...(draft.receipt?{receipt:draft.receipt}:{})}
   }
   async function fresh(draft) {
-    const now=await conversion.convert({action:'inspect',sourcePath:draft.sourcePath,name:draft.name,detail:'summary'})
+    const now=await conversion.convert({action:'inspect',sourcePath:draft.sourcePath,name:draft.name,inPlace:draft.inPlace,detail:'summary'})
     if(now.sourceRevision!==draft.sourceRevision)fail('DRAFT_SOURCE_CHANGED','来源或世界书已变化；草稿保留，重新核对来源后建立新草稿',{sourceRevision:now.sourceRevision})
     return now
   }
   function definitionInput(draft) {
-    return {...draft.definition,updateRules:Object.entries(draft.rules).map(([group,text])=>group==='既有规则'?text:group+'\n'+text).join('\n\n'),sourcePath:draft.sourcePath,sourceRevision:draft.sourceRevision}
+    return {...draft.definition,updateRules:Object.entries(draft.rules).map(([group,text])=>group==='既有规则'?text:group+'\n'+text).join('\n\n'),sourcePath:draft.sourcePath,sourceRevision:draft.sourceRevision,inPlace:draft.inPlace}
   }
   async function check(draft) {
     const issues=missing(draft)
@@ -90,41 +90,43 @@ export function createMvuDrafts({resources,conversion}) {
   async function begin(args,context) {
     let info
     if(args.path!==undefined){
-      if(args.sourcePath!==undefined||args.name!==undefined)fail('DRAFT_ARGUMENT_INVALID','修改已有卡时只传 path，不同时传 sourcePath/name')
+      if(args.sourcePath!==undefined||args.name!==undefined||args.inPlace!==undefined)fail('DRAFT_ARGUMENT_INVALID','修改已有卡时只传 path，不同时传 sourcePath/name/inPlace')
       const target=await conversion.resolveDraftTarget(args.path)
-      info=await conversion.convert({action:'inspect',sourcePath:target.sourcePath,name:target.name,detail:'full'})
+      info=await conversion.convert({action:'inspect',sourcePath:target.sourcePath,name:target.name,inPlace:target.inPlace,detail:'full'})
       if(info.targetPath!==normalizeResourcePath(args.path,'card')||info.targetRevision!==target.revision)fail('DRAFT_TARGET_CHANGED','目标已变化，请重新读取')
       const {path,...rest}=args
-      args={...rest,sourcePath:target.sourcePath,name:target.name}
+      args=target.inPlace?{...rest,sourcePath:target.sourcePath,inPlace:true}:{...rest,sourcePath:target.sourcePath,name:target.name}
     }
+    if(args.inPlace!==undefined&&args.inPlace!==true)fail('DRAFT_ARGUMENT_INVALID','inPlace 只能为 true；转换为独立副本时省略')
+    if(args.inPlace&&args.name!==undefined)fail('DRAFT_ARGUMENT_INVALID','原地 MVU 写回原卡，不传副本名 name')
     if(args.requestId===undefined){
-      info=await conversion.convert({action:'inspect',sourcePath:args.sourcePath,name:args.name,detail:'full'})
+      info=await conversion.convert({action:'inspect',sourcePath:args.sourcePath,name:args.name,inPlace:args.inPlace,detail:'full'})
       const seed=canonical({...args,sourcePath:info.sourcePath,sourceRevision:info.sourceRevision,targetRevision:info.targetRevision,session:context?.sessionId||'local'})
       for(let generation=0;;generation++){
         const requestId='auto-'+hash([seed,generation])
-        const previous=await resources.readMvuDraft(hash({sourcePath:info.sourcePath,name:args.name||null,requestId}))
+        const previous=await resources.readMvuDraft(hash({sourcePath:info.sourcePath,name:args.name||null,requestId,...(args.inPlace?{inPlace:true}:{})}))
         if(previous?.phase==='committed')continue
         args=canonical({...args,sourcePath:info.sourcePath,requestId});break
       }
     }
     requestKey(args)
     const sourcePath=normalizeResourcePath(args.sourcePath,'card')
-    const identity={sourcePath,name:args.name||null,requestId:args.requestId}
+    const identity={sourcePath,name:args.name||null,requestId:args.requestId,...(args.inPlace?{inPlace:true}:{})}
     const id=hash(identity),requestHash=hash(args)
     // Replaying begin never discards an in-progress draft, even if its source changed.
     const previous=await resources.readMvuDraft(id)
     if(previous) {if(previous.beginHash!==requestHash)fail('DRAFT_REQUEST_REUSED','同一 requestId 不能用于不同参数');return summary(previous)}
-    info ||= await conversion.convert({action:'inspect',sourcePath,name:args.name,detail:'full'})
+    info ||= await conversion.convert({action:'inspect',sourcePath,name:args.name,inPlace:args.inPlace,detail:'full'})
     if(info.target?.externallyModified||info.target?.error)fail('DRAFT_TARGET_CHANGED','已有副本包含方案外修改；先核对，不能覆盖')
     const meta=info.existingTarget?.extensions?.[MVU_CONVERSION_KEY]
-    if(info.existingTarget&&(!meta?.definitionRevision||meta.sourcePath!==sourcePath||meta.sourceRevision!==info.sourceRevision))fail('DRAFT_TARGET_UNSUPPORTED','已有副本缺少当前来源的完整定义；需先核对转换方案')
+    if(info.existingTarget&&(meta||!args.inPlace)&&(!meta?.definitionRevision||meta.sourcePath!==sourcePath||meta.sourceRevision!==info.sourceRevision))fail('DRAFT_TARGET_UNSUPPORTED','已有副本缺少当前来源的完整定义；需先核对转换方案')
     const saved=meta?await resources.readMvuDefinition(meta.definitionRevision):null
     if(meta&&(!saved||hash(saved)!==meta.definitionRevision))fail('DRAFT_DEFINITION_INVALID','已保存定义缺失或被改动')
     const requirement=args.appearanceRequirement||(info.appearanceSources.some(x=>x.enabled)?'preserve':saved?.appearance?.sourcePath?'preserve':saved&&!saved.appearance?.html?'basic':'custom')
     if(!['custom','preserve','basic'].includes(requirement))fail('DRAFT_REQUIREMENT_INVALID','无效美化要求')
     const basicReason=args.basicReason||(saved&&requirement==='basic'?'保留已有基础面板':'')
     if(requirement==='basic'&&!(typeof basicReason==='string'&&basicReason.trim()))fail('DRAFT_REQUIREMENT_INVALID','选择基础面板需说明用户要求或设计回退依据')
-    const initial={id,beginHash:requestHash,revision:1,phase:'editing',sourcePath,sourceRevision:info.sourceRevision,targetPath:info.targetPath,targetRevision:info.targetRevision,name:info.targetPath.slice(6,-5),appearanceRequirement:requirement,basicReason,
+    const initial={id,beginHash:requestHash,revision:1,phase:'editing',sourcePath,...(args.inPlace?{inPlace:true}:{}),sourceRevision:info.sourceRevision,targetPath:info.targetPath,targetRevision:info.targetRevision,name:info.targetPath.slice(6,-5),appearanceRequirement:requirement,basicReason,
       definition:{initialState:saved?.initialState||{},openingStates:saved?.openingStates||Array.from({length:info.capabilities.openingCount},()=>null),sourceFields:saved?.sourceFields||[],fieldMappings:saved?.mappings||[],...(saved?.appearance?{appearance:saved.appearance}:{}),displayFields:saved?.displayFields||[]},
       rules:saved?{既有规则:saved.updateRules}:{},cleanup:meta?.cleanup||[],cleanupOrphanEntrances:false,review:{},requests:{},intent:null,receipt:null}
     ensureFieldSchema(initial)
@@ -149,6 +151,7 @@ export function createMvuDrafts({resources,conversion}) {
       Object.assign(draft.definition,structuredClone(values))
     } else if(section==='cleanup') {
       if(!Array.isArray(values))fail('DRAFT_VALUES_INVALID','cleanup values 必须是清理操作数组；替换草稿中完整清理清单')
+      if(draft.inPlace&&(values.length||args.cleanupOrphanEntrances))fail('DRAFT_VALUES_INVALID','原地 MVU 不清理旧协议；带旧状态栏的卡请转换为独立副本')
       draft.cleanup=structuredClone(values)
       if(args.cleanupOrphanEntrances!==undefined)draft.cleanupOrphanEntrances=args.cleanupOrphanEntrances
     } else if(section==='requirements') {
@@ -172,8 +175,8 @@ export function createMvuDrafts({resources,conversion}) {
     if(['source','inspect'].includes(args.action)){
       if(args.draftRevision!==draft.revision)fail('DRAFT_REVISION_CONFLICT','草稿已变化，请 read 获取最新凭据',{draftRevision:draft.revision})
       await fresh(draft)
-      if(args.action==='source')return {...summary(draft),source:await conversion.convert({action:args.query===undefined?'read':'search',sourcePath:draft.sourcePath,sourceRevision:draft.sourceRevision,path:args.path,query:args.query,offset:args.offset,limit:args.limit})}
-      const info=await conversion.convert({action:'inspect',sourcePath:draft.sourcePath,name:draft.name,sourceFields:draft.definition.sourceFields,detail:'summary'})
+      if(args.action==='source')return {...summary(draft),source:await conversion.convert({action:args.query===undefined?'read':'search',sourcePath:draft.sourcePath,sourceRevision:draft.sourceRevision,inPlace:draft.inPlace,path:args.path,query:args.query,offset:args.offset,limit:args.limit})}
+      const info=await conversion.convert({action:'inspect',sourcePath:draft.sourcePath,name:draft.name,inPlace:draft.inPlace,sourceFields:draft.definition.sourceFields,detail:'summary'})
       return {...summary(draft),sourceCatalog:info.catalog,stateInventory:info.stateInventory,appearanceSources:info.appearanceSources}
     }
     if(args.action==='read') {
@@ -204,7 +207,7 @@ export function createMvuDrafts({resources,conversion}) {
       const validation=await check(current)
       if(!validation.valid)fail('DRAFT_INCOMPLETE','草稿未通过检查；已保存内容保留，不写成品',{saved:true,committed:false,issues:validation.issues})
       const saved=await conversion.convert({...definitionInput(current),action:'saveDefinition'})
-      const preview=await conversion.convert({action:'preview',sourcePath:current.sourcePath,sourceRevision:current.sourceRevision,name:current.name,
+      const preview=await conversion.convert({action:'preview',sourcePath:current.sourcePath,sourceRevision:current.sourceRevision,name:current.name,inPlace:current.inPlace,
         ...(current.targetRevision?{targetRevision:current.targetRevision}:{}),definitionRevision:saved.definitionRevision,
         [DRAFT_FIELD_CHANGES]:current.fieldChanges||[],planMode:'replace',cleanup:current.cleanup,cleanupOrphanEntrances:current.cleanupOrphanEntrances})
       if(!preview.validation.valid)fail('DRAFT_INCOMPLETE','生成校验未通过；草稿保留，不写成品',{saved:true,committed:false,issues:preview.validation.checks.filter(x=>x.status==='failed')})
@@ -218,7 +221,7 @@ export function createMvuDrafts({resources,conversion}) {
       if(current.requests[key])return current
       if(current.intent?.hash!==requestHash)fail('DRAFT_COMMIT_PENDING','提交意图已变化')
       await fresh(current)
-      const result=await conversion.convert({action:'apply',sourcePath:current.sourcePath,sourceRevision:current.sourceRevision,name:current.name,
+      const result=await conversion.convert({action:'apply',sourcePath:current.sourcePath,sourceRevision:current.sourceRevision,name:current.name,inPlace:current.inPlace,
         ...(current.targetRevision?{targetRevision:current.targetRevision}:{}),definitionRevision:current.intent.definitionRevision,
         [DRAFT_FIELD_CHANGES]:current.fieldChanges||[],planMode:'replace',cleanup:current.cleanup,cleanupOrphanEntrances:current.cleanupOrphanEntrances})
       current.receipt={committed:true,committedAt:new Date().toISOString(),definitionRevision:current.intent.definitionRevision,...result}

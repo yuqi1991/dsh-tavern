@@ -11,7 +11,7 @@ description: "把人物卡转换为独立 MVU 副本，或调整转换后的变�
 
 ## 1. 建立草稿并读取来源
 
-用 `tavern_card_draft.begin`，传原卡 `sourcePath`，目标 `name` 可省略。目标是已有 MVU 副本时仍使用原卡路径与相同副本名，工具自动载入已有字段、各开场、规则、美化和清理。不得把副本再次当成来源转换。
+用 `tavern_card_draft.begin`，传原卡 `sourcePath`，目标 `name` 可省略。刚新建、没有旧状态栏且只用自身内置世界书的卡，改传 `inPlace=true`（不传 name）：MVU 直接加到原卡上，不生成副本，cleanup 留空，其余步骤相同。目标是已有 MVU 副本时仍使用原卡路径与相同副本名，工具自动载入已有字段、各开场、规则、美化和清理。不得把副本再次当成来源转换。
 
 无原美化默认要求 `custom`，需要设计 HTML；有原美化默认 `preserve`，直接绑定原视图。只有用户明确要求简单面板，或设计失败且已说明回退时，才选择 `appearanceRequirement=basic` 并提供 `basicReason`。基础字段面板不等于定制美化完成。进行中确需改变要求时，patch requirements 明确新要求与依据，保留已填写内容。
 

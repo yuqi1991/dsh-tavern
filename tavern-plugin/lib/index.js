@@ -12,7 +12,8 @@ import { createLiveCardUpdate } from './domain/live-card-update.js'
 import { createSessionViewReader, createSessionChatReader } from './domain/session-view-reader.js'
 import { createSessionStateView, settlementTurn, pendingMvuSettlementState, projectDisplayRuntimeState } from './domain/chat-session-state.js'
 import { createSettlementJobs } from './domain/settlement-jobs.js'
-import { createMvuConversion } from './domain/mvu-conversion.js'
+import { createMvuConversion, cardData as mvuCardData } from './domain/mvu-conversion.js'
+import { preserveSelfSourcedGreetings } from './domain/mvu-self-source.js'
 import { registerMvuConversionTools } from './domain/mvu-conversion-tools.js'
 import { rescueHistoryNotice } from './domain/chat-history-rescue.js'
 import { readHostCompatibility } from './domain/host-compatibility.js'
@@ -1213,6 +1214,7 @@ export async function apply(ctx) {
   async function updateCard(cardPath, patch, revision, rawOperations) {
     const workspace = await readCardWorkspace(cardPath)
     if (workspace === undefined) throw new Error('人物卡不存在: ' + cardPath)
+    patch = preserveSelfSourcedGreetings(mvuCardData(workspace), patch)
     const change = cardPreparation.update({ kind: 'card', card: workspace, patch: patch, revision: revision, rawOperations: rawOperations })
     const savedWorkspace = change.card
     if (!change.changed) {
