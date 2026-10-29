@@ -71,3 +71,19 @@ ADR-0008 把重新生成和变体切换都定义为 `checkout`，也就是移动
   - 新增一个必需事件类型：没有 Tavern 补丁时会话无法打开；
   - 宿主补丁多覆盖服务端 fold、持久化、查询、迁移和客户端 fold 副本，每处都要有测试；
   - 存量会话的体积不会因此变小。
+
+## 补充：DSH 0.2.1 的上下文占用投影（2026-10-29）
+
+0.2.1 的 token meter 除 `_foldEvent` 外，还注册了 `contextPressure`（页面上的上下文百分比）和 `contextBreakdown`（系统 / 工具 / 对话分项）两个会话投影，各自把 surface 折叠成有界标量，只认带 `surfaceOp` 的事件。实测（离线、真实 Session 加补丁，`tests/context-projection-select-native.test.mjs` 的对照用例）：
+
+- 两个投影都**忽略 `select`**：回退到第 1 轮后真实占用 1220，投影仍报 3436（+182%）；
+- 一次没有相邻影子价格事件的 `replace`（重新生成、正文编辑）在 `contextPressure` 里按零差值折叠，同样漂移（真实 1736，报 3436）。
+
+自动压缩读 `meter.measure().totalTokens`，走已被适配的 `_foldEvent`，**不受影响**；受影响的是页面的占用百分比和分项明细。`tokenUsage` 是服务商用量累计，与 surface 无关，也不受影响。
+
+投影是 `(state, event)` 的纯折叠，并会在没有 Session 的冷恢复里被驱动，所以 `select` 不能回头查日志。适配（`tavern-plugin/lib/domain/tavern-context-projections.js`）因此给这两个投影的状态多带一个 `tavern` 字段：每个 surface 事件的启发式价格表和当前 surface 顺序。`select` 按所选节点重置总量，`replace` 精确扣掉被替换的节点。价格由宿主自己的折叠在 append 副本上算出，两处定价不会分叉。
+
+- 做法是在 `sessionProjections` 注册表里换掉这两个定义（并包住后续的 `register`，token meter 重载也会被适配），状态版本取 `上游 × 1000 + 1`，旧版本缓存行会重新折叠；
+- 不依赖文本锚点，依赖的是上游状态版本：`contextPressure` = 5、`contextBreakdown` = 6，其他版本明确报错，不静默误读；
+- 启动自检在真实定义上证明“替换与选择之后的状态 = 把幸存节点当作 append 重新折叠”，不通过则不安装；
+- 代价：状态从 O(1) 变为 O(surface 事件数)，约每条消息 12 字节每投影；一万条消息的完整折叠约 50ms（库存约 4ms）。
