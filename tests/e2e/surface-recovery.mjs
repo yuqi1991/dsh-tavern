@@ -22,6 +22,9 @@ export async function surfaceRecoveryChecks({ page, step, savedChat, output, rep
     for (const file of await readdir(directory, { recursive: true })) {
       if (!/session\.v[34]\.jsonl\.zstd$/.test(file)) continue
       const parsed = parseSessionLog(await readFile(join(directory, file)))
+      // V4 files store consecutive source references as [start, end] pairs.
+      const expand = refs => refs.flatMap(ref => Array.isArray(ref) ? Array.from({ length: ref[1] - ref[0] + 1 }, (_, index) => ref[0] + index) : [ref])
+      parsed.events = parsed.events.map(event => Array.isArray(event.sourceEventSeqs) ? { ...event, sourceEventSeqs: expand(event.sourceEventSeqs) } : event)
       if (parsed.header.id === chat.sessionId) return { ...parsed, session: Session.create(chat.sessionId, parsed.events, parsed.header) }
     }
     throw Error('本次游玩原生会话尚未落盘')
