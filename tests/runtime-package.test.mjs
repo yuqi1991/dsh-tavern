@@ -30,10 +30,14 @@ for (const [name, paths] of [
   ['Unix', unix.match(/^RUNTIME_PATHS='([^']+)'/m)[1].split(/\s+/)],
   ['Windows', [...windows.match(/\$RuntimePaths = @\(([\s\S]*?)\)/)[1].matchAll(/'([^']+)'/g)].map(match => match[1])],
 ]) {
-  test(`${name} 实际 Git 运行包包含所有依赖补丁，不打包文档`, () => {
+  test(`${name} 实际 Git 运行包包含所有依赖补丁，不打包文档`, async t => {
     // The two installers use identical Git path selection, independent of tar/zip format.
-    const archive = execFileSync('git', ['archive', '--format=tar', process.env.DSH_TEST_ARCHIVE_TREE || 'HEAD', '--', ...paths], { cwd: root, maxBuffer: 50 * 1024 * 1024 })
-    const files = execFileSync('tar', ['-tf', '-'], { input: archive, encoding: 'utf8' }).split(/\r?\n/)
+    // List from a file like the installers do: the archive can exceed any stdout buffer.
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'tavern-runtime-archive-'))
+    t.after(() => rm(directory, { recursive: true, force: true }))
+    const archive = path.join(directory, 'app.tar')
+    execFileSync('git', ['archive', '--format=tar', `--output=${archive}`, process.env.DSH_TEST_ARCHIVE_TREE || 'HEAD', '--', ...paths], { cwd: root })
+    const files = execFileSync('tar', ['-tf', archive], { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 }).split(/\r?\n/)
     for (const file of required) assert.ok(files.includes(file), `运行包遗漏：${file}`)
     assert.ok(!files.some(file => /^(docs|tests|references)\//.test(file)))
   })

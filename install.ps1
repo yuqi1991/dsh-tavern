@@ -186,7 +186,7 @@ try {
     } catch { Write-Warning "诊断日志写入失败：$($_.Exception.Message)" }
   }
   function Assert-InstallFiles([string]$Root) {
-    foreach ($Relative in @('package.json', 'pnpm-lock.yaml', 'bin\dsh-compatibility.mjs', 'bin\dsh-tavern.mjs', 'bin\desktop-package-manager.mjs', 'config\dsh-compatibility.json')) {
+    foreach ($Relative in @('package.json', 'pnpm-lock.yaml', 'bin\dsh-compatibility.mjs', 'tavern-plugin\lib\domain\host-compatibility.js', 'bin\dsh-tavern.mjs', 'bin\desktop-package-manager.mjs', 'config\dsh-compatibility.json')) {
       $Required = Join-Path $Root $Relative
       if (-not (Test-Path -LiteralPath $Required -PathType Leaf)) { throw "安装文件不完整，缺少：$Required" }
     }

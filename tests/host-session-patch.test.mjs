@@ -182,6 +182,10 @@ test('宿主启动脚本是符号链接时，按真实路径找到运行中的�
   write('dsh-tools', { 'package.json': '{"name":"@deepseek-ai/dsh-tools","main":"lib/index.js"}', 'lib/index.js': 'module.exports = {}' })
   write('dsh-session-persistence', { 'package.json': '{"name":"@deepseek-ai/dsh-session-persistence","main":"lib/index.js"}', 'lib/index.js': 'class StagePersistence {}\nmodule.exports = { StagePersistence }' })
   write('dsh', { 'package.json': '{"name":"@deepseek-ai/dsh"}', 'lib/bin.js': '' })
+  // The resolver wants every package the patch touches to come from the same runtime.
+  for (const name of ['dsh-session', 'dsh-session-persistence-jsonl', 'dsh-session-query', 'dsh-session-format-catalog', 'dsh-session-format-v2-to-v3', 'dsh-session-format-v3-to-v4', 'dsh-api-session-controller', 'dsh-subprocess-local']) {
+    write(name, { 'package.json': JSON.stringify({ name: '@deepseek-ai/' + name, main: 'lib/index.js', exports: { '.': './lib/index.js', './client': './lib/client.js', './package.json': './package.json' } }), 'lib/index.js': 'module.exports = {}', 'lib/client.js': 'module.exports = {}' })
+  }
   mkdirSync(join(root, 'runtime/bin'), { recursive: true })
   symlinkSync('../lib/node_modules/@deepseek-ai/dsh/lib/bin.js', join(root, 'runtime/bin/dsh'))
   const { StagePersistence } = createRequire(join(modules, 'dsh-session-persistence/lib/index.js'))('./index.js')

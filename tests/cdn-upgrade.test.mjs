@@ -44,7 +44,7 @@ test('旧版 Desktop 经最新安装脚本走 CDN 覆盖升级：运行文件落
     ['bin/desktop-package-manager.mjs', Buffer.from('console.log(' + JSON.stringify(mocks) + ');')],
     ['bin/dsh-tavern.mjs', Buffer.from("import fs from 'node:fs'; fs.writeFileSync(new URL('../installed.txt', import.meta.url), process.argv.slice(2).join(' '));\n")],
   ])
-  for (const file of [...patches, 'bin/dsh-compatibility.mjs', 'config/dsh-compatibility.json']) {
+  for (const file of [...patches, 'bin/dsh-compatibility.mjs', 'tavern-plugin/lib/domain/host-compatibility.js', 'config/dsh-compatibility.json']) {
     files.set(file, await readFile(new URL('../' + file, import.meta.url)))
   }
   const revision = 'b'.repeat(40)

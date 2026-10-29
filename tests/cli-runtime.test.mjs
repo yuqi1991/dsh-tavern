@@ -93,7 +93,7 @@ for (const host of ['desktop', 'android']) {
     assert.equal(migrateCliHome({ source, target }), false)
     const notice = dshCompatibilityNotice('99.0.0', host)
     assert.match(notice, /已停止安装/)
-    assert.match(notice, /https:\/\/github.com\//)
+    assert.match(notice, /https:\/\/www.deepseek.com\/harness\//)
   })
 }
 
