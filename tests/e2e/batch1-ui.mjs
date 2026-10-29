@@ -22,7 +22,7 @@ export async function batch1UiChecks({ page, step, output, errors }) {
     await shot('guide-save-dialog')
     await dialog().getByRole('textbox').fill('验收方案')
     await dialog().getByRole('button', { name: /确定|保存|确认/ }).click()
-    await page.getByText('已保存到 Guide 库', { exact: false }).waitFor()
+    await page.getByText('已保存到 Guide 库', { exact: false }).filter({ visible: true }).first().waitFor()
   })
   await step('Guide 库标签：列出、修改、加载、删除', async () => {
     await page.getByRole('button', { name: '打开 Guide 库 ↗' }).click()
@@ -31,7 +31,7 @@ export async function batch1UiChecks({ page, step, output, errors }) {
     await page.getByRole('button', { name: '修改', exact: true }).click()
     await page.getByLabel('Guide 1').fill('验收用 Guide：改过的内容')
     await page.getByRole('button', { name: '保存修改' }).click()
-    await page.getByText('已保存到 Guide 库', { exact: false }).waitFor()
+    await page.getByText('已保存到 Guide 库', { exact: false }).filter({ visible: true }).first().waitFor()
     await page.getByText('查看指导（1 条）').click()
     await page.getByText('验收用 Guide：改过的内容', { exact: true }).waitFor()
     await page.getByRole('button', { name: '加载到本局' }).click()
@@ -42,7 +42,7 @@ export async function batch1UiChecks({ page, step, output, errors }) {
     await shot('guide-library-after')
   })
   await step('台账区块与更新按钮', async () => {
-    await page.getByText('酒馆状态', { exact: true }).filter({ visible: true }).last().click()
+    await page.locator('[data-dockkit-tab-title]').filter({ hasText: /^酒馆状态$/ }).filter({ visible: true }).first().click()
     await page.locator('.dsh-ledger-toggle').waitFor()
     const update = page.getByRole('button', { name: '更新游玩台账' })
     await update.waitFor()
