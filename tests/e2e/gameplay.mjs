@@ -18,6 +18,7 @@ import { batch1UiChecks } from './batch1-ui.mjs'
 import { batch3ImageChecks } from './batch3-images.mjs'
 import { batch3SaveChecks } from './batch3-saves.mjs'
 import { renderDepthChecks } from './render-depth.mjs'
+import { mobileSidebarChecks } from './mobile-sidebar.mjs'
 import { mkdtemp, mkdir, writeFile, readFile, symlink, rm, readdir, cp, access } from 'node:fs/promises'
 import { join, resolve, dirname } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
@@ -279,6 +280,8 @@ try {
     await incrementalMvuChecks({page,step,savedChat,output,report,restartServer})
   } else if (process.argv.includes('--background-lifecycle')) {
     await backgroundLifecycleChecks({page,step,savedChat,data,output,report,restartServer})
+  } else if (process.argv.includes('--mobile-sidebar')) {
+    await mobileSidebarChecks({page,step,output,report})
   } else if (displayScenario) {
     await displayRegressionChecks({page,step,savedChat,data,output,report,restartServer})
   } else if (compactionScenario) {

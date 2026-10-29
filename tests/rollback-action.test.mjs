@@ -25,7 +25,7 @@ function harness() {
   const context = {
     React: {
       Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }),
-      useRef: value => ({ current: value }), useEffect() {},
+      useRef: value => ({ current: value }), useEffect() {}, useLayoutEffect() {},
       useState(initial) {
         const index = cursor++
         if (!(index in states)) states[index] = initial

@@ -143,6 +143,8 @@ try {
   await input.dispatchEvent('keydown', { key: 'Enter', isComposing: true })
   await page.waitForTimeout(150)
   assert.equal(await page.evaluate(() => window.__result.settled), false, 'composition Enter does not submit')
+  await input.dispatchEvent('keydown', { key: 'Enter', isComposing: false, keyCode: 229 })
+  assert.equal(await page.evaluate(() => window.__result.settled), false, 'WebKit composition confirmation does not submit after compositionend')
   await cancelButton.click()
   await outcome()
 

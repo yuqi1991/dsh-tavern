@@ -66,7 +66,7 @@ test('全局默认模型保存成功才更新选择，失败保留原配置', as
   let cursor = 0, fail = false
   const render = vm.runInNewContext('(' + source.slice(source.indexOf('function TavernSettingsSection()'), source.indexOf('function UserPreferenceProfileTab(props)')).trim() + ')', {
     React: { useState(initial) { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value }] }, useEffect(fn) { effects.push(fn) }, createElement: (type, props, ...children) => ({ type, props, children }) },
-    PromptTemplateSettingsEntry: 'templates', CandidatePreferencesSettings: 'candidates', DisplayPreferencesSettings: 'display-preferences', TavernConversationWritingSkills: 'writing-skills', TavernDefaultModelSetting: 'model-setting', TavernTextColorSettings: 'text-color', ContextCompactionSettings: 'compaction', SceneImageSettings: 'images',
+    PromptTemplateSettingsEntry: 'templates', CandidatePreferencesSettings: 'candidates', DisplayPreferencesSettings: 'display-preferences', HeaderItemsSettings: 'header-items', TavernConversationWritingSkills: 'writing-skills', TavernDefaultModelSetting: 'model-setting', TavernTextColorSettings: 'text-color', ContextCompactionSettings: 'compaction', SceneImageSettings: 'images',
     rpc: async (method, args) => { calls.push({ method, args }); if (fail) throw Error('保存失败测试'); return { settings: { defaultForegroundModel: null, defaultBackgroundModel: null, ...args?.patch }, modelCatalog: [] } }
   })
   function tree() { cursor = 0; return render().children }
