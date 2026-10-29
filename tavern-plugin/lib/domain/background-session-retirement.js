@@ -47,9 +47,10 @@ export function installRetiredBackgroundFilter(subagents, retirement, sessionQue
     if (typeof original !== 'function') continue
     const wrapped = async function (parentId, signal) {
       const rows = await original.call(this, parentId, signal)
-      const result = await retirement.filter(rows, parentId)
+      // DSH 0.2 catalog rows ({ id, createdAt, mode, label }) carry no kind: every row listed here is a child.
+      const visible = new Set((await retirement.filter(rows.map(row => row.kind ? row : { ...row, kind: 'child' }), parentId)).map(row => row.id))
       signal?.throwIfAborted()
-      return result
+      return rows.filter(row => visible.has(row.id))
     }
     subagents[method] = wrapped
     restore.push(() => { if (subagents[method] === wrapped) subagents[method] = original })
