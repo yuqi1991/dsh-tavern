@@ -7,6 +7,11 @@
 `TAVERN_E2E_TIMEOUT_MS=60000 node tests/e2e/gameplay.mjs --preset-hub`
 在“预设”标签页选择酒馆预设、系统提示词方案和长期偏好，勾选其中几项导出成一个文件再导入。验收：三项都作为新方案加入并设为使用中，原有内容不被覆盖；详情能进入原编辑页、单独导出、删除方案并返回。约 20 秒。
 
+## 原生 #send_textarea 输入框桥
+
+`node tests/e2e/gameplay.mjs --composer-bridge`
+人物卡脚本把选项写进原生 `#send_textarea`（原生事件或 jQuery `.val().trigger('input')`）：选项出现在宿主输入框并保留已有草稿；手机宽度下聚焦屏幕外的 `#send_textarea`（`inputmode=none`、在视口之外）不使宿主输入框获得焦点；脚本点 `#send_but` 后选项作为玩家消息发送并落盘。真机软键盘是否弹出无法在这里验证。约 20 秒。
+
 ## 运行
 
 安装项目依赖并准备 Chromium：
