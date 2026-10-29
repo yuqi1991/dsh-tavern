@@ -15,6 +15,7 @@ import { compactionChecks } from './compaction.mjs'
 import assert from 'node:assert/strict'
 import { presetSwitch } from './preset-switch.mjs'
 import { playControls } from './play-controls.mjs'
+import { locateOperations } from './locate-operations.mjs'
 import { batch1UiChecks } from './batch1-ui.mjs'
 import { batch3ImageChecks } from './batch3-images.mjs'
 import { batch3SaveChecks } from './batch3-saves.mjs'
@@ -401,6 +402,7 @@ try {
       await inspectRound('after-rollback', 10, '你获得了十枚金币。', 1)
     })
     await playControls({ page, step, savedChat, inspectRound, output, report })
+    await locateOperations({ page, step, savedChat, report })
     await presetSwitch({ page, step, savedChat, inspectRound, output, report })
   }
   if (process.argv.includes('--card-mvu')) await cardMvuChecks({ page, step, data, output, report })

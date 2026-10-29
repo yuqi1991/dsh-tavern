@@ -213,3 +213,18 @@ test('a log that lost its unflushed tail does not strand the reroll recovery poi
   assert.equal(Boolean(h.chat.regenInProgress), false)
   assert.equal(h.chat.regenRecovery, undefined)
 }))
+
+test('a torn two-write settlement is finished from its saved plan before the rollback that follows', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  await h.play('a')
+  h.tearNextTransaction()                              // regen-complete: input rewrite written, retirement not
+  await assert.rejects(h.regenerate('', '改写'), /simulated crash after the first write/)
+  const phases = h.events.map(event => (event.data?.message ?? event.data)?.source?.conversationTransaction?.phase).filter(Boolean)
+  assert.equal(phases.at(-1), 'begin', 'the log ends in a begin without its commit')
+  h.chat = { ...h.chat, settleStatus: 'done' }
+  await h.rollback()
+  assert.deepEqual(h.surfaceInputs(), [])
+  assert.equal(Boolean(h.chat.regenInProgress), false)
+  const tail = h.events.map(event => (event.data?.message ?? event.data)?.source?.conversationTransaction).filter(Boolean).filter(tag => tag.operationId.startsWith('regen-complete:'))
+  assert.deepEqual(tail.map(tag => tag.phase), ['begin', 'commit'])
+}))
