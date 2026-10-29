@@ -357,3 +357,11 @@ for (const spec of ['flat', 'chara_card_v2', 'chara_card_v3']) test('变量编�
   assert.equal(rawNamed.nameChanged, true)
   assert.equal(cards.update({ kind: 'card', card: workspace, patch: { name: '原名' } }).nameChanged, false)
 })
+
+test('raw 取出工作区里的完整卡片 JSON（卡片工作台搜索、替换、MVU 工具依赖它）', () => {
+  const cards = moduleUnderTest()
+  const workspace = cards.create({ kind: 'import', payload: { kind: 'text', text: JSON.stringify({ spec: 'chara_card_v2', spec_version: '2.0', data: { name: '甲', first_mes: '你好' } }) } })
+  assert.equal(cards.raw(workspace).data.first_mes, '你好')
+  const plain = { spec: 'chara_card_v2', data: { name: '乙' } }
+  assert.equal(cards.raw(plain), plain)
+})
