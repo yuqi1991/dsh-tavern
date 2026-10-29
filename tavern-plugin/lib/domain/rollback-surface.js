@@ -401,14 +401,15 @@ function unclearedFailedTail(chat, events, nodes) {
 export function rollbackNativeTurns(chat, events, visibleTurn, nodes) {
   return floorNativeTurns(projectChatFloors(chat, events, nodes), visibleTurn)
 }
+
 /**
  * The surface rows a rollback of the Chat's latest floor clears, from the
  * floor projection (position), not from native turn numbers. The log decides:
  * - the floor is live on the surface: its player input is the anchor, whatever
  *   follows it (an orphan completed round the Chat never recorded, rows with
  *   other turn numbers) is cleared by the same selection;
- * - the floor is absent from a surface that provably ends before it (every
- *   live floor is older): the surface already excludes it, so only the Chat
+ * - the floor is absent from a surface that provably ends before it (no row of
+ *   that turn or later, no compaction summary): the surface already excludes it, so only the Chat
  *   steps back (`surfaceMissing`), and the usual branch + checkout still
  *   leaves a saved line to undo to;
  * - anything else cannot be mapped and stays refused.
@@ -416,22 +417,24 @@ export function rollbackNativeTurns(chat, events, visibleTurn, nodes) {
 function floorRollbackTarget(chat, events, nodes, turn, heuristic) {
   const projection = projectChatFloors(chat, events, nodes)
   const floor = projection.floors.find(item => item.turn === turn)
-  if (!floor) return heuristic
-  if (floor.inputSeq === null && heuristic && floorNativeTurns(projection, turn).has(heuristic.turn)) return heuristic
+  if (!floor) return { target: heuristic, refusal: heuristic ? '' : 'no-round-on-surface' }
+  if (floor.inputSeq === null && heuristic && floorNativeTurns(projection, turn).has(heuristic.turn)) return { target: heuristic, refusal: '' }
   if (floor.inputSeq !== null) {
     const index = nodes.indexOf(floor.inputSeq)
-    if (nodes.slice(index).some(seq => isCompactionCheckpoint(eventAt(events, seq)))) return null
-    if (heuristic && heuristic.userSeq === floor.inputSeq) return heuristic
+    if (nodes.slice(index).some(seq => isCompactionCheckpoint(eventAt(events, seq)))) return { target: null, refusal: 'compaction-boundary' }
+    if (heuristic && heuristic.userSeq === floor.inputSeq) return { target: heuristic, refusal: '' }
     const body = floor.bodySeq === null ? -1 : nodes.indexOf(floor.bodySeq)
-    return { ...rollbackTargetAt(events, nodes, index, body), turn: floor.bodyTurn || floor.turn }
+    return { target: { ...rollbackTargetAt(events, nodes, index, body), turn: floor.bodyTurn || floor.turn }, refusal: '' }
   }
   // Proof that the surface ends before the floor: it holds something, no
   // compaction summary that could still carry the floor's story, and no row of
   // this turn or later (a stray body, a renumbered round) that the Chat step
   // back would leave in the model's context.
-  if (nodes.length === 0 || nodes.some(seq => isCompactionCheckpoint(eventAt(events, seq))) || latestSurfaceTurn(events, nodes) >= turn) return null
+  if (nodes.length === 0) return { target: null, refusal: 'surface-empty' }
+  if (nodes.some(seq => isCompactionCheckpoint(eventAt(events, seq)))) return { target: null, refusal: 'compaction-boundary' }
+  if (latestSurfaceTurn(events, nodes) >= turn) return { target: null, refusal: 'floor-not-mappable' }
   const shadowedSeqs = Object.freeze([])
-  return Object.freeze({ userSeq: null, assistantSeq: null, endSeq: null, turn, step: 1, source: null, shadowedSeqs, surfaceMissing: true })
+  return { target: Object.freeze({ userSeq: null, assistantSeq: null, endSeq: null, turn, step: 1, source: null, shadowedSeqs, surfaceMissing: true }), refusal: '' }
 }
 
 // UI and mutation share the same native target and failed-tail precedence.
@@ -442,12 +445,13 @@ function planRollbackAvailability(chat, { events = [], nodes = [] } = {}) {
   const heuristic = locateRollbackSurface({ events, nodes })
   const messages = Array.isArray(chat.messages) ? chat.messages : []
   const latest = messages.findLast(message => message?.role === 'assistant' && message.greeting !== true)
-  if (isRescuedHistoryMessage(chat, latest)) return { canRollback: false, canClearIncompleteReply: false, failedTurns, target: null, reason: '存档救援导入的历史不可回退，请发送新消息继续' }
+  if (isRescuedHistoryMessage(chat, latest)) return { canRollback: false, canClearIncompleteReply: false, failedTurns, target: null, code: 'rescued-history', reason: '存档救援导入的历史不可回退，请发送新消息继续' }
   const turn = Number(latest?.turn)
-  const target = turn > 0 ? floorRollbackTarget(chat, events, nodes, turn, heuristic) : heuristic
+  const located = turn > 0 ? floorRollbackTarget(chat, events, nodes, turn, heuristic) : { target: heuristic, refusal: heuristic ? '' : 'no-round-on-surface' }
   const hasMessages = hasRollbackMessages(messages)
-  const canRollback = hasMessages && Boolean(target)
-  return { canRollback, canClearIncompleteReply: false, failedTurns, target: canRollback ? target : null,
+  const canRollback = hasMessages && Boolean(located.target)
+  return { canRollback, canClearIncompleteReply: false, failedTurns, target: canRollback ? located.target : null,
+    code: canRollback ? '' : hasMessages ? located.refusal : 'no-committed-round',
     reason: canRollback ? '' : hasMessages ? '当前轮次已不在可回退的消息流中，请继续发送新消息；历史正文仍保留。' : '当前没有可回退的已提交轮次' }
 }
 
@@ -458,7 +462,7 @@ export function rollbackAvailability(chat, input = {}) {
     return planRollbackAvailability(chat, input)
   } catch (error) {
     if (!(error instanceof SurfaceRecoveryError)) throw error
-    return { canRollback: false, canClearIncompleteReply: false, failedTurns: [], unclearedTurns: [], target: null, reason: error.message }
+    return { canRollback: false, canClearIncompleteReply: false, failedTurns: [], unclearedTurns: [], target: null, code: 'unsafe-failed-surface', reason: error.message }
   }
 }
 

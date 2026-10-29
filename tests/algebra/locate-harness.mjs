@@ -81,6 +81,8 @@ export function createPlayHarness({ frames = false } = {}) {
     return turn
   }
   const crashes = new Set()
+  const diagnosticRecords = []
+  const diagnostics = { record: async (sessionId, value) => { diagnosticRecords.push({ sessionId, ...value }) } }
   const chats = {
     read: async () => structuredClone(chat), forSession: async () => structuredClone(chat), readCard: async () => ({ name: '角色' }),
     readRevision: async (_id, revision) => revisions.get(revision),
@@ -100,13 +102,13 @@ export function createPlayHarness({ frames = false } = {}) {
   const options = { chats, sessions, timeline,
     scripts: { read: async () => ({ chunks: ['一'] }), continuity: { transition: () => ({ state: { cursor: 0 } }) }, dispatchEvent: async () => {} },
     queueSettlement: async () => { calls.push('settlement'); chat = { ...chat, settleStatus: 'done' } }, cancelSettlement: async () => {},
-    present: async value => structuredClone(value),
+    present: async value => structuredClone(value), diagnostics,
     algebraHistory: { ...createConversationHistory({ chats, flush: sessions.flush }), assertReady: () => {} } }
   const editor = createBodyEditor({
-    assertAlgebraReady: () => {}, recoverRegeneration: chatId => createRoundHistory(options).recover(chatId), chats, sessions, timeline, activity: () => ({ busy: false }),
+    assertAlgebraReady: () => {}, diagnostics, recoverRegeneration: chatId => createRoundHistory(options).recover(chatId), chats, sessions, timeline, activity: () => ({ busy: false }),
     project: async text => projectReplyLayers(text), present: async value => value })
   const harness = {
-    calls, agent, timeline,
+    calls, agent, timeline, diagnosticRecords,
     /** The next Chat write with this `source` never happens (process death before it). */
     crashBefore(source) { crashes.add(source) },
     get session() { return session },

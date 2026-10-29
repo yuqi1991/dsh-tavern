@@ -10,7 +10,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { rollbackAvailability, clearFailedTurnSurface, locateFloorBody, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
 import { restoreVariantState, saveVariantState, withoutVariantSettlement } from './variant-state.js'
-import { diagnosticIdentity, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
+import { diagnosticIdentity, recordTargetDiagnostic, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
 import { computeFold } from './conversation-algebra/index.js'
 import { branchRegistryOf, distinctFloorVariants, floorHostTurn, projectChatFloors } from './floor-projection.js'
 import { storyEventTurn } from './story-turn.js'
@@ -104,7 +104,7 @@ export function selectRegenerationTarget(chat, session, observe) {
       if (target !== null) break
     }
   }
-  if (target === null) { report('native-target-missing'); throw new Error('原生消息流中找不到与当前剧情轮次对应的正文消息') }
+  if (target === null) { report('native-target-missing'); throw new Error('原生消息流中找不到与当前剧情轮次对应的正文消息；可先回退这一层再继续') }
   report('selected', target)
   const oldSeq = target.assistantSeq
   const oldTurn = msgs0[oldAssistantIndex].turn
@@ -556,7 +556,11 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       return result
     }
     const rollbackSurface = availability.target
-    if (rollbackSurface === null) throw new Error(availability.reason)
+    if (rollbackSurface === null) {
+      await recordTargetDiagnostic(diagnostics, { stage: 'rollback-target', chat, session, reason: availability.code || 'unavailable',
+        assistantIndex: (chat.messages || []).findLastIndex(message => message?.role === 'assistant' && message.greeting !== true) })
+      throw new Error(availability.reason)
+    }
     const hiddenTurn = rollbackSurface.turn
     algebraHistory.assertReady()
     // The availability result came from this same surface: the floor's input is

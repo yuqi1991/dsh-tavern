@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { editableReplyParts } from './reply-presentation.js'
 import { locateFloorBody, locateRegenerationSurface } from './rollback-surface.js'
 import { floorHostTurn, projectChatFloors } from './floor-projection.js'
+import { recordTargetDiagnostic } from './regeneration-diagnostics.js'
 import { sessionEvents } from './session-events.js'
 import { computeFold, editStep, operationCommitted, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
 import { createConversationAlgebraHostAdapter, detachedSession } from './conversation-algebra-host-adapter.js'
@@ -42,7 +43,7 @@ export async function synchronizeBodyEdits(session, chat, flush, persistChat) {
 }
 
 /** Edit prose only; do not replay macros, scripts or settlement. */
-export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, assertAlgebraReady, recoverRegeneration }) {
+export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, assertAlgebraReady, recoverRegeneration, diagnostics }) {
   const pending = new Set()
   function refuseClosedPatch() {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
@@ -84,7 +85,10 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
     const projection = projectChatFloors(chat, events, nodes)
     const target = locateFloorBody({ events, nodes, projection, turn: message.turn })
       ?? locateRegenerationSurface({ events, nodes, turn: floorHostTurn(projection, message.turn) })
-    if (!target) throw new Error('最后一轮正文已不在当前上下文中，无法编辑')
+    if (!target) {
+      await recordTargetDiagnostic(diagnostics, { stage: 'body-edit-target', chat, session: agent.session, reason: 'floor-body-not-on-surface', assistantIndex: chat.messages.length - 1 })
+      throw new Error('最后一轮正文已不在当前上下文中，无法编辑；可先回退这一层再继续')
+    }
     const parts = editableReplyParts(source(message))
     if (!parts.some(part => part.kind === 'text' && part.text.trim())) throw new Error('这轮只有 HTML，没有可编辑文本')
     return { chat, agent, message, target, parts }

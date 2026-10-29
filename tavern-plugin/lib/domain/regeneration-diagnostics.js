@@ -1,6 +1,6 @@
 import { isPluginSource } from './message-source.js'
 import { sessionEvents } from './session-events.js'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { storyEventTurn } from './story-turn.js'
 
 const type = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
@@ -46,4 +46,14 @@ export function regenerationTargetDiagnostic(chat, session, { reason, assistantI
       matchingSurfaceCount: matching.filter(item => selectedNodes.has(item.seq)).length,
       matchingAssistants: matching.slice(-8).map(item => ({ ...event(item), visible: selectedNodes.has(item.seq) })),
       surfaceTail: nodes.slice(-12).map(seq => { const item = events[seq]?.seq === seq ? events[seq] : events.find(item => item?.seq === seq); return { node: number(seq), found: Boolean(item), ...event(item) } }) } }
+}
+
+/** Persist one structural target-location record (never text). The operation's own error stands: recording failure changes nothing. */
+export async function recordTargetDiagnostic(diagnostics, { stage, chat, session, reason, assistantIndex, target, requestedSessionId }) {
+  if (!diagnostics || typeof diagnostics.record !== 'function' || typeof chat?.sessionId !== 'string') return
+  try {
+    await diagnostics.record(chat.sessionId, { stage, diagnosticId: randomUUID(), outcome: reason === 'selected' ? 'selected' : 'rejected',
+      ...regenerationTargetDiagnostic(chat, session, { reason, assistantIndex, target }),
+      binding: { requested: diagnosticIdentity(requestedSessionId ?? chat.sessionId), effective: diagnosticIdentity(chat.sessionId) } })
+  } catch { /* Diagnostics never change the operation. */ }
 }

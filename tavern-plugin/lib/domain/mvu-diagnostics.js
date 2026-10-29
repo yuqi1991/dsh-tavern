@@ -257,7 +257,7 @@ export function diagnosticZip(entries) {
 
 export async function createMvuDiagnosticExport({ presetDiagnostics, cardDiagnostics, performanceDiagnostics, updateDiagnostics, sessionId, backgroundSessionIds = [], store, sessions, persistence, query, attachments, sceneDiagnostics, compatibilityDiagnostics, apiDiagnostics, displayDiagnostics, environment = {} }) {
   const notes = ['包含对话文本、附件与变量信息，分享前请检查隐私。凭据已尽力脱敏。MVU 记录有容量限制，旧故障不会被追溯补录。']
-  notes.push('mvu/diagnostics.json 中 stage=regeneration-target 是正文重新生成的目标定位证据：记录失败分支、消息结构、轮次和会话绑定摘要，不记录正文或指导意见；只对更新后再次操作生效。')
+  notes.push('mvu/diagnostics.json 中 stage=regeneration-target、rollback-target、body-edit-target 是正文重新生成、回退、编辑正文的目标定位证据：记录失败分支（reason）、消息结构、轮次和会话绑定摘要，不记录正文或指导意见；只对更新后再次操作生效。')
   notes.push('stage=script-runtime 的 moduleFailure 记录模块加载失败原因、最多 8 个脚本引用及同期浏览器可见的失败资源和 HTTP 状态；引用和同期资源不等于完整失败依赖链。跨域资源可能不提供状态；unknown 不代表断网。URL 不含凭据和查询参数，不记录脚本或响应体。仅更新后再次失败才会记录。')
   notes.push('stage=mvu-load 记录下载响应类型、状态、有限的错误信息、尝试次数和执行阶段；不记录完整脚本或响应体。mvu/environment.json 的 mvuAsset 是当前服务进程共享的最近文件读取/校验观察，不代表导出会话在故障时的文件状态；导出不会重新加载文件。日志限量，宿主约每 500 ms 批量追加，导出时先刷盘；persistence=pending 表示刷盘失败，导出包含尚在内存中的记录；宿主崩溃、强制结束或持续写盘失败可能漏记，旧错误不能追溯补录。')
   if (updateDiagnostics) notes.push('update/diagnostics.json 为本机更新记录，包含检查来源、回退原因和安装结果；限量保留，不补录安装此版本前的故障。')

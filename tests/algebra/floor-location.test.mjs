@@ -166,3 +166,18 @@ test('editing the body first finishes an unsettled reroll instead of asking the 
   assert.equal(h.chat.regenRecovery, undefined)
   assert.equal(h.surfaceBodies().at(-1), '接着改')
 }))
+
+test('refusals that remain carry structural evidence in the diagnostics store', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  await h.play('a'); await h.play('b')
+  const nodes = h.session.surface.nodes
+  const inputB = h.events.find(event => event.data?.id === 'input-3').seq
+  const summary = h.session.append('user/message', { id: 'summary', role: 'user', content: [{ type: 'text', text: '摘要' }], source: { kind: 'compact-checkpoint' } }, { surfaceOp: 'append' })
+  h.selectNodes([...nodes.slice(0, nodes.indexOf(inputB)), typeof summary === 'number' ? summary : summary.seq])
+  await assert.rejects(h.rollback(), /不在可回退的消息流中/)
+  await assert.rejects(h.editBody('改'), /已不在当前上下文中/)
+  await assert.rejects(h.regenerate(), /找不到与当前剧情轮次对应的正文/)
+  const stages = h.diagnosticRecords.map(record => [record.stage, record.reason])
+  assert.deepEqual(stages, [['rollback-target', 'compaction-boundary'], ['body-edit-target', 'floor-body-not-on-surface'], ['regeneration-target', 'native-target-missing']])
+  assert.doesNotMatch(JSON.stringify(h.diagnosticRecords), /正文2|正文3|摘要/, 'structure only, never text')
+}))
