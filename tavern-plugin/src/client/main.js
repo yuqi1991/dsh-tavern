@@ -175,6 +175,7 @@ window.__ModuleLoader__.load({
 		// @include-domain ordered-numeric-index.js
 		// @include-domain chat-import-batch.js
 		// @include modules/session-view-sync.js
+		// @include modules/session-compat.js
 		const beginSessionViewRead = createSessionViewReader();
 
 		function rpc(method, args, sessionId, requestOptions) {
@@ -294,7 +295,12 @@ window.__ModuleLoader__.load({
                         // sidebar seat. Retry this specific readiness error only.
                         if (!/sidebarRight: no session surface is mounted/.test(String(error.message || error)) || Date.now() >= deadline) throw error;
                         await new Promise(resolve => window.setTimeout(resolve, 100));
-                        if (ctx.sessions.list.getSnapshot().current !== scope.sessionId) return;
+                        // 0.2.0 无 current 字段；会话已切换则这次重试打开的 tab 不再属于它。
+                        const snapshotNow = ctx.sessions.list.getSnapshot();
+                        if (snapshotNow.retainedBy) {
+                            const main = Object.values(snapshotNow.byId || {}).find(function (row) { return row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0; });
+                            if (!main || main.id !== scope.sessionId) return;
+                        } else if (snapshotNow.current !== scope.sessionId) return;
                     }
                 }
             })().catch(error => tavernErrorHub.report("打开酒馆侧栏", error)).finally(() => tavernSidebarOpens.delete(key));
@@ -961,6 +967,7 @@ window.__ModuleLoader__.load({
 		exports.createCardLibraryRefreshModule = createCardLibraryRefreshModule;
 		exports.tavernDataChangeAffects = tavernDataChangeAffects;
 		exports.createLiveTavernViewModule = createLiveTavernViewModule;
+		exports.createSessionCompat = createSessionCompat;
 		exports.applyBodyRegenerationResult = applyBodyRegenerationResult;
 		exports.createTavernCoordinationEventModule = createTavernCoordinationEventModule;
 		exports.describeTavernActivity = describeTavernActivity;
