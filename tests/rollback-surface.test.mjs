@@ -198,14 +198,21 @@ test('旧 snapshot 不冒充用户输入，清理失败轮次后仍能定位上�
 test('回退可用性要求聊天与原生轮次配对，不接受孤立输入', () => {
   const chat = { messages: [{ role: 'user' }, { role: 'assistant', turn: 2 }] }
   const events = [
-    { seq: 0, type: 'user/message', data: { role: 'user' } },
-    { seq: 1, type: 'assistant/message', data: { turn: 2, message: { source: modelSource() } } }
+    { seq: 0, type: 'turn/start', data: { turn: 2 } },
+    { seq: 1, type: 'user/message', data: { role: 'user', source: { kind: 'user' } } },
+    { seq: 2, type: 'assistant/message', data: { turn: 2, message: { source: modelSource() } } }
   ]
-  assert.equal(rollbackAvailability(chat, { events, nodes: [0, 1] }).canRollback, true)
-  assert.equal(rollbackAvailability(chat, { events, nodes: [0] }).canRollback, false)
+  assert.equal(rollbackAvailability(chat, { events, nodes: [1, 2] }).canRollback, true)
+  // The floor's input is on the surface even though its body is not: the log
+  // still decides where the round starts, so the rollback clears the input.
+  const isolated = rollbackAvailability(chat, { events, nodes: [1] })
+  assert.equal(isolated.canRollback, true)
+  assert.equal(isolated.target.userSeq, 1)
   assert.equal(rollbackAvailability(chat, { events, nodes: [] }).canRollback, false)
-  events[1].data.turn = 3
-  assert.equal(rollbackAvailability(chat, { events, nodes: [0, 1] }).canRollback, false)
+  // A renumbered round the Chat cannot be mapped onto stays refused.
+  events[2].data.turn = 3
+  events[0].data.turn = 3
+  assert.equal(rollbackAvailability(chat, { events, nodes: [1, 2] }).canRollback, false)
 })
 
 test('压缩摘要不能冒充已经压缩掉的玩家输入', () => {

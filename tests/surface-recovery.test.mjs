@@ -71,14 +71,18 @@ test('归属跨回合混合或来源残缺时，清理拒绝写入', async () =>
   }
 })
 
-test('后续正文不能被正常回退的范围偷偷吞掉', async () => {
+test('回退只需要最后一个输入的位置：其后跨回合的正文属于同一次选择清理的尾部，而不是拒绝', async () => {
   const { locateRollbackSurface } = await import('../tavern-plugin/lib/domain/rollback-surface.js')
   const f = fixture()
   appendSessionEvent(f.session, 'turn/start', { turn: 3 })
   appendSessionEvent(f.session, 'assistant/message', body('new-turn', 3), { surfaceOp: 'append' })
   appendSessionEvent(f.session, 'turn/end', { turn: 3, reason: { kind: 'completed' } })
   const evidence = { events: sessionEvents(f.session), nodes: f.session.surface.nodes }
-  assert.throws(() => locateRollbackSurface(evidence), /无法安全清理/)
+  // Rollback is a selection before the last input: no owned range has to be
+  // proven, and the later turn's body is part of the tail it clears.
+  const located = locateRollbackSurface(evidence)
+  assert.equal(located.assistantSeq, evidence.nodes.at(-1))
+  assert.ok(located.shadowedSeqs.includes(located.assistantSeq))
 })
 
 test('历史用户或正文编辑、非数字顺序的替换链和重载共用清理规则', async () => {

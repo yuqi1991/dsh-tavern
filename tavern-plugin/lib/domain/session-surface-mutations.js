@@ -96,7 +96,7 @@ export function createSessionSurfaceMutator(session, events = sessionEvents(sess
     const id = type === 'assistant/message' || type === 'tool/result' ? data.message?.id : data.id
     const adoptsStep = misplaced(type, data)
     // A body rewritten in an edit step remembers the story turn it replaced.
-    const stamped = adoptsStep && type === 'assistant/message' ? withStoryTurn(data, bySeq.get(start)) : data
+    const stamped = adoptsStep && type === 'assistant/message' ? withStoryTurn(data, bySeq.get(start), seq => bySeq.get(seq)) : data
     const normalized = sessionEventData(session, type, stamped)
     if (id) {
       const prior = (replacements.get(type)?.get(id) || []).find(event => isDeepStrictEqual(event.sourceEventSeqs, sourceEventSeqs))

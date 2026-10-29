@@ -4,8 +4,8 @@ import { inputAttachments } from './player-input-content.js'
 import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { writeSurfaceEvent } from './surface-transaction.js'
 import { sessionEvents, surfaceReplacementRange } from './session-events.js'
-import { floorHostTurn, floorNativeTurns, projectChatFloors } from './floor-projection.js'
-import { createSurfaceOwnership, planSurfaceRecovery, planSurfaceRange, refSeqsOf, SurfaceRecoveryError, OWNED } from './surface-recovery.js'
+import { floorHostTurn, floorNativeTurns, latestSurfaceTurn, projectChatFloors } from './floor-projection.js'
+import { createSurfaceOwnership, planSurfaceRecovery, refSeqsOf, SurfaceRecoveryError, OWNED } from './surface-recovery.js'
 import { randomUUID } from 'node:crypto'
 import { committedOperationIds } from './conversation-algebra/index.js'
 import { storyEventTurn } from './story-turn.js'
@@ -155,6 +155,24 @@ export function locateRegenerationSurface(input) {
   return null
 }
 
+/**
+ * The body a Chat floor shows on the surface now, found by POSITION: the floor
+ * projection names the live rows from the player input that opened the floor,
+ * so a body rewritten in an edit step (own turn number, tavernStoryTurn lost or
+ * wrong), a switched variant, or a reroll hosted on another native turn is
+ * still found. Turn arithmetic (`locateRegenerationSurface`) is the fallback
+ * for logs the projection cannot map.
+ */
+export function locateFloorBody(input) {
+  const events = Array.isArray(input && input.events) ? input.events : []
+  const nodes = Array.isArray(input && input.nodes) ? input.nodes : []
+  const floor = input && input.projection && input.projection.floors.find(item => item.turn === Number(input.turn))
+  if (!floor || floor.bodySeq === null || !nodes.includes(floor.bodySeq)) return null
+  const source = modelSourceOf(eventAt(events, floor.bodySeq))
+  if (source === null) return null
+  return Object.freeze({ assistantSeq: floor.bodySeq, userSeq: floor.inputSeq, turn: floor.bodyTurn || floor.turn, source })
+}
+
 // Failed turns have already left the model surface, but remain visible until
 // the user explicitly clears them. Never consume a committed story to do that.
 export function pendingFailedSurfaceTurns({ events = [], nodes = [], suppressed = [] }) {
@@ -228,61 +246,54 @@ export function replayableFailedTurn(input) {
   return null
 }
 
+// The player input that opens the last round on the surface, by position.
+function lastRoundInput(events, nodes) {
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    const event = eventAt(events, nodes[index])
+    if (isCompactionCheckpoint(event)) return { compacted: true, index: -1 }
+    if (event && event.type === 'user/message' && !isForegroundContext(event) && !isRollbackUserTombstone(event)) return { compacted: false, index }
+  }
+  return { compacted: false, index: -1 }
+}
+
+// Rolling back is a selection of the surface before the round's input, so it
+// needs only that input's position. Everything after it is the round by
+// definition (the log keeps it as a saved branch); no range of "owned"
+// rows has to be proven, and a tail whose rows carry other turn numbers or
+// origins is not a reason to refuse.
+function rollbackTargetAt(events, nodes, userIndex, assistantIndex) {
+  const assistantEvent = assistantIndex >= 0 ? eventAt(events, nodes[assistantIndex]) : null
+  const shadowedSeqs = nodes.slice(userIndex).map(Number)
+  return Object.freeze({
+    userSeq: Number(nodes[userIndex]),
+    assistantSeq: assistantIndex >= 0 ? Number(nodes[assistantIndex]) : Number(shadowedSeqs.at(-1)),
+    endSeq: Number(shadowedSeqs.at(-1)),
+    turn: Math.max(0, storyEventTurn(assistantEvent) || 0),
+    step: Math.max(1, Number(assistantEvent && assistantEvent.data && assistantEvent.data.step) || 1),
+    source: assistantEvent ? modelSourceOf(assistantEvent) : null,
+    shadowedSeqs: Object.freeze(shadowedSeqs)
+  })
+}
+
 export function locateRollbackSurface(input) {
   const events = Array.isArray(input && input.events) ? input.events : []
   const nodes = Array.isArray(input && input.nodes) ? input.nodes : []
-  let userIndex = -1
-  for (let index = nodes.length - 1; index >= 0; index -= 1) {
-    const event = eventAt(events, nodes[index])
-    if (isCompactionCheckpoint(event)) return null
-    if (event && event.type === 'user/message' && !isForegroundContext(event) && !isRollbackUserTombstone(event)) {
-      userIndex = index
-      break
-    }
-  }
+  const { index: userIndex } = lastRoundInput(events, nodes)
   if (userIndex < 0) return null
 
   let assistantIndex = -1
-  let assistantEvent = null
-  let source = null
   for (let index = nodes.length - 1; index > userIndex; index -= 1) {
     const event = eventAt(events, nodes[index])
-    const candidateSource = event && event.type === 'assistant/message' ? modelSourceOf(event) : null
     // A previous rollback leaves an empty, model-sourced replacement because
     // native DSH restore rejects plugin-owned assistant messages. It is a
     // projection tombstone, not the assistant reply paired with this user.
-    if (candidateSource !== null && !isRollbackAssistantTombstone(event, events)) {
+    if (event && event.type === 'assistant/message' && modelSourceOf(event) !== null && !isRollbackAssistantTombstone(event, events)) {
       assistantIndex = index
-      assistantEvent = event
-      source = candidateSource
       break
     }
   }
-  if (assistantIndex < 0 || assistantEvent === null || source === null) return null
-
-  const ownership = createSurfaceOwnership(events)
-  const start = ownership.firstOrigin(nodes[userIndex])
-  const belongs = ownership.classify(event => event.seq >= start)
-  const turn = storyEventTurn(assistantEvent)
-  const range = planSurfaceRange({ nodes, start: nodes[userIndex], end: nodes.at(-1),
-    accepts: seq => {
-      const event = ownership.eventAt(seq)
-      if (isRollbackUserTombstone(event) || isRollbackAssistantTombstone(event, events)) return true
-      if (belongs(seq) !== OWNED) return false
-      if (event?.type === 'assistant/message' && storyEventTurn(event) !== turn) return false
-      const frameTurn = Number(event?.data?.source?.trace?.turn)
-      return !(frameTurn > 0) || frameTurn === turn
-    }, message: '回退消息归属不一致，无法安全清理' })
-  const shadowedSeqs = range.shadowedSeqs
-  return Object.freeze({
-    userSeq: Number(nodes[userIndex]),
-    assistantSeq: Number(nodes[assistantIndex]),
-    endSeq: Number(shadowedSeqs[shadowedSeqs.length - 1]),
-    turn: Math.max(0, storyEventTurn(assistantEvent) || 0),
-    step: Math.max(1, Number(assistantEvent.data && assistantEvent.data.step) || 1),
-    source,
-    shadowedSeqs: Object.freeze(shadowedSeqs.slice())
-  })
+  if (assistantIndex < 0) return null
+  return rollbackTargetAt(events, nodes, userIndex, assistantIndex)
 }
 
 function turnIntervals(events) {
@@ -390,19 +401,52 @@ function unclearedFailedTail(chat, events, nodes) {
 export function rollbackNativeTurns(chat, events, visibleTurn, nodes) {
   return floorNativeTurns(projectChatFloors(chat, events, nodes), visibleTurn)
 }
+/**
+ * The surface rows a rollback of the Chat's latest floor clears, from the
+ * floor projection (position), not from native turn numbers. The log decides:
+ * - the floor is live on the surface: its player input is the anchor, whatever
+ *   follows it (an orphan completed round the Chat never recorded, rows with
+ *   other turn numbers) is cleared by the same selection;
+ * - the floor is absent from a surface that provably ends before it (every
+ *   live floor is older): the surface already excludes it, so only the Chat
+ *   steps back (`surfaceMissing`), and the usual branch + checkout still
+ *   leaves a saved line to undo to;
+ * - anything else cannot be mapped and stays refused.
+ */
+function floorRollbackTarget(chat, events, nodes, turn, heuristic) {
+  const projection = projectChatFloors(chat, events, nodes)
+  const floor = projection.floors.find(item => item.turn === turn)
+  if (!floor) return heuristic
+  if (floor.inputSeq === null && heuristic && floorNativeTurns(projection, turn).has(heuristic.turn)) return heuristic
+  if (floor.inputSeq !== null) {
+    const index = nodes.indexOf(floor.inputSeq)
+    if (nodes.slice(index).some(seq => isCompactionCheckpoint(eventAt(events, seq)))) return null
+    if (heuristic && heuristic.userSeq === floor.inputSeq) return heuristic
+    const body = floor.bodySeq === null ? -1 : nodes.indexOf(floor.bodySeq)
+    return { ...rollbackTargetAt(events, nodes, index, body), turn: floor.bodyTurn || floor.turn }
+  }
+  // Proof that the surface ends before the floor: it holds something, no
+  // compaction summary that could still carry the floor's story, and no row of
+  // this turn or later (a stray body, a renumbered round) that the Chat step
+  // back would leave in the model's context.
+  if (nodes.length === 0 || nodes.some(seq => isCompactionCheckpoint(eventAt(events, seq))) || latestSurfaceTurn(events, nodes) >= turn) return null
+  const shadowedSeqs = Object.freeze([])
+  return Object.freeze({ userSeq: null, assistantSeq: null, endSeq: null, turn, step: 1, source: null, shadowedSeqs, surfaceMissing: true })
+}
+
 // UI and mutation share the same native target and failed-tail precedence.
 function planRollbackAvailability(chat, { events = [], nodes = [] } = {}) {
   const unclearedTurns = unclearedFailedTail(chat, events, nodes)
   const failedTurns = [...new Set([...pendingFailedSurfaceTurns({ events, nodes, suppressed: chat.acknowledgedFailedTurns || [] }), ...unclearedTurns])].sort((a, b) => a - b)
   if (failedTurns.length) return { canRollback: true, canClearIncompleteReply: true, failedTurns, unclearedTurns, target: null, reason: '' }
-  const target = locateRollbackSurface({ events, nodes })
+  const heuristic = locateRollbackSurface({ events, nodes })
   const messages = Array.isArray(chat.messages) ? chat.messages : []
   const latest = messages.findLast(message => message?.role === 'assistant' && message.greeting !== true)
   if (isRescuedHistoryMessage(chat, latest)) return { canRollback: false, canClearIncompleteReply: false, failedTurns, target: null, reason: '存档救援导入的历史不可回退，请发送新消息继续' }
   const turn = Number(latest?.turn)
-  const matches = target && (!(turn > 0) || rollbackNativeTurns(chat, events, turn, nodes).has(Number(target.turn)))
+  const target = turn > 0 ? floorRollbackTarget(chat, events, nodes, turn, heuristic) : heuristic
   const hasMessages = hasRollbackMessages(messages)
-  const canRollback = hasMessages && Boolean(matches)
+  const canRollback = hasMessages && Boolean(target)
   return { canRollback, canClearIncompleteReply: false, failedTurns, target: canRollback ? target : null,
     reason: canRollback ? '' : hasMessages ? '当前轮次已不在可回退的消息流中，请继续发送新消息；历史正文仍保留。' : '当前没有可回退的已提交轮次' }
 }

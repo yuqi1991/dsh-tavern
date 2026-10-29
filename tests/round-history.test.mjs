@@ -127,12 +127,17 @@ test('failed foreground resume leaves rollback data intact and permits retry', a
   assert.equal(h.chat.messages.length,1)
 })
 
-test('rollback refuses a checkpoint whose round has left the native Surface instead of removing a different round', async () => {
-  const h=harness({checkpoint:true,replyTurn:1})
-  const before=structuredClone(h.chat)
-  await assert.rejects(h.create().rollback('session','chat'),/当前轮次已不在可回退的消息流中/)
-  assert.deepEqual(h.chat,before)
-  assert.equal(h.calls.length,0)
+test('rollback of a floor that has left the native Surface steps only the Chat back and never removes a different round', async () => {
+  // The surface provably ends before the floor (it holds only an older round):
+  // the log is already clean, so refusing would strand the player on a floor the
+  // model no longer sees. The Chat steps back; the older round stays selected.
+  const h=harness({checkpoint:true,replyTurn:1,journal:true})
+  const nodes=[...h.session.surface.nodes]
+  const result=await h.create().rollback('session','chat')
+  assert.equal(result.rolledBack.hiddenTurn,2)
+  assert.equal(h.chat.messages.length,1)
+  assert.deepEqual([...h.session.surface.nodes],nodes)
+  assert.ok(h.chat.rollbackUndo.foreground.algebraBranchId)
 })
 
 test('配对失败的证据写入现有诊断包，原错误与聊天、原生历史保持不变', async () => {

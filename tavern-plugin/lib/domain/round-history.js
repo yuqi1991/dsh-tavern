@@ -7,7 +7,7 @@ import { releaseOpeningTurn, sessionEvents, appendSessionEvent } from './session
 import { randomUUID } from 'node:crypto'
 import { createRegenerationRecovery } from './regeneration-recovery.js'
 import { isDeepStrictEqual } from 'node:util'
-import { rollbackAvailability, rollbackNativeTurns, clearFailedTurnSurface, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
+import { rollbackAvailability, clearFailedTurnSurface, locateFloorBody, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
 import { restoreVariantState, saveVariantState, withoutVariantSettlement } from './variant-state.js'
 import { diagnosticIdentity, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
@@ -84,20 +84,25 @@ export function selectRegenerationTarget(chat, session, observe) {
       : msgs0[oldAssistantIndex - 1] === null || typeof msgs0[oldAssistantIndex - 1] !== 'object' ? 'previous-message-invalid' : 'previous-message-not-user')
     throw new Error('没有可重新生成的玩家输入与正文组合')
   }
-  // Rerolls keep the regenerated body under its NATIVE turn; the floor
-  // projection names the turn hosting the floor so a second reroll finds it.
+  // The floor projection names the live body by position: a rerolled floor
+  // keeps its chat turn while its body lives on the native turn that generated
+  // it, a switched variant is neither, and a body rewritten in an edit step has
+  // its own turn number. Native turn arithmetic is only the fallback for logs
+  // the projection cannot map.
   const visibleTurn = Number(msgs0[oldAssistantIndex].turn) || msgs0[oldAssistantIndex].turn
   const projection = projectChatFloors(chat, sessionEvents(session), nodes)
-  const nativeTurn = floorHostTurn(projection, visibleTurn)
-  // The live body is the one on the surface: after switching to a middle
-  // variant that is neither the newest generation (host turn) nor the floor's
-  // own turn. Legacy reroll copies carry the floor's own turn on the live row.
-  const liveTurn = projection.floors.find(floor => floor.turn === Number(visibleTurn))?.bodyTurn
-  let target = null
-  for (const turn of new Set([liveTurn, nativeTurn, visibleTurn])) {
-    if (!turn) continue
-    target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn })
-    if (target !== null) break
+  let target = locateFloorBody({ events: sessionEvents(session), nodes, projection, turn: Number(visibleTurn) })
+  if (target === null) {
+    // The live body is the one on the surface: after switching to a middle
+    // variant that is neither the newest generation (host turn) nor the floor's
+    // own turn. Legacy reroll copies carry the floor's own turn on the live row.
+    const nativeTurn = floorHostTurn(projection, visibleTurn)
+    const liveTurn = projection.floors.find(floor => floor.turn === Number(visibleTurn))?.bodyTurn
+    for (const turn of new Set([liveTurn, nativeTurn, visibleTurn])) {
+      if (!turn) continue
+      target = locateRegenerationSurface({ events: sessionEvents(session), nodes, turn })
+      if (target !== null) break
+    }
   }
   if (target === null) { report('native-target-missing'); throw new Error('原生消息流中找不到与当前剧情轮次对应的正文消息') }
   report('selected', target)
@@ -541,7 +546,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (rollbackSurface === null) throw new Error(availability.reason)
     const hiddenTurn = rollbackSurface.turn
     algebraHistory.assertReady()
-    const start = nodes.indexOf(rollbackSurface.userSeq)
+    // The availability result came from this same surface: the floor's input is
+    // on it, or the surface provably ends before the floor (nothing to clear).
+    const start = rollbackSurface.surfaceMissing === true ? nodes.length : nodes.indexOf(rollbackSurface.userSeq)
     if (start < 0) throw new Error('回退输入锚点不在当前分支')
     const algebraIntent = await algebraHistory.prepare(session, chat, start > 0 ? nodes[start - 1] : -1)
     // 1) 定位要回退的最后一组 user + assistant
@@ -558,9 +565,6 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     if (msgs[assistantIndex - 1] === null || typeof msgs[assistantIndex - 1] !== 'object' || msgs[assistantIndex - 1].role !== 'user') throw new Error('最后一组消息不是用户输入 + 正文')
     const expectedTurn = Number(msgs[assistantIndex].turn)
     if (Number(requestedTurn) > 0 && Number(requestedTurn) !== expectedTurn) throw new Error('回退目标已经变化，请刷新后确认实际轮次')
-    if (expectedTurn > 0 && !rollbackNativeTurns(originalChat, events, expectedTurn, nodes).has(Number(hiddenTurn))) {
-      throw new Error('该轮已不在当前模型上下文中，不能直接回退；历史正文仍可通过 history_recall 检索')
-    }
     const removedUserText = str(msgs[assistantIndex - 1].text).trim()
     const removedAssistantText = str(msgs[assistantIndex].text).trim()
     // 2) 旧对话从 native commit 生成一次性迁移 checkpoint；新对话直接使用权威 checkpoint

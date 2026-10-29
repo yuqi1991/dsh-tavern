@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { editableReplyParts } from './reply-presentation.js'
-import { locateRegenerationSurface } from './rollback-surface.js'
+import { locateFloorBody, locateRegenerationSurface } from './rollback-surface.js'
 import { floorHostTurn, projectChatFloors } from './floor-projection.js'
 import { sessionEvents } from './session-events.js'
 import { computeFold, editStep, operationCommitted, runTransaction, waitForTransactionReady } from './conversation-algebra/index.js'
@@ -71,11 +71,14 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
       }, { source: 'body-edit.stale-clear' })
     })
     const message = latest(chat)
-    // A rerolled floor keeps its chat turn while its body lives on the native
-    // turn that generated it; the floor projection names that turn.
+    // The floor projection names the body the surface shows for this floor by
+    // position (a switched variant, a reroll hosted on another native turn and
+    // a body rewritten in an edit step all stay found); native turn arithmetic
+    // is only the fallback for logs the projection cannot map.
     const events = sessionEvents(agent.session), nodes = agent.session.surface?.nodes || []
-    const turn = floorHostTurn(projectChatFloors(chat, events, nodes), message.turn)
-    const target = locateRegenerationSurface({ events, nodes, turn })
+    const projection = projectChatFloors(chat, events, nodes)
+    const target = locateFloorBody({ events, nodes, projection, turn: message.turn })
+      ?? locateRegenerationSurface({ events, nodes, turn: floorHostTurn(projection, message.turn) })
     if (!target) throw new Error('最后一轮正文已不在当前上下文中，无法编辑')
     const parts = editableReplyParts(source(message))
     if (!parts.some(part => part.kind === 'text' && part.text.trim())) throw new Error('这轮只有 HTML，没有可编辑文本')

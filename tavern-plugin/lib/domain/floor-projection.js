@@ -145,21 +145,13 @@ function originInput(bySeq, seq) {
   return origin
 }
 
-/**
- * Project every floor of a Story Timeline onto its Session.
- * @param input.events - the complete Session log.
- * @param input.nodes - the live surface seqs.
- * @param input.registry - committed branch metadata, or null.
- * @param input.floorTurns - chat-visible turns of the Story Timeline floors, oldest first.
- * @param input.mode - Chat mode; card workspaces have no story floors.
- * @returns per-floor facts.
- */
-export function projectFloors({ events = [], nodes = [], registry = null, floorTurns = [], mode = 'story' }) {
-  if (mode === 'card') return { floors: [] }
+/** Floors that are live on the surface, keyed by the native turn that opened
+ * them: each player input opens one; its body is the last model text before
+ * the next player input. Chat-independent, so callers can also prove that a
+ * Chat floor is absent from (or ahead of) the surface. */
+export function liveFloors(events, nodes) {
   const bySeq = new Map(events.map(event => [event.seq, event]))
   const turns = nativeTurns(events)
-  // Live surface floors: each player input opens one; its body is the last
-  // model text before the next player input.
   const live = new Map()
   let floor = null
   for (const seq of nodes) {
@@ -173,6 +165,27 @@ export function projectFloors({ events = [], nodes = [], registry = null, floorT
       floor.bodyTurn = turns.get(originBody(bySeq, seq).seq) || 0
     }
   }
+  return live
+}
+
+/** The highest native turn any selected surface row belongs to (0 when none). */
+export function latestSurfaceTurn(events, nodes) {
+  const turns = nativeTurns(events)
+  return nodes.reduce((highest, seq) => Math.max(highest, turns.get(seq) || 0), 0)
+}
+
+/**
+ * Project every floor of a Story Timeline onto its Session.
+ * @param input.events - the complete Session log.
+ * @param input.nodes - the live surface seqs.
+ * @param input.registry - committed branch metadata, or null.
+ * @param input.floorTurns - chat-visible turns of the Story Timeline floors, oldest first.
+ * @param input.mode - Chat mode; card workspaces have no story floors.
+ * @returns per-floor facts.
+ */
+export function projectFloors({ events = [], nodes = [], registry = null, floorTurns = [], mode = 'story' }) {
+  if (mode === 'card') return { floors: [] }
+  const live = liveFloors(events, nodes)
   const visible = [...new Set(floorTurns.map(Number).filter(turn => Number.isSafeInteger(turn) && turn > 0))]
   const floors = visible.map(turn => {
     const variants = registry ? distinctFloorVariants(events, turn, registry) : []

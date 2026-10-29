@@ -100,13 +100,19 @@ export function checkout(state, ref) {
     targetNodes = headSeq < 0 ? [] : computeFold(events.filter(event => event.seq <= headSeq)).surfaceNodes
   } else if (headSeq < 0) targetNodes = []
   else {
-    // Follow only unambiguous one-node replacements. A range replacement
-    // collapses several positions and cannot identify an interior anchor.
+    // An anchor that is a node of the current surface IS its own position: the
+    // log may record a replacement of it from another line (a branch edited and
+    // later left), which says nothing about this one. Only an anchor that left
+    // the surface follows its replacement chain, through unambiguous one-node
+    // replacements; a range replacement collapses several positions and cannot
+    // identify an interior anchor.
     let currentSeq = headSeq
-    for (const replacement of state.replacements || []) {
-      if (!replacement.shadowedSeqs.includes(currentSeq)) continue
-      if (replacement.shadowedSeqs.length !== 1) throw new TypeError('checkout 锚点已被范围替换，无法唯一定位')
-      currentSeq = replacement.seq
+    if (!state.surfaceNodes.includes(currentSeq)) {
+      for (const replacement of state.replacements || []) {
+        if (!replacement.shadowedSeqs.includes(currentSeq)) continue
+        if (replacement.shadowedSeqs.length !== 1) throw new TypeError('checkout 锚点已被范围替换，无法唯一定位')
+        currentSeq = replacement.seq
+      }
     }
     const index = state.surfaceNodes.indexOf(currentSeq)
     if (index < 0) throw new TypeError('checkout 锚点不在当前分支')
