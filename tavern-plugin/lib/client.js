@@ -6363,9 +6363,10 @@ window.__ModuleLoader__.load({
 						await invoke("recordTavernCompatibilityCalls", { runtimeId: record.compatibilityId, calls: calls.slice(offset, offset + 64) }, record.sessionId);
 					}
 				});
-				record.compatibilityTail = task.catch(function () {
-					// Recording failures are visible, but must not break the plugin's safe no-op.
-					reportError("兼容能力调用记录", new Error("缺失能力记录保存失败，部分调用可能未记录"));
+				record.compatibilityTail = task.catch(function (error) {
+					// Best-effort diagnostics (like recordMvuRuntimeDiagnostic): the player can't act on a
+					// failed write, e.g. after the session was deleted or the server restarted.
+					console.warn("dsh-tavern: 兼容能力调用记录保存失败，部分调用可能未记录", error);
 				});
 				return record.compatibilityTail;
 			}
