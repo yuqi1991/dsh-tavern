@@ -49,9 +49,36 @@ function createSessionCompat(sessions, uiWorkspace) {
 	});
 
 	// 0.1.5 的 open() 同步返回；这里统一返回 Promise，调用点已 await。
+	//
+	// 0.2.0 的 uiWorkspace.openSession → replaceMain 会立即 sessions.retain(target)，
+	// 而 retain 在宿主基线快照里没有这一行时同步抛「unknown session」。宿主基线只在
+	// session.list 响应落地后才增长；点击旧存档时若首屏拉取尚未返回（或曾被排入同一次
+	// in-flight 拉取），retain 就会先行失败。因此在真正打开前先确认列表里已有这一行：
+	// 没有就强制刷新基线（refreshList 的 single-flight 会把并发刷新合并成同一次拉取，
+	// 所以要重读到行出现为止，或到确认它真的不在为止），让 retain 找得到目标。
+	function knownSession(sessionId) {
+		const snapshot = sessions.list && typeof sessions.list.getSnapshot === "function" ? sessions.list.getSnapshot() : null;
+		return Boolean(snapshot && snapshot.byId && snapshot.byId[sessionId]);
+	}
+	async function ensureKnownSession(target, attempts) {
+		for (let index = 0; index < attempts; index += 1) {
+			if (knownSession(target)) return true;
+			try { await compat.refresh(); } catch (_) { /* 单次拉取失败由下一次重试兜底 */ }
+		}
+		return knownSession(target);
+	}
 	compat.open = function (sessionId) {
 		const target = String(sessionId || "");
 		if (!target) return compat.clear();
+		if (knownSession(target)) return openTarget(target);
+		return ensureKnownSession(target, 3).then(function (known) {
+			// 基线里始终没有这一行：交给调用方处理（recovery 判定 unknown session 后
+			// 继续等待，或直接把「会话不存在」暴露给用户）。
+			if (!known && typeof compat.onMissingSession === "function") compat.onMissingSession(target);
+			return openTarget(target);
+		});
+	};
+	function openTarget(target) {
 		if (uiWorkspace && typeof uiWorkspace.openSession === "function") {
 			return Promise.resolve(uiWorkspace.openSession(target));
 		}
@@ -61,7 +88,7 @@ function createSessionCompat(sessions, uiWorkspace) {
 			compat.retain(target, { source: "tavern" });
 		}
 		return Promise.resolve();
-	};
+	}
 
 	compat.clear = function () {
 		if (uiWorkspace && typeof uiWorkspace.clearMain === "function") {

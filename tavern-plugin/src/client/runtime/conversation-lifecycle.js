@@ -52,7 +52,14 @@
 					attempt += 1;
 					await sleep(Math.min(delay, remaining));
 				}
-				if (!ready(sessionId)) throw new Error("DSH Session 列表同步超时，请刷新页面后重试：" + sessionId);
+				if (ready(sessionId)) return;
+				// 区分两种结局：宿主列表始终没有这一行（会话不在了 / 已被删），还是行在但
+				// binding 没跟上（新建会话的 scope 尚未 retain）。前者刷新页面也没用，
+				// 必须让用户去删掉这条历史记录，否则只能反复重试同一次超时。
+				const missing = !options.summary(sessionId);
+				throw new Error(missing
+					? "DSH 会话 " + sessionId + " 已不在宿主列表中（可能已被删除），请删除这条历史记录后重试；若刚更新过请先刷新页面。"
+					: "DSH Session 列表同步超时，请刷新页面后重试：" + sessionId);
 			}
 
 			function wait(sessionId) {

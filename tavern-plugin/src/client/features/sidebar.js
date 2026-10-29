@@ -131,7 +131,8 @@
 				if (!current || !summaries[current] || !props.sessions.binding(current)) return;
 				const latest = tavernErrorHub.getSnapshot()[0];
 				if (!latest || latest.source !== "左侧栏操作") return;
-				if (latest.message === "DSH Session 列表同步超时，请刷新页面后重试：" + current) setError("");
+				if (latest.message === "DSH Session 列表同步超时，请刷新页面后重试：" + current
+					|| (latest.message && latest.message.indexOf("已不在宿主列表中") >= 0 && latest.message.indexOf(current) >= 0)) setError("");
 			}, [current, summaries]);
 			function call(method, args) { return rpc(method, args); }
 			function isMissingUpdateApiError(error) {
