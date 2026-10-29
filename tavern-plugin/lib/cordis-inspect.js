@@ -2,8 +2,11 @@ import { isDeepStrictEqual } from 'node:util'
 
 export const inject = ['cordisInspect']
 const INSTALLED = Symbol.for('dsh-tavern.cordis-inspect-shared.v1')
+// 0.2.0-rc.2 适配：dsh-tool-cordis 的一方 provider 表换成 Service/Event/Config/Tool
+// —— `Builtin`/`listBuiltins` 已消失，新增 `Config`/`listConfigs`。表里缺项只会让
+// isFirstPartyShape 返回 false（走原生 register 路径），不会报错，但会重新引入重复注册。
 const FIRST_PARTY_METHODS = Object.freeze({
-  Service: 'listService', Event: 'listEvents', Builtin: 'listBuiltins', Tool: 'listTools',
+  Service: 'listService', Event: 'listEvents', Config: 'listConfigs', Tool: 'listTools',
 })
 
 function isFirstPartyShape(manifest) {
@@ -15,6 +18,9 @@ function isFirstPartyShape(manifest) {
 // dsh-tool-cordis alpha.2 publishes process-global providers from each preset.
 // Keep one registration and a lease per live mount. Queries use a live owner's
 // context (especially Tool.listTools), never the context of a disposed preset.
+// 0.2.0-rc.2 适配：上游已把 provider 注册移到 host 平面（dsh-web-app 的
+// cordis-inspect-providers 行），重复注册的动机消失；这里继续保留去重外壳，
+// 它对 host 平面的一次性注册是无害的 no-op，也仍保护多 profile 混载的场景。
 export function shareCordisInspectProviders(registry) {
   if (registry[INSTALLED]) return
   const register = registry.register.bind(registry)
