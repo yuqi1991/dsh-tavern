@@ -72,7 +72,8 @@
                 try { await rpc(props.globalDefaults ? "setDefaultWritingSkill" : "setConversationWritingSkill", { sessionId: props.sessionId, name, enabled }, props.sessionId); setSkills(skills.map(skill => skill.name === name ? { ...skill, enabled } : skill)); setNotice(props.globalDefaults ? "已保存，下次新游戏生效" : "已生效，后续请求采用新设置"); }
                 catch (err) { setError(String(err.message || err)); } finally { setBusy(false); }
             }
-            return h("section", { className: "dsh-local-section", "aria-label": props.globalDefaults ? "默认写作 Skill" : "写作 Skill" }, h("h3", null, props.globalDefaults ? "默认写作 Skill" : "写作 Skill"),
+            return h(props.globalDefaults ? "details" : "section", { className: "dsh-local-section" + (props.globalDefaults ? " dsh-tavern-default-skills" : ""), "aria-label": props.globalDefaults ? "默认写作 Skill" : "写作 Skill" },
+                props.globalDefaults ? h("summary", null, "默认写作 Skill") : h("h3", null, "写作 Skill"),
                 h("p", { className: "dsh-local-help" }, props.globalDefaults ? "设置新游戏默认启用的写作 Skill。已有游戏不变，可在本局设置中逐项调整。" : "开局采用全局默认配置，可在此逐项调整本局后续加载；前台按场景选用。"),
                 (skills || []).map(skill => h("div", { key: skill.name, className: "dsh-tavern-background-task dsh-tavern-writing-skill" },
                     h("label", { className: "dsh-tavern-writing-skill-heading" }, h("span", null, skill.name), h("input", { type: "checkbox", role: "switch", "aria-label": skill.name, checked: skill.enabled, disabled: busy, onChange: event => change(skill.name, event.target.checked) })),
@@ -97,18 +98,17 @@
             }, [key]);
             const efforts = reasoning.key === key ? reasoning.value?.efforts || [] : [];
             const known = !selection || props.catalog.some(group => group.provider === selection.provider && group.models.some(model => model.id === selection.model));
-            return h("section", { className: "dsh-local-section" },
-            	h("label", null, props.label, h("select", {
-            		className: "dsh-tavern-settings-select", "aria-label": props.label, value: key, disabled: props.disabled,
-            		onChange: event => props.onChange(event.target.value ? JSON.parse(event.target.value) : null)
-            	},
+            return h("div", { className: "dsh-tavern-model-row" },
+                h("div", { className: "dsh-tavern-model-row-label" }, props.title || props.label,
+                    props.description ? h("span", { className: "dsh-tavern-settings-desc" }, props.description) : null),
+                h("div", { className: "dsh-tavern-model-row-controls" },
+                h("select", { className: "dsh-tavern-settings-select", "aria-label": props.label, value: key, disabled: props.disabled,
+                    onChange: event => props.onChange(event.target.value ? JSON.parse(event.target.value) : null) },
                     h("option", { value: "" }, props.fallback),
                     !known ? h("option", { value: key }, backgroundModelLabel(selection, props.catalog) + "（当前不可用）") : null,
-                    props.catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id)))))),
-				h("label", null, "推理强度", h("select", {
-                    className: "dsh-tavern-settings-select", "aria-label": props.label + "推理强度", value: selection?.reasoningEffort || "", disabled: props.disabled || !key || !efforts.length,
-                    onChange: event => { const next = { ...selection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return props.onChange(next); }
-				},
+                    props.catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id))))),
+                h("select", { className: "dsh-tavern-settings-select", "aria-label": props.label + "推理强度", value: selection?.reasoningEffort || "", disabled: props.disabled || !key || !efforts.length,
+                    onChange: event => { const next = { ...selection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return props.onChange(next); } },
                     h("option", { value: "" }, key ? "模型默认" : props.fallback), efforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))),
                 key && reasoning.key === key && reasoning.error ? h("p", { role: "alert" }, reasoning.error) : null);
         }
@@ -150,8 +150,9 @@
                 return { display: input.display === "icon" ? "icon" : "icon-text", items: input.items.filter(item => typeof item === "string").slice(0, 24) };
             }
             function apply(settings) {
-                value = { headerItems: headerItemsOf(settings), autoOpenStatusPanel: settings.autoOpenStatusPanel !== false,
+                value = { hideContextAndReasoning: settings.hideContextAndReasoning !== false, headerItems: headerItemsOf(settings), autoOpenStatusPanel: settings.autoOpenStatusPanel !== false,
                     renderDepth: Number.isSafeInteger(settings.renderDepth) ? settings.renderDepth : 3 };
+                document.documentElement.classList.toggle("dsh-tavern-hide-process", value.hideContextAndReasoning);
                 listeners.forEach(listener => listener());
             }
             async function refresh() {
@@ -170,11 +171,13 @@
                     window.dispatchEvent(new CustomEvent("dsh-tavern-settings-changed"));
                 },
                 start() {
+                    // Hidden is the default; keep process details out of view until the setting loads.
+                    if (value === null) document.documentElement.classList.add("dsh-tavern-hide-process");
                     refresh();
                     const onStorage = event => { if (event.key === key) refresh(); };
                     window.addEventListener("focus", refresh);
                     window.addEventListener("storage", onStorage);
-                    return () => { ++revision; window.removeEventListener("focus", refresh); window.removeEventListener("storage", onStorage); };
+                    return () => { ++revision; window.removeEventListener("focus", refresh); window.removeEventListener("storage", onStorage); document.documentElement.classList.remove("dsh-tavern-hide-process"); };
                 }
             };
         })();
@@ -189,6 +192,10 @@
             }
             const h = React.createElement;
             return h("section", { className: "dsh-tavern-settings-group dsh-tavern-display-preferences" },
+                h("label", { className: "dsh-tavern-settings-row dsh-tavern-background-task" },
+                    h("div", { className: "dsh-tavern-settings-copy" }, h("strong", { className: "dsh-tavern-settings-title" }, "隐藏上下文注入和思考过程"),
+                        h("p", { className: "dsh-tavern-settings-desc" }, "隐藏对话中的上下文注入、上下文压缩记录、已思考和思考过程。仅影响显示，正文、模型请求和存档内容不变。")),
+                    h("input", { type: "checkbox", role: "switch", "aria-label": "隐藏上下文注入和思考过程", checked: preferences?.hideContextAndReasoning !== false, disabled: preferences === null || busy, onChange: event => save({ hideContextAndReasoning: event.target.checked }) })),
                 h("label", { className: "dsh-tavern-settings-row dsh-tavern-background-task" },
                     h("div", { className: "dsh-tavern-settings-copy" }, h("strong", { className: "dsh-tavern-settings-title" }, "进入游戏时打开酒馆状态"),
                         h("p", { className: "dsh-tavern-settings-desc" }, "进入或切换到一局游戏时，右侧面板自动展开并显示本局设置和酒馆状态。关闭后右侧面板保持你上次的样子。手机宽度下不会自动展开。")),
@@ -363,12 +370,9 @@
                     h("span", { className: "dsh-tavern-settings-desc" }, notice)) : null);
         }
 
-        function TavernSettingsSection() {
-        	const [state, setState] = React.useState({ loading: true, busy: false, defaultForegroundModel: null, defaultBackgroundModel: null, notice: "", webSearchEnabled: false, backgroundModel: null, backgroundTasks: { posture: true, characterDesign: false, variables: true, ledger: false }, modelCatalog: [], sceneImages: false, error: "" });
-        	React.useEffect(function () {
-        		let active = true;
-        		rpc("getTavernSettings").then(function (result) {
-        			if (active) setState({ loading: false, busy: false, defaultForegroundModel: result.settings?.defaultForegroundModel || null, defaultBackgroundModel: result.settings?.defaultBackgroundModel || null, notice: "", webSearchEnabled: Boolean(result.settings && result.settings.webSearchEnabled), backgroundModel: result.settings && result.settings.backgroundModel || null, backgroundTasks: result.settings && result.settings.backgroundTasks || { posture: true, characterDesign: false, variables: true, ledger: false }, modelCatalog: Array.isArray(result.modelCatalog) ? result.modelCatalog : [], sceneImages: Boolean(result.releaseCapabilities && result.releaseCapabilities.sceneImages), error: "" });
-        		}, function (error) {
-        			if (active) setState(function (current) { return Object.assign({}, current, { loading: false, busy: false, error: String(error && error.message || error) }); });
+        // @include modules/global-settings.js
+        const { TavernSettingsSection } = createGlobalSettingsModule({
+            React, rpc, notifySettingsChanged: () => window.dispatchEvent(new CustomEvent("dsh-tavern-settings-changed")),
+            TavernDefaultModelSetting, TavernConversationWritingSkills, DisplayPreferencesSettings, HeaderItemsSettings,
+            CandidatePreferencesSettings, PromptTemplateSettingsEntry, ContextCompactionSettings
         });

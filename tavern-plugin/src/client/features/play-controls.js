@@ -918,14 +918,16 @@
             return h("aside", { className: "dsh-tavern-status dsh-local-settings", "aria-label": "本局设置" },
                 h("div", { className: "dsh-tavern-status-head" }, h("strong", null, "本局设置")),
                 h("div", { className: "dsh-tavern-status-body" }, isPlayMode(mode) ? h(React.Fragment, null,
-                    h("p", { className: "dsh-local-intro" }, "仅影响本局，修改后自动保存。已有对话和变量会保留。"),
-                    h("section", { className: "dsh-local-section" }, h("h3", null, "基本信息"),
+                    h("p", { className: "dsh-local-intro" }, "仅影响本局，修改后自动保存，已有对话和变量会保留。"),
+                    h("p", { className: "dsh-local-warning dsh-local-intro" }, "切换预设、长期偏好、模型、结算或联网搜索后，下一次请求要重建缓存，耗时和费用会增加。"),
+                    h("section", { className: "dsh-local-section" }, h("h3", null, "游玩"),
                         h(TavernLocalPlayerName, { key: owner + ":name", sessionId: owner }),
-                        h(TavernStatusBarSetting, { key: owner + ":status", sessionId: owner }),
                         h(TavernConversationPreset, { key: owner + ":preset", sessionId: owner }),
                         h(UserPreferenceProfileTab, { key: owner + ":profile", scope: { sessionId: owner }, conversationOnly: true }),
-                        h("p", { className: "dsh-local-warning" }, "切换预设或用户画像会使提示词缓存失效，首次请求会增加耗时和费用。")),
-                    h(TavernConversationBackgroundModel, { key: owner, sessionId: owner }), h(TavernConversationWritingSkills, { key: owner + ":skills", sessionId: owner })) : h("p", null, "请选择一个游玩对话。")));
+                        h(TavernStatusBarSetting, { key: owner + ":status", sessionId: owner })),
+                    h(TavernConversationBackgroundModel, { key: owner, sessionId: owner }),
+                    h("details", { className: "dsh-local-advanced" }, h("summary", null, "高级"),
+                        h(TavernConversationWritingSkills, { key: owner + ":skills", sessionId: owner }))) : h("p", null, "请选择一个游玩对话。")));
         }
 
         function TavernConversationSettingsAction(props) {
@@ -945,7 +947,7 @@
             const [selection, setSelection] = React.useState(null);
             const [tasks, setTasks] = React.useState({ variables: true, posture: true, characterDesign: false, variableFeedback: true });
             const [saved, setSaved] = React.useState(null);
-            const [features, setFeatures] = React.useState({ webSearchEnabled: false, sceneImagesEnabled: false, sceneImagesAvailable: false });
+            const [features, setFeatures] = React.useState({ webSearchEnabled: false, sceneImagesEnabled: false, sceneImagesAvailable: false, mvuCard: false });
             const [loaded, setLoaded] = React.useState(false);
             const [busy, setBusy] = React.useState(false);
             const [error, setError] = React.useState("");
@@ -960,7 +962,7 @@
                 try {
                     const result = await rpc("getConversationBackgroundConfig", { sessionId: props.sessionId }, props.sessionId);
                     setCatalog(result.modelCatalog || []); setSelection(result.backgroundModel); setSaved(result.backgroundModel); setImageSelection(result.imageModel || null);
-                    setTasks(result.backgroundTasks); setFeatures({ webSearchEnabled: result.webSearchEnabled === true, sceneImagesEnabled: result.sceneImagesEnabled === true, sceneImagesAvailable: result.sceneImagesAvailable === true }); setLoaded(true);
+                    setTasks(result.backgroundTasks); setFeatures({ webSearchEnabled: result.webSearchEnabled === true, sceneImagesEnabled: result.sceneImagesEnabled === true, sceneImagesAvailable: result.sceneImagesAvailable === true, mvuCard: result.mvuCard === true }); setLoaded(true);
                 } catch (err) { setError(String(err.message || err)); }
             }
             React.useEffect(() => { void load(); }, []);
@@ -995,15 +997,16 @@
             const imageKnown = !imageSelection || catalog.some(group => group.provider === imageSelection.provider && group.models.some(model => model.id === imageSelection.model));
             const modelOptions = () => catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id))));
             const known = !selection || catalog.some(group => group.provider === selection.provider && group.models.some(model => model.id === selection.model));
+            const toggle = (name, title, description, checked, patch) => h("label", { key: name, className: "dsh-tavern-background-task" },
+                h("span", null, title, h("span", { className: "dsh-tavern-settings-desc" }, description)),
+                h("input", { type: "checkbox", role: "switch", "aria-label": title, checked, disabled: !loaded || busy, onChange: event => save(patch(event.target.checked)) }));
             return h("div", { className: "dsh-local-runtime" },
-                h("section", { className: "dsh-local-section" }, h("h3", null, "后台模型"),
-                    h("p", { className: "dsh-tavern-settings-desc" }, "仅影响本局，下一次后台任务生效。正在运行的任务不变，保留原后台 Agent 和历史。"),
-                    h("p", { className: "dsh-tavern-settings-desc" }, "建议前台和后台使用 High 推理强度，优先保证正文输出和后台任务的质量。不推荐 Max，以免过度思考、增加等待。若更在意响应速度，可按需降低。"),
-                    h("p", { className: "dsh-local-warning" }, "切换模型或推理强度会使缓存失效，首次请求会增加耗时和费用。"),
+                h("section", { className: "dsh-local-section" }, h("h3", null, "模型"),
+                    h("p", { className: "dsh-tavern-settings-desc" }, "下一次后台任务生效。建议 High 推理强度；Max 容易过度思考、增加等待。"),
                     h("label", null, "后台模型", h("select", { "aria-label": "本局后台模型", className: "dsh-tavern-settings-select", value: key, disabled: !loaded || busy, onChange: event => { return save({ backgroundModel: event.target.value ? JSON.parse(event.target.value) : null }); } },
                         h("option", { value: "" }, "跟随前台"),
                         !known ? h("option", { value: key }, backgroundModelLabel(selection, catalog) + "（当前不可用）") : null,
-                        catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id)))))),
+                        modelOptions())),
                     h("label", null, "推理强度", h("select", { "aria-label": "本局后台推理强度", className: "dsh-tavern-settings-select", value: selection?.reasoningEffort || "", disabled: !key || !efforts.length || busy, onChange: event => { const next = { ...selection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return save({ backgroundModel: next }); } },
                         h("option", { value: "" }, key ? "模型默认" : "跟随前台"), efforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))),
                     features.sceneImagesAvailable ? h("label", null, "生图 Agent 模型", h("select", { "aria-label": "本局生图 Agent 模型", className: "dsh-tavern-settings-select", value: imageKey, disabled: !loaded || busy, onChange: event => { return save({ imageModel: event.target.value ? JSON.parse(event.target.value) : null }); } },
@@ -1011,19 +1014,16 @@
                         !imageKnown ? h("option", { value: imageKey }, backgroundModelLabel(imageSelection, catalog) + "（当前不可用）") : null,
                         modelOptions())) : null,
                     features.sceneImagesAvailable && imageKey ? h("label", null, "生图推理强度", h("select", { "aria-label": "本局生图 Agent 推理强度", className: "dsh-tavern-settings-select", value: imageSelection?.reasoningEffort || "", disabled: !imageEfforts.length || busy, onChange: event => { const next = { ...imageSelection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return save({ imageModel: next }); } },
-                        h("option", { value: "" }, "模型默认"), imageEfforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))) : null,
-                    ), h("section", { className: "dsh-local-section" }, h("h3", null, "后台结算"), h("p", { className: "dsh-local-help" }, "从下一次后台任务生效，正在运行的任务不变。"),
-                    [["variables", "变量结算", "MVU 卡建议开启，否则变量和状态栏可能不再同步。普通卡不执行此任务。"], ["posture", "人物姿势结算", "总结本轮结束时人物的位置、动作和姿势。"], ["variableFeedback", "变量回灌前台", "每轮把上一轮变化的变量最新值告诉前台，减少时间、地点、数值前后不一致。"]].map(([name, title, description]) => h("label", { key: name, className: "dsh-tavern-background-task" },
-                        h("span", null, title, h("span", { className: "dsh-tavern-settings-desc" }, description)),
-                        h("input", { type: "checkbox", role: "switch", "aria-label": title, checked: tasks[name], disabled: !loaded || busy, onChange: event => { return save({ backgroundTasks: { [name]: event.target.checked } }); } }))),
-                    h("p", { className: "dsh-local-warning" }, "调整结算任务会使缓存失效，首次请求会增加耗时和费用。")), h("section", { className: "dsh-local-section" }, h("h3", null, "扩展功能"),
-                    [["webSearchEnabled", "联网搜索", "本局前台和后台可按需搜索；从后续请求生效。切换会使缓存失效，首次请求会增加耗时和费用。"]].map(([name, title, description]) => h("label", { key: name, className: "dsh-tavern-background-task" },
-                        h("span", null, title, h("span", { className: "dsh-tavern-settings-desc" }, description)),
-                        h("input", { type: "checkbox", role: "switch", "aria-label": title, checked: features[name], disabled: !loaded || busy, onChange: event => { return save({ [name]: event.target.checked }); } }))),
-                    ), error || key && reasoning.key === key && reasoning.error ? h("p", { role: "alert", className: "dsh-tavern-prompt-error" }, error || reasoning.error) : null,
-                    notice ? h("p", { role: "status" }, notice) : null,
-                    !loaded && error ? h("button", { className: "dsh-tavern-btn", onClick: load }, "重试") : null,
-                    h("div", { role: "status", className: "dsh-local-feedback" }, busy ? "保存中…" : ""));
+                        h("option", { value: "" }, "模型默认"), imageEfforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))) : null),
+                h("section", { className: "dsh-local-section" }, h("h3", null, "功能"),
+                    features.mvuCard ? toggle("variables", "变量结算", "关闭后变量和状态栏不再更新。", tasks.variables, checked => ({ backgroundTasks: { variables: checked } })) : null,
+                    toggle("variableFeedback", "变量回灌前台", "每轮把上一轮变化的变量最新值告诉前台，减少时间、地点、数值前后不一致。", tasks.variableFeedback, checked => ({ backgroundTasks: { variableFeedback: checked } })),
+                    toggle("posture", "人物姿势", "每轮总结人物的位置、动作和姿势，供前台保持一致。", tasks.posture, checked => ({ backgroundTasks: { posture: checked } })),
+                    toggle("webSearchEnabled", "联网搜索", "前台和后台可按需搜索。", features.webSearchEnabled, checked => ({ webSearchEnabled: checked }))),
+                error || key && reasoning.key === key && reasoning.error ? h("p", { role: "alert", className: "dsh-tavern-prompt-error" }, error || reasoning.error) : null,
+                notice ? h("p", { role: "status" }, notice) : null,
+                !loaded && error ? h("button", { className: "dsh-tavern-btn", onClick: load }, "重试") : null,
+                h("div", { role: "status", className: "dsh-local-feedback" }, busy ? "保存中…" : ""));
         }
 
 		function TavernMoreActions(props) {

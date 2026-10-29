@@ -59,6 +59,18 @@ test('联网搜索作为新游戏默认值持久化，默认关闭', () => {
   assert.equal(applyTavernSettingsPatch(enabled, { webSearchEnabled: false }).webSearchEnabled, false)
 })
 
+test('隐藏上下文注入和思考过程默认开启，可持久化和恢复，不改动其他配置', async t => {
+  const h = await settingsHarness(t)
+  assert.equal((await h.read()).hideContextAndReasoning, true)
+  await h.update({ hideContextAndReasoning: false, candidateDismissMode: 'after-fill' })
+  assert.equal((await h.read()).hideContextAndReasoning, false)
+  assert.equal((await h.read()).candidateDismissMode, 'after-fill')
+  await h.update({ hideContextAndReasoning: true })
+  assert.equal((await h.read()).hideContextAndReasoning, true)
+  assert.equal((await h.read()).candidateDismissMode, 'after-fill')
+  await assert.rejects(h.update({ hideContextAndReasoning: 'yes' }), /无效的对话显示设置/)
+})
+
 test('后台模型可以固定为独立 provider/model，也可以恢复为开局跟随前台', () => {
   assert.equal(presentTavernSettings({}, {}).backgroundModel, null)
   const fixed = applyTavernSettingsPatch({ unknown: true }, { backgroundModel: { provider: 'vertex', model: 'gemini-2.5-pro' } })
@@ -91,14 +103,15 @@ test('实验分支始终公开兼容模式，旧关闭信任值不影响运行',
 })
 
 test('设置界面不重复提供已并入外观的分色，不恢复旧兼容样式选项', () => {
-  const context = { CandidatePreferencesSettings: function CandidatePreferencesSettings() {}, DisplayPreferencesSettings: function DisplayPreferencesSettings() {}, HeaderItemsSettings: function HeaderItemsSettings() {}, PromptTemplateSettingsEntry: function PromptTemplateSettingsEntry() {}, TavernConversationWritingSkills: function TavernConversationWritingSkills() {}, TavernDefaultModelSetting: function TavernDefaultModelSetting() {}, TavernTextColorSettings: function TavernTextColorSettings() {}, ContextCompactionSettings: function ContextCompactionSettings() {}, SceneImageSettings: function SceneImageSettings() {}, React: {
+  const context = { CandidatePreferencesSettings: function CandidatePreferencesSettings() {}, DisplayPreferencesSettings: function DisplayPreferencesSettings() {}, HeaderItemsSettings: function HeaderItemsSettings() {}, PromptTemplateSettingsEntry: function PromptTemplateSettingsEntry() {}, TavernConversationWritingSkills: function TavernConversationWritingSkills() {}, TavernDefaultModelSetting: function TavernDefaultModelSetting() {}, TavernTextColorSettings: function TavernTextColorSettings() {}, ContextCompactionSettings: function ContextCompactionSettings() {}, React: {
     useState: initial => [initial, () => {}],
     useEffect() {},
     createElement: (type, props, ...children) => ({ type, props, children })
   } }
-  const start = clientSource.indexOf('function TavernSettingsSection()')
-  vm.runInNewContext(clientSource.slice(start, clientSource.indexOf('function SystemPromptSidebarTab()', start)) +
-    '; this.render = TavernSettingsSection;', context)
+  const start = clientSource.indexOf('function createGlobalSettingsModule(')
+  const end = clientSource.indexOf('return { TavernSettingsSection };', start)
+  const factory = vm.runInNewContext('(' + clientSource.slice(start, end) + 'return { TavernSettingsSection }; })', context)
+  context.render = factory({ React: context.React, rpc: async () => ({}), notifySettingsChanged() {}, ...context }).TavernSettingsSection
   const root = context.render()
   const nodes = []
   function visit(node) {
@@ -113,6 +126,7 @@ test('设置界面不重复提供已并入外观的分色，不恢复旧兼容�
   const select = nodes.find(node => node.type === 'select' && node.props['aria-label'] === '后台模型')
   assert.equal(select, undefined)
   assert.equal(nodes.some(node => node.type === 'textarea' || node.type === 'details'), false)
+  assert.deepEqual(nodes.filter(node => node.type === 'section' && node.props['aria-label']).map(node => node.props['aria-label']), ['默认模型', '新游戏默认', '显示与交互', '高级'])
   assert.doesNotMatch(JSON.stringify(root), /兼容模式|受信任人物卡模式|SillyTavern 样式环境|Custom CSS/)
 })
 
@@ -159,6 +173,7 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
     renderDepth: 3,
     headerItems: { display: 'icon-text', items: ['dsh-tavern:status', 'header:export'] },
     autoOpenStatusPanel: true,
+    hideContextAndReasoning: true,
     scaffoldingInjectionExperiment: false,
     defaultBackgroundModel: null,
     backgroundModel: null,
@@ -186,6 +201,7 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
     renderDepth: 3,
     headerItems: { display: 'icon-text', items: ['dsh-tavern:status', 'header:export'] },
     autoOpenStatusPanel: true,
+    hideContextAndReasoning: true,
     scaffoldingInjectionExperiment: false,
     defaultBackgroundModel: null,
     backgroundModel: null,

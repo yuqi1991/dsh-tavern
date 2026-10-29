@@ -577,31 +577,6 @@ window.__ModuleLoader__.load({
 // @include features/scene-images.js
 // @include features/text-layout.js
 // @include features/settings.js
-				return function () { active = false; };
-			}, []);
-			async function saveDefault(name, selection) {
-				if (state.loading || state.busy) return;
-				setState(current => ({ ...current, busy: true, error: "", notice: "" }));
-				try {
-					const result = await rpc("updateTavernSettings", { patch: { [name]: selection } });
-					setState(current => ({ ...current, [name]: result.settings[name], busy: false, notice: "已保存，下次新游戏生效" }));
-				} catch (err) { setState(current => ({ ...current, busy: false, error: String(err.message || err) })); }
-			}
-			return React.createElement("div", { className: "dsh-tavern-settings-section" },
-				React.createElement("p", { className: "dsh-tavern-settings-intro" }, "默认模型用于新游戏；已有游戏保持当前配置，可在本局单独调整。"),
-				React.createElement("p", { className: "dsh-tavern-settings-intro" }, "建议前台和后台使用 High 推理强度，优先保证正文输出和后台任务的质量。不推荐 Max，以免过度思考、增加等待。若更在意响应速度，可按需降低。"),
-				React.createElement(TavernDefaultModelSetting, { label: "默认前台模型", fallback: "使用 DSH 默认模型", selection: state.defaultForegroundModel, catalog: state.modelCatalog, disabled: state.loading || state.busy, onChange: selection => saveDefault("defaultForegroundModel", selection) }),
-				React.createElement(TavernDefaultModelSetting, { label: "默认后台模型", fallback: "跟随前台", selection: state.defaultBackgroundModel, catalog: state.modelCatalog, disabled: state.loading || state.busy, onChange: selection => saveDefault("defaultBackgroundModel", selection) }),
-				state.notice ? React.createElement("p", { role: "status" }, state.notice) : null,
-				React.createElement(TavernConversationWritingSkills, { globalDefaults: true }),
-				React.createElement(CandidatePreferencesSettings),
-				React.createElement(DisplayPreferencesSettings),
-				React.createElement(HeaderItemsSettings),
-				React.createElement(PromptTemplateSettingsEntry),
-				React.createElement(ContextCompactionSettings),
-				state.error ? React.createElement("div", { className: "dsh-tavern-settings-error", role: "alert" }, "保存失败：" + state.error) : null
-			);
-		}
 
 // @include features/user-profile.js
 

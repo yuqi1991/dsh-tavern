@@ -173,6 +173,10 @@ export function applyTavernSettingsPatch(current, patch) {
     if (!Number.isSafeInteger(input.renderDepth) || input.renderDepth < 0 || input.renderDepth > 100) throw new Error('渲染深度必须是 0 到 100 的整数')
     next.renderDepth = input.renderDepth
   }
+  if (Object.hasOwn(input, 'hideContextAndReasoning')) {
+    if (typeof input.hideContextAndReasoning !== 'boolean') throw new Error('无效的对话显示设置')
+    next.hideContextAndReasoning = input.hideContextAndReasoning
+  }
   if (Object.hasOwn(input, 'candidateDismissMode')) {
     if (!['after-fill', 'after-send'].includes(input.candidateDismissMode)) throw new Error('无效的候选项收起方式')
     next.candidateDismissMode = input.candidateDismissMode
@@ -243,6 +247,7 @@ export function presentTavernSettings(document, defaults) {
     defaultBackgroundModel: normalizeBackgroundModel(object(document).defaultBackgroundModel),
     defaultImageModel: normalizeBackgroundModel(object(document).defaultImageModel),
     contextCompaction: compactionPolicy(object(document).contextCompaction),
+    hideContextAndReasoning: object(document).hideContextAndReasoning !== false,
     candidateDismissMode: object(document).candidateDismissMode === 'after-fill' ? 'after-fill' : 'after-send',
     // Only the latest floors run a card's HTML interface; 0 renders every floor.
     renderDepth: renderDepthOf(object(document).renderDepth),

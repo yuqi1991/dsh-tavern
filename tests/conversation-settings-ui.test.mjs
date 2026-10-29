@@ -8,7 +8,7 @@ test('本局设置保存本局模型与开关，切换模型丢弃旧档位响�
   const states = [], effects = [], calls = [], pending = []
   let failSave = false
   let cursor = 0
-  let config = { modelCatalog: [], backgroundModel: null, sceneImagesAvailable: true, webSearchEnabled: false, sceneImagesEnabled: false, backgroundTasks: { variables: true, posture: true, characterDesign: false } }
+  let config = { modelCatalog: [], backgroundModel: null, sceneImagesAvailable: true, mvuCard: true, webSearchEnabled: false, sceneImagesEnabled: false, backgroundTasks: { variables: true, posture: true, characterDesign: false, variableFeedback: true } }
   const render = vm.runInNewContext('(' + source.slice(source.indexOf('function TavernConversationBackgroundModel(props)'), source.indexOf('function TavernMoreActions(props)')).trim() + ')', {
     window: { dispatchEvent() {} }, CustomEvent: class {},
     React: { useState: initial => { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = value }] }, useEffect: fn => effects.push(fn), createElement: (type, props, ...children) => ({ type, props, children }) },
@@ -41,6 +41,11 @@ test('本局设置保存本局模型与开关，切换模型丢弃旧档位响�
   nodes = tree(); await nodes.find(n => n.props?.['aria-label'] === '变量结算').props.onChange({ target: { checked: false } })
   await tree().find(n => n.props?.['aria-label'] === '联网搜索').props.onChange({ target: { checked: true } })
   assert.equal(tree().some(n => n.props?.['aria-label'] === '开启场景生图'), false, '每局的场景生图开关已改为全局开关')
+  await tree().find(n => n.props?.['aria-label'] === '变量回灌前台').props.onChange({ target: { checked: false } })
+  assert.equal(config.backgroundTasks.variableFeedback, false, '变量回灌前台开关保留在「功能」分区')
+  await tree().find(n => n.props?.['aria-label'] === '变量回灌前台').props.onChange({ target: { checked: true } })
+  assert.deepEqual(tree().filter(n => n.type === 'h3').map(n => n.children[0]), ['模型', '功能'])
+
   await tree().find(n => n.props?.['aria-label'] === '本局生图 Agent 模型').props.onChange({ target: { value: JSON.stringify({ provider: 'p', model: 'draw' }) } })
   assert.equal(tree().some(n => n.type === 'button' && n.children.includes('保存本局配置')), false)
   const call = calls.at(-1)
@@ -64,12 +69,14 @@ test('本局设置保存本局模型与开关，切换模型丢弃旧档位响�
 test('全局默认模型保存成功才更新选择，失败保留原配置', async () => {
   const states = [], effects = [], calls = []
   let cursor = 0, fail = false
-  const render = vm.runInNewContext('(' + source.slice(source.indexOf('function TavernSettingsSection()'), source.indexOf('function UserPreferenceProfileTab(props)')).trim() + ')', {
-    React: { useState(initial) { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value }] }, useEffect(fn) { effects.push(fn) }, createElement: (type, props, ...children) => ({ type, props, children }) },
-    PromptTemplateSettingsEntry: 'templates', CandidatePreferencesSettings: 'candidates', DisplayPreferencesSettings: 'display-preferences', HeaderItemsSettings: 'header-items', TavernConversationWritingSkills: 'writing-skills', TavernDefaultModelSetting: 'model-setting', TavernTextColorSettings: 'text-color', ContextCompactionSettings: 'compaction', SceneImageSettings: 'images',
+  const React = { useState(initial) { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === 'function' ? value(states[i]) : value }] }, useEffect(fn) { effects.push(fn) }, createElement: (type, props, ...children) => ({ type, props, children }) }
+  const start = source.indexOf('function createGlobalSettingsModule(')
+  const factory = vm.runInNewContext('(' + source.slice(start, source.indexOf('return { TavernSettingsSection };', start)) + 'return { TavernSettingsSection }; })')
+  const render = factory({ React, notifySettingsChanged() {},
+    PromptTemplateSettingsEntry: 'templates', CandidatePreferencesSettings: 'candidates', DisplayPreferencesSettings: 'display-preferences', HeaderItemsSettings: 'header-items', TavernConversationWritingSkills: 'writing-skills', TavernDefaultModelSetting: 'model-setting', ContextCompactionSettings: 'compaction',
     rpc: async (method, args) => { calls.push({ method, args }); if (fail) throw Error('保存失败测试'); return { settings: { defaultForegroundModel: null, defaultBackgroundModel: null, ...args?.patch }, modelCatalog: [] } }
-  })
-  function tree() { cursor = 0; return render().children }
+  }).TavernSettingsSection
+  function tree() { cursor = 0; const nodes = []; const visit = n => { if (Array.isArray(n)) return n.forEach(visit); if (!n || typeof n !== 'object') return; nodes.push(n); visit(n.children) }; visit(render()); return nodes }
   tree(); await effects[0](); await new Promise(resolve => setImmediate(resolve))
   const control = label => tree().find(n => n?.props?.label === label)
   const choice = { provider: 'p', model: 'm', reasoningEffort: 'low' }

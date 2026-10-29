@@ -180,6 +180,7 @@ export function projectChatBackgroundConfig(chat) {
     if (Object.hasOwn(chat, key)) selected[key] = chat[key]
   }
   selected.backgroundSessionStatus = chat.timeline?.participants?.background?.status
+  if (chat.mvu) selected.mvu = { enabled: chat.mvu.enabled, owner: chat.mvu.owner }
   return structuredClone(selected)
 }
 

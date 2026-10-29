@@ -11750,7 +11750,8 @@ function subscribeTavernHostTheme(win, listener) {
                 try { await rpc(props.globalDefaults ? "setDefaultWritingSkill" : "setConversationWritingSkill", { sessionId: props.sessionId, name, enabled }, props.sessionId); setSkills(skills.map(skill => skill.name === name ? { ...skill, enabled } : skill)); setNotice(props.globalDefaults ? "已保存，下次新游戏生效" : "已生效，后续请求采用新设置"); }
                 catch (err) { setError(String(err.message || err)); } finally { setBusy(false); }
             }
-            return h("section", { className: "dsh-local-section", "aria-label": props.globalDefaults ? "默认写作 Skill" : "写作 Skill" }, h("h3", null, props.globalDefaults ? "默认写作 Skill" : "写作 Skill"),
+            return h(props.globalDefaults ? "details" : "section", { className: "dsh-local-section" + (props.globalDefaults ? " dsh-tavern-default-skills" : ""), "aria-label": props.globalDefaults ? "默认写作 Skill" : "写作 Skill" },
+                props.globalDefaults ? h("summary", null, "默认写作 Skill") : h("h3", null, "写作 Skill"),
                 h("p", { className: "dsh-local-help" }, props.globalDefaults ? "设置新游戏默认启用的写作 Skill。已有游戏不变，可在本局设置中逐项调整。" : "开局采用全局默认配置，可在此逐项调整本局后续加载；前台按场景选用。"),
                 (skills || []).map(skill => h("div", { key: skill.name, className: "dsh-tavern-background-task dsh-tavern-writing-skill" },
                     h("label", { className: "dsh-tavern-writing-skill-heading" }, h("span", null, skill.name), h("input", { type: "checkbox", role: "switch", "aria-label": skill.name, checked: skill.enabled, disabled: busy, onChange: event => change(skill.name, event.target.checked) })),
@@ -11775,18 +11776,17 @@ function subscribeTavernHostTheme(win, listener) {
             }, [key]);
             const efforts = reasoning.key === key ? reasoning.value?.efforts || [] : [];
             const known = !selection || props.catalog.some(group => group.provider === selection.provider && group.models.some(model => model.id === selection.model));
-            return h("section", { className: "dsh-local-section" },
-            	h("label", null, props.label, h("select", {
-            		className: "dsh-tavern-settings-select", "aria-label": props.label, value: key, disabled: props.disabled,
-            		onChange: event => props.onChange(event.target.value ? JSON.parse(event.target.value) : null)
-            	},
+            return h("div", { className: "dsh-tavern-model-row" },
+                h("div", { className: "dsh-tavern-model-row-label" }, props.title || props.label,
+                    props.description ? h("span", { className: "dsh-tavern-settings-desc" }, props.description) : null),
+                h("div", { className: "dsh-tavern-model-row-controls" },
+                h("select", { className: "dsh-tavern-settings-select", "aria-label": props.label, value: key, disabled: props.disabled,
+                    onChange: event => props.onChange(event.target.value ? JSON.parse(event.target.value) : null) },
                     h("option", { value: "" }, props.fallback),
                     !known ? h("option", { value: key }, backgroundModelLabel(selection, props.catalog) + "（当前不可用）") : null,
-                    props.catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id)))))),
-				h("label", null, "推理强度", h("select", {
-                    className: "dsh-tavern-settings-select", "aria-label": props.label + "推理强度", value: selection?.reasoningEffort || "", disabled: props.disabled || !key || !efforts.length,
-                    onChange: event => { const next = { ...selection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return props.onChange(next); }
-				},
+                    props.catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id))))),
+                h("select", { className: "dsh-tavern-settings-select", "aria-label": props.label + "推理强度", value: selection?.reasoningEffort || "", disabled: props.disabled || !key || !efforts.length,
+                    onChange: event => { const next = { ...selection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return props.onChange(next); } },
                     h("option", { value: "" }, key ? "模型默认" : props.fallback), efforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))),
                 key && reasoning.key === key && reasoning.error ? h("p", { role: "alert" }, reasoning.error) : null);
         }
@@ -11828,8 +11828,9 @@ function subscribeTavernHostTheme(win, listener) {
                 return { display: input.display === "icon" ? "icon" : "icon-text", items: input.items.filter(item => typeof item === "string").slice(0, 24) };
             }
             function apply(settings) {
-                value = { headerItems: headerItemsOf(settings), autoOpenStatusPanel: settings.autoOpenStatusPanel !== false,
+                value = { hideContextAndReasoning: settings.hideContextAndReasoning !== false, headerItems: headerItemsOf(settings), autoOpenStatusPanel: settings.autoOpenStatusPanel !== false,
                     renderDepth: Number.isSafeInteger(settings.renderDepth) ? settings.renderDepth : 3 };
+                document.documentElement.classList.toggle("dsh-tavern-hide-process", value.hideContextAndReasoning);
                 listeners.forEach(listener => listener());
             }
             async function refresh() {
@@ -11848,11 +11849,13 @@ function subscribeTavernHostTheme(win, listener) {
                     window.dispatchEvent(new CustomEvent("dsh-tavern-settings-changed"));
                 },
                 start() {
+                    // Hidden is the default; keep process details out of view until the setting loads.
+                    if (value === null) document.documentElement.classList.add("dsh-tavern-hide-process");
                     refresh();
                     const onStorage = event => { if (event.key === key) refresh(); };
                     window.addEventListener("focus", refresh);
                     window.addEventListener("storage", onStorage);
-                    return () => { ++revision; window.removeEventListener("focus", refresh); window.removeEventListener("storage", onStorage); };
+                    return () => { ++revision; window.removeEventListener("focus", refresh); window.removeEventListener("storage", onStorage); document.documentElement.classList.remove("dsh-tavern-hide-process"); };
                 }
             };
         })();
@@ -11867,6 +11870,10 @@ function subscribeTavernHostTheme(win, listener) {
             }
             const h = React.createElement;
             return h("section", { className: "dsh-tavern-settings-group dsh-tavern-display-preferences" },
+                h("label", { className: "dsh-tavern-settings-row dsh-tavern-background-task" },
+                    h("div", { className: "dsh-tavern-settings-copy" }, h("strong", { className: "dsh-tavern-settings-title" }, "隐藏上下文注入和思考过程"),
+                        h("p", { className: "dsh-tavern-settings-desc" }, "隐藏对话中的上下文注入、上下文压缩记录、已思考和思考过程。仅影响显示，正文、模型请求和存档内容不变。")),
+                    h("input", { type: "checkbox", role: "switch", "aria-label": "隐藏上下文注入和思考过程", checked: preferences?.hideContextAndReasoning !== false, disabled: preferences === null || busy, onChange: event => save({ hideContextAndReasoning: event.target.checked }) })),
                 h("label", { className: "dsh-tavern-settings-row dsh-tavern-background-task" },
                     h("div", { className: "dsh-tavern-settings-copy" }, h("strong", { className: "dsh-tavern-settings-title" }, "进入游戏时打开酒馆状态"),
                         h("p", { className: "dsh-tavern-settings-desc" }, "进入或切换到一局游戏时，右侧面板自动展开并显示本局设置和酒馆状态。关闭后右侧面板保持你上次的样子。手机宽度下不会自动展开。")),
@@ -12041,40 +12048,61 @@ function subscribeTavernHostTheme(win, listener) {
                     h("span", { className: "dsh-tavern-settings-desc" }, notice)) : null);
         }
 
-        function TavernSettingsSection() {
-        	const [state, setState] = React.useState({ loading: true, busy: false, defaultForegroundModel: null, defaultBackgroundModel: null, notice: "", webSearchEnabled: false, backgroundModel: null, backgroundTasks: { posture: true, characterDesign: false, variables: true, ledger: false }, modelCatalog: [], sceneImages: false, error: "" });
-        	React.useEffect(function () {
-        		let active = true;
-        		rpc("getTavernSettings").then(function (result) {
-        			if (active) setState({ loading: false, busy: false, defaultForegroundModel: result.settings?.defaultForegroundModel || null, defaultBackgroundModel: result.settings?.defaultBackgroundModel || null, notice: "", webSearchEnabled: Boolean(result.settings && result.settings.webSearchEnabled), backgroundModel: result.settings && result.settings.backgroundModel || null, backgroundTasks: result.settings && result.settings.backgroundTasks || { posture: true, characterDesign: false, variables: true, ledger: false }, modelCatalog: Array.isArray(result.modelCatalog) ? result.modelCatalog : [], sceneImages: Boolean(result.releaseCapabilities && result.releaseCapabilities.sceneImages), error: "" });
-        		}, function (error) {
-        			if (active) setState(function (current) { return Object.assign({}, current, { loading: false, busy: false, error: String(error && error.message || error) }); });
+        // Settings owns its initial snapshot; each editor saves only its own resource.
+        function createGlobalSettingsModule({ React, rpc, notifySettingsChanged, TavernDefaultModelSetting, TavernConversationWritingSkills, DisplayPreferencesSettings, HeaderItemsSettings, CandidatePreferencesSettings, PromptTemplateSettingsEntry, ContextCompactionSettings }) {
+            function TavernSettingsSection() {
+                const [state, setState] = React.useState({ loading: true, busy: false, defaultForegroundModel: null, defaultBackgroundModel: null, notice: "", modelCatalog: [], error: "" });
+                React.useEffect(function () {
+                    let active = true;
+                    rpc("getTavernSettings").then(function (result) {
+                        if (active) setState({ loading: false, busy: false, defaultForegroundModel: result.settings?.defaultForegroundModel || null, defaultBackgroundModel: result.settings?.defaultBackgroundModel || null, notice: "", modelCatalog: Array.isArray(result.modelCatalog) ? result.modelCatalog : [], error: "" });
+                    }, function (error) {
+                        if (active) setState(function (current) { return Object.assign({}, current, { loading: false, busy: false, error: String(error && error.message || error) }); });
+                    });
+                    return function () { active = false; };
+                }, []);
+                async function saveDefault(name, selection) {
+                    if (state.loading || state.busy) return;
+                    setState(current => ({ ...current, busy: true, error: "", notice: "" }));
+                    try {
+                        const result = await rpc("updateTavernSettings", { patch: { [name]: selection } });
+                        notifySettingsChanged();
+                        setState(current => ({ ...current, [name]: result.settings[name], busy: false, notice: "已保存，下次新游戏生效" }));
+                    } catch (err) { setState(current => ({ ...current, busy: false, error: String(err.message || err) })); }
+                }
+                const h = React.createElement;
+                function group(title, desc, ...children) {
+                    return h("section", { className: "dsh-tavern-gs-group", "aria-label": title },
+                        h("header", { className: "dsh-tavern-gs-head" }, h("h2", null, title), desc ? h("p", null, desc) : null),
+                        ...children);
+                }
+                return h("div", { className: "dsh-tavern-settings-section dsh-tavern-global-settings" },
+                    group("默认模型", "用于新游戏，已有对话保持当前配置，可在本局设置中单独调整。建议使用 High 推理强度；Max 容易过度思考、增加等待。",
+                        h("div", { className: "dsh-tavern-gs-card" },
+                            React.createElement(TavernDefaultModelSetting, { label: "默认前台模型", title: "前台模型", description: "写正文、扮演角色，直接决定剧情质量", fallback: "使用 DSH 默认模型", selection: state.defaultForegroundModel, catalog: state.modelCatalog, disabled: state.loading || state.busy, onChange: selection => saveDefault("defaultForegroundModel", selection) }),
+                            React.createElement(TavernDefaultModelSetting, { label: "默认后台模型", title: "后台模型", description: "变量结算、世界书筛选、候选回复等幕后任务", fallback: "跟随前台", selection: state.defaultBackgroundModel, catalog: state.modelCatalog, disabled: state.loading || state.busy, onChange: selection => saveDefault("defaultBackgroundModel", selection) })),
+                        state.notice ? h("p", { className: "dsh-tavern-gs-notice", role: "status" }, state.notice) : null),
+                    group("新游戏默认", "开局时继承，开局后可在本局设置中单独修改。",
+                        h(TavernConversationWritingSkills, { globalDefaults: true })),
+                    group("显示与交互", "",
+                        h(DisplayPreferencesSettings),
+                        h(CandidatePreferencesSettings)),
+                    group("高级", "",
+                        h(PromptTemplateSettingsEntry),
+                        h(ContextCompactionSettings),
+                        // Most players never need this; it lives at the bottom of 高级, folded.
+                        h(HeaderItemsSettings)),
+                    state.error ? React.createElement("div", { className: "dsh-tavern-settings-error", role: "alert" }, "保存失败：" + state.error) : null
+                );
+            }
+
+            return { TavernSettingsSection };
+        }
+        const { TavernSettingsSection } = createGlobalSettingsModule({
+            React, rpc, notifySettingsChanged: () => window.dispatchEvent(new CustomEvent("dsh-tavern-settings-changed")),
+            TavernDefaultModelSetting, TavernConversationWritingSkills, DisplayPreferencesSettings, HeaderItemsSettings,
+            CandidatePreferencesSettings, PromptTemplateSettingsEntry, ContextCompactionSettings
         });
-				return function () { active = false; };
-			}, []);
-			async function saveDefault(name, selection) {
-				if (state.loading || state.busy) return;
-				setState(current => ({ ...current, busy: true, error: "", notice: "" }));
-				try {
-					const result = await rpc("updateTavernSettings", { patch: { [name]: selection } });
-					setState(current => ({ ...current, [name]: result.settings[name], busy: false, notice: "已保存，下次新游戏生效" }));
-				} catch (err) { setState(current => ({ ...current, busy: false, error: String(err.message || err) })); }
-			}
-			return React.createElement("div", { className: "dsh-tavern-settings-section" },
-				React.createElement("p", { className: "dsh-tavern-settings-intro" }, "默认模型用于新游戏；已有游戏保持当前配置，可在本局单独调整。"),
-				React.createElement("p", { className: "dsh-tavern-settings-intro" }, "建议前台和后台使用 High 推理强度，优先保证正文输出和后台任务的质量。不推荐 Max，以免过度思考、增加等待。若更在意响应速度，可按需降低。"),
-				React.createElement(TavernDefaultModelSetting, { label: "默认前台模型", fallback: "使用 DSH 默认模型", selection: state.defaultForegroundModel, catalog: state.modelCatalog, disabled: state.loading || state.busy, onChange: selection => saveDefault("defaultForegroundModel", selection) }),
-				React.createElement(TavernDefaultModelSetting, { label: "默认后台模型", fallback: "跟随前台", selection: state.defaultBackgroundModel, catalog: state.modelCatalog, disabled: state.loading || state.busy, onChange: selection => saveDefault("defaultBackgroundModel", selection) }),
-				state.notice ? React.createElement("p", { role: "status" }, state.notice) : null,
-				React.createElement(TavernConversationWritingSkills, { globalDefaults: true }),
-				React.createElement(CandidatePreferencesSettings),
-				React.createElement(DisplayPreferencesSettings),
-				React.createElement(HeaderItemsSettings),
-				React.createElement(PromptTemplateSettingsEntry),
-				React.createElement(ContextCompactionSettings),
-				state.error ? React.createElement("div", { className: "dsh-tavern-settings-error", role: "alert" }, "保存失败：" + state.error) : null
-			);
-		}
 
 		function UserPreferenceProfileTab(props) {
             const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
@@ -15477,14 +15505,16 @@ const worldBookSwitcherFeature = createWorldBookSwitcherFeatureModule();
             return h("aside", { className: "dsh-tavern-status dsh-local-settings", "aria-label": "本局设置" },
                 h("div", { className: "dsh-tavern-status-head" }, h("strong", null, "本局设置")),
                 h("div", { className: "dsh-tavern-status-body" }, isPlayMode(mode) ? h(React.Fragment, null,
-                    h("p", { className: "dsh-local-intro" }, "仅影响本局，修改后自动保存。已有对话和变量会保留。"),
-                    h("section", { className: "dsh-local-section" }, h("h3", null, "基本信息"),
+                    h("p", { className: "dsh-local-intro" }, "仅影响本局，修改后自动保存，已有对话和变量会保留。"),
+                    h("p", { className: "dsh-local-warning dsh-local-intro" }, "切换预设、长期偏好、模型、结算或联网搜索后，下一次请求要重建缓存，耗时和费用会增加。"),
+                    h("section", { className: "dsh-local-section" }, h("h3", null, "游玩"),
                         h(TavernLocalPlayerName, { key: owner + ":name", sessionId: owner }),
-                        h(TavernStatusBarSetting, { key: owner + ":status", sessionId: owner }),
                         h(TavernConversationPreset, { key: owner + ":preset", sessionId: owner }),
                         h(UserPreferenceProfileTab, { key: owner + ":profile", scope: { sessionId: owner }, conversationOnly: true }),
-                        h("p", { className: "dsh-local-warning" }, "切换预设或用户画像会使提示词缓存失效，首次请求会增加耗时和费用。")),
-                    h(TavernConversationBackgroundModel, { key: owner, sessionId: owner }), h(TavernConversationWritingSkills, { key: owner + ":skills", sessionId: owner })) : h("p", null, "请选择一个游玩对话。")));
+                        h(TavernStatusBarSetting, { key: owner + ":status", sessionId: owner })),
+                    h(TavernConversationBackgroundModel, { key: owner, sessionId: owner }),
+                    h("details", { className: "dsh-local-advanced" }, h("summary", null, "高级"),
+                        h(TavernConversationWritingSkills, { key: owner + ":skills", sessionId: owner }))) : h("p", null, "请选择一个游玩对话。")));
         }
 
         function TavernConversationSettingsAction(props) {
@@ -15504,7 +15534,7 @@ const worldBookSwitcherFeature = createWorldBookSwitcherFeatureModule();
             const [selection, setSelection] = React.useState(null);
             const [tasks, setTasks] = React.useState({ variables: true, posture: true, characterDesign: false, variableFeedback: true });
             const [saved, setSaved] = React.useState(null);
-            const [features, setFeatures] = React.useState({ webSearchEnabled: false, sceneImagesEnabled: false, sceneImagesAvailable: false });
+            const [features, setFeatures] = React.useState({ webSearchEnabled: false, sceneImagesEnabled: false, sceneImagesAvailable: false, mvuCard: false });
             const [loaded, setLoaded] = React.useState(false);
             const [busy, setBusy] = React.useState(false);
             const [error, setError] = React.useState("");
@@ -15519,7 +15549,7 @@ const worldBookSwitcherFeature = createWorldBookSwitcherFeatureModule();
                 try {
                     const result = await rpc("getConversationBackgroundConfig", { sessionId: props.sessionId }, props.sessionId);
                     setCatalog(result.modelCatalog || []); setSelection(result.backgroundModel); setSaved(result.backgroundModel); setImageSelection(result.imageModel || null);
-                    setTasks(result.backgroundTasks); setFeatures({ webSearchEnabled: result.webSearchEnabled === true, sceneImagesEnabled: result.sceneImagesEnabled === true, sceneImagesAvailable: result.sceneImagesAvailable === true }); setLoaded(true);
+                    setTasks(result.backgroundTasks); setFeatures({ webSearchEnabled: result.webSearchEnabled === true, sceneImagesEnabled: result.sceneImagesEnabled === true, sceneImagesAvailable: result.sceneImagesAvailable === true, mvuCard: result.mvuCard === true }); setLoaded(true);
                 } catch (err) { setError(String(err.message || err)); }
             }
             React.useEffect(() => { void load(); }, []);
@@ -15554,15 +15584,16 @@ const worldBookSwitcherFeature = createWorldBookSwitcherFeatureModule();
             const imageKnown = !imageSelection || catalog.some(group => group.provider === imageSelection.provider && group.models.some(model => model.id === imageSelection.model));
             const modelOptions = () => catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id))));
             const known = !selection || catalog.some(group => group.provider === selection.provider && group.models.some(model => model.id === selection.model));
+            const toggle = (name, title, description, checked, patch) => h("label", { key: name, className: "dsh-tavern-background-task" },
+                h("span", null, title, h("span", { className: "dsh-tavern-settings-desc" }, description)),
+                h("input", { type: "checkbox", role: "switch", "aria-label": title, checked, disabled: !loaded || busy, onChange: event => save(patch(event.target.checked)) }));
             return h("div", { className: "dsh-local-runtime" },
-                h("section", { className: "dsh-local-section" }, h("h3", null, "后台模型"),
-                    h("p", { className: "dsh-tavern-settings-desc" }, "仅影响本局，下一次后台任务生效。正在运行的任务不变，保留原后台 Agent 和历史。"),
-                    h("p", { className: "dsh-tavern-settings-desc" }, "建议前台和后台使用 High 推理强度，优先保证正文输出和后台任务的质量。不推荐 Max，以免过度思考、增加等待。若更在意响应速度，可按需降低。"),
-                    h("p", { className: "dsh-local-warning" }, "切换模型或推理强度会使缓存失效，首次请求会增加耗时和费用。"),
+                h("section", { className: "dsh-local-section" }, h("h3", null, "模型"),
+                    h("p", { className: "dsh-tavern-settings-desc" }, "下一次后台任务生效。建议 High 推理强度；Max 容易过度思考、增加等待。"),
                     h("label", null, "后台模型", h("select", { "aria-label": "本局后台模型", className: "dsh-tavern-settings-select", value: key, disabled: !loaded || busy, onChange: event => { return save({ backgroundModel: event.target.value ? JSON.parse(event.target.value) : null }); } },
                         h("option", { value: "" }, "跟随前台"),
                         !known ? h("option", { value: key }, backgroundModelLabel(selection, catalog) + "（当前不可用）") : null,
-                        catalog.map(group => h("optgroup", { key: group.provider, label: group.providerName || group.provider }, group.models.map(model => h("option", { key: model.id, value: JSON.stringify({ provider: group.provider, model: model.id }) }, model.name || model.id)))))),
+                        modelOptions())),
                     h("label", null, "推理强度", h("select", { "aria-label": "本局后台推理强度", className: "dsh-tavern-settings-select", value: selection?.reasoningEffort || "", disabled: !key || !efforts.length || busy, onChange: event => { const next = { ...selection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return save({ backgroundModel: next }); } },
                         h("option", { value: "" }, key ? "模型默认" : "跟随前台"), efforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))),
                     features.sceneImagesAvailable ? h("label", null, "生图 Agent 模型", h("select", { "aria-label": "本局生图 Agent 模型", className: "dsh-tavern-settings-select", value: imageKey, disabled: !loaded || busy, onChange: event => { return save({ imageModel: event.target.value ? JSON.parse(event.target.value) : null }); } },
@@ -15570,19 +15601,16 @@ const worldBookSwitcherFeature = createWorldBookSwitcherFeatureModule();
                         !imageKnown ? h("option", { value: imageKey }, backgroundModelLabel(imageSelection, catalog) + "（当前不可用）") : null,
                         modelOptions())) : null,
                     features.sceneImagesAvailable && imageKey ? h("label", null, "生图推理强度", h("select", { "aria-label": "本局生图 Agent 推理强度", className: "dsh-tavern-settings-select", value: imageSelection?.reasoningEffort || "", disabled: !imageEfforts.length || busy, onChange: event => { const next = { ...imageSelection }; if (event.target.value) next.reasoningEffort = event.target.value; else delete next.reasoningEffort; return save({ imageModel: next }); } },
-                        h("option", { value: "" }, "模型默认"), imageEfforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))) : null,
-                    ), h("section", { className: "dsh-local-section" }, h("h3", null, "后台结算"), h("p", { className: "dsh-local-help" }, "从下一次后台任务生效，正在运行的任务不变。"),
-                    [["variables", "变量结算", "MVU 卡建议开启，否则变量和状态栏可能不再同步。普通卡不执行此任务。"], ["posture", "人物姿势结算", "总结本轮结束时人物的位置、动作和姿势。"], ["variableFeedback", "变量回灌前台", "每轮把上一轮变化的变量最新值告诉前台，减少时间、地点、数值前后不一致。"]].map(([name, title, description]) => h("label", { key: name, className: "dsh-tavern-background-task" },
-                        h("span", null, title, h("span", { className: "dsh-tavern-settings-desc" }, description)),
-                        h("input", { type: "checkbox", role: "switch", "aria-label": title, checked: tasks[name], disabled: !loaded || busy, onChange: event => { return save({ backgroundTasks: { [name]: event.target.checked } }); } }))),
-                    h("p", { className: "dsh-local-warning" }, "调整结算任务会使缓存失效，首次请求会增加耗时和费用。")), h("section", { className: "dsh-local-section" }, h("h3", null, "扩展功能"),
-                    [["webSearchEnabled", "联网搜索", "本局前台和后台可按需搜索；从后续请求生效。切换会使缓存失效，首次请求会增加耗时和费用。"]].map(([name, title, description]) => h("label", { key: name, className: "dsh-tavern-background-task" },
-                        h("span", null, title, h("span", { className: "dsh-tavern-settings-desc" }, description)),
-                        h("input", { type: "checkbox", role: "switch", "aria-label": title, checked: features[name], disabled: !loaded || busy, onChange: event => { return save({ [name]: event.target.checked }); } }))),
-                    ), error || key && reasoning.key === key && reasoning.error ? h("p", { role: "alert", className: "dsh-tavern-prompt-error" }, error || reasoning.error) : null,
-                    notice ? h("p", { role: "status" }, notice) : null,
-                    !loaded && error ? h("button", { className: "dsh-tavern-btn", onClick: load }, "重试") : null,
-                    h("div", { role: "status", className: "dsh-local-feedback" }, busy ? "保存中…" : ""));
+                        h("option", { value: "" }, "模型默认"), imageEfforts.map(item => h("option", { key: item.id, value: item.id }, item.name || item.id)))) : null),
+                h("section", { className: "dsh-local-section" }, h("h3", null, "功能"),
+                    features.mvuCard ? toggle("variables", "变量结算", "关闭后变量和状态栏不再更新。", tasks.variables, checked => ({ backgroundTasks: { variables: checked } })) : null,
+                    toggle("variableFeedback", "变量回灌前台", "每轮把上一轮变化的变量最新值告诉前台，减少时间、地点、数值前后不一致。", tasks.variableFeedback, checked => ({ backgroundTasks: { variableFeedback: checked } })),
+                    toggle("posture", "人物姿势", "每轮总结人物的位置、动作和姿势，供前台保持一致。", tasks.posture, checked => ({ backgroundTasks: { posture: checked } })),
+                    toggle("webSearchEnabled", "联网搜索", "前台和后台可按需搜索。", features.webSearchEnabled, checked => ({ webSearchEnabled: checked }))),
+                error || key && reasoning.key === key && reasoning.error ? h("p", { role: "alert", className: "dsh-tavern-prompt-error" }, error || reasoning.error) : null,
+                notice ? h("p", { role: "status" }, notice) : null,
+                !loaded && error ? h("button", { className: "dsh-tavern-btn", onClick: load }, "重试") : null,
+                h("div", { role: "status", className: "dsh-local-feedback" }, busy ? "保存中…" : ""));
         }
 
 		function TavernMoreActions(props) {
