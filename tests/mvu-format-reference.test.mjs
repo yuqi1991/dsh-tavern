@@ -1,0 +1,42 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+
+import { validateCardText } from '../tavern-plugin/lib/domain/card-validation.js'
+
+// The panel and regex scripts in the format reference must themselves pass the MVU format check.
+const root = new URL('../presets/tavern/skills/', import.meta.url)
+const format = await readFile(new URL('card-to-mvu/references/mvu-format.md', root), 'utf8')
+const panel = format.match(/```html\n([\s\S]*?)\n```/)[1]
+const regexScripts = JSON.parse(format.match(/```json\n(\[[\s\S]*?\])\n```/)[1].replace('（面板 HTML）', () => panel.replace(/\n/g, '\\n').replace(/"/g, '\\"')))
+
+function card(patch = () => {}) {
+  const state = { $meta: { strictSet: true }, 地点: { 名称: '事务所' }, 状态: { 体力: 62 }, 线索: [] }
+  const greeting = (text, value = state) => text + '\n\n<initvar>\n' + JSON.stringify(value, null, 2) + '\n</initvar>\n\n<mvu-status/>'
+  const data = {
+    name: '沈清岚', first_mes: greeting('雨夜事务所。'), alternate_greetings: [greeting('雨夜现场。', { ...state, 地点: { 名称: '老闸区' } })],
+    character_book: { entries: [{ comment: '[mvu_update]状态更新规则', content: '按正文更新地点', enabled: true, constant: true, keys: [] }] },
+    extensions: { regex_scripts: structuredClone(regexScripts) }
+  }
+  patch(data)
+  return validateCardText(JSON.stringify({ spec: 'chara_card_v2', spec_version: '2.0', data }))
+}
+const messages = report => report.errors.concat(report.warnings).map(item => item.path + ' ' + item.message).join('\n')
+
+test('校验指出 MVU 卡常见格式错误的位置', () => {
+  let report = card(data => { data.first_mes = data.first_mes.replace('"名称": "事务所"', '"名称": "事务所"]]') })
+  assert.equal(report.valid, false)
+  assert.match(messages(report), /\/data\/first_mes <initvar> 不是有效 JSON\/YAML/)
+  report = card(data => { data.extensions.regex_scripts = [] })
+  assert.match(report.errors.map(item => item.message).join(), /没有把它替换成面板的正则/)
+  report = card(data => { data.extensions.regex_scripts[0].replaceString = data.extensions.regex_scripts[0].replaceString.replace('function render() {', 'function render() {{') })
+  assert.match(report.errors.map(item => item.message).join(), /面板脚本语法错误/)
+  report = card(data => { data.extensions.regex_scripts[0].replaceString += '<b>$1</b><span data-mvu="/不存在"></span>'; data.extensions.regex_scripts[1].findRegex = '/(/' })
+  assert.match(messages(report), /含 "\$1"/)
+  assert.match(messages(report), /引用的变量路径在初值中不存在：\/不存在/)
+  assert.match(messages(report), /regex_scripts\/1\/findRegex 正则无法编译/)
+  report = card(data => { data.alternate_greetings[0] = data.alternate_greetings[0].replace('"线索": []', '"线索": [], "天气": "雨"'); data.character_book.entries = [] })
+  assert.equal(report.valid, true)
+  assert.match(messages(report), /\/data\/first_mes 初值缺少其他开场有的字段：\/天气/)
+  assert.match(messages(report), /没有 \[mvu_update\] 条目/)
+})

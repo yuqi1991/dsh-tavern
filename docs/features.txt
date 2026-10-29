@@ -189,7 +189,7 @@ DSH Tavern 功能清单（纯文本审阅版）
 
 1. 读取剧本：tavern_read_script，按需取得剧本内容，辅助剧本推进或工作台分析。
 2. 读取游玩记录：tavern_read_play_chat，供调试工作台读取已关联记录的概览及相关证据；与正文 Agent 回忆剧情的 recall 工具分工不同。
-3. 人物卡读写：tavern_read_card、tavern_read_card_raw、tavern_update_card，读取结构化设定或原始卡片，按要求修改。
+3. 人物卡读写：tavern_read_card、tavern_read_card_raw、tavern_search_card、tavern_replace_card_text、tavern_update_card，读取结构化设定或原始卡片、全卡定位与批量替换文字，按要求修改；加 MVU 时用 tavern_mvu_overview 摸底、tavern_apply_mvu 一次写入变量、规则和面板（带草稿转换元数据的卡改走 tavern_card_draft）。
 4. 人物卡检查与恢复：tavern_validate_card、tavern_restore_card，检查卡片结构，按要求恢复导入原版。
 5. 世界书读写：tavern_read_worldbook、tavern_update_worldbook，检查并修改世界书内容。
 6. 预设读写：tavern_read_preset、tavern_update_preset，检查和修改提示词及相关配置。
@@ -205,9 +205,9 @@ Skill 是 Agent 在特定任务中使用的工作方法；工具负责实际读�
 示例：“这局状态栏不刷新，请结合关联记录检查原因。”
 结合日志、提示词和状态证据排查，适用于显示异常、结算失败、提示词未生效和生成缓慢。
 
-2. card-to-mvu：将普通状态栏人物卡转换为 MVU 版。
-示例：“把这张卡转换为独立 MVU 版，保留图片。”
-拆分变量初值、后台更新规则与状态展示，并验证转换结果；不是所有卡都需要转换。
+2. card-to-mvu：给人物卡加 MVU，或把普通状态栏人物卡转换为 MVU 版。
+示例：“给这张卡加上 MVU。”“把这张卡转换为独立 MVU 版，保留图片。”
+两条路线：默认在原卡上直接写入变量初值、后台更新规则与状态面板（tavern_mvu_overview + tavern_apply_mvu，不生成副本，保存后自动校验）；带草稿转换元数据的卡、需要原样保留脚本型原状态栏时走草稿转换（tavern_card_draft，可 inPlace 原地转换或生成独立副本）。不是所有卡都需要转换。
 
 3. user-profile：建立和修订长期用户画像。
 通过分批访谈整理偏好，先出草案，经过确认后保存。具体操作见下一节。

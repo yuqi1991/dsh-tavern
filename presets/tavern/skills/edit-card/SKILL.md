@@ -11,6 +11,7 @@ description: "修改已有的人物卡：调整设定、开场、文风、MVU �
 
 先用一句话说明本次要改什么、正在读取哪部分。只读取目标字段，需要关联证据时再扩大范围。
 
+- 没有 `dsh_mvu_conversion` 转换元数据的 MVU 卡（用 `tavern_apply_mvu` 加的或导入的）：先 `tavern_mvu_overview` 看全貌，变量、规则、面板用 `tavern_apply_mvu` 只传要改的部分，或像普通文件一样直接改；改完看附带的校验。带转换元数据的卡不能用 `tavern_apply_mvu`，走下一条。
 - 已有 MVU 卡的变量增删、改名、移动或开场初值：先按下方关联世界书规则识别定义归属；托管卡读取 [变量修改配方](references/mvu-variables.md)，用 tavern_card_draft 的 begin path 载入目标定义并局部修改。
 - 仅修改已有 MVU 面板的标签、重复字段名、布局或样式，且没有进行中的变量草稿：调用 `tavern_read_mvu_appearance`，参数 `path` 为目标副本。`editable=true` 时走下方美化流程。
 - 普通设定、开场和文风：用 `tavern_read_card` 读取相关字段，通过 `tavern_update_card` 保存需要的变更，再用 `tavern_validate_card` 校验。原地 MVU 卡（元数据 `selfSourced=true`）以卡片文本为准，像改普通文件一样直接改：改开场正文时只写剧情文字，工具自动保留末尾的 `<initvar>` 与状态入口；只改某个开场的初值，也可以直接改该 `<initvar>` 里的 JSON 值，保持合法 JSON。增删变量字段或开场会牵动面板和各开场，改用 tavern_card_draft 的 begin path。
