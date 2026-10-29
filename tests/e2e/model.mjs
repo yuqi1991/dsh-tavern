@@ -18,6 +18,35 @@ export function apply(ctx) {
     async *stream(input) {
       if (process.env.TAVERN_E2E_COMPACTION_DIR) { yield* compactionStream(input); return }
       const tools = new Set((input.tools || []).map(tool => tool.name))
+      if (process.env.TAVERN_E2E_CARD_MVU && tools.has('tavern_apply_mvu')) {
+        // Card workbench script: overview, then apply, with fixed arguments. The tools run for real.
+        await appendFile(process.env.TAVERN_E2E_CARD_MVU, JSON.stringify({ tools: [...tools], messages: input.messages }) + '\n')
+        const done = toolResultIds(input.messages)
+        const names = ['E2E_MVU_CONVERT', 'E2E_MVU_NEW', 'E2E_MVU_MANAGED']
+        // Plugin-injected user messages follow the player's, so take the latest message that names a stage.
+        const stage = [...input.messages].reverse().map(message => names.find(name => message.role === 'user' && JSON.stringify(message).includes(name))).find(Boolean)
+        const calls = {
+          E2E_MVU_CONVERT: [
+            ['mvu-convert-overview', 'tavern_mvu_overview', { path: 'cards/e2e-legacy.json' }],
+            ['mvu-convert-apply', 'tavern_apply_mvu', { path: 'cards/e2e-legacy.json',
+              variables: { 地点: { 名称: '旧书店' }, 状态: { 金币: 10 }, 线索: [] }, openings: [null, { 地点: { 名称: '集市' }, 状态: { 金币: 5 } }],
+              rules: '金币：获得奖励或花费时按实际数额增减。\n地点名称：玩家抵达新地点时更新。',
+              remove: { fromOpenings: '\\n*<状态>[\\s\\S]*?</状态>', entries: ['entry:0'], regex: ['old-status'] },
+              panel: { html: '<!doctype html><html><body><div id="legacy-panel">地点：<span data-mvu="/地点/名称"></span> 金币：<span data-mvu="/状态/金币"></span></div></body></html>' } }]],
+          E2E_MVU_NEW: [
+            ['mvu-new-overview', 'tavern_mvu_overview', { path: 'cards/e2e-new.json' }],
+            ['mvu-new-apply', 'tavern_apply_mvu', { path: 'cards/e2e-new.json',
+              variables: { 时间: { 时段: '晨' }, 状态: { 体力: 80 }, 线索: [] }, rules: '体力：受伤或劳累时下降，休息时回升。',
+              panel: { title: '状态', accent: '#2f6f5e', sections: [{ title: '时间', fields: [{ path: '/时间/时段', label: '时段' }] }, { title: '体力', fields: [{ path: '/状态/体力', kind: 'bar' }, { path: '/线索', kind: 'list' }] }] } }]],
+          E2E_MVU_MANAGED: [['mvu-managed-apply', 'tavern_apply_mvu', { path: 'cards/e2e-managed.json', variables: { 地点: { 名称: '甲' } } }]]
+        }[stage] || []
+        const next = calls.find(([id]) => !done.has(id))
+        const block = next ? { type: 'tool-call', id: next[0], name: next[1], arguments: JSON.stringify(next[2]) } : { type: 'text', text: stage ? stage + ' 完成。' : '卡片工作台就绪。' }
+        yield { type: 'block-start', index: 0, blockType: block.type }
+        yield { type: 'block-end', index: 0, block }
+        yield { type: 'finish', reason: { kind: block.type === 'tool-call' ? 'tool-calls' : 'stop' } }
+        return
+      }
       if (process.env.TAVERN_E2E_MEMORY_AUDIT) {
         await appendFile(process.env.TAVERN_E2E_MEMORY_AUDIT, JSON.stringify({ system: input.system, messages: input.messages, tools: input.tools }) + '\n')
         if (tools.has('tavern_memory_search')) {
