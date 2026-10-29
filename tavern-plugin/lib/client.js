@@ -14955,7 +14955,7 @@ function subscribeTavernHostTheme(win, listener) {
 				return React.createElement(DshUi.Tooltip, { label: copied ? "已复制" : "复制", side: "bottom" },
 					React.createElement("button", { type: "button", className: "dsh-tavern-story-icon", "aria-label": copied ? "已复制" : "复制", onClick: function () {
 						DshUi.writeClipboard(props.text).then(function (ok) { if (!ok) return; setCopied(true); window.setTimeout(function () { setCopied(false); }, 1000); });
-					} }, React.createElement(copied ? DshUi.IconCheckOutline16 : DshUi.IconCopyOutline16, null)));
+					} }, React.createElement(copied ? DshUi.IconCheckOutlineRegular : DshUi.IconCopyOutlineRegular, null)));
 			}
 
 			function TavernStoryInput(props) {
@@ -14982,7 +14982,7 @@ function subscribeTavernHostTheme(win, listener) {
 				}
 				return React.createElement(DshUi.Tooltip, { label: forking ? "正在分叉…" : "从这一轮分叉", side: "bottom" },
 					React.createElement("button", { type: "button", className: "dsh-tavern-story-icon", "aria-label": "从这一轮分叉", disabled: forking, onClick: fork },
-						React.createElement(DshUi.IconBranchOutline16, null)));
+						React.createElement(DshUi.IconBranchOutlineRegular, null)));
 			}
 
 			function TavernStoryFloor(props) {
