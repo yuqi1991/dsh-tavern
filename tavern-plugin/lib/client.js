@@ -3619,8 +3619,11 @@ window.__ModuleLoader__.load({
 		    // option text and fire input. Mirror the live draft on focus so append mode
 		    // keeps whatever the player already typed; input writes it back.
 		    area.addEventListener('focus', sync);
-		    area.addEventListener('input', commit);
-		    area.addEventListener('change', commit);
+		    // jQuery's .trigger('input') never dispatches a native event; it only runs
+		    // jQuery-bound handlers and the element's on<event> property. Use the
+		    // property so jQuery-triggered and native events each commit exactly once.
+		    area.oninput = commit;
+		    area.onchange = commit;
 		    function noteFrameFocus(event) {
 		      for (const owner of state.owners) if (owner.ownsFrame(event.target)) state.lastOwner = owner;
 		    }

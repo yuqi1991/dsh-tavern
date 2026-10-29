@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { JSDOM } from 'jsdom'
 import { helperClient } from './fixtures/helper-host-harness.mjs'
 
@@ -130,4 +131,28 @@ test('trusted card lifecycle routes #send_textarea through the session draft', a
     assert.deepEqual(lines, [['/setinput 玩家草稿@s1\n选项文字', 's1']])
   } finally { stop() }
   assert.equal(win.document.getElementById('send_textarea'), null)
+})
+
+test('jQuery .val().trigger("input") 不派发原生事件，也要进入宿主输入框草稿', async () => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { runScripts: 'outside-only' })
+  const win = dom.window
+  win.eval(readFileSync(new URL('../tavern-plugin/lib/vendor/runtime-assets/jquery/jquery.min.js', import.meta.url), 'utf8'))
+  const fills = []
+  const release = helperClient.installFrameHostComposer(win.document, () => true,
+    () => Promise.resolve(), error => assert.fail(error.message),
+    text => { fills.push(text); return Promise.resolve() }, () => '')
+  try {
+    const $ = win.jQuery
+    $('#send_textarea').val('选项丁').trigger('input')
+    $('#send_textarea').val('选项戊').trigger('change')
+    await tick()
+    assert.deepEqual(fills, ['选项丁', '选项戊'])
+    // 原生事件只提交一次，不会被 jQuery 与属性处理器各算一次。
+    fills.length = 0
+    const area = win.document.getElementById('send_textarea')
+    area.value = '选项己'
+    area.dispatchEvent(new win.Event('input', { bubbles: true }))
+    await tick()
+    assert.deepEqual(fills, ['选项己'])
+  } finally { release() }
 })
