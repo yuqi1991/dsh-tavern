@@ -33,58 +33,96 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const listeners = new Set<Listener>()
   const latest = new Map<string, TavernSessionSignal>()
   let connected = false
-  let started = false
   let disposed = false
   let retryAttempt = 0
   let retryTimer: ReturnType<typeof setTimeout> | undefined
   let control: TavernSignalSnapshotStream | undefined
+  const pendingDisposals = new Set<Promise<void>>()
   const sessionIds = () => Array.from(new Set(Array.from(listeners, item => item.sessionId))).sort()
   const key = (sessionId: string, kind: string) => `${sessionId}\u0000${kind}`
-  const report = (error: unknown) => { for (const item of listeners) item.onError?.(error) }
-  const publish = (signal: TavernSessionSignal) => {
-    latest.set(key(signal.sessionId, signal.kind), signal)
-    for (const item of listeners) if (item.sessionId === signal.sessionId && item.kind === signal.kind) item.listener(signal)
+  const isCurrent = (stream: TavernSignalSnapshotStream) => !disposed && control === stream
+  const report = (stream: TavernSignalSnapshotStream, error: unknown) => {
+    for (const item of Array.from(listeners)) {
+      if (!isCurrent(stream)) return
+      if (listeners.has(item)) item.onError?.(error)
+    }
+  }
+  const clearSnapshot = () => { connected = false; latest.clear() }
+  const retireStream = (resetRetry = true) => {
+    const previous = control
+    // Invalidate callbacks before disposal, which may finish after a successor starts.
+    control = undefined
+    clearSnapshot()
+    if (retryTimer !== undefined) { clearTimeout(retryTimer); retryTimer = undefined }
+    if (resetRetry) retryAttempt = 0
+    if (previous === undefined) return
+    const pending = previous.dispose()
+    pendingDisposals.add(pending)
+    // Retired failures must not notify listeners belonging to a new stream.
+    void pending.then(() => pendingDisposals.delete(pending), () => pendingDisposals.delete(pending))
   }
   const scheduleRecovery = (failed: TavernSignalSnapshotStream) => {
-    if (disposed || retryTimer !== undefined || control !== failed) return
-    connected = false
+    if (!isCurrent(failed) || retryTimer !== undefined || listeners.size === 0) return
     const delay = Math.min(5000, 250 * (2 ** retryAttempt++))
     retryTimer = setTimeout(() => {
+      if (!isCurrent(failed)) return
       retryTimer = undefined
-      if (disposed || control !== failed) return
-      void failed.dispose().finally(() => {
-        if (disposed || control !== failed) return
-        control = undefined
-        startStream()
-      })
+      retireStream(false)
+      startStream()
     }, delay)
   }
   const startStream = () => {
     if (disposed || control !== undefined || listeners.size === 0) return
+    // A subscription-set change gets a new owner, including new callback closures.
+    const followedSessionIds = sessionIds()
+    let failed = false
+    const active = () => isCurrent(next) && !failed
     const stream = ctx.remote.$stream({
       name: 'Tavern session signal stream',
-      open: (signal: AbortSignal) => tavernSignals.follow(sessionIds(), signal),
+      open: (signal: AbortSignal) => tavernSignals.follow(followedSessionIds, signal),
       ended: (accepted: boolean) => accepted
         ? new RemoteStreamCarrierError('Tavern session signal stream ended unexpectedly')
         : new Error('Tavern session signal stream ended before its snapshot'),
-      carrierFailed: report,
+      carrierFailed: (error: unknown) => {
+        if (!active()) return
+        clearSnapshot()
+        report(next, error)
+      },
     })
-    const next = new RemoteSnapshotStream(stream, {
+    const next: TavernSignalSnapshotStream = new RemoteSnapshotStream(stream, {
       name: 'Tavern session signal stream',
       isSnapshot: (frame: TavernSessionSignalFrame) => frame.type === 'snapshot',
       replace: (frame: TavernSessionSignalSnapshot) => {
+        if (!active()) return
         retryAttempt = 0
         latest.clear()
         for (const signal of frame.signals) latest.set(key(signal.sessionId, signal.kind), signal)
         connected = true
-        for (const item of listeners) {
+        for (const item of Array.from(listeners)) {
+          if (!active()) return
+          if (!listeners.has(item)) continue
           item.onConnect?.()
+          if (!active()) return
           const signal = latest.get(key(item.sessionId, item.kind))
-          if (signal !== undefined) item.listener(signal)
+          if (listeners.has(item) && signal !== undefined) item.listener(signal)
         }
       },
-      update: (frame: TavernSessionSignalDelta) => { publish(frame.signal) },
-      failed: (error: unknown) => { report(error); scheduleRecovery(next) },
+      update: (frame: TavernSessionSignalDelta) => {
+        if (!active()) return
+        const signal = frame.signal
+        latest.set(key(signal.sessionId, signal.kind), signal)
+        for (const item of Array.from(listeners)) {
+          if (!active()) return
+          if (listeners.has(item) && item.sessionId === signal.sessionId && item.kind === signal.kind) item.listener(signal)
+        }
+      },
+      failed: (error: unknown) => {
+        if (!active()) return
+        failed = true
+        clearSnapshot()
+        report(next, error)
+        scheduleRecovery(next)
+      },
     })
     control = next
     next.start()
@@ -98,31 +136,40 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     },
     subscribe(sessionId: string, kind: string, listener: (signal: TavernSessionSignal) => void,
       onError?: (error: unknown) => void, onConnect?: () => void) {
+      if (disposed) throw new Error('Tavern session signals have been disposed')
       const item: Listener = { sessionId: String(sessionId), kind: String(kind), listener, onError, onConnect }
-      const before = sessionIds().join('\u0000')
+      const before = JSON.stringify(sessionIds())
       listeners.add(item)
-      const after = sessionIds().join('\u0000')
-      const signal = latest.get(key(item.sessionId, item.kind))
+      if (before !== JSON.stringify(sessionIds())) retireStream()
+      const current = control
       if (connected) item.onConnect?.()
-      if (signal !== undefined) item.listener(signal)
-      if (!started) { started = true; startStream() }
-      else if (control === undefined) startStream()
-      else if (before !== after) control.restart()
+      const signal = latest.get(key(item.sessionId, item.kind))
+      if (current === control && !disposed && signal !== undefined) item.listener(signal)
+      startStream()
       let stopped = false
       return () => {
         if (stopped) return
         stopped = true
-        const previous = sessionIds().join('\u0000')
+        const previous = JSON.stringify(sessionIds())
         listeners.delete(item)
-        if (previous !== sessionIds().join('\u0000')) control?.restart()
+        if (listeners.size === 0 || previous !== JSON.stringify(sessionIds())) {
+          retireStream()
+          startStream()
+        }
       }
     },
   })
   ctx.provide('tavernSessionSignals', service)
-  return async () => {
+  let disposal: Promise<void> | undefined
+  return () => {
+    if (disposal !== undefined) return disposal
     disposed = true
-    if (retryTimer !== undefined) clearTimeout(retryTimer)
-    await control?.dispose()
-    await unmount()
+    listeners.clear()
+    retireStream()
+    disposal = (async () => {
+      try { await Promise.all(Array.from(pendingDisposals)) }
+      finally { await unmount() }
+    })()
+    return disposal
   }
 }
