@@ -443,8 +443,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
   // for the completion that was interrupted.
   async function replayFailedTurn(chatId, sessionId) {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
-    const chat = str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
+    const read = async () => str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
+    let chat = await read()
     if (chat === undefined || chat === null) throw new Error('聊天不存在: ' + chatId)
+    chat = await settleInterruptedRegeneration(chat, read)
     if (pendingReplays.has(chat.id)) throw new Error('正在重放失败回合，请等待完成')
     if (pendingRegenerations.has(chat.id) || chat.regenInProgress === true) throw new Error('正文正在重新生成，请等待完成')
     if (pendingRollbacks.has(chat.id)) throw new Error('正在回退本轮，请等待完成')
@@ -496,10 +498,21 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
   }
 
   // ---------- 回退本轮（删除最近一次用户输入 + LLM 输出） ----------
+  // A reroll left unsettled (a failed write, a restart before its recovery ran)
+  // is finished by its own recovery before the next history operation, never
+  // refused: the durable recovery point decides, not the caller.
+  async function settleInterruptedRegeneration(chat, read) {
+    if (chat?.regenInProgress !== true || pendingRegenerations.has(chat.id)) return chat
+    await regenerationRecovery.recover(chat.id)
+    return await read() ?? chat
+  }
+
   async function rollbackTurn(sessionId, chatId, expectedTurn) {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
-    const chat = str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
+    const read = async () => str(chatId) === '' ? await chatForSession(sessionId) : await readChat(chatId)
+    let chat = await read()
     if (chat === undefined) throw new Error('聊天不存在: ' + chatId)
+    chat = await settleInterruptedRegeneration(chat, read)
     if (pendingReplays.has(chat.id)) throw new Error('正在重放失败回合，请等待完成')
     if (pendingRegenerations.has(chat.id) || chat.regenInProgress) throw new Error('正文正在重新生成，请先完成恢复或生成')
     if (pendingRollbacks.has(chat.id)) throw new Error('正在回退本轮，请等待完成')

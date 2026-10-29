@@ -81,10 +81,15 @@ export function createRegenerationRecovery({ chats, sessions, timeline, isActive
         const intent = 'regen-complete:' + saved.id
         if (!operationCommitted(sessionEvents(session), intent)) {
           const ops = []
-          if (saved.userProjection) ops.push({ kind: 'surface-write',
+          // Each rewrite targets one node; a node that has left the surface since
+          // the commit (a variant switch or rollback in between) has nothing left
+          // to settle. Skipping it completes the recovery; refusing it would keep
+          // the regeneration flag set and block every later rollback and reroll.
+          const live = new Set(session.surface?.nodes || [])
+          if (saved.userProjection && live.has(saved.userProjection.range.start) && live.has(saved.userProjection.range.end)) ops.push({ kind: 'surface-write',
             event: { type: 'user/message', data: saved.userProjection.data },
             intent: { surfaceOp: { op: 'replace', start: saved.userProjection.range.start, end: saved.userProjection.range.end }, sourceEventSeqs: saved.userProjection.range.sourceEventSeqs } })
-          if (Number.isSafeInteger(saved.syntheticInputSeq)) {
+          if (Number.isSafeInteger(saved.syntheticInputSeq) && live.has(saved.syntheticInputSeq)) {
             // The regenerated attempt's plugin-input row is scaffolding: the
             // round's player input stays the (possibly edited) original node.
             ops.push({ kind: 'surface-write',

@@ -3409,6 +3409,7 @@ export async function apply(ctx) {
 
   const bodyEditor = createBodyEditor({
     assertAlgebraReady,
+    recoverRegeneration,
     chats: { forSession: chatForSession, update: updateChat },
     sessions: { get: id => ctx.get('agents')?.get(id), flush: session => sessionStore.flush(session) },
     timeline: storyTimeline,

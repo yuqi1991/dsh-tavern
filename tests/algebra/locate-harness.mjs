@@ -80,11 +80,13 @@ export function createPlayHarness({ frames = false } = {}) {
     appendRound(turn, userText, text, { source, id, tools })
     return turn
   }
+  const crashes = new Set()
   const chats = {
     read: async () => structuredClone(chat), forSession: async () => structuredClone(chat), readCard: async () => ({ name: '角色' }),
     readRevision: async (_id, revision) => revisions.get(revision),
     write: async (value, metadata) => { calls.push(metadata.source); chat = structuredClone(value); return structuredClone(chat) },
     update: async (_id, mutate, metadata) => {
+      if (crashes.delete(metadata.source)) throw new Error('simulated crash before ' + metadata.source)
       calls.push(metadata.source)
       const revision = chat._storageRevision
       revisions.set(revision, structuredClone(chat))
@@ -101,10 +103,12 @@ export function createPlayHarness({ frames = false } = {}) {
     present: async value => structuredClone(value),
     algebraHistory: { ...createConversationHistory({ chats, flush: sessions.flush }), assertReady: () => {} } }
   const editor = createBodyEditor({
-    assertAlgebraReady: () => {}, chats, sessions, timeline, activity: () => ({ busy: false }),
+    assertAlgebraReady: () => {}, recoverRegeneration: chatId => createRoundHistory(options).recover(chatId), chats, sessions, timeline, activity: () => ({ busy: false }),
     project: async text => projectReplyLayers(text), present: async value => value })
   const harness = {
     calls, agent, timeline,
+    /** The next Chat write with this `source` never happens (process death before it). */
+    crashBefore(source) { crashes.add(source) },
     get session() { return session },
     /** Sessions edited by builds before tavernStoryTurn existed: edit-step bodies keep only their own turn. */
     stripStoryTurns() { harness.rewriteLog(events => { for (const event of events) { const source = event.data?.message?.source; if (source && source.tavernStoryTurn !== undefined) delete source.tavernStoryTurn } return events }) },

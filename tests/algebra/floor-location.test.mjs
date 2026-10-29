@@ -134,3 +134,35 @@ test('rollback anchors on a node that an edit on another line once shadowed', ()
   assert.deepEqual(h.surfaceInputs(), ['a'])
   assert.equal(h.surfaceBodies().at(-1), '正文2')
 }))
+
+test('a reroll interrupted before its settlement does not strand the Chat when its nodes have left the surface', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  await h.play('a')
+  h.crashBefore('foreground.regen-projected')
+  // edited input: the commit phase is saved, then the process dies before the
+  // input rewrite and the retirement of the attempt's input row are settled
+  await assert.rejects(h.regenerate('', '改写的输入'), /simulated crash/)
+  assert.equal(h.chat.regenInProgress, true)
+  assert.equal(h.chat.regenRecovery.phase, 'committed')
+  // meanwhile the player switches to the saved variant: those nodes leave the surface
+  await h.switchVariant(0)
+  assert.equal(h.surfaceBodies().at(-1), '正文2')
+  // the next operation recovers first; recovery must complete, not throw
+  const rolled = await h.rollback()
+  assert.equal(rolled.rolledBack.removedUserText, '改写的输入', 'the Chat committed the edited input')
+  assert.equal(Boolean(h.chat.regenInProgress), false)
+  assert.equal(h.chat.regenRecovery, undefined)
+  assert.deepEqual(h.surfaceInputs(), [])
+}))
+
+test('editing the body first finishes an unsettled reroll instead of asking the player to wait', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  await h.play('a')
+  h.crashBefore('foreground.regen-projected')
+  await assert.rejects(h.regenerate(), /simulated crash/)
+  assert.equal(h.chat.regenInProgress, true)
+  h.chat = { ...h.chat, settleStatus: 'done' }   // the settlement queue is not what this test is about
+  await h.editBody('接着改')
+  assert.equal(h.chat.regenRecovery, undefined)
+  assert.equal(h.surfaceBodies().at(-1), '接着改')
+}))

@@ -42,7 +42,7 @@ export async function synchronizeBodyEdits(session, chat, flush, persistChat) {
 }
 
 /** Edit prose only; do not replay macros, scripts or settlement. */
-export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, assertAlgebraReady }) {
+export function createBodyEditor({ chats, sessions, timeline, activity, project, present, sessionPatch, assertAlgebraReady, recoverRegeneration }) {
   const pending = new Set()
   function refuseClosedPatch() {
     if (sessionPatch && !sessionPatch.replacementAllowed()) throw new Error(sessionPatch.blockReason())
@@ -52,8 +52,13 @@ export function createBodyEditor({ chats, sessions, timeline, activity, project,
   }
   async function context(sessionId) {
     refuseClosedPatch()
-    const chat = await chats.forSession(sessionId)
+    let chat = await chats.forSession(sessionId)
     if (!chat) throw new Error('会话不存在')
+    // An unsettled reroll is finished by its recovery point, not by the player.
+    if (chat.regenInProgress && typeof recoverRegeneration === 'function') {
+      await recoverRegeneration(chat.id)
+      chat = await chats.forSession(sessionId) ?? chat
+    }
     const agent = sessions.get(sessionId)
     if (!agent?.session) throw new Error('无法访问原生会话')
     idle(chat, agent)
