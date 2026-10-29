@@ -751,10 +751,10 @@ body.dsh-tavern-shell-active [data-ref-chip="file"] { max-width: calc(100% - 4px
 .dsh-tavern-script-hero-title { color: var(--dsh-tavern-accent-active); font-size: 13px; font-weight: 800; cursor: pointer; }
 .dsh-tavern-script-hero-help { margin-top: 6px; color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 1.6; }
 .dsh-tavern-script-hero .dsh-tavern-script-row { border-top-color: color-mix(in srgb, var(--dsh-tavern-accent) 28%, transparent); }
-.dsh-tavern-script-primary { border: 0; border-radius: 8px; padding: 6px 10px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-brand-text, #fff); cursor: pointer; font-size: 11px; font-weight: 700; }
+.dsh-tavern-script-primary { border: 0; border-radius: 8px; padding: 6px 10px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-label-primary-foreground, #fff); cursor: pointer; font-size: 11px; font-weight: 700; }
 .dsh-tavern-script-primary:disabled { opacity: .5; cursor: default; }
 @keyframes dsh-tavern-pulse { from { opacity: .35; } to { opacity: 1; } }
-.dsh-card-primary { border: 0; border-radius: var(--dsh-tavern-radius-md); padding: 10px 18px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-brand-text, #fff); cursor: pointer; font-size: 14px; font-weight: 500; }
+.dsh-card-primary { border: 0; border-radius: var(--dsh-tavern-radius-md); padding: 10px 18px; background: var(--dsh-tavern-accent); color: var(--dsw-alias-label-primary-foreground, #fff); cursor: pointer; font-size: 14px; font-weight: 500; }
 .dsh-card-error { color: #c45f5f; font-size: 12px; }
 @media (max-width: 820px) {
   .dsh-tavern-question { width: calc(100% - 24px); }
