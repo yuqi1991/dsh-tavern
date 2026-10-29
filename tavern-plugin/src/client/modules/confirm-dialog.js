@@ -46,7 +46,8 @@ function askTavernConfirm(message, options) {
         dialog.addEventListener('close', () => finish(false));
         dialog.addEventListener('click', event => { if (event.target === dialog) finish(false); });
         dialog.addEventListener('keydown', event => {
-            if (event.isComposing && event.key === 'Enter') event.preventDefault();
+            // WebKit 可能先发 compositionend；此时仍不能把选字确认当成操作确认。
+            if ((event.isComposing || event.keyCode === 229) && event.key === 'Enter') event.preventDefault();
         });
         opts.signal?.addEventListener('abort', abort, { once: true });
         window.addEventListener('pagehide', abort);

@@ -289,7 +289,7 @@ window.__ModuleLoader__.load({
             const operation = (async function () {
                 const deadline = Date.now() + 10000;
                 for (; ;) {
-                    try { ctx.betterSidebar.openTab(seed, scope); return; }
+                    try { ctx.betterSidebar.openTab(seed, scope); return true; }
                     catch (error) {
                         // The session list can restore before DSH mounts its native
                         // sidebar seat. Retry this specific readiness error only.
@@ -300,10 +300,10 @@ window.__ModuleLoader__.load({
                         // 不再属于它。
                         const snapshotNow = ctx.sessions.list.getSnapshot();
                         const main = Object.values(snapshotNow.byId || {}).find(function (row) { return row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0; });
-                        if (main ? main.id !== scope.sessionId : snapshotNow.current !== scope.sessionId) return;
+                        if (main ? main.id !== scope.sessionId : snapshotNow.current !== scope.sessionId) return false;
                     }
                 }
-            })().catch(error => tavernErrorHub.report("打开酒馆侧栏", error)).finally(() => tavernSidebarOpens.delete(key));
+            })().catch(error => { tavernErrorHub.report("打开酒馆侧栏", error); return false; }).finally(() => tavernSidebarOpens.delete(key));
             tavernSidebarOpens.set(key, operation);
             return operation;
         }
@@ -596,6 +596,7 @@ window.__ModuleLoader__.load({
 				React.createElement(TavernConversationWritingSkills, { globalDefaults: true }),
 				React.createElement(CandidatePreferencesSettings),
 				React.createElement(DisplayPreferencesSettings),
+				React.createElement(HeaderItemsSettings),
 				React.createElement(PromptTemplateSettingsEntry),
 				React.createElement(ContextCompactionSettings),
 				state.error ? React.createElement("div", { className: "dsh-tavern-settings-error", role: "alert" }, "保存失败：" + state.error) : null
@@ -617,6 +618,8 @@ window.__ModuleLoader__.load({
 
 
 // @include features/worldbook-library.js
+
+// @include features/worldbook-switcher.js
 
 // @include features/guide-library.js
 
@@ -905,6 +908,14 @@ window.__ModuleLoader__.load({
             ctx.effect(() => ctx.betterSidebar.registerTab({ id: "dsh-tavern:card-memory", title: "改卡记忆", order: 9, single: true, component: props => React.createElement(TavernCardMemoryTab, { sessionId: props.scope.sessionId }) }), "dsh-tavern: card memory");
 			ctx.effect(() => ctx.betterSidebar.registerTab({ id: "dsh-tavern:guide-library", title: "Guide 库", order: 9, single: true, component: GuideLibraryTab }), "dsh-tavern: guide library");
 			worldBookLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
+			ctx.effect(function () {
+				return worldBookSwitcherFeature.register({
+					ctx: ctx,
+					openLibrary: function (source, sessionId) {
+						return openTavernSidebarTab(ctx, { type: "dsh-tavern:worldbooks", meta: source ? { worldBookSource: source } : null }, { sessionId: sessionId });
+					}
+				});
+			}, "dsh-tavern: worldbook switcher panel");
 			cardLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			ctx.effect(function () {
 				reconcileLibraryTabTitles();

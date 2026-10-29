@@ -189,7 +189,7 @@
 
 				input.addEventListener("input", function () { if (!busy) confirmButton.disabled = !opts.allowEmpty && input.value.trim() === ""; });
 				input.addEventListener("keydown", function (event) {
-					if (event.key !== "Enter" || event.isComposing === true) return;
+					if (event.key !== "Enter" || event.isComposing === true || event.keyCode === 229) return;
 					event.preventDefault();
 					void submit();
 				});

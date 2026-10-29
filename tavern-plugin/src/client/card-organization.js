@@ -1,3 +1,46 @@
+// popover 位于顶层，不受抽屉的滚动裁剪；坐标仍须使用键盘上方的可视区域。
+function trackTavernPopover(popup, anchor, align = 'start', limit = Infinity) {
+  const view = popup.ownerDocument.defaultView, vv = view.visualViewport;
+  let frame = 0, disposed = false;
+  function release() {
+    if (disposed) return;
+    disposed = true;
+    if (frame) view.cancelAnimationFrame(frame);
+    view.removeEventListener('resize', schedule);
+    view.removeEventListener('scroll', schedule, true);
+    vv?.removeEventListener('resize', schedule);
+    vv?.removeEventListener('scroll', schedule);
+    observer?.disconnect();
+  }
+  function position() {
+    frame = 0;
+    if (disposed) return;
+    if (!popup.isConnected || !anchor.isConnected) { release(); return; }
+    const top = vv?.offsetTop || 0, left = vv?.offsetLeft || 0;
+    const width = vv?.width || view.innerWidth, height = vv?.height || view.innerHeight;
+    const edge = 8, gap = 6;
+    popup.style.maxWidth = Math.max(0, width - edge * 2) + 'px';
+    popup.style.maxHeight = Math.max(0, Math.min(limit, height - edge * 2)) + 'px';
+    const rect = anchor.getBoundingClientRect(), bounds = popup.getBoundingClientRect();
+    const below = rect.bottom + gap;
+    // 下方不足时优先翻到上方，再夹紧边界；极短屏仍能在菜单内部滚动。
+    const y = below + bounds.height <= top + height - edge ? below : rect.top - gap - bounds.height;
+    popup.style.left = Math.max(left + edge, Math.min(align === 'end' ? rect.right - bounds.width : rect.left, left + width - bounds.width - edge)) + 'px';
+    popup.style.top = Math.max(top + edge, Math.min(y, top + height - bounds.height - edge)) + 'px';
+    popup.style.bottom = 'auto';
+  }
+  function schedule() { if (!disposed && !frame) frame = view.requestAnimationFrame(position); }
+  const observer = typeof view.ResizeObserver === 'function' ? new view.ResizeObserver(schedule) : null;
+  observer?.observe(popup);
+  observer?.observe(anchor);
+  view.addEventListener('resize', schedule);
+  view.addEventListener('scroll', schedule, true);
+  vv?.addEventListener('resize', schedule);
+  vv?.addEventListener('scroll', schedule);
+  position();
+  return release;
+}
+
 function filterOrganizedCards(cards, filter, query) {
   const needle = query.trim().toLocaleLowerCase();
   return cards.filter(card => (!needle || (card.name + ' ' + card.path).toLocaleLowerCase().includes(needle))
@@ -49,6 +92,16 @@ function useCardOrganization(cards, busy, refresh, onError, batch) {
     });
   }
   const disabled = busy || saving;
+  const popovers = React.useRef(new Map());
+  React.useEffect(() => () => {
+    for (const release of popovers.current.values()) release();
+    popovers.current.clear();
+  }, []);
+  function stopPositioning(popup) { popovers.current.get(popup)?.(); popovers.current.delete(popup); }
+  function positionMenu(popup, anchor, align, limit) {
+    stopPositioning(popup);
+    popovers.current.set(popup, trackTavernPopover(popup, anchor, align, limit));
+  }
   const visible = filterOrganizedCards(cards, filter, query);
   function options() {
     return [h('option', { key: '', value: 'group:' }, '未分组'), ...groups.map(group => h('option', { key: group, value: 'group:' + group }, group))];
@@ -65,14 +118,9 @@ function useCardOrganization(cards, busy, refresh, onError, batch) {
           if (event.target !== root) return;
           const popup = root.querySelector('.dsh-tavern-group-menu');
           if (typeof popup.showPopover !== 'function') return;
-          if (!root.open) { if (popup.matches(':popover-open')) popup.hidePopover(); return; }
+          if (!root.open) { stopPositioning(popup); if (popup.matches(':popover-open')) popup.hidePopover(); return; }
           popup.showPopover();
-          const rect = root.querySelector('summary').getBoundingClientRect();
-          const height = Math.max(80, window.innerHeight - 24);
-          popup.style.maxHeight = height + 'px';
-          const bounds = popup.getBoundingClientRect();
-          popup.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - bounds.width - 12)) + 'px';
-          popup.style.top = Math.max(12, Math.min(rect.bottom + 6, window.innerHeight - bounds.height - 12)) + 'px';
+          positionMenu(popup, root.querySelector('summary'));
         }, onBlur: event => {
           if (!event.currentTarget.contains(event.relatedTarget)) closeMenu();
         }, onKeyDown: event => { if (event.key === 'Escape') { closeMenu(); menu.current.querySelector('summary').focus(); } } },
@@ -146,17 +194,10 @@ function useCardOrganization(cards, busy, refresh, onError, batch) {
         const root = event.currentTarget;
         if (event.target !== root) return;
         const popup = root.querySelector('.dsh-tavern-card-row-popup');
-        if (!root.open) { if (typeof popup.hidePopover === 'function' && popup.matches(':popover-open')) popup.hidePopover(); return; }
+        if (!root.open) { stopPositioning(popup); if (typeof popup.hidePopover === 'function' && popup.matches(':popover-open')) popup.hidePopover(); return; }
         if (typeof popup.showPopover === 'function') popup.showPopover();
         document.querySelectorAll('.dsh-tavern-card-row-menu[open]').forEach(other => { if (other !== root) other.open = false; });
-        const rect = root.querySelector('summary').getBoundingClientRect();
-        const height = Math.min(300, window.innerHeight - 24);
-        popup.style.maxHeight = height + 'px';
-        const width = popup.getBoundingClientRect().width;
-        popup.style.left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)) + 'px';
-        const above = rect.bottom + Math.min(popup.scrollHeight, height) + 8 > window.innerHeight;
-        popup.style.top = above ? 'auto' : rect.bottom + 6 + 'px';
-        popup.style.bottom = above ? Math.max(12, window.innerHeight - rect.top + 6) + 'px' : 'auto';
+        positionMenu(popup, root.querySelector('summary'), 'end', 300);
       }
     }, h('summary', { 'aria-label': '选择分组：' + card.name, title: '选择分组' }, '⋯'),
       h('div', { className: 'dsh-tavern-card-row-popup',

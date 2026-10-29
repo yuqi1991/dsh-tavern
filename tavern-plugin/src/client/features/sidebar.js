@@ -1,5 +1,30 @@
 		function createTavernShellFeatureModule() {
 		// @include modules/host-compatibility.js
+		// @include modules/auto-open-tabs.js
+		// Entering a game opens its settings and status tabs (the 「进入游戏时打开酒馆状态」 setting, on by default).
+		// Only a switch to another game reopens them: readiness flickers while the session list refreshes
+		// (after the first turn, when the sidebar remounts), and reopening then would cover the tab the
+		// player brought forward, such as the stage.
+		let tavernSettingsTabsShownFor = "";
+		// Hosts that open a tab without expanding a collapsed right column still show the panel.
+		function expandTavernRightColumn(ctx) {
+			try {
+				const column = typeof ctx.get === "function" ? ctx.get("sidebarRight") : null;
+				if (column && typeof column.isExpanded === "function" && column.isExpanded() === false && typeof column.toggleExpanded === "function") column.toggleExpanded();
+			} catch (_) {}
+		}
+		const tavernAutoOpenStatus = (function () {
+			let enabled = true, loaded = null, listening = false;
+			function load() { loaded = rpc("getTavernSettings").then(function (result) { enabled = !(result && result.settings && result.settings.autoOpenStatusPanel === false); }, function () {}); return loaded; }
+			// 首次读取时才挂监听，模块加载本身不留副作用。
+			function listen() {
+				if (listening || typeof window.addEventListener !== "function") return;
+				listening = true;
+				window.addEventListener("dsh-tavern-settings-changed", function () { void load(); });
+			}
+			return { read: function () { listen(); return (loaded || load()).then(function () { return enabled; }); } };
+		})();
+
 		function TavernSidebar(props) {
             const askConfirm = useTavernConfirm(props.sessionId || props.scope?.sessionId);
 			function TavernCardListContent(props) {
@@ -264,6 +289,18 @@
 				}, 250);
 				return function () { stopped = true; window.clearTimeout(timer); };
 			}, [openingPicker && openingPicker.card && openingPicker.card.path, openingPicker && openingPicker.userName, openingPicker && openingPicker.preparing, requestMode, compatibilityAvailable]);
+			// Leaving the game (for another game, a card-design chat or the start page) lets coming back open the tabs again.
+			// An empty `current` is not a leave: the session list is refreshing or the sidebar remounted, and the
+			// mark would be cleared on that flicker — the next snapshot then reopens the panel over the story.
+			// Only a blank that outlives the flicker means the player really left (start page, another workspace).
+			React.useEffect(function () {
+				if (current) {
+					if (tavernAutoOpenClearedBy(tavernSettingsTabsShownFor, current)) tavernSettingsTabsShownFor = "";
+					return;
+				}
+				const timer = window.setTimeout(function () { tavernSettingsTabsShownFor = ""; }, TAVERN_AUTO_OPEN_BLANK_MS);
+				return function () { window.clearTimeout(timer); };
+			}, [current]);
 			React.useEffect(function () {
 				if (!readyTavernSession || typeof props.openConversationSettingsTab !== "function") return;
 				props.openConversationSettingsTab(readyTavernSession);
@@ -1032,6 +1069,8 @@
 			const currentVersionLabel = updateStatus.currentVersion && updateStatus.currentVersion !== "unknown" ? "v" + updateStatus.currentVersion : "版本未知";
 			const currentCommitLabel = (updateStatus.currentCommit || "").slice(0, 7) || "构建未知";
 			const updateHostLabel = updateStatus.phase === "package-managed" ? "插件安装版" : updateStatus.host === "desktop" ? "Desktop 版" : (updateStatus.host === "android" ? "Android 版" : "命令行版");
+			// 已是最新且无警告时，结果直接写在按钮上，不再单占一行（手机侧栏高度紧张）。
+			const upToDateQuiet = updateStatus.phase === "up-to-date" && !updateStatus.checkWarning;
 			const checkingOrRunning = updateStatus.phase === "checking" || updateStatus.phase === "running" || updateStatus.phase === "loading";
 			const updateActions = updateStatus.phase === "package-managed"
 				? h("details", { className: "dsh-tavern-update-actions" },
@@ -1042,7 +1081,7 @@
 					h("button", { className: "dsh-tavern-update-button", onClick: checkUpdate }, "检查更新"),
 					h("button", { className: "dsh-tavern-update-button primary", onClick: performUpdate }, "进行更新"))
 				: h("div", { className: "dsh-tavern-update-actions" },
-					h("button", { className: "dsh-tavern-update-button", disabled: checkingOrRunning || updateStatus.phase === "restart-required" || updateStatus.phase === "installed-restart-required", onClick: checkUpdate }, updateStatus.phase === "checking" ? "正在检查…" : (updateStatus.phase === "running" ? "正在更新…" : (updateStatus.phase === "installed-restart-required" ? "请手动重启" : (updateStatus.phase === "restart-required" ? "重启 Desktop 后可用" : "检查更新")))));
+					h("button", { className: "dsh-tavern-update-button", disabled: checkingOrRunning || updateStatus.phase === "restart-required" || updateStatus.phase === "installed-restart-required", onClick: checkUpdate }, updateStatus.phase === "checking" ? "正在检查…" : (updateStatus.phase === "running" ? "正在更新…" : (updateStatus.phase === "installed-restart-required" ? "请手动重启" : (updateStatus.phase === "restart-required" ? "重启 Desktop 后可用" : (upToDateQuiet ? "✓ 已是最新" : "检查更新"))))));
 			return h(React.Fragment, null, h(TavernErrorCenter), collapsedSidebar, h("div", { className: "dsh-tavern-sidebar", style: { display: collapsed ? "none" : undefined, position: "relative", width: props.embedded ? "100%" : props.width + "px" } },
 				h("div", { className: "dsh-tavern-side-head" }, h("div", { className: "dsh-tavern-side-brand" }, "🍺 DSH Tavern"), props.embedded ? null : h("button", { className: "dsh-tavern-side-icon", title: "收起侧栏", onClick: props.toggleSidebar }, "◧")),
 				h("div", { className: "dsh-tavern-mode-switch" },
@@ -1068,7 +1107,7 @@
 					h("div", { className: "dsh-tavern-update-identity" }, "DSH Tavern " + currentVersionLabel + " · " + currentCommitLabel + " · " + updateHostLabel),
                     h(TavernHostCompatibility),
                     updateActions,
-                    h("div", { className: "dsh-tavern-update-status" + (updateStatus.phase === "failed" || updateStatus.phase === "check-failed" ? " error" : "") }, updateMessage)
+                    upToDateQuiet ? null : h("div", { className: "dsh-tavern-update-status" + (updateStatus.phase === "failed" || updateStatus.phase === "check-failed" ? " error" : "") }, updateMessage)
 				),
 				(openingPicker || (picking && uiMode === "play")) ? h("div", { key: "play-picker", className: "dsh-tavern-picker-overlay", style: { display: picking && uiMode === "play" ? undefined : "none" }, onMouseDown: function (event) { if (event.target === event.currentTarget) closePicker(); } }, playPicker) : null,
                 picking && uiMode === "card" ? h("div", { key: "card-picker", className: "dsh-tavern-picker-overlay", onMouseDown: function (event) { if (event.target === event.currentTarget) closePicker(); } }, cardPicker) : null
@@ -1089,11 +1128,30 @@
 			ctx.effect(function () {
 				document.body.classList.add("dsh-tavern-shell-active");
 				const releaseLandingStyles = installTavernLandingStyles(document);
-				return function () { releaseLandingStyles(); document.body.classList.remove("dsh-tavern-shell-active"); };
+				const releaseViewport = installVisualViewportPin(document);
+				return function () {
+					releaseViewport();
+					releaseLandingStyles();
+					document.body.classList.remove("dsh-tavern-shell-active");
+				};
 			}, "dsh-tavern: shell marker");
+			// Whether the left drawer is open on narrow layouts, as of the last render. Opening the right
+			// column used to close it as a side effect; now that it stays shut (#213), close the drawer here.
+			// Closing is a toggle, so a second call before the host re-renders (the readiness effect and the
+			// start handler both ask) must not reopen it: until the drawer reports closed, stale renders still
+			// saying "wide" are ignored for a short while.
+			let sidebarWide = false, sidebarClosingUntil = 0;
+			function closeNarrowSidebar() {
+				if (!sidebarWide || Date.now() < sidebarClosingUntil) return;
+				sidebarWide = false;
+				sidebarClosingUntil = Date.now() + 1500;
+				ctx.layout.toggleSidebar();
+			}
 			ctx.effect(() => slots.inject("sidebar.workspaces", () => slots.register(
 				{ name: "sidebar.workspaces", priority: -1 },
 				function (props) {
+					if (!props.wide) sidebarClosingUntil = 0;
+					sidebarWide = Boolean(props.wide) && Date.now() >= sidebarClosingUntil;
 					return React.createElement(TavernSidebar, Object.assign({}, props, {
 					collapsed: !props.wide,
 					embedded: true,
@@ -1111,11 +1169,27 @@
 					},
 					archiveSession: function (sessionId) { return ctx.workspaces.archiveSession(sessionId); },
 					toggleSidebar: function () { if (props.wide) ctx.layout.toggleSidebar(); else props.expandSidebar(); },
-					openConversationSettingsTab: async function (sessionId) { await openTavernSidebarTab(ctx, { type: "dsh-tavern:conversation-settings" }, { sessionId: sessionId }); await openTavernSidebarTab(ctx, { type: "dsh-tavern:status" }, { sessionId: sessionId }); },
-					openCardLibraryTab: function (sessionId) { return openTavernSidebarTab(ctx, { type: "dsh-tavern:cards", meta: null }, { sessionId: sessionId }); },
-					openPresetLibraryTab: function (sessionId) { return openTavernSidebarTab(ctx, { type: "dsh-tavern:presets" }, { sessionId: sessionId }); },
-					openWorldBookLibraryTab: function (sessionId) { return openTavernSidebarTab(ctx, { type: "dsh-tavern:worldbooks" }, { sessionId: sessionId }); },
-					openResourcesTab: function (sessionId) { return openTavernSidebarTab(ctx, { type: "dsh-tavern:resources" }, { sessionId: sessionId }); },
+					// Entering a game or the card workspace opens these tabs beside it. On phone-width
+					// layouts the right column covers the story, so leave it closed and show the story (#213).
+					openConversationSettingsTab: async function (sessionId) {
+						if (narrowLayout()) return closeNarrowSidebar();
+						if (tavernSettingsTabsShownFor === sessionId) return;
+						// Claim before awaiting the setting, so a second call during the read cannot open twice.
+						tavernSettingsTabsShownFor = sessionId;
+						// The setting is off: release the claim, so turning it on later still opens the tabs.
+						if (!await tavernAutoOpenStatus.read()) { if (tavernSettingsTabsShownFor === sessionId) tavernSettingsTabsShownFor = ""; return; }
+						// The column already shows one of these pages (it was never closed, or the sidebar remounted):
+						// opening again expands the column and focuses the page, pulling it over the story for nothing.
+						if (tavernRightColumnShowing(ctx, ["dsh-tavern:conversation-settings", "dsh-tavern:status"])) return;
+						const opened = await openTavernSidebarTab(ctx, { type: "dsh-tavern:conversation-settings" }, { sessionId: sessionId }) && await openTavernSidebarTab(ctx, { type: "dsh-tavern:status" }, { sessionId: sessionId });
+						// Not opened (the player already moved on, or the host refused): try again next time this game is entered.
+						if (!opened) { if (tavernSettingsTabsShownFor === sessionId) tavernSettingsTabsShownFor = ""; return; }
+						expandTavernRightColumn(ctx);
+					},
+					openCardLibraryTab: function (sessionId) { if (narrowLayout()) return closeNarrowSidebar(); return openTavernSidebarTab(ctx, { type: "dsh-tavern:cards", meta: null }, { sessionId: sessionId }); },
+					openPresetLibraryTab: function (sessionId) { if (narrowLayout()) return closeNarrowSidebar(); return openTavernSidebarTab(ctx, { type: "dsh-tavern:presets" }, { sessionId: sessionId }); },
+					openWorldBookLibraryTab: function (sessionId) { if (narrowLayout()) return closeNarrowSidebar(); return openTavernSidebarTab(ctx, { type: "dsh-tavern:worldbooks" }, { sessionId: sessionId }); },
+					openResourcesTab: function (sessionId) { if (narrowLayout()) return closeNarrowSidebar(); return openTavernSidebarTab(ctx, { type: "dsh-tavern:resources" }, { sessionId: sessionId }); },
 					appendMention: input.appendMention,
 					injectTaskPrompt: input.injectTaskPrompt,
 					cleanWorkspaceDraft: input.cleanWorkspaceDraft

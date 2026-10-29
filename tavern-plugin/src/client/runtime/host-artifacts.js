@@ -1,8 +1,10 @@
-		const tavernSessionModes = { values: {}, listeners: new Set() };
+		// `loaded` tells "not a Tavern session" apart from "the list has not arrived".
+		const tavernSessionModes = { values: {}, listeners: new Set(), loaded: false };
 		function publishSessionModes(items) {
 			const next = {};
 			(items || []).forEach(function (item) { next[item.sessionId] = item.mode || "story"; });
 			tavernSessionModes.values = next;
+			tavernSessionModes.loaded = true;
 			tavernSessionModes.listeners.forEach(function (listener) { listener(next); });
 		}
 		function publishSessionMode(sessionId, mode) {
@@ -12,8 +14,23 @@
 		}
 		function useTavernSessionMode(sessionId) {
 			const [values, setValues] = React.useState(tavernSessionModes.values);
-			React.useEffect(function () { tavernSessionModes.listeners.add(setValues); return function () { tavernSessionModes.listeners.delete(setValues); }; }, []);
+			React.useEffect(function () {
+				// The left panel publishes the modes, but on mobile it stays unmounted
+				// until the drawer opens; fetch once here so header controls do not
+				// wait for it. An unknown session still renders nothing.
+				ensureTavernSessionModes();
+				tavernSessionModes.listeners.add(setValues);
+				return function () { tavernSessionModes.listeners.delete(setValues); };
+			}, []);
 			return values[sessionId] || "";
+		}
+		let tavernSessionModeRequest = null;
+		function ensureTavernSessionModes() {
+			if (tavernSessionModeRequest || tavernSessionModes.loaded) return;
+			tavernSessionModeRequest = Promise.resolve()
+				.then(function () { return rpc("listSessions"); })
+				.then(function (result) { publishSessionModes(result && result.sessions); }, function () {})
+				.then(function () { tavernSessionModeRequest = null; });
 		}
 		function escapeOpeningPreviewText(value) {
 			return String(value || "")

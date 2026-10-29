@@ -1,41 +1,153 @@
+        function composerOffsetPx(layoutHeight, visualOffsetTop, rectTop) {
+            // DOMRect 和 fixed 的定位都基于布局视口；offsetTop 已包含在 rectTop 中，不能再次相加。
+            return Math.max(0, Math.round(Number(layoutHeight) - Number(rectTop)));
+        }
+        function sheetMaxPx(visualHeight, rectTop, chromePx) {
+            const available = Math.round(Number(rectTop) - (Number(chromePx) || 0) - 6);
+            const cap = Math.round(Number(visualHeight) * 0.6);
+            return Math.max(0, Math.min(cap, available));
+        }
+        // @include modules/mobile-layout.js
+        function nativeFullscreenElement(doc) {
+            return doc.fullscreenElement || doc.webkitFullscreenElement || null;
+        }
+        function requestDocumentFullscreen(doc) {
+            const root = doc.documentElement;
+            const req = root && (root.requestFullscreen || root.webkitRequestFullscreen);
+            if (typeof req !== "function") return Promise.resolve(false);
+            function attempt(options) {
+                try { return Promise.resolve(options ? req.call(root, options) : req.call(root)); }
+                catch (error) { return Promise.reject(error); }
+            }
+            return attempt({ navigationUI: "hide" }).catch(function () { return attempt(); }).then(function () { return true; }).catch(function () { return false; });
+        }
+        function exitDocumentFullscreen(doc) {
+            const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+            if (typeof exit !== "function" || !nativeFullscreenElement(doc)) return Promise.resolve();
+            return Promise.resolve(exit.call(doc)).catch(function () {});
+        }
         function installTavernImmersiveMode(button) {
             const header = button?.closest("header");
-            if (!header) return { enter() { }, dispose() { } };
-            const restore = header.ownerDocument.createElement("button");
-            restore.type = "button";
-            restore.className = "dsh-tavern-restore-header";
-            restore.textContent = "⌄ 显示顶部栏";
-            restore.setAttribute("aria-label", "退出沉浸模式，显示顶部栏");
-            restore.hidden = true;
-            header.before(restore);
-            function leave() {
-                header.classList.remove("dsh-tavern-immersive-header");
-                restore.hidden = true;
-                button.focus();
+            if (!header) return { enter() {}, leave() {}, dispose() {} };
+            const doc = header.ownerDocument;
+            const view = doc.defaultView || (typeof window !== "undefined" ? window : null);
+            const htmlClass = doc.documentElement && doc.documentElement.classList;
+            let disposed = false, intent = 0;
+            function isOn() {
+                return !!nativeFullscreenElement(doc) || !!(htmlClass && htmlClass.contains("dsh-tavern-play-fullscreen"));
             }
-            restore.addEventListener("click", leave);
+            function setOn(on) {
+                if (htmlClass) htmlClass.toggle("dsh-tavern-play-fullscreen", on);
+                header.classList?.toggle("dsh-tavern-immersive-header", on);
+            }
+            function enter() {
+                if (disposed) return;
+                const generation = ++intent;
+                setOn(true);
+                if (button && typeof button.focus === "function") button.focus();
+                requestDocumentFullscreen(doc).then(function () {
+                    // 浏览器可延迟完成全屏请求；退出或卸载后不能被旧请求重新打开。
+                    if (disposed || generation !== intent) {
+                        if (nativeFullscreenElement(doc) === doc.documentElement) exitDocumentFullscreen(doc);
+                        return;
+                    }
+                    setOn(true);
+                });
+            }
+            function leave() {
+                const generation = ++intent;
+                setOn(false);
+                if (button && typeof button.focus === "function") button.focus();
+                exitDocumentFullscreen(doc).then(function () { if (!disposed && generation === intent) setOn(false); });
+            }
+            function onFsChange() {
+                setOn(!!nativeFullscreenElement(doc));
+            }
+            function onChromeEvent(event) {
+                const action = event && event.detail;
+                if (action === "leave" || (action === "toggle" && isOn())) leave();
+                else enter();
+            }
+            if (typeof doc.addEventListener === "function") {
+                doc.addEventListener("fullscreenchange", onFsChange);
+                doc.addEventListener("webkitfullscreenchange", onFsChange);
+            }
+            if (view && typeof view.addEventListener === "function") view.addEventListener("dsh-tavern-play-chrome", onChromeEvent);
             return {
-                enter() {
-                    header.classList.add("dsh-tavern-immersive-header");
-                    restore.hidden = false;
-                    restore.focus();
-                },
+                enter: enter,
+                leave: leave,
                 dispose() {
-                    header.classList.remove("dsh-tavern-immersive-header");
-                    restore.removeEventListener("click", leave);
-                    restore.remove();
+                    disposed = true;
+                    ++intent;
+                    setOn(false);
+                    if (nativeFullscreenElement(doc) === doc.documentElement) void exitDocumentFullscreen(doc);
+                    if (typeof doc.removeEventListener === "function") {
+                        doc.removeEventListener("fullscreenchange", onFsChange);
+                        doc.removeEventListener("webkitfullscreenchange", onFsChange);
+                    }
+                    if (view && typeof view.removeEventListener === "function") view.removeEventListener("dsh-tavern-play-chrome", onChromeEvent);
                 }
             };
         }
+        function FullscreenIcon(props) {
+            const on = props.on;
+            const d = on
+                ? "M2.5 5.5h3v-3 M13.5 5.5h-3v-3 M2.5 10.5h3v3 M13.5 10.5h-3v3"
+                : "M2.5 6V2.5H6 M13.5 6V2.5H10 M2.5 10v3.5H6 M13.5 10v3.5H10";
+            return React.createElement("svg", {
+                width: 15,
+                height: 15,
+                viewBox: "0 0 16 16",
+                fill: "none",
+                stroke: "currentColor",
+                strokeWidth: 1.75,
+                strokeLinecap: "round",
+                strokeLinejoin: "round",
+                "aria-hidden": "true",
+                className: "dsh-tavern-icon-fullscreen"
+            }, React.createElement("path", { d: d }));
+        }
         function TavernImmersiveAction() {
             const button = React.useRef(null), controller = React.useRef(null);
+            const [on, setOn] = React.useState(false);
             React.useEffect(() => {
                 controller.current = installTavernImmersiveMode(button.current);
-                return () => { controller.current.dispose(); controller.current = null; };
+                function sync() {
+                    const doc = button.current && button.current.ownerDocument;
+                    setOn(!!(doc && (nativeFullscreenElement(doc) || (doc.documentElement && doc.documentElement.classList.contains("dsh-tavern-play-fullscreen")))));
+                }
+                sync();
+                const view = typeof window !== "undefined" ? window : null;
+                if (view) {
+                    view.addEventListener("fullscreenchange", sync);
+                    view.addEventListener("webkitfullscreenchange", sync);
+                    view.addEventListener("dsh-tavern-play-chrome", sync);
+                }
+                return () => {
+                    if (view) {
+                        view.removeEventListener("fullscreenchange", sync);
+                        view.removeEventListener("webkitfullscreenchange", sync);
+                        view.removeEventListener("dsh-tavern-play-chrome", sync);
+                    }
+                    controller.current.dispose();
+                    controller.current = null;
+                };
             }, []);
-            return React.createElement("button", { ref: button, type: "button", className: "dsh-tavern-btn", title: "隐藏顶部标题和标签栏，可随时恢复", onClick: () => controller.current?.enter() }, "沉浸模式");
+            return React.createElement("button", {
+                ref: button,
+                type: "button",
+                className: "dsh-tavern-btn dsh-tavern-play-fullscreen" + (on ? " active" : ""),
+                "aria-label": on ? "退出全屏" : "全屏",
+                "aria-pressed": on,
+                title: on ? "退出全屏，显示浏览器顶栏和会话标题" : "进入全屏并折叠顶部状态栏",
+                onClick: function () {
+                    if (on) controller.current?.leave();
+                    else controller.current?.enter();
+                    const doc = button.current && button.current.ownerDocument;
+                    setOn(!!(doc && (nativeFullscreenElement(doc) || (doc.documentElement && doc.documentElement.classList.contains("dsh-tavern-play-fullscreen")))));
+                }
+            }, React.createElement(FullscreenIcon, { on: on }));
         }
-
 		async function expandTavernFrame(root) {
             const frame = root?.querySelector('iframe:not([aria-hidden="true"])');
             try {
