@@ -499,6 +499,11 @@ export async function apply(ctx) {
     return !(chat?.disabledWritingSkills || []).map(canonicalTavernSkillName).includes(skill.name)
   }
   let invalidateTavernSkills = () => {}
+  // 0.2.0-rc.2 适配：宿主已移除 sessionSkillCatalog 服务（全 asar 零命中），dsh-skill 也没有
+  // scopeFor 方法，因此这个注入在 0.2.0 永不触发、shim 不会安装（静默降级，不报错）。
+  // tavern 的 Skill 来源仍由下方 host `skills` registry 的 registerProvider 提供；冷菜单查询
+  // 在这个宿主上拿不到 session 身份，按角色过滤（enabledFor）只对活会话生效。
+  // 若宿主后续给出等价接缝，改挂到那个服务上；在此之前保留注入与模块，避免留下孤儿模块。
   ctx.inject(['sessionSkillCatalog'], scope => {
     scope.effect(() => installSkillCatalogSessionScope(scope.get('sessionSkillCatalog')))
   })
@@ -519,15 +524,16 @@ export async function apply(ctx) {
   })
 
   // ---------- profile 私有 preset ----------
-  // rc.6 启动器会固定系统 roots，因此在独立 Tavern 进程内追加 profile 自带目录。
-  // 不写入全局 `.agent-presets`，避免 Tavern 出现在普通 Web profile 的模式列表。
+  // 0.2.0-rc.2 适配：宿主不再扫描 preset 目录——agentPresets 服务改由
+  // @deepseek-ai/dsh-agent-preset-registry 提供，实例字段只有
+  // owner/definitions/generations/bindings/switches，**没有 resolvedRoots**
+  // （0.1.5 的 `agentPresets.resolvedRoots.unshift(...)` 会在这里 TypeError）。
+  // preset 定义现在是 bundle patch 里的 @deepseek-ai/dsh-agent-preset 声明行
+  // （见 tavern-plugin/cordis.patch.yml 的 preset-tavern / preset-tavern-background）。
+  // 这里只保留服务句柄，供下方 agentPresets.mount(childCtx, 'tavern-background') 按 id 挂载。
   const agentPresetsProxy = ctx.get('agentPresets')
   if (agentPresetsProxy === undefined) throw new Error('dsh-tavern: 缺少 agentPresets 服务')
   const agentPresets = agentPresetsProxy[Symbol.for('cordis.original')] || agentPresetsProxy
-  const presetSourceDir = fileURLToPath(new URL('../../presets/', import.meta.url))
-  if (!agentPresets.resolvedRoots.some(function (root) { return root.path === presetSourceDir })) {
-    agentPresets.resolvedRoots.unshift({ path: presetSourceDir, trust: 'user' })
-  }
 
   // ---------- 基础工具 ----------
   function uid(prefix) {
