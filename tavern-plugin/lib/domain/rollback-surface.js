@@ -8,6 +8,7 @@ import { floorHostTurn, floorNativeTurns, projectChatFloors } from './floor-proj
 import { createSurfaceOwnership, planSurfaceRecovery, planSurfaceRange, refSeqsOf, SurfaceRecoveryError, OWNED } from './surface-recovery.js'
 import { randomUUID } from 'node:crypto'
 import { committedOperationIds } from './conversation-algebra/index.js'
+import { storyEventTurn } from './story-turn.js'
 
 function object(value) {
   return value !== null && typeof value === 'object' ? value : null
@@ -131,7 +132,7 @@ function modelTurns(events, seqs) {
   const turns = new Set()
   for (const seq of seqs) {
     const event = eventAt(events, seq)
-    const turn = Number(event && event.data && event.data.turn)
+    const turn = storyEventTurn(event)
     if (event && event.type === 'assistant/message' && modelSourceOf(event) !== null && Number.isSafeInteger(turn) && turn > 0) turns.add(turn)
   }
   return [...turns].sort(function (left, right) { return left - right })
@@ -144,7 +145,7 @@ export function locateRegenerationSurface(input) {
   if (!Number.isSafeInteger(turn) || turn < 1) return null
   for (let index = nodes.length - 1; index >= 0; index -= 1) {
     const event = eventAt(events, nodes[index])
-    if (!event || event.type !== 'assistant/message' || Number(event.data && event.data.turn) !== turn) continue
+    if (!event || event.type !== 'assistant/message' || storyEventTurn(event) !== turn) continue
     const source = modelSourceOf(event)
     if (source === null) continue
     // Current swipes leave a non-empty replacement; legacy swipes can be empty.
@@ -262,13 +263,13 @@ export function locateRollbackSurface(input) {
   const ownership = createSurfaceOwnership(events)
   const start = ownership.firstOrigin(nodes[userIndex])
   const belongs = ownership.classify(event => event.seq >= start)
-  const turn = Number(assistantEvent.data?.turn)
+  const turn = storyEventTurn(assistantEvent)
   const range = planSurfaceRange({ nodes, start: nodes[userIndex], end: nodes.at(-1),
     accepts: seq => {
       const event = ownership.eventAt(seq)
       if (isRollbackUserTombstone(event) || isRollbackAssistantTombstone(event, events)) return true
       if (belongs(seq) !== OWNED) return false
-      if (event?.type === 'assistant/message' && Number(event.data?.turn) !== turn) return false
+      if (event?.type === 'assistant/message' && storyEventTurn(event) !== turn) return false
       const frameTurn = Number(event?.data?.source?.trace?.turn)
       return !(frameTurn > 0) || frameTurn === turn
     }, message: '回退消息归属不一致，无法安全清理' })
@@ -277,7 +278,7 @@ export function locateRollbackSurface(input) {
     userSeq: Number(nodes[userIndex]),
     assistantSeq: Number(nodes[assistantIndex]),
     endSeq: Number(shadowedSeqs[shadowedSeqs.length - 1]),
-    turn: Math.max(0, Number(assistantEvent.data && assistantEvent.data.turn) || 0),
+    turn: Math.max(0, storyEventTurn(assistantEvent) || 0),
     step: Math.max(1, Number(assistantEvent.data && assistantEvent.data.step) || 1),
     source,
     shadowedSeqs: Object.freeze(shadowedSeqs.slice())
@@ -362,7 +363,7 @@ function unclearedFailedTail(chat, events, nodes) {
   const latest = (chat.messages || []).findLast(message => message?.role === 'assistant')
   const lastEvent = eventAt(events, tail)
   const floors = projectChatFloors(chat, events, nodes)
-  if (lastEvent?.type === 'assistant/message' && (Number(lastEvent.data?.turn) === Number(latest?.turn) || Number(lastEvent.data?.turn) === floorHostTurn(floors, latest?.turn))) return []
+  if (lastEvent?.type === 'assistant/message' && (storyEventTurn(lastEvent) === Number(latest?.turn) || storyEventTurn(lastEvent) === floorHostTurn(floors, latest?.turn))) return []
   const committed = new Set((chat.messages || []).filter(message => message?.role === 'assistant').map(message => Number(message.turn)))
   for (const floor of floors.floors) committed.add(floor.hostTurn)
   const intervals = turnIntervals(events)
@@ -374,7 +375,7 @@ function unclearedFailedTail(chat, events, nodes) {
     if (isRollbackAssistantTombstone(event, events) || isRollbackUserTombstone(event) || isForegroundContext(event)) { remaining.pop(); continue }
     const origin = ownership.firstOrigin(event?.seq)
     const interval = intervals.findLast(item =>
-      (event?.type === 'assistant/message' && Number(event.data?.turn) === item.turn) ||
+      (event?.type === 'assistant/message' && storyEventTurn(event) === item.turn) ||
       (origin > item.start && origin < item.end))
     if (!interval?.failed || committed.has(interval.turn)) break
     const plan = planFailedTurnSurface({ events, nodes, turn: interval.turn, ownership })

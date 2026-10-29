@@ -1,6 +1,7 @@
 import { isPluginSource } from './message-source.js'
 import { sessionEvents } from './session-events.js'
 import { createHash } from 'node:crypto'
+import { storyEventTurn } from './story-turn.js'
 
 const type = value => value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
 const number = value => typeof value === 'number' && Number.isFinite(value) ? value : null
@@ -30,7 +31,7 @@ export function regenerationTargetDiagnostic(chat, session, { reason, assistantI
   const nodes = Array.isArray(session?.surface?.nodes) ? session.surface.nodes : []
   const turn = messages[assistantIndex]?.turn
   const selectedNodes = new Set(nodes)
-  const matching = events.filter(item => item?.type === 'assistant/message' && item?.data?.turn === turn)
+  const matching = events.filter(item => item?.type === 'assistant/message' && storyEventTurn(item) === turn)
   const indices = new Set(Array.from({length: Math.min(12, messages.length)}, (_, i) => messages.length - Math.min(12, messages.length) + i))
   for (let i = Math.max(0, assistantIndex - 2); i <= Math.min(messages.length - 1, assistantIndex + 2); i++) indices.add(i)
   return { version: 1, reason, chat: { id: diagnosticIdentity(chat?.id), revision: number(chat?._storageRevision),

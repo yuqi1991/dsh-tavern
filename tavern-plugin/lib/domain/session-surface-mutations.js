@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util'
 import { appendSessionEvent, openTurnStep, sessionEvents, sessionEventData, surfaceReplacementRange } from './session-events.js'
 import { agentForSession } from './agent-lookup.js'
+import { withStoryTurn } from './story-turn.js'
 
 /** Commit replacements against the current surface, never the raw history.
  * Only the algebra's host adapter may use this: the plugin writes the model
@@ -93,8 +94,10 @@ export function createSessionSurfaceMutator(session, events = sessionEvents(sess
     { ...left, turn: null, step: null }, { ...right, turn: null, step: null })
   function replace(type, data, { start, end, sourceEventSeqs }) {
     const id = type === 'assistant/message' || type === 'tool/result' ? data.message?.id : data.id
-    const normalized = sessionEventData(session, type, data)
     const adoptsStep = misplaced(type, data)
+    // A body rewritten in an edit step remembers the story turn it replaced.
+    const stamped = adoptsStep && type === 'assistant/message' ? withStoryTurn(data, bySeq.get(start)) : data
+    const normalized = sessionEventData(session, type, stamped)
     if (id) {
       const prior = (replacements.get(type)?.get(id) || []).find(event => isDeepStrictEqual(event.sourceEventSeqs, sourceEventSeqs))
       if (prior) {
@@ -118,7 +121,7 @@ export function createSessionSurfaceMutator(session, events = sessionEvents(sess
     if (!adoptsStep) return write(type, data, {
       surfaceOp: { op: 'replace', start, end }, sourceEventSeqs
     })
-    return editStep((turn, step) => write(type, { ...data, turn, step }, {
+    return editStep((turn, step) => write(type, { ...stamped, turn, step }, {
       surfaceOp: { op: 'replace', start, end }, sourceEventSeqs
     }))
   }

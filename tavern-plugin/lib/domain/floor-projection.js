@@ -1,5 +1,6 @@
 import { committedMetadata, computeFold } from './conversation-algebra/index.js'
 import { sessionEvents } from './session-events.js'
+import { storyEventTurn } from './story-turn.js'
 
 // Floor Projection (ADR-0009): one read-only module that answers, from the
 // Session log, the committed branch registry and the Story Timeline floors,
@@ -23,7 +24,7 @@ function branchBody(events, branch) {
   const body = rows.length ? rows[rows.length - 1] : null
   if (!body || body.type !== 'assistant/message') return null
   const text = (body.data?.message?.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
-  return text.trim() === '' ? null : { text, nativeTurn: Number(body.data?.turn) || 0 }
+  return text.trim() === '' ? null : { text, nativeTurn: storyEventTurn(body) || 0 }
 }
 
 const variantCache = new WeakMap()
@@ -119,7 +120,7 @@ function nativeTurns(events) {
   let current = 0
   for (const event of events) {
     if (event.type === 'turn/start' && Number.isSafeInteger(event.data?.turn)) current = event.data.turn
-    const own = Number(event.data?.turn)
+    const own = storyEventTurn(event)
     turns.set(event.seq, event.type === 'assistant/message' && Number.isSafeInteger(own) && own > 0 ? own : current)
   }
   return turns
@@ -127,7 +128,7 @@ function nativeTurns(events) {
 
 /** Logs without turn markers (imports, fixtures): the turn of the first reply after an input. */
 function firstReplyTurn(events, seq) {
-  for (const event of events) if (event.seq > seq && event.type === 'assistant/message' && Number(event.data?.turn) > 0) return Number(event.data.turn)
+  for (const event of events) if (event.seq > seq && event.type === 'assistant/message' && storyEventTurn(event) > 0) return storyEventTurn(event)
   return 0
 }
 

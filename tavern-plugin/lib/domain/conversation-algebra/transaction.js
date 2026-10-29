@@ -36,7 +36,10 @@ const placementLifecycle = event => event.surfaceOp === undefined && ['turn/star
 function withoutPlacement(type, data) {
   if (!PLACED_TYPES.has(type) || data === null || typeof data !== 'object') return data
   const { turn: _turn, step: _step, ...rest } = data
-  return rest
+  const source = rest.message?.source
+  if (source?.tavernStoryTurn === undefined) return rest
+  const { tavernStoryTurn: _story, ...plain } = source
+  return { ...rest, message: { ...rest.message, source: plain } }
 }
 const sameData = (type, left, right) => JSON.stringify(withoutPlacement(type, left)) === JSON.stringify(withoutPlacement(type, right))
 

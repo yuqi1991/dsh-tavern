@@ -13,6 +13,7 @@ import { restoreVariantState, saveVariantState, withoutVariantSettlement } from 
 import { diagnosticIdentity, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
 import { computeFold } from './conversation-algebra/index.js'
 import { branchRegistryOf, distinctFloorVariants, floorHostTurn, projectChatFloors } from './floor-projection.js'
+import { storyEventTurn } from './story-turn.js'
 
 function str(value) {
   return typeof value === 'string' ? value : (value === undefined || value === null ? '' : String(value))
@@ -120,7 +121,7 @@ function variantBodyFromSession(session, turns) {
     if ((message.source || {}).kind !== 'model') continue
     const text = (message.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
     if (text.trim() === '') continue
-    if (accepted === null || accepted.has(Number((row.data || {}).turn) || 0)) body = { text, nativeTurn: Number(row.data?.turn) || 0 }
+    if (accepted === null || accepted.has(storyEventTurn(row) || 0)) body = { text, nativeTurn: storyEventTurn(row) || 0 }
   }
   // A checked-out variant whose native turn is outside the mapping (archival
   // edge) still owns the surface: the fold's last body is its body.
@@ -131,7 +132,7 @@ function variantBodyFromSession(session, turns) {
       const message = (row.data || {}).message || {}
       if ((message.source || {}).kind !== 'model') continue
       const text = (message.content || []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
-      if (text.trim() !== '') return { text, nativeTurn: Number(row.data?.turn) || 0 }
+      if (text.trim() !== '') return { text, nativeTurn: storyEventTurn(row) || 0 }
     }
   }
   return body
