@@ -1,6 +1,6 @@
 // The header counts session summaries; its popup reads the lazy catalog.
 // Refresh an opened catalog when membership/activity changes in the summary feed.
-function syncTavernSubagentCatalogs(sessions) {
+function syncTavernSubagentCatalogs(sessions, signals) {
   if (!sessions || !sessions.list || typeof sessions.refreshSubagents !== 'function') return function () {};
   const signatures = new Map();
   let disposed = false;
@@ -14,17 +14,22 @@ function syncTavernSubagentCatalogs(sessions) {
     }
     for (const [parentId, catalog] of Object.entries(snapshot.subagentsByParent || {})) {
       if (!catalog || catalog.state !== 'ready') continue;
-      const signature = (groups.get(parentId) || []).sort().join('|');
-      if (signatures.get(parentId) === signature) continue;
+      const rows = groups.get(parentId) || [];
+      const signature = rows.slice().sort().join('|');
+      const previous = signatures.get(parentId);
+      if (previous === signature) continue;
       signatures.set(parentId, signature);
+      // A catalog that just became ready was fetched moments ago; refetching it
+      // repeats a full session scan. Only refresh when it misses a known child.
+      if (previous === undefined) {
+        const listed = new Set((catalog.entries || []).map(function (entry) { return entry && entry.id; }));
+        if (rows.every(function (row) { return listed.has(row.slice(0, row.lastIndexOf(':'))); })) continue;
+      }
       Promise.resolve().then(function () {
         if (!disposed) return sessions.refreshSubagents(parentId);
       }).catch(function (error) { console.warn('[DSH Tavern] 子代理目录刷新失败', error); });
     }
   }
-<<<<<<< HEAD
-  const stop = sessions.list.subscribe(reconcile);
-=======
   // Tavern retires failed background workers. The host keeps a disposed subagent in the
   // session list as an idle row; reloading the list drops it, as a page reload would.
   let watched = null, unwatch = function () {}, refreshing = null, again = false;
@@ -47,7 +52,7 @@ function syncTavernSubagentCatalogs(sessions) {
     unwatch = current ? signals.subscribe(current, 'subagents', refreshList) : function () {};
   }
   const stop = sessions.list.subscribe(function () { reconcile(); follow(); });
->>>>>>> fdffd351 (fix(子代理): 0.2 宿主下按主视图认出当前对话再订阅子代理变化)
   reconcile();
-  return function () { disposed = true; stop(); };
+  follow();
+  return function () { disposed = true; stop(); unwatch(); };
 }
