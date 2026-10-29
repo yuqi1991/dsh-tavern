@@ -91,7 +91,7 @@ test('实验分支始终公开兼容模式，旧关闭信任值不影响运行',
 })
 
 test('设置界面不重复提供已并入外观的分色，不恢复旧兼容样式选项', () => {
-  const context = { CandidatePreferencesSettings: function CandidatePreferencesSettings() {}, DisplayPreferencesSettings: function DisplayPreferencesSettings() {}, PromptTemplateSettingsEntry: function PromptTemplateSettingsEntry() {}, TavernConversationWritingSkills: function TavernConversationWritingSkills() {}, TavernDefaultModelSetting: function TavernDefaultModelSetting() {}, TavernTextColorSettings: function TavernTextColorSettings() {}, ContextCompactionSettings: function ContextCompactionSettings() {}, SceneImageSettings: function SceneImageSettings() {}, React: {
+  const context = { CandidatePreferencesSettings: function CandidatePreferencesSettings() {}, DisplayPreferencesSettings: function DisplayPreferencesSettings() {}, HeaderItemsSettings: function HeaderItemsSettings() {}, PromptTemplateSettingsEntry: function PromptTemplateSettingsEntry() {}, TavernConversationWritingSkills: function TavernConversationWritingSkills() {}, TavernDefaultModelSetting: function TavernDefaultModelSetting() {}, TavernTextColorSettings: function TavernTextColorSettings() {}, ContextCompactionSettings: function ContextCompactionSettings() {}, SceneImageSettings: function SceneImageSettings() {}, React: {
     useState: initial => [initial, () => {}],
     useEffect() {},
     createElement: (type, props, ...children) => ({ type, props, children })
@@ -157,6 +157,8 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
     defaultStatusPanel: true,
     promptSets: { activeId: 'default', sets: [{ active: true, id: 'default', name: '默认方案' }] },
     renderDepth: 3,
+    headerItems: { display: 'icon-text', items: ['dsh-tavern:status', 'header:export'] },
+    autoOpenStatusPanel: true,
     scaffoldingInjectionExperiment: false,
     defaultBackgroundModel: null,
     backgroundModel: null,
@@ -182,6 +184,8 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
     defaultStatusPanel: true,
     promptSets: { activeId: 'default', sets: [{ active: true, id: 'default', name: '默认方案' }] },
     renderDepth: 3,
+    headerItems: { display: 'icon-text', items: ['dsh-tavern:status', 'header:export'] },
+    autoOpenStatusPanel: true,
     scaffoldingInjectionExperiment: false,
     defaultBackgroundModel: null,
     backgroundModel: null,
@@ -335,4 +339,11 @@ test('系统提示词方案：复制、重名加后缀、不能删除正在使�
   document = applyTavernSettingsPatch(document, { promptSet: { action: 'add', name: '导入', promptOverrides: { story: 'C' }, systemAppendEnabled: false } })
   assert.deepEqual(document.promptOverrides, { story: 'C' })
   assert.equal(document.systemAppendEnabled, false)
+})
+
+test('进入游戏时打开酒馆状态：默认开，可以关', () => {
+  assert.equal(presentTavernSettings({}, {}).autoOpenStatusPanel, true)
+  const off = applyTavernSettingsPatch({}, { autoOpenStatusPanel: false })
+  assert.equal(presentTavernSettings(off, {}).autoOpenStatusPanel, false)
+  assert.throws(() => applyTavernSettingsPatch({}, { autoOpenStatusPanel: 'no' }), /布尔值/)
 })
