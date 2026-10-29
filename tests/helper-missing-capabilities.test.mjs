@@ -120,14 +120,17 @@ test('父窗口校验来源/token/脚本/接口，合并计数并在切换时保
   host.runtime.dispose()
 })
 
-test('记录保存失败明确提示，不打断空操作或无限重试', async () => {
-  const errors = []
+test('记录保存失败只在控制台警告并带上原因，不弹错误、不打断空操作或无限重试', async t => {
+  const errors = [], warnings = []
+  t.mock.method(console, 'warn', (...args) => warnings.push(args))
   let attempts = 0
   const host = parentHarness(async () => { attempts++; throw Error('disk unavailable') }, (source, error) => errors.push(error.message))
   host.send()
   await host.runtime.flushCompatibilityDiagnostics()
   assert.equal(attempts, 1)
-  assert.match(errors[0], /部分调用可能未记录/)
+  assert.deepEqual(errors, [], '玩家无法处理这类失败，不弹错误')
+  assert.match(String(warnings[0]?.[0]), /部分调用可能未记录/)
+  assert.equal(warnings[0]?.[1]?.message, 'disk unavailable')
   host.runtime.dispose()
 })
 
