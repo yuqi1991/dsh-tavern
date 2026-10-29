@@ -16,6 +16,17 @@ function mainSessionId(snapshot) {
 	return "";
 }
 
+// 统一取「当前主会话」：compat 视图（createSessionCompat）的 current 已经是主视图
+// 推导值；宿主基线对象（0.1.5 的 ctx.sessions、测试替身、服务端 headless 执行器）
+// 只有裸 list 时回退到快照判定。0.2.0 删掉了顶层 current，散落的直接读取会永远得到
+// 空串，卡片脚本运行时就选不中会话。
+function tavernMainSessionId(sessions) {
+	if (!sessions) return "";
+	if (typeof sessions.current === "string" && sessions.current) return sessions.current;
+	const snapshot = sessions.list && typeof sessions.list.getSnapshot === "function" ? sessions.list.getSnapshot() : null;
+	return mainSessionId(snapshot);
+}
+
 function isBlankRow(row) {
 	if (!row) return false;
 	return row.blank === true;

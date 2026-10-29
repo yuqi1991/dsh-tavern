@@ -295,12 +295,12 @@ window.__ModuleLoader__.load({
                         // sidebar seat. Retry this specific readiness error only.
                         if (!/sidebarRight: no session surface is mounted/.test(String(error.message || error)) || Date.now() >= deadline) throw error;
                         await new Promise(resolve => window.setTimeout(resolve, 100));
-                        // 0.2.0 无 current 字段；会话已切换则这次重试打开的 tab 不再属于它。
+                        // 0.2.0 没有顶层 current，主会话只在 byId 行上以 mainView retain
+                        // 表示；0.1.5 才用快照的 current。会话已切换则这次重试打开的 tab
+                        // 不再属于它。
                         const snapshotNow = ctx.sessions.list.getSnapshot();
-                        if (snapshotNow.retainedBy) {
-                            const main = Object.values(snapshotNow.byId || {}).find(function (row) { return row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0; });
-                            if (!main || main.id !== scope.sessionId) return;
-                        } else if (snapshotNow.current !== scope.sessionId) return;
+                        const main = Object.values(snapshotNow.byId || {}).find(function (row) { return row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0; });
+                        if (main ? main.id !== scope.sessionId : snapshotNow.current !== scope.sessionId) return;
                     }
                 }
             })().catch(error => tavernErrorHub.report("打开酒馆侧栏", error)).finally(() => tavernSidebarOpens.delete(key));
@@ -968,6 +968,7 @@ window.__ModuleLoader__.load({
 		exports.tavernDataChangeAffects = tavernDataChangeAffects;
 		exports.createLiveTavernViewModule = createLiveTavernViewModule;
 		exports.createSessionCompat = createSessionCompat;
+		exports.tavernMainSessionId = tavernMainSessionId;
 		exports.sessionListAdapters = sessionListAdapters;
 		exports.applyBodyRegenerationResult = applyBodyRegenerationResult;
 		exports.createTavernCoordinationEventModule = createTavernCoordinationEventModule;

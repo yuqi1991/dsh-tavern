@@ -1062,6 +1062,17 @@ window.__ModuleLoader__.load({
 			return "";
 		}
 
+		// 统一取「当前主会话」：compat 视图（createSessionCompat）的 current 已经是主视图
+		// 推导值；宿主基线对象（0.1.5 的 ctx.sessions、测试替身、服务端 headless 执行器）
+		// 只有裸 list 时回退到快照判定。0.2.0 删掉了顶层 current，散落的直接读取会永远得到
+		// 空串，卡片脚本运行时就选不中会话。
+		function tavernMainSessionId(sessions) {
+			if (!sessions) return "";
+			if (typeof sessions.current === "string" && sessions.current) return sessions.current;
+			const snapshot = sessions.list && typeof sessions.list.getSnapshot === "function" ? sessions.list.getSnapshot() : null;
+			return mainSessionId(snapshot);
+		}
+
 		function isBlankRow(row) {
 			if (!row) return false;
 			return row.blank === true;
@@ -1397,12 +1408,12 @@ window.__ModuleLoader__.load({
                         // sidebar seat. Retry this specific readiness error only.
                         if (!/sidebarRight: no session surface is mounted/.test(String(error.message || error)) || Date.now() >= deadline) throw error;
                         await new Promise(resolve => window.setTimeout(resolve, 100));
-                        // 0.2.0 无 current 字段；会话已切换则这次重试打开的 tab 不再属于它。
+                        // 0.2.0 没有顶层 current，主会话只在 byId 行上以 mainView retain
+                        // 表示；0.1.5 才用快照的 current。会话已切换则这次重试打开的 tab
+                        // 不再属于它。
                         const snapshotNow = ctx.sessions.list.getSnapshot();
-                        if (snapshotNow.retainedBy) {
-                            const main = Object.values(snapshotNow.byId || {}).find(function (row) { return row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0; });
-                            if (!main || main.id !== scope.sessionId) return;
-                        } else if (snapshotNow.current !== scope.sessionId) return;
+                        const main = Object.values(snapshotNow.byId || {}).find(function (row) { return row && row.retainedBy && (row.retainedBy.mainView ?? 0) > 0; });
+                        if (main ? main.id !== scope.sessionId : snapshotNow.current !== scope.sessionId) return;
                     }
                 }
             })().catch(error => tavernErrorHub.report("打开酒馆侧栏", error)).finally(() => tavernSidebarOpens.delete(key));
@@ -2610,7 +2621,7 @@ window.__ModuleLoader__.load({
         }
 
 		function tavernStaticAssetShim() {
-			return '<script data-dsh-tavern-static-cache>(function(){function proxy(value){var source=String(value||"");return /^https:\\/\\//i.test(source)?"/api/dsh-tavern/static-assets?url="+encodeURIComponent(source):source;}function css(value){return String(value||"").replace(/url\\(\\s*(["\\\']?)(https:\\/\\/[^"\\\')\\s]+)\\1\\s*\\)/gi,function(_,quote,url){return "url("+quote+proxy(url)+quote+")";});}window.__dshTavernStaticAssetUrl=proxy;var nativeSet=Element.prototype.setAttribute;Element.prototype.setAttribute=function(name,value){var key=String(name||"").toLowerCase(),tag=String(this.tagName||"").toLowerCase();if(!(key==="src"&&/^(video|audio|source)$/.test(tag))&&(key==="src"||key==="poster"||(key==="href"&&tag==="link"))&&/^https:\\/\\//i.test(String(value||"")))value=proxy(value);else if(key==="style")value=css(value);return nativeSet.call(this,name,value);};[["HTMLImageElement","src"],["HTMLScriptElement","src"],["HTMLVideoElement","poster"],["HTMLIFrameElement","src"],["HTMLLinkElement","href"]].forEach(function(row){var Type=window[row[0]],descriptor=Type&&Object.getOwnPropertyDescriptor(Type.prototype,row[1]);if(!descriptor||!descriptor.set||!descriptor.get)return;try{Object.defineProperty(Type.prototype,row[1],{configurable:descriptor.configurable,enumerable:descriptor.enumerable,get:descriptor.get,set:function(value){return descriptor.set.call(this,proxy(value));}});}catch(e){}});if(window.CSSStyleDeclaration&&CSSStyleDeclaration.prototype.setProperty){var nativeProperty=CSSStyleDeclaration.prototype.setProperty;CSSStyleDeclaration.prototype.setProperty=function(name,value,priority){return nativeProperty.call(this,name,css(value),priority);};}new MutationObserver(function(records){records.forEach(function(record){var node=record.target;if(!node||node.nodeType!==1)return;["src","poster"].forEach(function(name){if(name==="src"&&/^(video|audio|source)$/i.test(node.tagName))return;var value=node.getAttribute&&node.getAttribute(name);if(/^https:\\/\\//i.test(String(value||"")))nativeSet.call(node,name,proxy(value));});if(String(node.tagName||"").toLowerCase()==="link"){var href=node.getAttribute("href");if(/^https:\\/\\//i.test(String(href||"")))nativeSet.call(node,"href",proxy(href));}var style=node.getAttribute&&node.getAttribute("style");if(style&&/https:\\/\\//i.test(style))nativeSet.call(node,"style",css(style));});}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:["src","href","poster","style"]});})();<\/script>';
+			return '<script data-dsh-tavern-static-cache>(function(){function proxy(value){var source=String(value||"");return /^https:\\/\\//i.test(source)?"/api/dsh-tavern/static-assets?url="+encodeURIComponent(source)+(/\\.[cm]?js(?:[?#]|$)/i.test(source)?"&host=2":""):source;}function css(value){return String(value||"").replace(/url\\(\\s*(?:(["\\\'])(https:\\/\\/[^"\\\']+)\\1|(https:\\/\\/[^"\\\')\\s]+))\\s*\\)/gi,function(_,quote,quoted,bare){quote=quote||"";return "url("+quote+proxy(quoted||bare)+quote+")";});}window.__dshTavernStaticAssetUrl=proxy;var nativeSet=Element.prototype.setAttribute;Element.prototype.setAttribute=function(name,value){var key=String(name||"").toLowerCase(),tag=String(this.tagName||"").toLowerCase();if(!(key==="src"&&/^(video|audio|source|iframe|frame)$/.test(tag))&&(key==="src"||key==="poster"||(key==="href"&&tag==="link"))&&/^https:\\/\\//i.test(String(value||"")))value=proxy(value);else if(key==="style")value=css(value);return nativeSet.call(this,name,value);};var nativeGet=Element.prototype.getAttribute,PROXY="/api/dsh-tavern/static-assets?url=";Element.prototype.getAttribute=function(name){var value=nativeGet.call(this,name);if(typeof value!=="string"||value.indexOf(PROXY)!==0)return value;var key=String(name||"").toLowerCase();if(key!=="src"&&key!=="poster"&&key!=="href")return value;var raw=value.slice(PROXY.length),amp=raw.indexOf("&");if(amp>=0)raw=raw.slice(0,amp);try{return decodeURIComponent(raw);}catch(e){return value;}};[["HTMLImageElement","src"],["HTMLScriptElement","src"],["HTMLVideoElement","poster"],["HTMLLinkElement","href"]].forEach(function(row){var Type=window[row[0]],descriptor=Type&&Object.getOwnPropertyDescriptor(Type.prototype,row[1]);if(!descriptor||!descriptor.set||!descriptor.get)return;try{Object.defineProperty(Type.prototype,row[1],{configurable:descriptor.configurable,enumerable:descriptor.enumerable,get:descriptor.get,set:function(value){return descriptor.set.call(this,proxy(value));}});}catch(e){}});if(window.CSSStyleDeclaration&&CSSStyleDeclaration.prototype.setProperty){var nativeProperty=CSSStyleDeclaration.prototype.setProperty;CSSStyleDeclaration.prototype.setProperty=function(name,value,priority){return nativeProperty.call(this,name,css(value),priority);};}new MutationObserver(function(records){records.forEach(function(record){var node=record.target;if(!node||node.nodeType!==1)return;["src","poster"].forEach(function(name){if(name==="src"&&/^(video|audio|source|iframe|frame)$/i.test(node.tagName))return;var value=node.getAttribute&&nativeGet.call(node,name);if(/^https:\\/\\//i.test(String(value||"")))nativeSet.call(node,name,proxy(value));});if(String(node.tagName||"").toLowerCase()==="link"){var href=nativeGet.call(node,"href");if(/^https:\\/\\//i.test(String(href||"")))nativeSet.call(node,"href",proxy(href));}var style=node.getAttribute&&nativeGet.call(node,"style");if(style&&/https:\\/\\//i.test(style)){var next=css(style);if(next!==style)nativeSet.call(node,"style",next);}});}).observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:["src","href","poster","style"]});})();<\/script>';
 		}
 
 		function tavernIconDependencies() {
@@ -7388,7 +7399,7 @@ window.__ModuleLoader__.load({
 				listeners.forEach(function (listener) { listener(); });
 			}
 			function selectedOwner() {
-				let id = String(sessions.list.getSnapshot().current || "");
+				let id = String(tavernMainSessionId(sessions) || "");
 				const seen = new Set();
 				while (id) {
 					if (seen.has(id) || seen.size >= 32) return "";
@@ -7437,7 +7448,7 @@ window.__ModuleLoader__.load({
 			}
 			function createRecord(sessionId) {
 				const record = { sessionId: sessionId, viewState: null, loadState: null, fresh: false, foregroundRunning: sessions.list.getSnapshot().byId?.[sessionId]?.running === true, stopView: null };
-				record.templatePanel = createServerTemplatePanel({ window: hostWindow, rpc: options.rpc || rpc, isActive: () => current === record });
+				record.templatePanel = createServerTemplatePanel({ window: hostWindow, rpc: options.rpc || rpc, isActive: () => current === record && tavernMainSessionId(sessions) === record.sessionId });
 				record.execution = (options.createExecution || createTavernScriptExecutionModule)({
 					window: hostWindow, rpc: options.rpc || rpc,
 					signals: options.signals || tavernSessionSignals,
@@ -7466,14 +7477,21 @@ window.__ModuleLoader__.load({
 					record.foregroundRunning = running;
 					retire(record);
 				});
-				if ((current ? current.sessionId : "") === sessionId) return;
+				if ((current ? current.sessionId : "") === sessionId) {
+                    // Child agents keep the root executor alive, but its card UI
+                    // belongs only to the actual root conversation surface.
+                    const visible = tavernMainSessionId(sessions) === sessionId;
+                    if (current?.execution.setForeground) current.execution.setForeground(visible);
+                    if (current && !visible) current.templatePanel.close();
+                    return;
+                }
 				const previous = current;
                 if (previous) previous.templatePanel.close();
                 if (previous && previous.execution.setForeground) previous.execution.setForeground(false);
 				retention.select(sessionId);
 				hostWindow.__dshTavernSelectedSessionId = sessionId;
 				current = sessionId ? records.get(sessionId) || createRecord(sessionId) : null;
-				if (current && current.execution.setForeground) current.execution.setForeground(true);
+                if (current && current.execution.setForeground) current.execution.setForeground(tavernMainSessionId(sessions) === sessionId);
 				if (previous) {
 					// Do not retire from a cached idle view: the settlement-start
 					// notification may still be in flight when navigation happens.
@@ -15424,7 +15442,7 @@ function subscribeTavernHostTheme(win, listener) {
 			ctx.effect(() => tavernInteractionDiagnostics.start(), "dsh-tavern: interaction diagnostics");
 			ctx.effect(function () { return tavernTextLayoutFeature.register(ctx); }, "dsh-tavern: text layout in appearance settings");
 			ctx.effect(() => displayPreferences.start(), "dsh-tavern: global display preferences");
-			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions, ctx.tavernSessionSignals), "dsh-tavern: subagent catalog synchronization");
+			ctx.effect(() => syncTavernSubagentCatalogs(ctx.sessions, tavernSessionSignals), "dsh-tavern: subagent catalog synchronization");
 			const slots = ctx.slots;
 			if (slots === undefined) return;
             ctx.effect(() => slots.inject("conversation.view", () => slots.register({
@@ -15664,6 +15682,7 @@ function subscribeTavernHostTheme(win, listener) {
 		exports.tavernDataChangeAffects = tavernDataChangeAffects;
 		exports.createLiveTavernViewModule = createLiveTavernViewModule;
 		exports.createSessionCompat = createSessionCompat;
+		exports.tavernMainSessionId = tavernMainSessionId;
 		exports.sessionListAdapters = sessionListAdapters;
 		exports.applyBodyRegenerationResult = applyBodyRegenerationResult;
 		exports.createTavernCoordinationEventModule = createTavernCoordinationEventModule;
