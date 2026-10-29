@@ -92,7 +92,8 @@ test('Android 入口复用当前 WebView 的 DSHA 鉴权 Cookie', async (t) => {
 })
 
 test('Android 按钮通过本机入口打开，不再直接打开缺少 token 的 3088 裸地址', () => {
-  assert.match(entryClient, /window\.location\.assign\("\/api\/dsh-tavern-android\/open"\)/)
+  // 入口在应用内全屏嵌入（上游手机布局的 Android 外壳），经本机 /embed 取得带 token 的地址。
+  assert.match(entryClient, /request\("\/api\/dsh-tavern-android\/embed", "POST"\)/)
   assert.doesNotMatch(entryClient, /window\.open\(/)
   assert.doesNotMatch(entryClient, /window\.open\("http:\/\/127\.0\.0\.1:3088"/)
 })
