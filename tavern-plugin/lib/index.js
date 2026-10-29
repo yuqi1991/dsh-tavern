@@ -2131,7 +2131,9 @@ export async function apply(ctx) {
   const backgroundCatalog = createBackgroundCatalogBackfill({ agents: agentRegistry, sessionQuery: ctx.get('sessionQuery'), onListed: subagentsSignal })
   const backgroundAgentRunner = createBackgroundAgentRunner({
     retirement: backgroundRetirement,
-    // The browser's session list does not learn of a new worker by itself; the signal reloads it so the header counts it.
+    // The browser's session list keeps a disposed subagent as an idle row until the list is
+    // reloaded, and does not learn of a new worker by itself; the signal reloads it so the header count is right.
+    onRetired: (_id, parentId) => subagentsSignal(parentId),
     onCreated: (_id, parentId) => subagentsSignal(parentId),
     systemAppend: () => runtimePrompt('system-append'),
     imageSystemPrompt: () => runtimePrompt('scene-image-system'),
