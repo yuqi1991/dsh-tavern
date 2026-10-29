@@ -72,3 +72,28 @@ function createSessionCompat(sessions, uiWorkspace) {
 
 	return compat;
 }
+
+// sessionListAdapters(sessions) -> createSessionListRecoveryModule 的适配器集合。
+//
+// 0.2.0 的会话 scope 只在被 retain 之后才存在，create() 出来的会话先只有列表
+// placeholder 行。若 binding 只读 scope，新建会话在 wait() 里永远不就绪，
+// 8 秒后必然抛「DSH Session 列表同步超时」。这里以列表行兜底：就绪 = 会话已进列表，
+// scope 由 open() 走 uiWorkspace 时再 materialize。
+function sessionListAdapters(sessions) {
+	const readRow = function (sessionId) {
+		const snapshot = sessions.list && typeof sessions.list.getSnapshot === "function" ? sessions.list.getSnapshot() : null;
+		return (snapshot && snapshot.byId && snapshot.byId[sessionId]) || undefined;
+	};
+	return {
+		summary: readRow,
+		binding: function (sessionId) {
+			return (typeof sessions.binding === "function" ? sessions.binding(sessionId) : undefined) || readRow(sessionId);
+		},
+		refresh: function () { return typeof sessions.refresh === "function" ? sessions.refresh() : Promise.resolve(); },
+		open: function (sessionId) { return sessions.open(sessionId); },
+		isUnknownSession: function (error) {
+			// 0.1.5 选中未知会话报 sessions.select；0.2.0 的 retain 报 sessions.retain。
+			return /sessions\.(select|retain): unknown session/i.test(String(error && error.message || error || ""));
+		},
+	};
+}

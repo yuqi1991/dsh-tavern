@@ -117,11 +117,52 @@ test('recovery 在 0.2.0 下能靠 retain 满足就绪条件，不再超时', as
     binding(id) { return compat.binding(id) },
     refresh() { return Promise.resolve() },
     open(id) { compat.open(id) },
-    isUnknownSession(error) { return /sessions\.retain: unknown session/i.test(String(error && error.message || error || '')) },
+    isUnknownSession(error) { return /sessions\.(select|retain): unknown session/i.test(String(error && error.message || error || '')) },
   })
   assert.equal(recovery.ready('session-blank'), false)
   // 0.2.0 的 replaceMain 会同步 retain；这里直接 retain 模拟宿主行为。
   host.sessions.retain('session-blank', { source: 'mainView' })
   await recovery.wait('session-blank')
   assert.equal(recovery.ready('session-blank'), true)
+})
+
+// 真实故障：点「开始新游戏」→ create() 只写入 placeholder 行，scope 尚未 retain。
+// 旧适配器只读 scope，wait() 必然 8 秒超时（session-110820bb-... 即此路径）。
+test('sessionListAdapters：新建但未 retain 的会话立即就绪（修复列表同步超时）', async function () {
+  const host = host2020()
+  // 模拟 create 之后：会话已进列表，但没有 scope。
+  host.rows['session-fresh'] = {
+    id: 'session-fresh', blank: true, updatedAt: 1,
+    retainedBy: Object.freeze(Object.create(null)),
+  }
+  const compat = client.createSessionCompat(host.sessions, host.uiWorkspace)
+  const adapters = client.sessionListAdapters(compat)
+  const recovery = client.createSessionListRecoveryModule(adapters)
+
+  assert.ok(adapters.summary('session-fresh'), 'placeholder 行应可读')
+  assert.equal(adapters.binding('session-fresh').id, 'session-fresh', '未 retain 时 binding 以列表行兜底')
+  assert.equal(recovery.ready('session-fresh'), true)
+  await recovery.wait('session-fresh')
+
+  // 真正打开时才 materialize scope，并保留真实 binding 语义。
+  await recovery.open('session-fresh')
+  assert.deepEqual(host.opened, ['session-fresh'])
+  assert.equal(typeof compat.binding('session-fresh'), 'undefined', '未 retain 时真 binding 仍为空')
+})
+
+test('sessionListAdapters：会话还没进列表时 wait 会靠 refresh 重试', async function () {
+  const host = host2020()
+  const compat = client.createSessionCompat(host.sessions, host.uiWorkspace)
+  const adapters = client.sessionListAdapters(compat)
+  let refreshes = 0
+  const recovery = client.createSessionListRecoveryModule(Object.assign({}, adapters, {
+    refresh() {
+      refreshes += 1
+      host.rows['session-late'] = { id: 'session-late', blank: true, retainedBy: Object.freeze(Object.create(null)) }
+      return Promise.resolve()
+    },
+  }))
+  assert.equal(recovery.ready('session-late'), false)
+  await recovery.wait('session-late')
+  assert.ok(refreshes >= 1)
 })

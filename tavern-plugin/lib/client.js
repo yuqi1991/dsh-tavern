@@ -1118,6 +1118,31 @@ window.__ModuleLoader__.load({
 
 			return compat;
 		}
+
+		// sessionListAdapters(sessions) -> createSessionListRecoveryModule 的适配器集合。
+		//
+		// 0.2.0 的会话 scope 只在被 retain 之后才存在，create() 出来的会话先只有列表
+		// placeholder 行。若 binding 只读 scope，新建会话在 wait() 里永远不就绪，
+		// 8 秒后必然抛「DSH Session 列表同步超时」。这里以列表行兜底：就绪 = 会话已进列表，
+		// scope 由 open() 走 uiWorkspace 时再 materialize。
+		function sessionListAdapters(sessions) {
+			const readRow = function (sessionId) {
+				const snapshot = sessions.list && typeof sessions.list.getSnapshot === "function" ? sessions.list.getSnapshot() : null;
+				return (snapshot && snapshot.byId && snapshot.byId[sessionId]) || undefined;
+			};
+			return {
+				summary: readRow,
+				binding: function (sessionId) {
+					return (typeof sessions.binding === "function" ? sessions.binding(sessionId) : undefined) || readRow(sessionId);
+				},
+				refresh: function () { return typeof sessions.refresh === "function" ? sessions.refresh() : Promise.resolve(); },
+				open: function (sessionId) { return sessions.open(sessionId); },
+				isUnknownSession: function (error) {
+					// 0.1.5 选中未知会话报 sessions.select；0.2.0 的 retain 报 sessions.retain。
+					return /sessions\.(select|retain): unknown session/i.test(String(error && error.message || error || ""));
+				},
+			};
+		}
 		const beginSessionViewRead = createSessionViewReader();
 
 		function rpc(method, args, sessionId, requestOptions) {
@@ -1902,7 +1927,7 @@ window.__ModuleLoader__.load({
 			const timeoutMs = Math.max(100, Number(options.timeoutMs || 8000));
 			const retryDelays = Array.isArray(options.retryDelays) && options.retryDelays.length ? options.retryDelays : [0, 150, 350, 700, 1200, 1800, 2500];
 			const isUnknownSession = typeof options.isUnknownSession === "function" ? options.isUnknownSession : function (error) {
-				return /sessions\.select: unknown session/i.test(String(error && error.message || error || ""));
+				return /sessions\.(select|retain): unknown session/i.test(String(error && error.message || error || ""));
 			};
 			const active = new Map();
 
@@ -1938,10 +1963,10 @@ window.__ModuleLoader__.load({
 			}
 
 			async function open(sessionId) {
-				try { options.open(sessionId); return; }
+				try { await options.open(sessionId); return; }
 				catch (error) { if (!isUnknownSession(error)) throw error; }
 				await wait(sessionId);
-				options.open(sessionId);
+				await options.open(sessionId);
 			}
 
 			return Object.freeze({ ready: ready, wait: wait, open: open });
@@ -9396,13 +9421,7 @@ function subscribeTavernHostTheme(win, listener) {
                 playPrewarmRef.current = createConversationPrewarmModule({ resolveWorkspace: playWorkspaceResolverRef.current });
             }
 			if (sessionListRecoveryRef.current === null) {
-				sessionListRecoveryRef.current = createSessionListRecoveryModule({
-					summary: function (sessionId) { return props.sessions.list.getSnapshot().byId[sessionId]; },
-					binding: function (sessionId) { return props.sessions.binding(sessionId); },
-					refresh: function () { return typeof props.sessions.refresh === "function" ? props.sessions.refresh() : Promise.resolve(); },
-					open: function (sessionId) { props.sessions.open(sessionId); },
-					isUnknownSession: isUnknownSessionSelectError
-				});
+				sessionListRecoveryRef.current = createSessionListRecoveryModule(sessionListAdapters(props.sessions));
 			}
 			const currentSummary = current ? summaries[current] : null;
 			const readyTavernSession = current && summaries[current] && summaries[current].blank === false && history.some(function (entry) { return entry.sessionId === current && isPlayMode(entry.mode); }) ? current : "";
@@ -9659,9 +9678,6 @@ function subscribeTavernHostTheme(win, listener) {
 			}
 			async function waitForSessionSummary(sessionId) {
 				await sessionListRecoveryRef.current.wait(sessionId);
-			}
-			function isUnknownSessionSelectError(error) {
-				return /sessions\.select: unknown session/i.test(String(error && error.message || error || ""));
 			}
 			async function openSessionWhenReady(sessionId) {
 				await sessionListRecoveryRef.current.open(sessionId);
@@ -15582,6 +15598,7 @@ function subscribeTavernHostTheme(win, listener) {
 		exports.tavernDataChangeAffects = tavernDataChangeAffects;
 		exports.createLiveTavernViewModule = createLiveTavernViewModule;
 		exports.createSessionCompat = createSessionCompat;
+		exports.sessionListAdapters = sessionListAdapters;
 		exports.applyBodyRegenerationResult = applyBodyRegenerationResult;
 		exports.createTavernCoordinationEventModule = createTavernCoordinationEventModule;
 		exports.describeTavernActivity = describeTavernActivity;

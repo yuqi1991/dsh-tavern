@@ -121,13 +121,7 @@
                 playPrewarmRef.current = createConversationPrewarmModule({ resolveWorkspace: playWorkspaceResolverRef.current });
             }
 			if (sessionListRecoveryRef.current === null) {
-				sessionListRecoveryRef.current = createSessionListRecoveryModule({
-					summary: function (sessionId) { return props.sessions.list.getSnapshot().byId[sessionId]; },
-					binding: function (sessionId) { return props.sessions.binding(sessionId); },
-					refresh: function () { return typeof props.sessions.refresh === "function" ? props.sessions.refresh() : Promise.resolve(); },
-					open: function (sessionId) { props.sessions.open(sessionId); },
-					isUnknownSession: isUnknownSessionSelectError
-				});
+				sessionListRecoveryRef.current = createSessionListRecoveryModule(sessionListAdapters(props.sessions));
 			}
 			const currentSummary = current ? summaries[current] : null;
 			const readyTavernSession = current && summaries[current] && summaries[current].blank === false && history.some(function (entry) { return entry.sessionId === current && isPlayMode(entry.mode); }) ? current : "";
@@ -384,9 +378,6 @@
 			}
 			async function waitForSessionSummary(sessionId) {
 				await sessionListRecoveryRef.current.wait(sessionId);
-			}
-			function isUnknownSessionSelectError(error) {
-				return /sessions\.select: unknown session/i.test(String(error && error.message || error || ""));
 			}
 			async function openSessionWhenReady(sessionId) {
 				await sessionListRecoveryRef.current.open(sessionId);

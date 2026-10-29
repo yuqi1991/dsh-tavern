@@ -968,6 +968,7 @@ window.__ModuleLoader__.load({
 		exports.tavernDataChangeAffects = tavernDataChangeAffects;
 		exports.createLiveTavernViewModule = createLiveTavernViewModule;
 		exports.createSessionCompat = createSessionCompat;
+		exports.sessionListAdapters = sessionListAdapters;
 		exports.applyBodyRegenerationResult = applyBodyRegenerationResult;
 		exports.createTavernCoordinationEventModule = createTavernCoordinationEventModule;
 		exports.describeTavernActivity = describeTavernActivity;

@@ -28,7 +28,7 @@
 			const timeoutMs = Math.max(100, Number(options.timeoutMs || 8000));
 			const retryDelays = Array.isArray(options.retryDelays) && options.retryDelays.length ? options.retryDelays : [0, 150, 350, 700, 1200, 1800, 2500];
 			const isUnknownSession = typeof options.isUnknownSession === "function" ? options.isUnknownSession : function (error) {
-				return /sessions\.select: unknown session/i.test(String(error && error.message || error || ""));
+				return /sessions\.(select|retain): unknown session/i.test(String(error && error.message || error || ""));
 			};
 			const active = new Map();
 
@@ -64,10 +64,10 @@
 			}
 
 			async function open(sessionId) {
-				try { options.open(sessionId); return; }
+				try { await options.open(sessionId); return; }
 				catch (error) { if (!isUnknownSession(error)) throw error; }
 				await wait(sessionId);
-				options.open(sessionId);
+				await options.open(sessionId);
 			}
 
 			return Object.freeze({ ready: ready, wait: wait, open: open });
