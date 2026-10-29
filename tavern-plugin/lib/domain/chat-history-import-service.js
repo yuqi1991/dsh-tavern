@@ -3,6 +3,7 @@ import { prepareWorldBookRecall } from './worldbook-recall.js'
 import { createHash } from 'node:crypto'
 import { parse as parseYaml } from 'yaml'
 import { parseChatHistory, chatHistoryPreview } from './chat-history-import.js'
+import { defaultStatusVariables } from './default-status-panel.js'
 import { buildImportedConversation, appendImportedEvents } from './chat-history-session.js'
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -63,7 +64,7 @@ export function createChatHistoryImportService({ initialization, cards, worldBoo
   }
   async function perform(input) {
     if (!/^[a-zA-Z0-9-]{8,100}$/.test(input.operationId || '') || !input.sessionId) throw new Error('导入操作或 Session 标识无效')
-    const { parsed, card, worldBook, initialVariables, initialError, incompatible } = await inspect(input)
+    const { parsed, card, worldBook, initialVariables: cardVariables, initialError, incompatible } = await inspect(input)
     if (incompatible && !input.textOnly) throw new Error('变量结构与人物卡不兼容，请换卡或选择仅导入正文')
     const identity = createHash('sha256').update(JSON.stringify([input.cardPath, parsed.digest, input.textOnly === true, input.userName || parsed.userName, input.rescue || null])).digest('hex')
     const path = 'chat-imports/' + input.operationId + '.json'
@@ -88,6 +89,8 @@ export function createChatHistoryImportService({ initialization, cards, worldBoo
         chat.scriptState = null
         chat.backgroundTasks = { ...chat.backgroundTasks, variables: Boolean(input.rescue.mvuSnapshot) }
       }
+      // A card without its own MVU data gets the built-in status panel: its initial state comes from there.
+      const initialVariables = cardVariables ?? (chat.defaultStatusPanel === true ? defaultStatusVariables() : undefined)
       if (!input.rescue && chat.mvu?.enabled && (input.textOnly || parsed.messages.some(m => !m.variables)) && !initialVariables) throw new Error(initialError || '无法读取这张 MVU 卡的初始变量，请补充有效快照后重试')
       const plan = await buildImportedConversation(chat, parsed, {
         operationId: input.operationId, fileName: input.fileName, initialVariables, textOnly: input.textOnly === true,
