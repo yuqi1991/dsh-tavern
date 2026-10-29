@@ -5,6 +5,11 @@ import { appendFile, readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 const { LlmAdapter } = await import(pathToFileURL(process.env.TAVERN_E2E_LLM_MODULE))
 export const inject = ['llm']
+// DSH V4 hands the provider tool results as role 'tool' messages; V3 as tool-result content blocks.
+const toolResultIds = messages => new Set(messages.flatMap(message => message.role === 'tool' && message.toolCallId
+  ? [message.toolCallId]
+  : (message.content || []).filter(block => block.type === 'tool-result').map(block => block.toolCallId)))
+
 export function apply(ctx) {
   class Model extends LlmAdapter {
     async resolveModel(provider, id) {
@@ -17,7 +22,7 @@ export function apply(ctx) {
         await appendFile(process.env.TAVERN_E2E_MEMORY_AUDIT, JSON.stringify({ system: input.system, messages: input.messages, tools: input.tools }) + '\n')
         if (tools.has('tavern_memory_search')) {
           const text = JSON.stringify(input.messages)
-          const done = input.messages.some(message => (message.content || []).some(block => block.type === 'tool-result' && block.toolCallId === 'memory-preference-save'))
+          const done = toolResultIds(input.messages).has('memory-preference-save')
           const block = text.includes('E2E_MEMORY_NEXT') ? { type: 'text', text: '已读取改卡偏好。' }
             : text.includes('E2E_MEMORY_SAVE') && !done ? { type: 'tool-call', id: 'memory-preference-save', name: 'tavern_memory_preference', arguments: JSON.stringify({ action: 'add', content: '保留原卡结构，不重写开场白' }) }
             : { type: 'text', text: done ? '改卡偏好已保存。' : '卡片工作台就绪。' }
@@ -48,8 +53,7 @@ export function apply(ctx) {
           while(Date.now()<deadline && JSON.parse(await readFile(file,'utf8')).mode==='hold') await new Promise(resolve=>setTimeout(resolve,50))
         }
       }
-      const done = new Set(input.messages.flatMap(message => message.content || [])
-        .filter(block => block.type === 'tool-result').map(block => block.toolCallId))
+      const done = toolResultIds(input.messages)
       const text = JSON.stringify(input.messages)
       const presetRound = [70, 60, 50].find(value => text.includes(`E2E 预设验收 ${value}`) || text.includes(`预设切换后继续游玩，金币 ${value}。`))
       const cardUpdate = (text.includes('E2E 更新后继续') || text.includes('更新后的世界中，你又获得十枚金币'))

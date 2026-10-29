@@ -20,7 +20,7 @@ export async function setupRealVariables({root,profile,data,runtimeHome}){
 export async function realVariableLookupChecks({page,step,savedChat,root,output,report}){
  async function events(){
   const chat=await savedChat(),dir=join(root,'profile-data/tavern/sessions')
-  for(const file of await readdir(dir,{recursive:true}))if(file.endsWith('session.v3.jsonl.zstd')){
+  for(const file of await readdir(dir,{recursive:true}))if(/session\.v[34]\.jsonl\.zstd$/.test(file)){
    const parsed=parseSessionLog(await readFile(join(dir,file)))
    if(parsed.header.id===chat.sessionId)return parsed.events
   }

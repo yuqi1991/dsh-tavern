@@ -20,7 +20,7 @@ export async function surfaceRecoveryChecks({ page, step, savedChat, output, rep
     const chat = await savedChat()
     const directory = join(root, 'profile-data/tavern/sessions')
     for (const file of await readdir(directory, { recursive: true })) {
-      if (!file.endsWith('session.v3.jsonl.zstd')) continue
+      if (!/session\.v[34]\.jsonl\.zstd$/.test(file)) continue
       const parsed = parseSessionLog(await readFile(join(directory, file)))
       if (parsed.header.id === chat.sessionId) return { ...parsed, session: Session.create(chat.sessionId, parsed.events, parsed.header) }
     }

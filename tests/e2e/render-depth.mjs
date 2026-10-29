@@ -1,3 +1,4 @@
+import { openHostSettings } from './host-ui.mjs'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
@@ -20,7 +21,7 @@ export async function renderDepthChecks({ page, step, output, errors }) {
   const floorOf = text => page.locator('.dsh-tavern-story-floor').filter({ hasText: text }).last()
   const turn = n => floorOf(['领取任务奖励', '再次领取奖励', '继续', '再来一次', '最后一次'][n - 1])
   async function setDepth(value) {
-    await page.getByRole('button', { name: 'Settings' }).click()
+    await openHostSettings(page)
     await page.getByRole('button', { name: 'DSH Tavern' }).or(page.getByText('DSH Tavern', { exact: true }).last()).first().click()
     const select = page.getByLabel('渲染深度')
     await select.waitFor()

@@ -287,7 +287,7 @@ try {
       let directory, storedHeader
       await restartServer(async () => {
         const sessions = join(root, 'profile-data/tavern/sessions')
-        const files = (await readdir(sessions, { recursive: true })).filter(file => file.endsWith('session.v3.jsonl.zstd'))
+        const files = (await readdir(sessions, { recursive: true })).filter(file => /session\.v[34]\.jsonl\.zstd$/.test(file))
         for (const relative of files) {
           const full = join(sessions, relative)
           const saved = parseSessionLog(await readFile(full))

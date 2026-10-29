@@ -12,9 +12,9 @@ export async function batch3SaveChecks({ page, step, data, root, output, report,
   const store = createChatJournalStore({ dataRoot: data })
   const gold = async value => {
     // A running background agent can bring its Tasks tab forward; the status card lives in the other tab.
-    const frame = page.locator('.dsh-tavern-status-runtime iframe')
+    const frame = page.locator('.dsh-tavern-status-runtime iframe >> visible=true')
     if (!await frame.first().isVisible().catch(() => false)) await page.getByText('酒馆状态', { exact: true }).filter({ visible: true }).first().click()
-    await page.frameLocator('.dsh-tavern-status-runtime iframe').locator('#e2e-gold').filter({ hasText: new RegExp('^金币：' + value + '$') }).waitFor()
+    await page.frameLocator('.dsh-tavern-status-runtime iframe >> visible=true').locator('#e2e-gold').filter({ hasText: new RegExp('^金币：' + value + '$') }).waitFor()
   }
   const visibleText = text => page.getByText(text, { exact: true }).filter({ visible: true }).first()
   const games = async () => {
@@ -26,7 +26,7 @@ export async function batch3SaveChecks({ page, step, data, root, output, report,
   // Every native session file on disk, by the session id in its header.
   const nativeSessions = async () => {
     const base = join(root, 'profile-data/tavern/sessions')
-    const files = (await readdir(base, { recursive: true }).catch(() => [])).filter(file => file.endsWith('session.v3.jsonl.zstd'))
+    const files = (await readdir(base, { recursive: true }).catch(() => [])).filter(file => /session\.v[34]\.jsonl\.zstd$/.test(file))
     const ids = []
     for (const file of files) ids.push(parseSessionLog(await readFile(join(base, file))).header.id)
     return ids

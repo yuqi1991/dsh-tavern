@@ -1,3 +1,4 @@
+import { openHostSettings } from './host-ui.mjs'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
@@ -6,7 +7,7 @@ import { join } from 'node:path'
 export async function batch3ImageChecks({ page, step, output, errors }) {
   const shot = name => page.screenshot({ path: join(output, name + '.png'), fullPage: true })
   await step('设置里有独立的「场景生图」标签，未配置时不能开启', async () => {
-    await page.getByRole('button', { name: 'Settings' }).click()
+    await openHostSettings(page)
     await page.getByRole('button', { name: '场景生图', exact: true }).or(page.getByText('场景生图', { exact: true }).last()).first().click()
     await page.getByLabel(/^提供商/).waitFor()
     const toggle = page.getByRole('switch', { name: '开启场景生图' })
