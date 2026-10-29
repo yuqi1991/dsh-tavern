@@ -3,6 +3,7 @@ import { createBackgroundSessionRetirement, installRetiredBackgroundFilter } fro
 // No paid requests, credentials, or user chats are accessed.
 import { sessionEvents } from '../../tavern-plugin/lib/domain/session-events.js'
 import { createServer } from 'node:http'
+import { EventEmitter, once } from 'node:events'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,17 +18,19 @@ import { createSceneImageDiagnostics } from '../../tavern-plugin/lib/domain/scen
 import { createMvuDiagnosticStore, createMvuDiagnosticExport } from '../../tavern-plugin/lib/domain/mvu-diagnostics.js'
 import { assertImageToolSchema } from './assert-image-tool-schema.mjs'
 
-export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = false, systemAppend, resolveModelSelection, beforeModelRequest, residentOptions = {} } = {}) {
+export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = false, systemAppend, resolveModelSelection, beforeModelRequest, residentOptions = {}, setupHost } = {}) {
   const bootUrl = pathToFileURL(bootPath)
   const { boot } = await import(bootUrl.href)
   const { LlmAdapter } = await import(new URL('../../dsh-llm/lib/index.js', bootUrl))
   const root = await mkdtemp(join(tmpdir(), 'tavern-scene-native-'))
   const config = join(root, 'host.yml')
-  const packages = ['dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-session-query', 'dsh-subagent', 'dsh-session-persistence-jsonl', 'dsh-token-meter', 'dsh-agent-loop', 'dsh-attachment-local']
+  const packages = ['dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-session-query', 'dsh-subagent', 'dsh-session-persistence-jsonl', 'dsh-token-meter', 'dsh-agent-loop', 'dsh-attachment-local', 'dsh-fs-local', 'dsh-working-directory']
   await writeFile(config, packages.map(name => '- id: ' + name + '\n  name: ' + new URL('../../' + name + '/lib/index.js', bootUrl).href + (name === 'dsh-attachment-local' ? '\n  config:\n    dshHome: ' + root : name === 'dsh-session-persistence-jsonl' ? '\n  config:\n    root: ' + join(root, 'sessions') + '\n    compression: none' : '') + '\n').join(''))
   const ctx = await boot('scene-image-native-test', config)
   ctx.baseUrl = bootUrl.href
+  const disposeHost = await setupHost?.(ctx)
   const requests = [], imageRequests = []
+  const imageEvents = new EventEmitter()
   let referenceQuery = ''
   let characterQuery = ''
   let useVisualState = false
@@ -44,8 +47,9 @@ export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = 
       await beforeModelRequest?.(input)
       requests.push(structuredClone({ model: input.model, reasoningEffort: input.reasoningEffort, maxTokens: input.maxTokens, system: input.messages.filter(message => message.role === 'system').flatMap(message => message.content).map(block => block.text || '').join('\n\n'), messages: input.messages, tools: input.tools }))
       for (const tool of input.tools || []) assertImageToolSchema(tool)
-      const currentMessages = input.messages.slice(Math.max(0, input.messages.findLastIndex(message => message.source?.kind === 'plugin')))
-      const referenceResult = currentMessages.flatMap(message => message.content || []).find(block => block.type === 'tool-result' && block.toolCallId === 'reference-call')
+      // DSH 0.2: producer-owned source kinds ('plugin:dsh-tavern') and tool results as role: 'tool' messages.
+      const currentMessages = input.messages.slice(Math.max(0, input.messages.findLastIndex(message => message.source?.kind?.startsWith('plugin'))))
+      const referenceResult = currentMessages.filter(message => message.role === 'tool').find(message => message.toolCallId === 'reference-call')
       const referenceTool = !referenceResult && (characterQuery
         ? input.tools?.find(item => item.name === 'character_design_read')
         : referenceQuery && input.tools?.find(item => item.name === 'read_scene_reference'))
@@ -92,7 +96,7 @@ export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = 
       let args = referenceTool ? (characterQuery ? { name: characterQuery } : { query: referenceQuery }) : { update }
       let callId = referenceTool ? 'reference-call' : 'image-call'
       if (tool?.name === 'submit_scene_plan') {
-        const done = new Set(currentMessages.flatMap(message => message.content || []).filter(block => block.type === 'tool-result').map(block => block.toolCallId))
+        const done = new Set(currentMessages.filter(message => message.role === 'tool').map(message => message.toolCallId))
         const index = plan.characters.findIndex((_person, index) => !done.has('image-character-' + index))
         if (index >= 0) {
           tool = input.tools.find(tool => tool.name === 'submit_scene_character')
@@ -140,6 +144,7 @@ export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = 
       } else {
         let body = ''; for await (const chunk of req) body += chunk
         imageRequests.push(JSON.parse(body))
+        imageEvents.emit('request')
         const attachment = await ctx.attachments.saveImage({ data: png, mediaType: 'image/png', name: 'plugin-fixture' })
         res.end(JSON.stringify({ provider: 'openai', model: 'fixture-plugin-image', attachment }))
       }
@@ -153,6 +158,7 @@ export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = 
     if (req.method === 'GET' && req.url === '/picture') { res.setHeader('Content-Type', 'image/png'); res.end(png); return }
     let body = ''; for await (const chunk of req) body += chunk
     imageRequests.push(JSON.parse(body))
+    imageEvents.emit('request')
     if (holdNext) { holdNext = false; return }
     if (failNext) { const failure = failNext; failNext = false; res.writeHead(failure.status).end(JSON.stringify({error: {message: failure.message, param: 'size', code: 'invalid_parameter'}})); return }
     if (url.pathname.endsWith('/prompt')) {
@@ -189,11 +195,14 @@ export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = 
   const endpoint = 'http://127.0.0.1:' + imageServer.address().port + '/v1'
   await service.configure({ model: 'fixture-image', baseURL: endpoint, apiKey: keys.get(IMAGE_CREDENTIAL) })
   await service.configure({ enabled: true })
-  return { backgroundChildren: async () => (await ctx.get('subagents').remoteExportList('scene-parent')).entries, reapBackground: () => runner.reapIdle(), backgroundLoaded: id => ({ agent: !!ctx.agents.get(id), session: !!ctx.sessions.get(id) }), runBackground: input => runner.run(input), get service() { return service }, get agentRunning() { return agentRuns > 0 }, chat, before, requests, imageRequests, parent, endpoint,
+  return { backgroundChildren: async () => await ctx.get('subagents').listChildren('scene-parent'), reapBackground: () => runner.reapIdle(), backgroundLoaded: id => ({ agent: !!ctx.agents.get(id), session: !!ctx.sessions.get(id) }), runBackground: input => runner.run(input), get service() { return service }, get agentRunning() { return agentRuns > 0 }, chat, before, requests, imageRequests, parent, endpoint,
     traceEvents(sessionId) { return structuredClone(sessionEvents(ctx.sessions.get(sessionId))) },
     failNext(status = 503, message = 'test failure') { failNext = { status, message } },
     failNextSave() { failSave = true },
     holdNextImage() { holdNext = true },
+    async waitForImageRequest({ timeout = 30000 } = {}) {
+      if (!imageRequests.length) await once(imageEvents, 'request', { signal: AbortSignal.timeout(timeout) })
+    },
     lookupReferences(query) { referenceQuery = query },
     lookupCharacterDesigns(name) { characterQuery = name },
     useVisualState() { useVisualState = true },
@@ -210,6 +219,6 @@ export async function createSceneImageNativeRuntime(bootPath, { unifiedPlugin = 
       return ref
     },
     async restart() { await service.dispose(); await runner.dispose(); runner = createBackgroundAgentRunner(runnerOptions); service = createSceneIllustrations(deps) },
-    async dispose() { stopRetirementFilter(); await service.dispose(); await runner.dispose(); await parent.dispose(); await ctx.fiber.dispose(); await new Promise(resolve => imageServer.close(resolve)); await rm(root, { recursive: true, force: true }) }
+    async dispose() { stopRetirementFilter(); await service.dispose(); await runner.dispose(); await parent.dispose(); await ctx.fiber.dispose(); await disposeHost?.(); await new Promise(resolve => imageServer.close(resolve)); await rm(root, { recursive: true, force: true }) }
   }
 }

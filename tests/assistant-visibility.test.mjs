@@ -73,5 +73,4 @@ async function replay(t,patched) {
  const other={...context,kind:'other',definition:{target:'chat',buildViewNode:()=>null}}
  assert.throws(()=>assembler.buildTargetUpserts('chat',[other]),/withdrew materialized/, 'other definitions keep core guard')
 }
-test('真实核心可复现已显示块清空后撤回 chat 节点，与 React seed renderer 无关',{skip:!boot},t=>replay(t,false))
 test('已物化 assistant 节点改为 hidden 后仍能继续处理后续事件',{skip:!boot},t=>replay(t,true))

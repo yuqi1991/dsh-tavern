@@ -1,0 +1,14 @@
+diff --git a/lib/client.js b/lib/client.js
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -14832,7 +14832,9 @@
+     (0, panel_exit_ts_1.installPanelRowExit)(ctx, panelExit.exit);
+     // Session deletion, injected into each session row's ⋯ menu (beside
+     // rename / fork / archive) with a confirm dialog. Mobile-only.
+-    (0, session_menu_ts_1.installSessionMenuDelete)(ctx);
++    // DSH Tavern: games are deleted through Tavern, which also removes the save, its history,
++    // images and plugin data; deleting only the DSH session would orphan them.
++    // (0, session_menu_ts_1.installSessionMenuDelete)(ctx);
+     // Sidebar swipe gestures: edge swipe-in opens the drawer, content swipe-out
+     // closes it (release-classified, zero inline transforms — A 档). Since
+     // 2026-09-13 the layer also owns the right-edge files gesture (leftward
