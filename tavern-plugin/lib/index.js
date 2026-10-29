@@ -459,13 +459,6 @@ export async function apply(ctx) {
     const name = typeof document.name === 'string' && document.name.trim() ? document.name.trim().slice(0, 80) : fallbackName
     return { action: 'add', name, promptOverrides: values, systemAppendEnabled: document.systemAppendEnabled !== false }
   }
-  function importSystemPromptDocument(payload) {
-    const prepared = prepareTextImport(payload, '系统提示词文件为空')
-    let document
-    try { document = JSON.parse(prepared.text) } catch (error) { throw new Error('系统提示词 JSON 无效: ' + str(error && error.message || error)) }
-    const fallback = str(prepared.name || '').replace(/\.json$/i, '').trim().slice(0, 80) || '导入的方案'
-    return systemPromptSetFromDocument(document, fallback)
-  }
   function exportSystemPromptDocument(settings) {
     const current = presentSystemPrompts(settings)
     const active = settings.promptSets.sets.find(set => set.active)
@@ -3808,15 +3801,10 @@ export async function apply(ctx) {
         return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ systemPrompt: { name, text: args && args.text } })) }
       }
       case 'resetSystemPrompts': return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ resetSystemPrompts: SYSTEM_PROMPT_NAMES })) }
-      case 'importSystemPrompts': return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ promptSet: importSystemPromptDocument(args && args.payload) })) }
       case 'manageSystemPromptSet': {
         const action = str(args && args.action)
         if (!['create', 'duplicate', 'select', 'rename', 'delete'].includes(action)) throw new Error('未知的系统提示词方案操作')
         return { systemPrompts: presentSystemPrompts(await updateTavernSettings({ promptSet: { action, id: args.id, name: args.name } })) }
-      }
-      case 'exportSystemPrompts': {
-        const document = exportSystemPromptDocument(await readTavernSettings())
-        return { name: safeExportFileName(document.name, 'dsh-tavern-system-prompts') + '.json', text: JSON.stringify(document, null, 2) + '\n' }
       }
       case 'listSessions': {
         const settings = await readTavernSettings()

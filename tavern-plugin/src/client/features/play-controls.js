@@ -420,7 +420,7 @@
 						h("section", { className: "dsh-tavern-status-section dsh-tavern-style-guide", "aria-label": "调整文风" },
 						h("div", { className: "dsh-tavern-style-title" }, "想调整文风？"),
 						h("button", { type: "button", onClick: function () { guideInputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }); guideInputRef.current?.focus({ preventScroll: true }); } }, h("span", null, "1. 当前故事"), h("small", null, "通过 Guide 调整后续写法")),
-						h("button", { type: "button", onClick: function () { props.openStyleTab("dsh-tavern:user-profile"); } }, h("span", null, "2. 长期偏好"), h("small", null, "在用户画像中设置新游戏偏好")),
+						h("button", { type: "button", onClick: function () { props.openStyleTab("dsh-tavern:presets", { section: "userProfile" }); } }, h("span", null, "2. 长期偏好"), h("small", null, "在长期偏好中设置新游戏偏好")),
 						h("button", { type: "button", disabled: running, onClick: function () { window.dispatchEvent(new CustomEvent("dsh-tavern-adjust-card-style", { detail: { card: view.card } })); } }, h("span", null, "3. 这张人物卡"), h("small", null, "交给卡片助手修改，再应用到当前游戏")),
 						h("button", { type: "button", onClick: function () { props.openStyleTab("dsh-tavern:presets"); } }, h("span", null, "4. 导入预设"), h("small", null, "已有喜欢的预设？前往预设库"))
 					)
@@ -868,7 +868,7 @@
                 finally { setBusy(false); }
             }
             return h("div", { className: "dsh-local-field" }, h("label", null, "当前预设", h("select", { className: "dsh-tavern-settings-select", "aria-label": "本局预设", value: data?.current?.id || "", disabled: busy || !data, onChange: event => change(event.target.value) },
-                h("option", { value: "" }, "不使用外部预设"),
+                h("option", { value: "" }, "不使用酒馆预设"),
                 data?.current?.id && !data.presets.some(p => p.path === data.current.id) ? h("option", { value: data.current.id }, data.current.name + "（源文件已移除）") : null,
                 (data?.presets || []).filter(p => p.valid && p.recognized).map(p => h("option", { key: p.path, value: p.path }, p.title)))),
                 h("p", { className: "dsh-tavern-settings-desc" }, "用于后续正文，选择后自动保存。"), error ? h("p", { role: "alert" }, "保存失败：" + error) : h("span", { role: "status", className: "dsh-local-feedback" }, busy ? "保存中…" : notice));
@@ -1585,7 +1585,7 @@
 				order: 7,
 				single: true,
 				component: function (props) {
-					return React.createElement(TavernStatusTab, { sessions: ctx.sessions, uiConversation: uiConversation, sessionId: props.scope.sessionId, executeSlash: executeSlash, openStyleTab: function (type) { openTavernSidebarTab(ctx, { type: type }, { sessionId: props.scope.sessionId }); } });
+					return React.createElement(TavernStatusTab, { sessions: ctx.sessions, uiConversation: uiConversation, sessionId: props.scope.sessionId, executeSlash: executeSlash, openStyleTab: function (type, meta) { openTavernSidebarTab(ctx, { type: type, meta: meta }, { sessionId: props.scope.sessionId }); } });
 				}
 			}), "dsh-tavern: Better Sidebar status tab");
 			ctx.effect(() => slots.inject("conversation.input.dock", () => slots.register(

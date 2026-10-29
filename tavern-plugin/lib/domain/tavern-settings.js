@@ -80,7 +80,14 @@ function applyPromptSetChange(next, change) {
   }
   if (action === 'delete') {
     if (!nameOf(change.id)) throw new Error('系统提示词方案不存在')
-    if (change.id === activeId) throw new Error('不能删除正在使用的方案，请先切换到其他方案')
+    if (sets.length === 1) throw new Error('至少保留一个方案')
+    if (change.id === activeId) {
+      // Deleting the set in use switches to the next remaining one first.
+      const index = sets.findIndex(set => set.id === activeId)
+      const fallback = sets[index + 1] || sets[index - 1]
+      activate(stash(sets).filter(set => set.id !== activeId), fallback.id)
+      return
+    }
     next.promptSets = sets.filter(set => set.id !== change.id)
     next.activePromptSetId = activeId
     return

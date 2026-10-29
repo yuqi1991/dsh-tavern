@@ -2,7 +2,6 @@
             const askConfirm = useTavernConfirm();
 			const h = React.createElement;
 			const [state, setState] = React.useState({ loading: true, busy: false, prompts: [], promptSets: { activeId: "", sets: [] }, systemAppendEnabled: false, drafts: {}, error: "", notice: "" });
-			const importInput = React.useRef(null);
 			function accept(result, notice, name) {
 				const value = result && result.systemPrompts || {};
 				setState(function (current) {
@@ -44,6 +43,11 @@
 				try { accept(await rpc("resetSystemPrompts"), "全部系统提示词已恢复默认。"); }
 				catch (error) { setState(function (current) { return Object.assign({}, current, { busy: false, error: String(error && error.message || error) }); }); }
 			}
+			async function exportSet() {
+				setState(function (current) { return Object.assign({}, current, { busy: true, error: "", notice: "" }); });
+				try { saveTavernExport(await rpc("exportSettingsBundle", { include: { systemPrompts: true } })); setState(function (current) { return Object.assign({}, current, { busy: false, notice: "已导出当前方案。" }); }); }
+				catch (error) { setState(function (current) { return Object.assign({}, current, { busy: false, error: String(error && error.message || error) }); }); }
+			}
 			async function manageSet(action, id) {
 				const active = state.promptSets.sets.find(function (item) { return item.active; });
 				let name;
@@ -51,26 +55,11 @@
 					name = await askTavernText({ title: action === "rename" ? "重命名方案" : "新方案名称", initialValue: action === "rename" ? (active && active.name || "") : action === "duplicate" ? (active && active.name || "") + " 副本" : "", maxLength: 80 });
 					if (!name) return;
 				}
-				if (action === "delete" && !await askConfirm("删除方案“" + (state.promptSets.sets.find(function (item) { return item.id === id; }) || {}).name + "”？")) return;
+				if (action === "delete" && !await askConfirm("删除方案“" + (state.promptSets.sets.find(function (item) { return item.id === id; }) || {}).name + "”？删除后切换到另一个方案，此操作不能撤销。")) return;
 				if (action === "select" && Object.keys(state.drafts).length > 0 && !await askConfirm("切换方案会丢弃未保存的修改，是否继续？")) return;
 				setState(function (current) { return Object.assign({}, current, { busy: true, error: "", notice: "" }); });
-				try { accept(await rpc("manageSystemPromptSet", { action: action, id: id, name: name }), action === "select" ? "已切换方案，将从下一次请求开始生效。" : action === "delete" ? "方案已删除。" : action === "rename" ? "已重命名。" : "已新建方案并切换使用。"); }
+				try { accept(await rpc("manageSystemPromptSet", { action: action, id: id, name: name }), action === "select" ? "已切换方案，将从下一次请求开始生效。" : action === "delete" ? "方案已删除，已切换到其他方案。" : action === "rename" ? "已重命名。" : "已新建方案并切换使用。"); }
 				catch (error) { setState(function (current) { return Object.assign({}, current, { busy: false, error: String(error && error.message || error) }); }); }
-			}
-			async function importFile(file) {
-				if (!file) return;
-				setState(function (current) { return Object.assign({}, current, { busy: true, error: "", notice: "" }); });
-				try { accept(await rpc("importSystemPrompts", { payload: await parseTextResourceFile(file) }), "已导入为新方案并切换使用。"); }
-				catch (error) { setState(function (current) { return Object.assign({}, current, { busy: false, error: String(error && error.message || error) }); }); }
-			}
-			async function exportFile() {
-				setState(function (current) { return Object.assign({}, current, { busy: true, error: "", notice: "" }); });
-				try {
-					const result = await rpc("exportSystemPrompts");
-					const blob = new Blob([result.text], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a");
-					link.href = url; link.download = result.name || "dsh-tavern-system-prompts.json"; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
-					setState(function (current) { return Object.assign({}, current, { busy: false, notice: "已导出当前方案。" }); });
-				} catch (error) { setState(function (current) { return Object.assign({}, current, { busy: false, error: String(error && error.message || error) }); }); }
 			}
 			function row(item) {
 				const value = draft(item); const dirty = value !== String(item.text || "");
@@ -83,16 +72,16 @@
 			return h("div", { className: "dsh-tavern-presets" },
 				h("div", { className: "dsh-tavern-status-head dsh-tavern-system-prompt-head" },
 					h("div", { className: "dsh-tavern-status-title" }, "系统提示词"),
-					h("div", { className: "dsh-tavern-question-sub" }, "选中的方案对所有游戏生效"),
-					h("div", { className: "dsh-tavern-system-prompt-top-actions" }, h("button", { className: "dsh-tavern-btn", disabled: state.busy, onClick: function () { importInput.current && importInput.current.click(); } }, "导入 JSON"), h("button", { className: "dsh-tavern-btn", disabled: state.busy, onClick: function () { void exportFile(); } }, "导出 JSON"), h("input", { ref: importInput, type: "file", accept: ".json,application/json", style: { display: "none" }, onChange: function (event) { const file = event.target.files && event.target.files[0]; void importFile(file); event.target.value = ""; } }))),
+					h("div", { className: "dsh-tavern-question-sub" }, "选中的方案对所有游戏生效")),
 				h("div", { className: "dsh-tavern-profile-library-bar dsh-tavern-prompt-set-bar" },
 					h("select", { "aria-label": "系统提示词方案", value: state.promptSets.activeId, disabled: state.busy, onChange: function (event) { void manageSet("select", event.target.value); } }, state.promptSets.sets.map(function (item) { return h("option", { key: item.id, value: item.id }, item.name); })),
 					h("button", { className: "dsh-tavern-btn", disabled: state.busy, title: "新建一套默认内容的方案", onClick: function () { void manageSet("create"); } }, "新建"),
 					h("button", { className: "dsh-tavern-btn", disabled: state.busy, title: "复制当前方案", onClick: function () { void manageSet("duplicate"); } }, "复制"),
 					h("button", { className: "dsh-tavern-btn", disabled: state.busy, onClick: function () { void manageSet("rename", state.promptSets.activeId); } }, "重命名"),
-					state.promptSets.sets.length > 1 ? h("select", { "aria-label": "删除方案", value: "", disabled: state.busy, onChange: function (event) { if (event.target.value) void manageSet("delete", event.target.value); } }, h("option", { value: "" }, "删除…"), state.promptSets.sets.filter(function (item) { return !item.active; }).map(function (item) { return h("option", { key: item.id, value: item.id }, item.name); })) : null),
+					h("button", { className: "dsh-tavern-btn", disabled: state.busy, title: "把当前方案单独导出成一个文件", onClick: function () { void exportSet(); } }, "导出"),
+					h("button", { className: "dsh-tavern-btn danger", disabled: state.busy || state.promptSets.sets.length < 2, title: state.promptSets.sets.length < 2 ? "至少保留一个方案" : "删除当前方案，并切换到另一个方案", onClick: function () { void manageSet("delete", state.promptSets.activeId); } }, "删除")),
 				h("div", { className: "dsh-tavern-preset-detail dsh-tavern-system-prompt-body" },
-					h("div", { className: "dsh-tavern-system-prompt-warning", role: "note" }, "警告：修改系统提示词可能导致正文生成异常、人物卡指令冲突、后台任务失败或输出格式失效。不了解其作用时请保持默认；出现问题时请恢复默认。"),
+					h("div", { className: "dsh-tavern-system-prompt-warning", role: "note" }, "修改系统提示词可能导致正文生成异常、人物卡指令冲突、后台任务失败或输出格式失效。不了解其作用时请保持默认；出现问题时请恢复默认。"),
 					h("div", { className: "dsh-tavern-preset-detail-actions" }, h("button", { className: "dsh-tavern-btn danger", disabled: state.busy || !state.prompts.some(function (item) { return item.customized; }), onClick: function () { void restoreAll(); } }, "当前方案全部恢复默认")),
 					state.notice ? h("div", { className: "dsh-tavern-system-prompt-status", role: "status" }, state.notice) : null,
 					state.error ? h("div", { className: "dsh-tavern-dock-error", role: "alert" }, state.error) : null,

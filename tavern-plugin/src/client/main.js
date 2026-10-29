@@ -590,6 +590,7 @@ window.__ModuleLoader__.load({
 
 
 // @include features/preset-library.js
+// @include features/preset-hub.js
 
 
 // @include features/worldbook-library.js
@@ -730,9 +731,8 @@ window.__ModuleLoader__.load({
 				const retiredTabs = [];
 				const expectedTitles = {
 					"dsh-tavern:conversation-settings": "本局设置",
-					"dsh-tavern:user-profile": "用户画像",
 					"dsh-tavern:cards": "人物卡库",
-					"dsh-tavern:presets": "预设库",
+					"dsh-tavern:presets": "预设",
 					"dsh-tavern:worldbooks": "世界书库",
 					"dsh-tavern:resources": "剧本与素材库"
 				};
@@ -743,7 +743,8 @@ window.__ModuleLoader__.load({
 						return;
 					}
 					(node.tabs || []).forEach(function (tab) {
-						if (tab.type === "dsh-tavern:boundary-prompts" || tab.type === "dsh-tavern:bypass-plans") { retiredTabs.push(tab.id); return; }
+						// 系统提示词与长期偏好已并入“预设”标签页。
+						if (tab.type === "dsh-tavern:boundary-prompts" || tab.type === "dsh-tavern:bypass-plans" || tab.type === "dsh-tavern:system-prompts" || tab.type === "dsh-tavern:user-profile") { retiredTabs.push(tab.id); return; }
 						const title = expectedTitles[tab.type];
 						if (title && tab.title !== title) ctx.betterSidebar.updateTab(tab.id, { title: title });
 					});
@@ -872,11 +873,6 @@ window.__ModuleLoader__.load({
 				return function () { active = false; if (typeof dispose === "function") dispose(); };
 			}, "dsh-tavern: scene image settings section");
 
-			ctx.effect(function () {
-				const dispose = ctx.betterSidebar.registerTab({ id: "dsh-tavern:system-prompts", title: "系统提示词", order: 5, single: true, component: SystemPromptSidebarTab });
-				return function () { if (typeof dispose === "function") dispose(); };
-			}, "dsh-tavern: system prompt sidebar tab");
-			userPreferenceProfileFeature.register({ ctx: ctx });
 			presetLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			resourcesLibraryFeature.register({ ctx: ctx, appendMention: appendMention });
 			ctx.effect(() => ctx.betterSidebar.registerTab({ id: "dsh-tavern:skills", title: "Skill 库", order: 8, single: true, component: props => React.createElement(TavernSkillsTab, { sessionId: props.scope.sessionId }) }), "dsh-tavern: Skill library");

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 const source = readFileSync(new URL('../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
-const component = source.slice(source.indexOf('function UserPreferenceProfileTab('), source.indexOf('function createUserPreferenceProfileFeatureModule('))
+const component = source.slice(source.indexOf('function UserPreferenceProfileTab('), source.indexOf('function SystemPromptSidebarTab('))
 function render(hasConfirmed, consent = true, activeId = 'a', conversationOnly = true) {
   const calls = [], warnings = []
   const record = { profileId: 'b', name: '冒险', hasConfirmed, confirmed: hasConfirmed ? { injectionText: '快节奏' } : null,
@@ -20,7 +20,7 @@ function render(hasConfirmed, consent = true, activeId = 'a', conversationOnly =
 }
 test('game switching applies directly and explains cache impact inline', async () => {
   const ui = render(true)
-  assert.equal(ui.nodes.find(n => n.props?.['aria-label'] === '本局用户画像' && n.type === 'select').props.value, 'a')
+  assert.equal(ui.nodes.find(n => n.props?.['aria-label'] === '本局长期偏好' && n.type === 'select').props.value, 'a')
   assert.match(JSON.stringify(ui.tree), /本局实际内容/)
   await ui.nodes.find(n => n.type === 'select').props.onChange({ target: { value: 'b' } })
   assert.equal(ui.warnings.length, 0)
@@ -35,7 +35,7 @@ test('game switching applies directly and explains cache impact inline', async (
 test('library selection and new-game defaults use separate controls without changing the current game', async () => {
   const ui = render(true, true, 'a', false)
   assert.equal(ui.button('停用'), undefined)
-  ui.nodes.find(node => node.props?.['aria-label'] === '查看画像').props.onChange({ target: { value: 'a' } })
+  ui.nodes.find(node => node.props?.['aria-label'] === '查看长期偏好').props.onChange({ target: { value: 'a' } })
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(ui.calls[0].args.action, 'select')
   assert.equal(ui.warnings.length, 0)

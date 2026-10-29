@@ -345,13 +345,15 @@ test('系统提示词方案：切换时保存当前内容，生效内容始终�
   assert.deepEqual(presentTavernSettings(document, {}).promptSets.sets.map(set => [set.name, set.active]), [['默认方案', false], ['快节奏', true]])
 })
 
-test('系统提示词方案：复制、重名加后缀、不能删除正在使用的方案', () => {
+test('系统提示词方案：复制、重名加后缀、删除正在使用的方案会切到剩下的方案、至少保留一个', () => {
   let document = applyTavernSettingsPatch({ promptOverrides: { story: 'A' } }, { promptSet: { action: 'duplicate', name: '默认方案' } })
   assert.deepEqual(document.promptOverrides, { story: 'A' })
   assert.deepEqual(document.promptSets.map(set => set.name), ['默认方案', '默认方案 (2)'])
-  assert.throws(() => applyTavernSettingsPatch(document, { promptSet: { action: 'delete', id: document.activePromptSetId } }), /正在使用/)
-  document = applyTavernSettingsPatch(document, { promptSet: { action: 'delete', id: 'default' } })
+  document = applyTavernSettingsPatch(document, { promptSet: { action: 'delete', id: document.activePromptSetId } })
+  assert.equal(document.activePromptSetId, 'default', '删除正在使用的方案后切到剩下的方案')
+  assert.deepEqual(document.promptOverrides, { story: 'A' })
   assert.equal(document.promptSets.length, 1)
+  assert.throws(() => applyTavernSettingsPatch(document, { promptSet: { action: 'delete', id: 'default' } }), /至少保留一个/)
   document = applyTavernSettingsPatch(document, { promptSet: { action: 'add', name: '导入', promptOverrides: { story: 'C' }, systemAppendEnabled: false } })
   assert.deepEqual(document.promptOverrides, { story: 'C' })
   assert.equal(document.systemAppendEnabled, false)

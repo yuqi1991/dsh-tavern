@@ -18,7 +18,7 @@ const fixture = initializationFixture({ userPreferenceProfile: profile })
 const require = createRequire(join(process.env.DSH_ROOT, 'node_modules/@deepseek-ai/dsh-client-ui-trajectory/package.json'))
 const source = await readFile(new URL('../../tavern-plugin/lib/client.js', import.meta.url), 'utf8')
 const opening = source.slice(source.indexOf('const openingChoice ='), source.indexOf('const playPicker ='))
-const profileComponent = source.slice(source.indexOf('function UserPreferenceProfileTab('), source.indexOf('function createUserPreferenceProfileFeatureModule('))
+const profileComponent = source.slice(source.indexOf('function UserPreferenceProfileTab('), source.indexOf('function SystemPromptSidebarTab('))
 let script = 'const modules={};\n'
 for (const [name, file] of [['react', 'react.production.js'], ['scheduler', 'scheduler.production.js'], ['react-dom', 'react-dom.production.js'], ['react-dom/client', 'react-dom-client.production.js']]) {
   script += `modules[${JSON.stringify(name)}]=(()=>{const module={exports:{}};const exports=module.exports;const require=name=>modules[name];\n${await readFile(join(dirname(require.resolve(name)), 'cjs', file), 'utf8')}\nreturn module.exports;})();\n`

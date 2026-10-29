@@ -52,9 +52,8 @@ test('getDisplayPreferences 一并返回顶栏设置', async () => {
   const line = server.split('\n').find(source => source.includes("case 'getDisplayPreferences':"))
   const body = line.slice(line.indexOf('{') + 1, line.lastIndexOf('}'))
   const run = new Function('readTavernSettings', 'return async () => {' + body + '}')
-  // 本分支的显示偏好不含 hideContextAndReasoning（宿主 0.2.x 自带过程折叠）。
-  const preferences = await run(async () => ({ renderDepth: 5, autoOpenStatusPanel: true, headerItems: { display: 'icon', items: ['header:export'] } }))()
-  assert.deepEqual(preferences, { renderDepth: 5, headerItems: { display: 'icon', items: ['header:export'] }, autoOpenStatusPanel: true })
+  const preferences = await run(async () => ({ hideContextAndReasoning: true, renderDepth: 5, autoOpenStatusPanel: true, headerItems: { display: 'icon', items: ['header:export'] } }))()
+  assert.deepEqual(preferences, { hideContextAndReasoning: true, renderDepth: 5, headerItems: { display: 'icon', items: ['header:export'] }, autoOpenStatusPanel: true })
 })
 
 test('客户端顶栏默认值与服务端一致，设置在首次读取前就用默认值', async () => {
@@ -91,9 +90,9 @@ test('默认对小白无感：开始页没有图钉，「⋯」只在有按钮�
   assert.doesNotMatch(client, /dsh-tavern-start-pin/)
   assert.doesNotMatch(client, /dsh-tavern-header-divider/)
   assert.match(client, /foldedEntries\.length \? h\("div", \{ className: "dsh-tavern-more-actions dsh-tavern-header-more" \}/)
-  // 本分支的设置页没有分组折叠：顶栏配置紧跟显示偏好，放在全局设置里。
+  // 顶栏配置放在全局设置「高级」分组的最后，默认折叠。
   const section = client.slice(client.indexOf('function TavernSettingsSection()'))
-  assert.match(section.slice(0, section.indexOf('state.error ?')), /React\.createElement\(DisplayPreferencesSettings\),\s*React\.createElement\(HeaderItemsSettings\)/)
+  assert.match(section.slice(0, section.indexOf('state.error ?')), /group\("高级", "",[\s\S]*h\(ContextCompactionSettings\),[\s\S]*h\(HeaderItemsSettings\)\),/)
 })
 
 test('手机上两个例外规则都放行新的顶栏容器', () => {
