@@ -63,7 +63,7 @@ export async function playControls({ page, step, savedChat, inspectRound, output
   })
   await step('导出纯对话：下载内容与当前可见剧情一致', async () => {
     const before = await savedChat()
-    await page.getByRole('button', { name: '导出 ▾', exact: true }).click()
+    await page.getByRole('button', { name: '导出', exact: true }).click()
     const downloading = page.waitForEvent('download')
     await page.getByRole('menuitem', { name: '纯对话 TXT', exact: true }).click()
     const download = await downloading
