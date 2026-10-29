@@ -9,7 +9,12 @@ export async function presetSwitch({ page, step, savedChat, inspectRound, output
   for (const [key, gold] of [['A', 50], ['B', 60], ['', 70]]) {
     await step(`本局预设切换至 ${key || '内置'}，继续游玩并刷新`, async () => {
       const before = await savedChat()
-      await page.getByText('本局设置', { exact: true }).filter({ visible: true }).first().click()
+      // A restarted/mobile layout may retain only the active status tab.
+      if (!await page.locator('[data-dockkit-tab-title]').filter({ hasText: /^本局设置$/ }).count()) {
+        await page.getByRole('button', { name: /^(新建标签页|New tab)$/ }).filter({ visible: true }).first().click()
+        await page.getByText('本局设置', { exact: true }).filter({ visible: true }).first().click()
+      }
+      await page.locator('[data-dockkit-tab-title]').filter({ hasText: /^本局设置$/ }).filter({ visible: true }).first().click()
       const selector = page.getByRole('combobox', { name: '本局预设', exact: true })
       const path = key ? `presets/E2E-${key}.json` : ''
       await selector.selectOption(path)
@@ -39,7 +44,12 @@ export async function presetSwitch({ page, step, savedChat, inspectRound, output
       await page.reload({ waitUntil: 'domcontentloaded' })
       await page.getByText(body, { exact: true }).filter({ visible: true }).first().waitFor()
       await status.filter({ hasText: new RegExp(`^金币：${gold}$`) }).waitFor()
-      await page.getByText('本局设置', { exact: true }).filter({ visible: true }).first().click()
+      // A restarted/mobile layout may retain only the active status tab.
+      if (!await page.locator('[data-dockkit-tab-title]').filter({ hasText: /^本局设置$/ }).count()) {
+        await page.getByRole('button', { name: /^(新建标签页|New tab)$/ }).filter({ visible: true }).first().click()
+        await page.getByText('本局设置', { exact: true }).filter({ visible: true }).first().click()
+      }
+      await page.locator('[data-dockkit-tab-title]').filter({ hasText: /^本局设置$/ }).filter({ visible: true }).first().click()
       await selector.locator(`option[value="${path}"]`).waitFor({ state: 'attached' })
       assert.equal(await selector.inputValue(), path, '刷新后保留本局预设')
       const restored = await savedChat()

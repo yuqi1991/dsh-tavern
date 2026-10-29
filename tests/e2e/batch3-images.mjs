@@ -22,7 +22,7 @@ export async function batch3ImageChecks({ page, step, output, errors }) {
     await page.getByText(/^(Chat|对话)$/).filter({ visible: true }).first().click()
   })
   await step('本局设置里有「生图 Agent 模型」选择', async () => {
-    await page.getByText('本局设置', { exact: true }).filter({ visible: true }).first().click()
+    await page.locator('[data-dockkit-tab-title]').filter({ hasText: /^本局设置$/ }).filter({ visible: true }).first().click()
     await page.getByLabel('本局生图 Agent 模型').waitFor()
     assert.equal(await page.getByRole('switch', { name: '开启场景生图' }).count(), 0, '每局的场景生图开关已取消，改为全局开关')
     await shot('local-settings')
