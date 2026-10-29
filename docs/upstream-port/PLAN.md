@@ -157,3 +157,10 @@ surface-restoration（撤销回退保存点，我们用 select）；v4 回合/st
 3. `tavern.css` 末尾追加冲突：保留我们的 Story View 规则，再追加该提交自己的新增行；
 4. 提交带来的与功能无关的文档/不属于本批的文件丢弃，并在提交信息里写明；5. 跑该提交的测试与相关测试，批末跑完整 `node bin/test-tavern.mjs` 与基线逐条比对、e2e。
 - 注意：自动解决冲突的脚本必须"先读后写"并加长度保护（曾因先 open('w') 清空文件而差点提交空文件）。
+
+- **批 3 · MVU 工具链（第三段：原地 MVU 与转 MVU 工具，2026-10-29，草稿体系保留）**：
+  - 已取：ccceeaf0 + c6a927d8（`tavern_card_draft.begin` 的 `inPlace`、`mvu-self-source.js`，原地 MVU 卡以文件为准）；6108567a + b3752075（`tavern_mvu_overview`、`tavern_apply_mvu`、`mvu-card-apply.js`，取上游终态手工放进 `lib/tools/card-editing.js`）；`references/mvu-format.md` 与对应格式校验测试。
+  - 共存规则（上游没有）：带 `dsh_mvu_conversion` 元数据的卡（草稿转换副本、inPlace 原地卡）`tavern_apply_mvu` 拒绝写入、概览提示；`card-to-mvu` Skill 先选路线。直接写入产出的卡格式与草稿路线一致（同一对正则 id、同一开场后缀），之后可用 `inPlace` 草稿接管。
+  - 顺带修复批 3 遗留 bug：`cardPreparation.raw` 未导出，`tavern_search_card` / `tavern_replace_card_text` 运行时抛 "raw is not a function"（单测用替身没发现，固定模型 e2e 暴露）。
+  - 不取：08cdb7df（本分支自己的 algebra 提交，非上游）、3108bd9e/a3b5943a/63ae6e6c（批 3 第一/二段已取）、8d91cd1d（脚本改写显示，不在 upstream/main 上，与转换无关）、create-card Skill 与「新建人物卡」问答任务（b8ea82f6，独立功能）、实测脚本 real-card-edit（需真实模型）。
+  - e2e `--card-mvu`：固定模型走旧卡转换、新卡直接启用、托管卡拒绝。
