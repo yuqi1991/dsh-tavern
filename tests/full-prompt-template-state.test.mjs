@@ -374,7 +374,7 @@ test('render-bookkeeping patches keep a valid rollback undo point; variable patc
  await arm()
  let {state}=await adapter.readFullPromptTemplateState('session')
  let {chat,chat_metadata,...header}=state
- assert.equal((await adapter.saveFullPromptTemplateState('session',{...header,changes:[{op:'set',path:['chat',0,'template_rendered'],value:['<p>正文</p>']}]})).updated,true)
+ assert.equal((await adapter.saveFullPromptTemplateState('session',{...header,changes:[{op:'set',path:['chat',0,'template_rendered'],value:['<p>正文</p>']},{op:'set',path:['chat',0,'variables_initialized'],value:[true]}]})).updated,true)
  let saved=await persistence.read('chat')
  assert.equal(saved.rollbackUndo.storageRevision,saved._storageRevision,'render bookkeeping keeps the undo point')
  ;({state}=await adapter.readFullPromptTemplateState('session'))

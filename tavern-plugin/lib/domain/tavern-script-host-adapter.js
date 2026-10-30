@@ -585,7 +585,7 @@ export function createTavernScriptHostAdapter(options = {}) {
   // Stale versions and body/swipe edits retain the full three-way merge below.
   // Template patches that only record how floors were rendered.
   function renderBookkeepingOnly(request){
-    return Array.isArray(request?.changes)&&request.changes.length>0&&request.changes.every(c=>Array.isArray(c.path)&&c.path[0]==='chat'&&['is_ejs_processed','template_display','template_rendered'].includes(c.path[2]))
+    return Array.isArray(request?.changes)&&request.changes.length>0&&request.changes.every(c=>Array.isArray(c.path)&&c.path[0]==='chat'&&['is_ejs_processed','variables_initialized','template_display','template_rendered'].includes(c.path[2]))
   }
   async function saveTemplatePatch(sessionId, request) {
     if(!options.resolveChatSlice || !options.patchChat || !Array.isArray(request?.changes))return undefined
@@ -608,7 +608,8 @@ export function createTavernScriptHostAdapter(options = {}) {
     const next=applyFullPromptTemplateState(baseline,baseline,expanded)
     // No body rewrites on this path: native message history needs no resynchronization.
     const changes=diffJson(baseline,next).map(c=>c.path[0]==='messages'?{...c,path:['messages',storedIndices[c.path[1]],...c.path.slice(2)]}:c)
-    // Re-rendering the floors a rollback exposed only records render bookkeeping; like a
+    // Re-rendering the floors a rollback exposed only records render bookkeeping (processed,
+    // initialized and rendered flags, display cache); like a
     // display capture it keeps a valid undo point (it never revives a stale one).
     // Variable or metadata writes still invalidate it.
     if(changes.length && renderBookkeepingOnly(request)
