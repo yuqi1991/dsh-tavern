@@ -2676,6 +2676,9 @@ body.dsh-tavern-shell-active [class*="_headerUtilities"]:has(.dsh-tavern-header-
 }
 .dsh-tavern-header-dialog-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 12px 0 8px; background: inherit; font-size: 15px; }
 .dsh-tavern-play-fullscreen:focus-visible { outline: 2px solid #a66b35; outline-offset: -2px; }
+/* 触屏浏览器（iOS WebKit）把 :hover 粘在刚点过的节点上；全屏按钮在沉浸态浮到右上角、退出后又回到顶栏，
+   点完它就会在顶栏里留一块灰底（.dsh-tavern-btn:hover 的强调色）。没有悬停能力的设备不要这层反馈。 */
+@media (hover: none) { button.dsh-tavern-play-fullscreen:hover { background: transparent; } }
 
 /* 布局按宽度，触控命中区按输入设备：宽屏平板保留多栏，同时适应软键盘。 */
 @media (max-width: 1023px), (pointer: coarse) {
