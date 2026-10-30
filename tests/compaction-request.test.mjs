@@ -125,3 +125,21 @@ test('story summaries: non-story sessions keep the request; a failed merge keeps
   // No plan registered (a path without a retention entry): the header carries no range.
   assert.equal(result.header, '第 4 卷')
 })
+
+test('story summaries: the note names tavern_recall_history only when the session really has the tool', async () => {
+  const { createStorySummaryPreparation, STORY_SUMMARY_NOTE, STORY_SUMMARY_RECALL_NOTE } = await import('../tavern-plugin/lib/domain/story-compaction.js')
+  const request = { purpose: 'compaction', sessionId: 'story', provider: 'p', model: 'm',
+    messages: [{ role: 'system', content: [{ type: 'text', text: '系统' }] }, { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '新剧情' }] },
+      { role: 'user', content: [{ type: 'text', text: 'DSH 指令' }] }] }
+  const prepare = recallAvailable => createStorySummaryPreparation({ isStory: async () => true, plan: () => ({ from: 2, through: 9, retainRounds: 10 }), retainRounds: async () => 10,
+    prompt: () => 'p', contextWindow: async () => 100000, stream: () => { throw Error('no') }, ...(recallAvailable === undefined ? {} : { recallAvailable }) })
+  const seen = []
+  const withTool = await prepare(async sessionId => { seen.push(sessionId); return true })(request)
+  assert.deepEqual(seen, ['story'])
+  assert.deepEqual(withTool.prefix, [STORY_SUMMARY_RECALL_NOTE])
+  assert.match(STORY_SUMMARY_RECALL_NOTE, /需要原话、细节或确认某件事时，用 tavern_recall_history 按关键词或轮次查原文/)
+  assert.equal((await prepare(async () => false)(request)).prefix[0], STORY_SUMMARY_NOTE)
+  assert.equal((await prepare()(request)).prefix[0], STORY_SUMMARY_NOTE, 'no availability check means no mention')
+  assert.equal((await prepare(async () => { throw new Error('boom') })(request)).prefix[0], STORY_SUMMARY_NOTE, 'a failing check never blocks the compaction')
+  assert.doesNotMatch(STORY_SUMMARY_NOTE, /tavern_recall_history/)
+})

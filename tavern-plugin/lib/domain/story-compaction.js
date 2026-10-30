@@ -30,6 +30,11 @@ export function createStoryCompactionRequest(options, instruction) {
 // budget are decided here, not by the summarizer: the model's first line is replaced by
 // the header this module computes.
 export const STORY_SUMMARY_NOTE = '【剧情摘要说明】以下按卷记录更早的剧情，是续写用的工作记忆，不是完整档案：旧卷在前、新卷在后，后写的卷和其中的「更正」优先；角色卡、世界书和状态变量仍是基准。最近几轮的原文（如有）在摘要之后照常保留。'
+// The same note for a session that has the history recall tool: the log keeps every word, and the
+// tool reads it back by floor number or keyword. Only written when the tool is really in the
+// session's foreground tool list (historyRecallAvailable); otherwise the note must not name it.
+export const STORY_SUMMARY_RECALL_NOTE = STORY_SUMMARY_NOTE + '需要原话、细节或确认某件事时，用 tavern_recall_history 按关键词或轮次查原文；原文完整保存，没有被删除。'
+export const storySummaryNote = ({ recall = false } = {}) => recall ? STORY_SUMMARY_RECALL_NOTE : STORY_SUMMARY_NOTE
 // Carried volumes may use at most this share of the model's context window.
 export const STORY_VOLUMES_WINDOW_SHARE = 0.15
 
@@ -96,10 +101,11 @@ function rangeHeader(prefix, from, through) {
  * @param input.from - first story turn this compaction folds (used when no earlier volume has a range).
  * @param input.through - last story turn this compaction folds completely, or null.
  * @param input.retainRounds - the configured number of verbatim rounds; 0 asks for 「当前情况」.
+ * @param input.recall - the session has tavern_recall_history, so the note points to it.
  * @returns `{ header, instruction, prefix, merge? }`: the program-written first line, the
  *   instruction tail, the blocks placed before the model's output (note and carried volumes).
  */
-export function storyVolumePlan(request, { from = null, through = null, retainRounds = null, budget = Infinity, estimate = estimateStoryText } = {}) {
+export function storyVolumePlan(request, { from = null, through = null, retainRounds = null, budget = Infinity, estimate = estimateStoryText, recall = false } = {}) {
   const volumes = storySummaryVolumes(Array.isArray(request?.messages) ? request.messages.slice(0, -1) : [])
   const number = Math.max(volumes.length, ...volumes.map(volume => volume.number || 0)) + 1
   const last = volumes.at(-1)
@@ -121,7 +127,7 @@ export function storyVolumePlan(request, { from = null, through = null, retainRo
   return {
     header,
     instruction: lines.join('\n'),
-    prefix: [STORY_SUMMARY_NOTE, ...volumes.slice(count).map(volume => volume.text)],
+    prefix: [storySummaryNote({ recall }), ...volumes.slice(count).map(volume => volume.text)],
     ...(count ? { merge: { volumes: volumes.slice(0, count) } } : {})
   }
 }
@@ -162,12 +168,13 @@ export function withVolumeHeader(text, header) {
  * @param deps.isStory - (sessionId) => whether the session is a story/script chat.
  * @param deps.plan - (sessionId) => the compaction plan registered by the entry, or null.
  * @param deps.retainRounds - () => the configured verbatim rounds (when no plan is registered).
+ * @param deps.recallAvailable - (sessionId) => whether the history recall tool is in the session's foreground tools.
  * @param deps.prompt - () => the story compaction prompt in effect.
  * @param deps.contextWindow - (request) => the summarizer's context window, or null.
  * @param deps.stream - (request) => an llm/stream event iterator for the volume merge call.
  * @param deps.warn - (message) => record a merge failure.
  */
-export function createStorySummaryPreparation({ isStory, plan: planOf, retainRounds, prompt, contextWindow, stream, warn = () => {} }) {
+export function createStorySummaryPreparation({ isStory, plan: planOf, retainRounds, prompt, contextWindow, stream, warn = () => {}, recallAvailable = async () => false }) {
   async function merge(volumesToMerge, request) {
     const { header, prompt: text } = storyVolumeMerge(volumesToMerge)
     let output = ''
@@ -190,9 +197,14 @@ export function createStorySummaryPreparation({ isStory, plan: planOf, retainRou
     let window = null
     try { window = await contextWindow(request) }
     catch (error) { if (request.signal?.aborted) throw error }
+    // A failed availability check only leaves the tool unnamed; it never blocks a compaction.
+    let recall = false
+    try { recall = (await recallAvailable(String(request.sessionId))) === true }
+    catch (error) { if (request.signal?.aborted) throw error }
     const volumes = storyVolumePlan(request, {
       from: plan.from ?? null, through: plan.through ?? null, retainRounds: plan.retainRounds ?? await retainRounds(),
-      budget: Number.isFinite(window) && window > 0 ? Math.floor(window * STORY_VOLUMES_WINDOW_SHARE) : Infinity
+      budget: Number.isFinite(window) && window > 0 ? Math.floor(window * STORY_VOLUMES_WINDOW_SHARE) : Infinity,
+      recall
     })
     // An imported game compacts right away: an oversized history is summarized in segments
     // (bounded-compaction.js), so the first-play capacity check is not a precondition.

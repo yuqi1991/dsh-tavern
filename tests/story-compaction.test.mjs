@@ -50,7 +50,7 @@ test('普通请求和来源不明的压缩请求保持原样', () => {
   assert.equal(createStoryCompactionRequest(unknown, '剧情摘要'), unknown)
 })
 
-import { STORY_SUMMARY_NOTE, storySummaryVolumes, storyVolumeMerge, storyVolumePlan, withVolumeHeader } from '../tavern-plugin/lib/domain/story-compaction.js'
+import { STORY_SUMMARY_NOTE, STORY_SUMMARY_RECALL_NOTE, storySummaryVolumes, storyVolumeMerge, storyVolumePlan, withVolumeHeader } from '../tavern-plugin/lib/domain/story-compaction.js'
 import { frameSummary } from '../tavern-plugin/lib/domain/idle-compaction.js'
 
 // The checkpoint the host writes from the summary blocks Tavern produced.
@@ -67,6 +67,18 @@ test('第一卷：程序给出卷号与轮次范围，没有旧卷，只有摘�
   assert.doesNotMatch(plan.instruction, /当前情况/)
   assert.doesNotMatch(plan.instruction + STORY_SUMMARY_NOTE, /tavern_recall_history|回查|查询原文/)
   assert.equal(plan.merge, undefined)
+})
+
+test('卷前说明：会话确有查原文工具时才写工具名；旧卷拆分不把说明当成卷', () => {
+  const withTool = storyVolumePlan(summaryRequest([story('剧情')]), { from: 2, through: 9, retainRounds: 10, recall: true })
+  assert.deepEqual(withTool.prefix, [STORY_SUMMARY_RECALL_NOTE])
+  assert.match(withTool.prefix[0], /用 tavern_recall_history 按关键词或轮次查原文/)
+  // The written instruction stays tool-free either way: the note is the only place that names it.
+  assert.doesNotMatch(withTool.instruction, /tavern_recall_history|回查|查询原文/)
+  const vol1 = '第 1 卷 · 第 2–9 轮\n剧情脉络\n- 甲乙结盟。'
+  const second = storyVolumePlan(summaryRequest([checkpoint([STORY_SUMMARY_RECALL_NOTE, vol1]), story('新')]), { from: 10, through: 15, recall: false })
+  assert.deepEqual(second.prefix, [STORY_SUMMARY_NOTE, vol1], 'the note follows the tool\'s availability now, the volume is byte for byte')
+  assert.deepEqual(storySummaryVolumes([checkpoint([STORY_SUMMARY_RECALL_NOTE, vol1])]).map(volume => volume.text), [vol1])
 })
 
 test('多次压缩：旧卷逐字节原样保留，新卷只写旧卷之后，卷首行接着上一卷的范围', () => {

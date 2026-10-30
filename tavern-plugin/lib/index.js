@@ -4802,6 +4802,8 @@ export async function apply(ctx) {
     isStory: async sessionId => usesStoryCompaction(await sessionStateForSession(sessionId)),
     plan: sessionId => compactionPlans.current(sessionId),
     retainRounds: retainedRounds,
+    // The summary note points to tavern_recall_history only when the model really is given the tool.
+    recallAvailable: async sessionId => historyRecallAvailable(await sessionStateForSession(sessionId), await turnOrchestrator.visibleTools(sessionId)),
     prompt: () => runtimePrompt('story-compaction'),
     contextWindow: async request => (await ctx.llm.resolveModelInfo(request.provider, request.model, request.signal))?.context?.contextWindow ?? null,
     stream: request => ctx.llm.stream(request),
