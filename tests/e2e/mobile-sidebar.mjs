@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
+// 同一页面里同 id 的槽位注册被宿主拒绝时抛 `already has an entry with id`；收集它们（pageerror 与 console）。
+function trackDuplicateRegistrations(page) {
+  const found = []
+  page.on('pageerror', error => { if (/already has an entry with id/.test(error.message)) found.push(error.message.slice(0, 160)) })
+  page.on('console', message => { if (/already has an entry with id/.test(message.text())) found.push(message.text().slice(0, 160)) })
+  return found
+}
+
 // On phone-width layouts, opening a game must not pop the right column over the story (#213).
 export async function mobileSidebarChecks({ page, step, output, report }) {
   await step('手机宽度下进入游戏不自动打开右侧栏，可手动打开', async () => {
@@ -72,6 +80,7 @@ export async function mobileSidebarChecks({ page, step, output, report }) {
       const context = await page.context().browser().newContext({ storageState: state, viewport: { width, height }, deviceScaleFactor: 3, hasTouch: true, isMobile: true })
       try {
         const phone = await context.newPage()
+        const dupes = trackDuplicateRegistrations(phone)
         await phone.goto(page.url().split('?')[0], { waitUntil: 'domcontentloaded' })
         const toggle = phone.locator('[data-mobile-nav="toggle"]'), files = phone.locator('[data-mobile-nav="files"]')
         const collapse = phone.locator('[data-sidebar-right-toggle]').filter({ visible: true })
@@ -89,6 +98,7 @@ export async function mobileSidebarChecks({ page, step, output, report }) {
         await files.tap()
         await collapse.first().waitFor({ state: 'visible' })
         await phone.screenshot({ path: join(output, `mobile-touch-${width}-right.png`) })
+        assert.deepEqual(dupes, [], `${width}: 客户端插件不应重复注册同 id（手机入口与 Pocket 等并存时）`)
       } finally { await context.close() }
     }
   })
@@ -108,6 +118,7 @@ export async function mobileSidebarChecks({ page, step, output, report }) {
     })
     try {
       const phone = await context.newPage()
+      const dupes = trackDuplicateRegistrations(phone)
       await phone.goto(page.url().split('?')[0], { waitUntil: 'domcontentloaded' })
       const toggle = phone.locator('[data-mobile-nav="toggle"]'), files = phone.locator('[data-mobile-nav="files"]')
       const fullscreen = phone.locator('button.dsh-tavern-play-fullscreen')
@@ -139,6 +150,7 @@ export async function mobileSidebarChecks({ page, step, output, report }) {
       await phone.screenshot({ path: join(output, 'mobile-430-after-fullscreen.png'), clip: { x: 0, y: 0, width: 430, height: 120 } })
       await files.tap()
       await phone.locator('[data-sidebar-right-toggle]').filter({ visible: true }).first().waitFor()
+      assert.deepEqual(dupes, [], '客户端插件不应重复注册同 id（手机入口与 Pocket 等并存时）')
     } finally { await context.close() }
   })
 }

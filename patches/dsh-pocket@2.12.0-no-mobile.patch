@@ -1,0 +1,13 @@
+diff --git a/client/client.js b/client/client.js
+--- a/client/client.js
++++ b/client/client.js
+@@ -2868,7 +2868,8 @@
+       }
+     }
+   }
+-  mobileApply(ctx);
++  // 验收实例：dsh-web-mobile 已提供手机适配，Pocket 内置移植会重复注册同 id（0.2.1 下抛错），故不挂。
++  void mobileApply;
+   const rpcCall = (endpoint, payload, signal) => ctx.connection.rpc.call(POCKET_RPC_CHANNEL, endpoint, payload, signal);
+   const translate = ctx.locale.bind(NS2);
+   ctx.effect(() => ctx.locale.register(NS2, { zh: zh2, en: en2 }), "dsh-pocket: pocket locale dictionaries");

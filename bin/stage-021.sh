@@ -50,6 +50,12 @@ install_pocket() {
     patch -p1 -d "$dest" < "$FORK/patches/dsh-pocket@2.12.0.patch" >/dev/null || die "dsh-pocket 补丁应用失败"
   fi
   grep -q "$marker" "$dest/client/client.js" || die "dsh-pocket 补丁未生效"
+  # Pocket 2.12.0 内置了一份 dsh-web-mobile 的移植（mobileApply），与 profile 里的 dsh-web-mobile 3.x 注册同样的
+  # mobile-nav-* 槽位 id，0.2.1 的列表槽位拒绝重复 id 而抛错（页面卡在 Loading plugins、右侧栏入口缺失）。去掉 Pocket 那份。
+  if grep -q '^  mobileApply(ctx);' "$dest/client/client.js"; then
+    patch -p1 -d "$dest" < "$FORK/patches/dsh-pocket@2.12.0-no-mobile.patch" >/dev/null || die "dsh-pocket 去重补丁应用失败"
+  fi
+  grep -q '^  mobileApply(ctx);' "$dest/client/client.js" && die "dsh-pocket 去重补丁未生效"
   [ -e "$PROFILE/node_modules/qrcode" ] || die "profile 里缺 qrcode（Pocket 二维码依赖）"
   # 强制代理端口；已有的 settings.json（可能含自定义 PIN）只合并 proxyPort，不覆盖其他字段。
   mkdir -p "$HOME_DIR/dsh-pocket"

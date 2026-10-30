@@ -25,6 +25,7 @@
 
 A. ~~试开旧游戏~~：已取消（D1：旧游戏放弃）。
 B. **Pocket / 手机访问**：验收实例已装 `dsh-pocket@2.12.0`（带补丁，专用端口 3093，只代理 3092，见 `docs/stage-021.md`）。待使用者用手机连同一 WiFi 访问 `http://<电脑局域网IP>:3093`，PIN 自己从 `/home/claw/dsh-stage-021/home/dsh-pocket/token-lan` 取。验证：登录后 DSH 页面正常、设置页有“手机访问”、页脚提交号是 fork 的而不是生产的、对话与输入框可用。手机布局本身使用者已测过。已做的运行时事实：监听端口只多一个 0.0.0.0:3093，登录页可渲染无报错；**登录后的转发尚未验证**。
+   - **Pocket 与 dsh-web-mobile 不能同时挂手机适配（已在隔离 e2e 复现，无头 Chromium，非真机）**：dsh-pocket 2.12.0 的客户端内置了一份 dsh-web-mobile 的移植（`mobileApply`），与 profile 里的 dsh-web-mobile 3.x 注册相同的槽位 id（`mobile-nav-toggle`、`mobile-nav-session-log`），0.2.1 的列表槽位拒绝重复 id 并抛 `already has an entry with id`，表现为页面卡在 Loading plugins、右上文件入口缺失。与 bundles 顺序、软链/realpath、服务控制补丁无关，只要两者同装就出现，不需要经过 Pocket 代理。处理：安装 Pocket 时再打 `patches/dsh-pocket@2.12.0-no-mobile.patch`（`bin/stage-021.sh` 的 `install_pocket` 已自动应用；生产部署 Pocket 2.12.0 时同样必须打，或不装 dsh-web-mobile 改用 Pocket 内置的那份，二选一）。
 C. **用真实模型走一局长对话**：包含重新生成、切换变体、回退、撤销回退、编辑正文、存档导出导入、后台结算、连续压缩 2–3 次（按 `docs/design/compaction-retention.md` §8 清单核对摘要质量）。
 D. **设置与预设页**：按各移植报告里的浏览器验证清单过一遍（本局设置四分区、全局设置分组、预设页导入导出、隐藏上下文注入开关）。
 E. **原地 MVU**：对一张真实旧卡试“加 MVU”，开新局看状态栏。

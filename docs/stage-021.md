@@ -2,6 +2,10 @@
 
 脚本：`bin/stage-021.sh`。验收实例端口 3092；Pocket 是可选项，默认关闭。
 
+## 已知冲突：Pocket 内置的手机适配与 dsh-web-mobile 重复
+
+Pocket 2.12.0 的 `client/client.js` 里 `mobileApply(ctx)` 会注册与 dsh-web-mobile 3.x 相同 id 的槽位（0.2.1 下抛错）。脚本在 `install_pocket` 里再应用 `patches/dsh-pocket@2.12.0-no-mobile.patch`（把该调用去掉）。已有验收实例需重新跑 `bin/stage-021.sh stop && bin/stage-021.sh enable-pocket && bin/stage-021.sh start`（enable-pocket 会重拷 Pocket 并打两个补丁，数据与 PIN 不动）。
+
 ## Pocket 如何工作（读 2.12.0 源码得出，静态结论）
 
 - **代理目标没有自动发现**。`lib/index.js` 里 `dshPort = ctx.webServer.port`，即宿主（加载它的那个 dsh 进程）自己的 web 端口；上游固定为 `127.0.0.1:<dshPort>`。Pocket 只会代理加载它的实例，不会去找别的 DSH。（旧 0.1.5 stage 里“要人工确认转发目标”的担心来自旧版本。）

@@ -27,7 +27,7 @@ import { mkdtemp, mkdir, writeFile, readFile, symlink, rm, readdir, cp, access }
 import { join, resolve, dirname } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { spawn } from 'node:child_process'
+import { spawn, execFileSync } from 'node:child_process'
 import { chromium } from 'playwright'
 import { createChatJournalStore } from '../../tavern-plugin/lib/domain/chat-journal-store.js'
 
@@ -134,8 +134,25 @@ try {
       if (name.startsWith('.') || ['@deepseek-ai', 'dsh-tavern-plugin', 'dsh-tavern-remote', 'dsh-web-mobile', 'dsh-better-sidebar'].includes(name)) continue
       await symlink(join(source, 'node_modules', name), join(profile, 'node_modules', name))
     }
-    await writeFile(join(profile, 'package.json'), JSON.stringify({ name: 'tavern-e2e', private: true,
-      dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-web-mobile', 'dsh-better-sidebar', 'dsh-tavern-plugin', 'dsh-tavern-remote'] } } }))
+    // TAVERN_E2E_POCKET=<dsh-pocket 目录>：同时装 Pocket（拷贝 + 验收实例同样的补丁），复现手机入口与 Pocket 共存。
+    const bundles = ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', 'dsh-web-mobile', 'dsh-better-sidebar', 'dsh-tavern-plugin', 'dsh-tavern-remote']
+    if (process.env.TAVERN_E2E_POCKET) {
+      const pocket = join(profile, 'node_modules/dsh-pocket')
+      await rm(pocket, { recursive: true, force: true })
+      await cp(process.env.TAVERN_E2E_POCKET, pocket, { recursive: true })
+      const clientJs = join(pocket, 'client/client.js')
+      for (const [marker, file] of [['PocketSettingsWithServiceControl', 'dsh-pocket@2.12.0.patch'], ['\n  mobileApply(ctx);', 'dsh-pocket@2.12.0-no-mobile.patch']]) {
+        const applied = (await readFile(clientJs, 'utf8')).includes(marker)
+        if ((marker === 'PocketSettingsWithServiceControl') === applied) continue
+        if (file.includes('no-mobile') && process.env.TAVERN_E2E_POCKET_KEEP_MOBILE) continue // 回归对照：不去重时应复现重复注册
+        execFileSync('patch', ['-p1', '-d', pocket, '-i', join(source, 'patches', file)])
+      }
+      await mkdir(join(root, 'dsh-pocket'), { recursive: true })
+      await writeFile(join(root, 'dsh-pocket/settings.json'), JSON.stringify({ proxyPort: 3198 }), { mode: 0o600 })
+      bundles.push('dsh-pocket')
+      report.pocket = true
+    }
+    await writeFile(join(profile, 'package.json'), JSON.stringify({ name: 'tavern-e2e', private: true, dsh: { profile: { bundles } } }))
     await writeFile(join(profile, 'cordis.patch.yml'), `- id: agent-default-model\n  config:\n    provider: tavern-e2e\n    model: fixed\n- insert:\n    - id: tavern-e2e-model\n      name: ${JSON.stringify(join(source, 'tests/e2e/model.mjs'))}\n`)
     await mkdir(join(data, 'resources/presets'), { recursive: true })
     for (const key of ['A', 'B']) await writeFile(join(data, `resources/presets/E2E-${key}.json`), JSON.stringify({
