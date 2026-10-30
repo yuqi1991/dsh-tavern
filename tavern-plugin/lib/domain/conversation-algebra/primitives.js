@@ -1,6 +1,7 @@
 import { producerSource } from '../message-source.js'
 import { guardDropTagged, guardEdit, guardStepComplete, guardTombstoneSource, messageOf, SCAFFOLD_TAGS } from './guards.js'
 import { computeFold } from './fold.js'
+import { isCompactionCheckpoint } from '../compaction-checkpoint.js'
 
 function clone(value) {
   return structuredClone(value)
@@ -87,6 +88,34 @@ export function branch(state, label, meta = null) {
   } }]
 }
 
+/**
+ * A branch saved before a compaction folds to the history that compaction summarized;
+ * checking it out as-is would bring that history back and undo the compaction
+ * (docs/design/compaction-retention.md §4.4). Rebase it on the current surface instead:
+ * keep the current surface up to the last target node still on it, then the target's own
+ * nodes after that. A target whose own nodes were folded by the newer compaction cannot
+ * be selected any more.
+ */
+function rebaseOverCompaction(state, events, headSeq, targetNodes) {
+  const current = Array.isArray(state?.surfaceNodes) ? state.surfaceNodes : []
+  const bySeq = new Map(events.map(event => [event.seq, event]))
+  const newer = current.filter(seq => seq > headSeq && isCompactionCheckpoint(bySeq.get(seq)))
+  if (!newer.length) return targetNodes
+  const folded = new Set()
+  for (const seq of newer) {
+    const checkpoint = bySeq.get(seq)
+    for (const ref of checkpoint.sourceEventSeqs || []) folded.add(ref)
+    const id = checkpoint.data?.source?.compactionId
+    const summary = id && events.find(event => event.type === 'compaction/summary' && event.data?.compactionId === id)
+    for (const ref of summary?.data?.shadowedSeqs || []) folded.add(ref)
+  }
+  const onSurface = new Set(current)
+  const anchor = targetNodes.findLastIndex(seq => onSurface.has(seq))
+  const tail = targetNodes.slice(anchor + 1)
+  if (anchor < 0 || tail.some(seq => folded.has(seq))) throw new TypeError('该楼层已被压缩，无法切换变体')
+  return [...current.slice(0, current.indexOf(targetNodes[anchor]) + 1), ...tail]
+}
+
 export function checkout(state, ref) {
   const registry = state?.branchRegistry
   const branches = Array.isArray(registry?.branches) ? registry.branches : []
@@ -98,6 +127,7 @@ export function checkout(state, ref) {
   if (target) {
     // A saved branch names a historical version, unlike an in-branch anchor.
     targetNodes = headSeq < 0 ? [] : computeFold(events.filter(event => event.seq <= headSeq)).surfaceNodes
+    targetNodes = rebaseOverCompaction(state, events, headSeq, targetNodes)
   } else if (headSeq < 0) targetNodes = []
   else {
     // An anchor that is a node of the current surface IS its own position: the

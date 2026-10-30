@@ -4,6 +4,7 @@ import { copyLazyHistoryHeader } from './lazy-history-read.js'
 import { rollbackAvailability, hasRollbackMessages, failedTurnReplayAvailability } from './rollback-surface.js'
 import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { canUndoRollback } from './surface-restoration.js'
+import { COMPACTED_FLOOR_REASON, latestFloorCompacted } from './floor-projection.js'
 const str = value => String(value ?? '')
 
 export function pendingMvuSettlementState(chat) {
@@ -96,17 +97,20 @@ export function createSessionStateView({ activity: activityOf, evidence: evidenc
     }
     const replayTarget = Array.isArray(nodes) ? failedTurnReplayAvailability({ events: evidence.events || [], nodes }).target : null
     const hasRound = hasRollbackMessages(chat.messages)
+    // The latest floor folded into a summary is no longer a node any operation can select.
+    const compacted = Array.isArray(nodes) && latestFloorCompacted(chat, events || [], nodes) && !rollbackState.canClearIncompleteReply
     const result = {
       hiddenDshErrorTurns: chat.hiddenDshErrorTurns || [],
-      canRegenerate: hasRound && !isRescuedHistoryMessage(chat, chat.messages?.findLast(message => message.role === 'assistant')),
-      canEditBody: hasRound,
+      canRegenerate: hasRound && !compacted && !isRescuedHistoryMessage(chat, chat.messages?.findLast(message => message.role === 'assistant')),
+      canEditBody: hasRound && !compacted,
+      latestFloorCompacted: compacted,
       rollbackTargetTurn: settlementTurn(chat),
       canReplayFailedTurn: replayTarget !== null,
       replayFailedTurn: replayTarget === null ? null : replayTarget.turn,
-      canRollback: rollbackState.canRollback,
+      canRollback: rollbackState.canRollback && !compacted,
       canClearIncompleteReply: rollbackState.canClearIncompleteReply,
       undoRollbackTurn: canUndoRollback(chat, evidence.session) ? chat.rollbackUndo.turn : null,
-      rollbackUnavailableReason: rollbackState.reason
+      rollbackUnavailableReason: compacted ? COMPACTED_FLOOR_REASON : rollbackState.reason
     }
     if (native && chat.id && Number.isSafeInteger(chat._storageRevision)
       && key.length + JSON.stringify(result).length < 1024*1024) {

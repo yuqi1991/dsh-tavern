@@ -1,6 +1,7 @@
 import { committedMetadata, computeFold } from './conversation-algebra/index.js'
 import { sessionEvents } from './session-events.js'
 import { storyEventTurn } from './story-turn.js'
+import { isCompactionCheckpoint } from './compaction-checkpoint.js'
 
 // Floor Projection (ADR-0009): one read-only module that answers, from the
 // Session log, the committed branch registry and the Story Timeline floors,
@@ -168,6 +169,40 @@ export function liveFloors(events, nodes) {
   return live
 }
 
+/** Why a compacted floor cannot be rolled back, rerolled, edited or switched. */
+export const COMPACTED_FLOOR_REASON = '该楼层已被压缩，无法回退、重新生成或切换变体；发送新消息继续（历史正文仍保留）。'
+
+/**
+ * Turns of floors folded into a compaction summary that is on the surface: the floor's
+ * input row (or, for an opening floor without input, its body) is among the rows that
+ * summary, or an earlier summary it folded in turn, replaced. A floor that is merely
+ * absent (rolled back, never written) is not "compacted".
+ */
+export function compactedFloorTest(events, nodes) {
+  const bySeq = new Map(events.map(event => [event.seq, event]))
+  const pending = nodes.filter(seq => isCompactionCheckpoint(bySeq.get(seq)))
+  if (!pending.length) return () => false
+  const folded = new Set()
+  while (pending.length) {
+    for (const ref of bySeq.get(pending.pop())?.sourceEventSeqs || []) {
+      if (folded.has(ref)) continue
+      folded.add(ref)
+      if (isCompactionCheckpoint(bySeq.get(ref))) pending.push(ref)
+    }
+  }
+  const live = liveFloors(events, nodes)
+  const turns = nativeTurns(events)
+  const inputTurn = seq => { const origin = originInput(bySeq, seq); return turns.get(origin.seq) || firstReplyTurn(events, origin.seq) }
+  const inputs = new Set(events.filter(playerInput).map(event => inputTurn(event.seq)))
+  const foldedInputs = new Set(), foldedBodies = new Set()
+  for (const seq of folded) {
+    const event = bySeq.get(seq)
+    if (playerInput(event)) foldedInputs.add(inputTurn(seq))
+    else if (modelBody(event)) foldedBodies.add(turns.get(originBody(bySeq, seq).seq))
+  }
+  return turn => !live.has(Number(turn)) && (foldedInputs.has(Number(turn)) || (!inputs.has(Number(turn)) && foldedBodies.has(Number(turn))))
+}
+
 /** The highest native turn any selected surface row belongs to (0 when none). */
 export function latestSurfaceTurn(events, nodes) {
   const turns = nativeTurns(events)
@@ -186,6 +221,7 @@ export function latestSurfaceTurn(events, nodes) {
 export function projectFloors({ events = [], nodes = [], registry = null, floorTurns = [], mode = 'story' }) {
   if (mode === 'card') return { floors: [] }
   const live = liveFloors(events, nodes)
+  const compacted = compactedFloorTest(events, nodes)
   const visible = [...new Set(floorTurns.map(Number).filter(turn => Number.isSafeInteger(turn) && turn > 0))]
   const floors = visible.map(turn => {
     const variants = registry ? distinctFloorVariants(events, turn, registry) : []
@@ -202,7 +238,9 @@ export function projectFloors({ events = [], nodes = [], registry = null, floorT
       hostTurn: Math.max(...bodyTurns),
       // Every native turn that produced one of this floor's bodies.
       nativeTurns: [...bodyTurns].filter(value => value > 0).sort((left, right) => left - right),
-      variantCount: variants.length
+      variantCount: variants.length,
+      // Folded into a compaction summary: no longer selectable (docs/design/compaction-retention.md §4.3).
+      compacted: current === null && compacted(turn)
     }
   })
   return { floors }
@@ -227,6 +265,13 @@ export function projectChatFloors(chat, events = [], nodes = []) {
     floorTurns: storyFloorTurns(chat),
     mode: chat?.mode || 'story'
   })
+}
+
+/** Whether the Chat's latest story floor was folded into a compaction summary. */
+export function latestFloorCompacted(chat, events = [], nodes = []) {
+  if (chat?.mode === 'card') return false
+  const turn = storyFloorTurns(chat).at(-1)
+  return Number.isSafeInteger(turn) && turn > 0 && compactedFloorTest(events, [...nodes])(turn)
 }
 
 /** The native turn whose row hosts a floor's body. */

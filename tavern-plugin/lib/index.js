@@ -32,7 +32,7 @@ import { createSessionInventory } from './domain/session-inventory.js'
 import { createSessionViewSync } from './domain/session-view-sync.js'
 import { pageStoryFloors, storyFloorsOf } from './domain/story-floors.js'
 import { runDetachedWrite } from './domain/detached-write.js'
-import { projectVariantBodies, distinctFloorVariants, branchRegistryOf } from './domain/floor-projection.js'
+import { projectVariantBodies, distinctFloorVariants, branchRegistryOf, COMPACTED_FLOOR_REASON, latestFloorCompacted } from './domain/floor-projection.js'
 import { setFailedErrorVisibility, setAllFailedErrorVisibility } from './domain/failed-error-visibility.js'
 import { createManualCharacterDesign } from './domain/manual-character-design.js'
 import { prepareTemplateHistory, synchronizeTemplateHistory } from './domain/template-history.js'
@@ -1881,6 +1881,9 @@ export async function apply(ctx) {
     const session = sessionForId(chat.sessionId)
     const stored = branchRegistryOf(session)
     const registry = Array.isArray(stored?.branches) ? stored : { branches: [], activeHeadSeq: null }
+    if (session?.surface?.nodes && latestFloorCompacted(chat, sessionEvents(session), session.surface.nodes)) {
+      return { available: false, turn, count: 1, selected: 0, reason: COMPACTED_FLOOR_REASON }
+    }
     const variants = distinctFloorVariants(session, turn, registry)
     const activeHead = registry.activeHeadSeq === null || registry.activeHeadSeq === undefined ? null : Number(registry.activeHeadSeq)
     const selectedNow = activeHead === null ? -1 : variants.findIndex(variant => variant.headSeq === activeHead)
