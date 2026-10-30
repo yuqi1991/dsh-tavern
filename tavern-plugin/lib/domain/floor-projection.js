@@ -203,6 +203,62 @@ export function compactedFloorTest(events, nodes) {
   return turn => !live.has(Number(turn)) && (foldedInputs.has(Number(turn)) || (!inputs.has(Number(turn)) && foldedBodies.has(Number(turn))))
 }
 
+/**
+ * The surface with every compaction checkpoint replaced, recursively, by the rows it folded
+ * (docs/design/compaction-retention.md §6.1: compaction only changes the surface; the folded
+ * events stay in the log). Order is surface order.
+ */
+export function uncompactedSurface(events, nodes) {
+  const bySeq = new Map(events.map(event => [event.seq, event]))
+  const out = [], seen = new Set()
+  const walk = seq => {
+    if (seen.has(seq)) return
+    seen.add(seq)
+    const event = bySeq.get(seq)
+    const folded = isCompactionCheckpoint(event) && Array.isArray(event.sourceEventSeqs) ? event.sourceEventSeqs.flat(Infinity) : null
+    if (folded) folded.forEach(walk)
+    else out.push(seq)
+  }
+  nodes.forEach(walk)
+  return out
+}
+
+const textOf = blocks => (Array.isArray(blocks) ? blocks : []).filter(block => block?.type === 'text').map(block => String(block.text || '')).join('')
+
+/**
+ * What each committed floor says right now, read from the Session log: the player's input row and
+ * the current variant's body row of the live surface, including floors folded into a compaction
+ * summary. Rolled-back floors and unselected variants are not on the surface, so they are absent.
+ * A floor with no body (generating or failed) is not committed and is skipped.
+ * @param input.floorTurns - chat-visible floor numbers; only these floors are returned.
+ * @returns `[{ turn, input, body }]` oldest first; `input` is null for the opening.
+ */
+export function projectFloorTexts({ events = [], nodes = [], floorTurns = [] }) {
+  const wanted = [...new Set(floorTurns.map(Number).filter(turn => Number.isSafeInteger(turn) && turn > 0))].sort((left, right) => left - right)
+  if (!wanted.length) return []
+  const expanded = uncompactedSurface(events, nodes)
+  const bySeq = new Map(events.map(event => [event.seq, event]))
+  const live = liveFloors(events, expanded)
+  // The opening reply is the first model body before any player input.
+  let opening = null
+  for (const seq of expanded) {
+    const event = bySeq.get(seq)
+    if (playerInput(event)) break
+    if (modelBody(event)) { opening = event; break }
+  }
+  const floors = []
+  for (const turn of wanted) {
+    const floor = live.get(turn)
+    if (floor) {
+      const body = floor.bodySeq === null ? '' : textOf(bySeq.get(floor.bodySeq)?.data?.message?.content)
+      if (body.trim() !== '') floors.push({ turn, input: textOf(bySeq.get(floor.inputSeq)?.data?.content), body })
+    } else if (turn === 1 && opening) {
+      floors.push({ turn, input: null, body: textOf(opening.data.message.content) })
+    }
+  }
+  return floors
+}
+
 /** The highest native turn any selected surface row belongs to (0 when none). */
 export function latestSurfaceTurn(events, nodes) {
   const turns = nativeTurns(events)

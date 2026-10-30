@@ -330,7 +330,7 @@ test('前后台并发召回分别冷却且不覆盖彼此记录或剧情', async
   const results = await Promise.all(Array.from({ length: 20 }, async (_, index) => {
     let result
     await app.persistence.update('chat-1', current => {
-      result = createHistoryRecall().recall({ chat: current, turn: 1, radius: 0, trackCooldown: true, audience: index % 2 ? 'background' : 'foreground' })
+      result = createHistoryRecall().recall({ chat: current, floors: [{ turn: 1, input: null, body: '正文' }], turn: 1, radius: 0, trackCooldown: true, audience: index % 2 ? 'background' : 'foreground' })
       return current
     }, { source: 'history-recall', touchUpdatedAt: false })
     return result

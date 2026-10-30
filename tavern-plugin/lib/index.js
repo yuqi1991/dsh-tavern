@@ -32,7 +32,7 @@ import { createSessionInventory } from './domain/session-inventory.js'
 import { createSessionViewSync } from './domain/session-view-sync.js'
 import { pageStoryFloors, storyFloorsOf } from './domain/story-floors.js'
 import { runDetachedWrite } from './domain/detached-write.js'
-import { projectVariantBodies, distinctFloorVariants, branchRegistryOf, COMPACTED_FLOOR_REASON, latestFloorCompacted } from './domain/floor-projection.js'
+import { projectVariantBodies, distinctFloorVariants, branchRegistryOf, COMPACTED_FLOOR_REASON, latestFloorCompacted, projectFloorTexts, storyFloorTurns } from './domain/floor-projection.js'
 import { setFailedErrorVisibility, setAllFailedErrorVisibility } from './domain/failed-error-visibility.js'
 import { createManualCharacterDesign } from './domain/manual-character-design.js'
 import { prepareTemplateHistory, synchronizeTemplateHistory } from './domain/template-history.js'
@@ -133,7 +133,7 @@ import { installConversationHistoryGate } from './domain/conversation-algebra-is
 import { createConversationHistory } from './domain/conversation-algebra-history.js'
 import { compactionFailureMessage } from './domain/compaction-failure.js'
 import { createForegroundFrameSessionAdapter } from './domain/foreground-frame-session-adapter.js'
-import { HISTORY_RECALL_OUTPUT_SCHEMA, HISTORY_RECALL_TOOL, createHistoryRecall, renderHistoryRecall } from './domain/history-recall.js'
+import { HISTORY_RECALL_OUTPUT_SCHEMA, HISTORY_RECALL_TOOL, createHistoryRecall, historyRecallAvailable, renderHistoryRecall } from './domain/history-recall.js'
 import { dshParameterFields } from './domain/dsh-tool-schema.js'
 import { createModelRequestLog, requestContextStale } from './domain/model-request-log.js'
 import { MVU_SUBMIT_UPDATE_TOOL, collectMvuHelperContext, createMvuSettlementModule } from './domain/mvu-background-settlement.js'
@@ -1032,10 +1032,15 @@ export async function apply(ctx) {
     if (chat === undefined) throw new Error('当前 Session 没有对应的 Tavern Chat')
     const mode = chat.mode || 'story'
     if (mode !== 'story' && mode !== 'script') throw new Error('历史正文只能在游玩模式中检索')
+    // Floors are read from the Session log (Floor Projection), never from the Chat's message mirror; the
+    // Chat only says which floors are committed. Nothing here writes the log or the surface.
+    const session = sessionForId(sessionId)
+    if (!session) throw new Error('当前 Session 不可用，无法检索历史正文')
+    const floors = projectFloorTexts({ events: sessionEvents(session), nodes: [...(session.surface?.nodes || [])], floorTurns: storyFloorTurns(chat) })
     let result
     await updateChat(chat.id, current => {
       const previousCooldowns = current.historyRecallCooldowns
-      result = historyRecall.recall(Object.assign({}, args || {}, { chat: current, scope, audience, trackCooldown: true }))
+      result = historyRecall.recall(Object.assign({}, args || {}, { chat: current, floors, scope, audience, trackCooldown: true }))
       return current.historyRecallCooldowns === previousCooldowns ? undefined : current
     }, { source: 'history-recall', touchUpdatedAt: false })
     return result
