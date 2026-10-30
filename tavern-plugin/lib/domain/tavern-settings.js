@@ -188,7 +188,12 @@ export function applyTavernSettingsPatch(current, patch) {
     if (!['after-fill', 'after-send'].includes(input.candidateDismissMode)) throw new Error('无效的候选项收起方式')
     next.candidateDismissMode = input.candidateDismissMode
   }
-  if (Object.hasOwn(input, 'contextCompaction')) next.contextCompaction = { ...compactionPolicy(input.contextCompaction), revision: Date.now() }
+  if (Object.hasOwn(input, 'contextCompaction')) {
+    // A patch without retainRounds (an older settings page) keeps the saved value.
+    const patch = object(input.contextCompaction)
+    const retained = Object.hasOwn(patch, 'retainRounds') ? {} : Object.hasOwn(object(next.contextCompaction), 'retainRounds') ? { retainRounds: next.contextCompaction.retainRounds } : {}
+    next.contextCompaction = { ...compactionPolicy({ ...patch, ...retained }), revision: Date.now() }
+  }
   if (Object.prototype.hasOwnProperty.call(input, 'backgroundTasks')) {
     next.backgroundTasks = normalizeBackgroundTasks({ ...normalizeBackgroundTasks(next.backgroundTasks), ...object(input.backgroundTasks) })
   }

@@ -365,3 +365,16 @@ test('进入游戏时打开酒馆状态：默认开，可以关', () => {
   assert.equal(presentTavernSettings(off, {}).autoOpenStatusPanel, false)
   assert.throws(() => applyTavernSettingsPatch({}, { autoOpenStatusPanel: 'no' }), /布尔值/)
 })
+
+test('压缩后保留轮数：默认 10，0–100 整数，旧设置页的补丁不带它时保留已存的值', () => {
+  const saved = applyTavernSettingsPatch({}, { contextCompaction: { mode: 'rounds', rounds: 30, percent: 80, retainRounds: 0 } })
+  assert.equal(saved.contextCompaction.retainRounds, 0)
+  const older = applyTavernSettingsPatch(saved, { contextCompaction: { mode: 'manual', rounds: 30, percent: 80 } })
+  assert.equal(older.contextCompaction.retainRounds, 0)
+  assert.equal(older.contextCompaction.mode, 'manual')
+  assert.equal(applyTavernSettingsPatch({}, { contextCompaction: { mode: 'manual' } }).contextCompaction.retainRounds, 10)
+  for (const retainRounds of [-1, 101, 2.5, '', '3']) {
+    assert.throws(() => applyTavernSettingsPatch({}, { contextCompaction: { mode: 'manual', retainRounds } }), /保留的轮数须为 0–100 的整数/)
+  }
+  assert.equal(presentTavernSettings({ contextCompaction: { mode: 'manual', retainRounds: 100 } }, {}).contextCompaction.retainRounds, 100)
+})

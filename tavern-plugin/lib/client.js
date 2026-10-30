@@ -11785,10 +11785,10 @@ function subscribeTavernHostTheme(win, listener) {
 		const tavernTextLayoutFeature = createTavernTextLayoutFeature();
         function ContextCompactionSettings() {
             const [policy, setPolicy] = React.useState(null), [notice, setNotice] = React.useState(""), [busy, setBusy] = React.useState(false);
-            React.useEffect(function () { let active = true; rpc("getTavernSettings").then(function (result) { if (active) setPolicy(result.settings.contextCompaction || { mode: "manual", rounds: 20, percent: 80 }); }, function (error) { if (active) setNotice(error.message); }); return function () { active = false; }; }, []);
+            React.useEffect(function () { let active = true; rpc("getTavernSettings").then(function (result) { if (active) setPolicy(result.settings.contextCompaction || { mode: "manual", rounds: 20, percent: 80, retainRounds: 10 }); }, function (error) { if (active) setNotice(error.message); }); return function () { active = false; }; }, []);
             async function save() {
                 setBusy(true); setNotice("");
-                try { const result = await rpc("updateTavernSettings", { patch: { contextCompaction: { mode: policy.mode, rounds: Number(policy.rounds), percent: Number(policy.percent) } } }); setPolicy(result.settings.contextCompaction); setNotice("已保存，下一个安全边界生效"); }
+                try { const result = await rpc("updateTavernSettings", { patch: { contextCompaction: { mode: policy.mode, rounds: Number(policy.rounds), percent: Number(policy.percent), retainRounds: String(policy.retainRounds ?? 10).trim() === "" ? "" : Number(policy.retainRounds ?? 10) } } }); setPolicy(result.settings.contextCompaction); setNotice("已保存，下一个安全边界生效"); }
                 catch (error) { setNotice(String(error.message || error)); } finally { setBusy(false); }
             }
             return React.createElement("div", { className: "dsh-tavern-settings-group dsh-tavern-compaction-settings" },
@@ -11797,6 +11797,8 @@ function subscribeTavernHostTheme(win, listener) {
                 policy ? React.createElement("label", { className: "dsh-tavern-compaction-field" }, "压缩模式", React.createElement("select", { className: "dsh-tavern-settings-select", value: policy.mode, disabled: busy, onChange: function (e) { setPolicy(Object.assign({}, policy, { mode: e.target.value })); } }, [["manual", "手动压缩（默认）"], ["rounds", "每 N 轮自动压缩"], ["percent", "上下文达到 X% 自动压缩"]].map(function (item) { return React.createElement("option", { key: item[0], value: item[0] }, item[1]); }))) : null,
                 policy && policy.mode !== "manual" ? React.createElement("label", { className: "dsh-tavern-compaction-field" }, policy.mode === "rounds" ? "剧情轮数（1–1000）" : "上下文占用百分比（10–95，估算）", React.createElement("input", { className: "dsh-tavern-settings-select", type: "number", min: policy.mode === "rounds" ? 1 : 10, max: policy.mode === "rounds" ? 1000 : 95, step: 1, value: policy[policy.mode], disabled: busy, onChange: function (e) { setPolicy(Object.assign({}, policy, { [policy.mode]: e.target.value })); } })) : null,
                 React.createElement("p", { className: "dsh-tavern-settings-desc" }, "重写同一轮、工具调用和生图不计轮数。模型窗口未知时百分比模式会提示；可改用轮数模式。"),
+                policy ? React.createElement("label", { className: "dsh-tavern-compaction-field" }, "压缩后保留最近几轮原文（0–100）", React.createElement("input", { className: "dsh-tavern-settings-select", type: "number", "aria-label": "压缩后保留最近几轮原文", min: 0, max: 100, step: 1, value: policy.retainRounds ?? 10, disabled: busy, onChange: function (e) { setPolicy(Object.assign({}, policy, { retainRounds: e.target.value })); } })) : null,
+                React.createElement("p", { className: "dsh-tavern-settings-desc" }, "前台压缩只总结更早的剧情，最近几轮保留原文，压缩后仍可回退、重新生成和切换变体；保留部分最多占模型窗口的四分之一。设为 0 时只保留最后一条回复，摘要会额外记下「当前情况」。"),
                 React.createElement("button", { type: "button", className: "dsh-tavern-btn", disabled: busy || !policy, onClick: save }, busy ? "保存中…" : "保存压缩设置"),
                 notice ? React.createElement("p", { role: "status", className: "dsh-tavern-settings-desc" }, notice) : null);
         }
