@@ -604,6 +604,13 @@ export function createTavernScriptHostAdapter(options = {}) {
     const next=applyFullPromptTemplateState(baseline,baseline,expanded)
     // No body rewrites on this path: native message history needs no resynchronization.
     const changes=diffJson(baseline,next).map(c=>c.path[0]==='messages'?{...c,path:['messages',storedIndices[c.path[1]],...c.path.slice(2)]}:c)
+    // Re-rendering the floors a rollback exposed only records render bookkeeping; like a
+    // display capture it keeps a valid undo point (it never revives a stale one).
+    // Variable or metadata writes still invalidate it.
+    const renderOnly=['is_ejs_processed','template_display','template_rendered']
+    if(changes.length && request.changes.every(c=>c.path[0]==='chat'&&renderOnly.includes(c.path[2]))
+      && baseline.rollbackUndo?.ready && baseline.rollbackUndo.storageRevision===baseline._storageRevision)
+      changes.push({op:'set',path:['rollbackUndo','storageRevision'],value:baseline._storageRevision+1})
     const saved=await options.patchChat(baseline.id,request.stateRevision,changes,{source:'prompt-template.state',assertCurrent:()=>{if(settlementTransactions.has(str(sessionId)))throw new Error('MVU 结算进行中，模板存档不能覆盖结算事务')}})
     if(!saved)return undefined
     const receipt=diffJson(expanded,{...projectFullPromptTemplateState(next),stateRevision:saved._storageRevision})

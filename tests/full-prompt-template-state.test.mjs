@@ -367,3 +367,19 @@ test('回退改变生命周期后旧模板保存被拒，刷新可恢复并保�
   await connection.callbacks.saveChatConditional(connection.snapshot)
   assert.equal((await persistence.read('chat')).messages[0].variables[0].hp, 9)
 })
+
+test('render-bookkeeping patches keep a valid rollback undo point; variable patches invalidate it',async t=>{
+ const {adapter,persistence}=await fixture(t)
+ const arm=async()=>persistence.update('chat',c=>{c.rollbackUndo={version:1,ready:true,storageRevision:c._storageRevision+1};return c})
+ await arm()
+ let {state}=await adapter.readFullPromptTemplateState('session')
+ let {chat,chat_metadata,...header}=state
+ assert.equal((await adapter.saveFullPromptTemplateState('session',{...header,changes:[{op:'set',path:['chat',0,'template_rendered'],value:['<p>正文</p>']}]})).updated,true)
+ let saved=await persistence.read('chat')
+ assert.equal(saved.rollbackUndo.storageRevision,saved._storageRevision,'render bookkeeping keeps the undo point')
+ ;({state}=await adapter.readFullPromptTemplateState('session'))
+ ;({chat,chat_metadata,...header}=state)
+ await adapter.saveFullPromptTemplateState('session',{...header,changes:[{op:'set',path:['chat',0,'variables',0,'hp'],value:22}]})
+ saved=await persistence.read('chat')
+ assert.notEqual(saved.rollbackUndo.storageRevision,saved._storageRevision,'a variable write invalidates it')
+})
