@@ -187,7 +187,7 @@ import {
 } from './domain/runtime-content-projection.js'
 import { createScriptContinuity } from './domain/script-continuity.js'
 import { createStoryTimeline } from './domain/story-timeline.js'
-import { createStoryCompactionRequest, usesStoryCompaction } from './domain/story-compaction.js'
+import { createStorySummaryPreparation, usesStoryCompaction } from './domain/story-compaction.js'
 import { installCompactionRequestProjection } from './domain/compaction-request.js'
 import { resolveTavernDataRoot } from './domain/tavern-data.js'
 import { FileSystemSkillProvider } from '@deepseek-ai/dsh-skill-filesystem'
@@ -4792,7 +4792,16 @@ export async function apply(ctx) {
     const chat = await sessionStateForSession(sessionId)
     return Boolean(chat)
   })
-  installCompactionRequestProjection(ctx, async sessionId => backgroundAgentRunner.owns(sessionId) || Boolean(await sessionStateForSession(sessionId)))
+  installCompactionRequestProjection(ctx, async sessionId => backgroundAgentRunner.owns(sessionId) || Boolean(await sessionStateForSession(sessionId)), createStorySummaryPreparation({
+    // Story/script chats summarize with the story prompt into a new volume; other sessions keep DSH's prompt.
+    isStory: async sessionId => usesStoryCompaction(await sessionStateForSession(sessionId)),
+    plan: sessionId => compactionPlans.current(sessionId),
+    retainRounds: retainedRounds,
+    prompt: () => runtimePrompt('story-compaction'),
+    contextWindow: async request => (await ctx.llm.resolveModelInfo(request.provider, request.model, request.signal))?.context?.contextWindow ?? null,
+    stream: request => ctx.llm.stream(request),
+    warn: message => console.warn('dsh-tavern: ' + message)
+  }))
 
   ctx.on('llm/stream', function (options, next) {
     const sessionId = str(options && options.sessionId)
@@ -4801,24 +4810,6 @@ export async function apply(ctx) {
       requestCoordinates.set(sessionId, Object.assign({}, coordinates, {
         source: { kind: 'model', provider: str(options.provider), model: str(options.model) }
       }))
-    }
-    if (options !== null && typeof options === 'object' && options.purpose === 'compaction' && !requestHandledBy(options, 'story-compaction')) {
-      const fallback = next()
-      return (async function * () {
-        const chat = await chatForSession(sessionId)
-        if (!usesStoryCompaction(chat)) {
-          yield * fallback
-          return
-        }
-        // An imported game compacts right away: an oversized history is summarized in segments
-        // (bounded-compaction.js), so the first-play capacity check is not a precondition.
-        const request = createStoryCompactionRequest(options, runtimePrompt('story-compaction'))
-        if (request === options) {
-          yield * fallback
-          return
-        }
-        yield * ctx.llm.stream(markRequestHandled(request, 'story-compaction'))
-      })()
     }
     const projectedRequest = (requestHandledBy(options, 'full-template') || importContextPreparation.isPrepared(options)) ? null : foregroundStrategies.projectRequest(options, coordinates)
     if (projectedRequest !== null) return ctx.llm.stream(projectedRequest)

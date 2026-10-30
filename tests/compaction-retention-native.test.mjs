@@ -11,9 +11,11 @@ import { liveFloors } from '../tavern-plugin/lib/domain/floor-projection.js'
 // Real DSH Session, token meter and BasicCompactionEngine; scripted model.
 const native = { skip: !process.env.DSH_BOOT_MODULE, timeout: 60000 }
 
-async function fixture(t, { rounds = 6, text = '剧情推进，人物关系变化。'.repeat(6), contextWindow = 100000 } = {}) {
+async function fixture(t, { rounds = 6, text = '剧情推进，人物关系变化。'.repeat(6), contextWindow = 100000, before } = {}) {
   const h = await createInitializationNative(process.env.DSH_BOOT_MODULE, { contextWindow })
   t.after(() => h.dispose())
+  // Hooks registered first run first: the summary-request projection wraps the scripted model.
+  if (before) before(h)
   const { BasicCompactionEngine } = await import(new URL('../../dsh-compaction-basic/lib/index.js', pathToFileURL(process.env.DSH_BOOT_MODULE)))
   const summaries = [], observers = []
   h.ctx.on('llm/stream', (request, next) => {
@@ -22,7 +24,7 @@ async function fixture(t, { rounds = 6, text = '剧情推进，人物关系变�
     for (const observe of observers) observe(request)
     return (async function* () {
       yield { type: 'block-start', index: 0, blockType: 'text' }
-      yield { type: 'block-end', index: 0, block: { type: 'text', text: '摘要。' } }
+      yield { type: 'block-end', index: 0, block: { type: 'text', text: h.summaryText ? h.summaryText(request) : '摘要。' } }
       yield { type: 'finish', reason: { kind: 'stop' } }
     })()
   })
@@ -159,4 +161,41 @@ test('real host: in-turn pressure moves the end before the retained rounds; prov
       assert.equal(seen[0].kept, 0)
     }
   }
+})
+
+test('real host: two story compactions write volume 1, then carry it byte for byte before volume 2', native, async t => {
+  const { installCompactionRequestProjection } = await import('../tavern-plugin/lib/domain/compaction-request.js')
+  const { createStorySummaryPreparation, STORY_SUMMARY_NOTE } = await import('../tavern-plugin/lib/domain/story-compaction.js')
+  const plans = createCompactionPlans()
+  const f = await fixture(t, { rounds: 5, text: '剧情推进，人物关系变化。'.repeat(40), before: h => {
+    installCompactionRequestProjection(h.ctx, async () => true, createStorySummaryPreparation({
+      isStory: async () => true, plan: sessionId => plans.current(sessionId), retainRounds: async () => 2, prompt: () => '剧情压缩提示词',
+      contextWindow: async () => 100000, stream: request => h.ctx.llm.stream(request)
+    }))
+    // The model writes a wrong header; the program's replaces it.
+    h.summaryText = request => request.messages.at(-1).content[0].text.includes('第 1 卷') ? '第 5 卷 · 错\n剧情脉络\n- 甲乙结盟。' : '剧情脉络\n- 北门会合。'
+  } })
+  const engine = new f.BasicCompactionEngine(f.h.ctx, { auto: false })
+  const retention = createForegroundRetention({ retainRounds: async () => 2, isForeground: async () => true, meter: () => f.h.ctx.tokenMeter,
+    contextWindow: async () => 100000, flush: session => f.h.ctx.sessions.flush(session), plans })
+  t.after(installCompactionPolicy(engine, (_agent, _trigger, _signal, native) => native(), { retention }))
+  const checkpointTexts = () => {
+    const seq = [...f.session.surface.nodes].find(seq => sessionEvents(f.session).find(event => event.seq === seq)?.data?.source?.kind === 'compact-checkpoint')
+    return sessionEvents(f.session).find(event => event.seq === seq).data.content.map(block => block.text)
+  }
+  await engine.compactNow(f.agent, new AbortController().signal)
+  const first = checkpointTexts()
+  assert.deepEqual(first.slice(1, -1), [STORY_SUMMARY_NOTE, '第 1 卷 · 第 1–3 轮\n剧情脉络\n- 甲乙结盟。'])
+  assert.match(f.summaries[0].messages.at(-1).content[0].text, /^剧情压缩提示词\n\n【本次摘要的写法】/)
+  for (let i = 6; i <= 8; i++) {
+    f.agent.followup({ id: 'input-' + i, role: 'user', content: [{ type: 'text', text: '第' + i + '轮：后续。'.repeat(20) }], source: { kind: 'user' } })
+    await f.agent.whenIdle()
+  }
+  await engine.compactNow(f.agent, new AbortController().signal)
+  const second = checkpointTexts()
+  assert.equal(second[2], first[2], 'volume 1 is carried byte for byte')
+  assert.deepEqual(second.slice(1, -1), [STORY_SUMMARY_NOTE, first[2], '第 2 卷 · 第 4–6 轮\n剧情脉络\n- 北门会合。'])
+  const instruction = f.summaries.at(-1).messages.at(-1).content[0].text
+  assert.match(instruction, /已有 1 卷旧摘要（截至第 3 轮）/)
+  assert.doesNotMatch(instruction, /当前情况/)
 })
