@@ -3183,12 +3183,12 @@ html[data-dsh-text-layout] :is(.dsh-tavern-assistant, .dsh-tavern-user-bubble, .
     flex: 0 1 auto; min-width: 40px; gap: 0;
   }
   /* 宿主的插槽包装是 display:contents，真正的子元素在包装里面：两种层级都要选到，且不能把包着全屏按钮的包装本身藏掉。 */
-  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > :not([data-slot]):not(.dsh-tavern-play-fullscreen),
-  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > [data-slot] > :not(.dsh-tavern-play-fullscreen) {
+  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > :not([data-slot]):not(.dsh-tavern-play-fullscreen):not([data-mobile-nav]),
+  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > [data-slot] > :not(.dsh-tavern-play-fullscreen):not([data-mobile-nav]) {
     min-width: 40px; overflow: hidden;
   }
-  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > :not([data-slot]):not(.dsh-tavern-play-fullscreen) span,
-  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > [data-slot] > :not(.dsh-tavern-play-fullscreen) span {
+  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > :not([data-slot]):not(.dsh-tavern-play-fullscreen):not([data-mobile-nav]) span,
+  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > [data-slot] > :not(.dsh-tavern-play-fullscreen):not([data-mobile-nav]) span {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_crumbs"] {
@@ -3198,8 +3198,8 @@ html[data-dsh-text-layout] :is(.dsh-tavern-assistant, .dsh-tavern-user-bubble, .
 /* 手机竖屏：宿主的触发器实测 91px，占掉整整两格按钮的位置（430px 以下放不下
    3 个图标 + ⋮）。藏掉它，把位置让给快捷入口；固定开销随之降到 156px。 */
 @media (max-width: 429px) {
-  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > :not([data-slot]):not(.dsh-tavern-play-fullscreen),
-  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > [data-slot] > :not(.dsh-tavern-play-fullscreen) {
+  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > :not([data-slot]):not(.dsh-tavern-play-fullscreen):not([data-mobile-nav]),
+  body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_headerActions"] > [data-slot] > :not(.dsh-tavern-play-fullscreen):not([data-mobile-nav]) {
     display: none !important;
   }
   body.dsh-tavern-shell-active header:has([class*="_headerUtilities"]) [class*="_titleRow"] {
