@@ -68,6 +68,51 @@ test('移动端实际样式：顶栏、键盘、候选、面板、编辑器与�
     await page.setViewportSize({ width: 390, height: 844 }); await settle()
   })
 
+  await t.test('后台子智能体在场时，430 宽触屏的目录开关与文件入口可见；全屏按钮点过不留灰底，进出沉浸后入口恢复', async () => {
+    // 真机截图：顶栏右侧的全屏按钮点过后留着灰底（触屏上 :hover 粘住），而且文件入口不见了。
+    const phone = await browser.newPage({ viewport: { width: 430, height: 932 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 })
+    try {
+      await install(phone)
+      // 真实页面里主题会定义强调色；夹具没有，:hover 的 color-mix 会失效而测不到灰底。
+      await phone.evaluate(() => { document.body.style.setProperty('--dsh-tavern-accent', '#a66b35'); document.querySelector('[data-conversation-header-corner]').style.setProperty('display', 'none', 'important') })
+      const visible = async (selector, label) => {
+        const info = await phone.locator(selector).evaluate(element => {
+          const r = element.getBoundingClientRect(), style = getComputedStyle(element)
+          const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+          return { w: r.width, x: r.x, right: r.right, display: style.display, visibility: style.visibility, hit: element.contains(hit) }
+        })
+        assert.ok(info.w >= 24 && info.display !== 'none' && info.visibility === 'visible', `${label} 可见 ${JSON.stringify(info)}`)
+        assert.ok(info.x >= 0 && info.right <= 430, `${label} 在视口内`)
+        assert.equal(info.hit, true, `${label} 不被其它层盖住`)
+      }
+      const assertEntries = async label => {
+        assert.equal(await phone.locator('[class*="_trigger"][aria-haspopup="tree"]').count(), 1, `${label}: 子智能体触发器在场`)
+        await visible('[data-mobile-nav="toggle"]', `${label}: 目录开关`)
+        await visible('[data-mobile-nav="files"]', `${label}: 文件入口`)
+        await visible('button.dsh-tavern-play-fullscreen', `${label}: 全屏按钮`)
+      }
+      await assertEntries('初始')
+      const fullscreen = phone.locator('button.dsh-tavern-play-fullscreen')
+      // 夹具里的全屏按钮是静态的；沉浸态由 setOn 的两处 class 切换表示（见 ui/message-frame.js）。
+      const immersive = on => phone.evaluate(on => {
+        document.documentElement.classList.toggle('dsh-tavern-play-fullscreen', on)
+        document.querySelector('header').classList.toggle('dsh-tavern-immersive-header', on)
+      }, on)
+      await fullscreen.tap()
+      await immersive(true)
+      // 沉浸态：顶栏折叠，只留全屏按钮（上游设计）。
+      await visible('button.dsh-tavern-play-fullscreen', '沉浸态: 全屏按钮')
+      assert.equal(await phone.locator('[data-mobile-nav="files"]').evaluate(e => getComputedStyle(e).visibility), 'hidden')
+      // 退出：按钮此时浮在右上角，点它之后回到顶栏原位；触屏浏览器把 :hover 留在这个节点上。
+      await fullscreen.tap()
+      await immersive(false)
+      await phone.waitForTimeout(200)
+      const background = await fullscreen.evaluate(element => getComputedStyle(element).backgroundColor)
+      assert.ok(/^rgba\(0, 0, 0, 0\)$|^transparent$/.test(background), `触屏点过全屏按钮后不留灰底：${background}`)
+      await assertEntries('退出沉浸后')
+    } finally { await phone.close() }
+  })
+
   await t.test('键盘仅缩小 visualViewport、平移、缩放和关闭，输入栏与候选均可用', async () => {
     for (const state of [{ height: 460, offsetTop: 0 }, { height: 390, offsetTop: 40 }, { height: 300, offsetTop: 0 }]) {
       await viewport(page, state)

@@ -92,4 +92,53 @@ export async function mobileSidebarChecks({ page, step, output, report }) {
       } finally { await context.close() }
     }
   })
+  // 真机（iPhone Chrome，430 宽）：这一局有后台 Agent，顶栏标签行右端出现「N 个子智能体」；
+  // 点进全屏再退出后，目录开关、文件入口必须都在，全屏按钮不留灰底（触屏 :hover 粘连）。
+  await step('430 宽 iPhone 触屏：有后台子智能体时入口齐全，全屏进出后恢复且不留灰底', async () => {
+    // 刚开的新局还没有后台 Agent：玩一轮，让固定模型触发后台结算。
+    const input = page.getByRole('textbox', { name: /发消息|Message/ }).filter({ visible: true }).first()
+    await input.fill('领取任务奖励')
+    await input.press('Enter')
+    await page.getByText('你获得了十枚金币。', { exact: false }).filter({ visible: true }).last().waitFor()
+    await page.waitForTimeout(1500)
+    const state = await page.context().storageState()
+    const context = await page.context().browser().newContext({
+      storageState: state, viewport: { width: 430, height: 932 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true, locale: 'zh-CN',
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/130.0.6723.90 Mobile/15E148 Safari/604.1',
+    })
+    try {
+      const phone = await context.newPage()
+      await phone.goto(page.url().split('?')[0], { waitUntil: 'domcontentloaded' })
+      const toggle = phone.locator('[data-mobile-nav="toggle"]'), files = phone.locator('[data-mobile-nav="files"]')
+      const fullscreen = phone.locator('button.dsh-tavern-play-fullscreen')
+      await toggle.waitFor({ state: 'visible' })
+      const collapse = phone.locator('[data-sidebar-right-toggle]').filter({ visible: true })
+      if (await collapse.count()) { await collapse.first().tap(); await phone.waitForTimeout(600) }
+      await phone.locator('[class*="_trigger"][aria-haspopup="tree"]').filter({ visible: true }).waitFor()
+      const entries = async label => {
+        for (const [name, locator] of [['目录开关', toggle], ['文件入口', files], ['全屏按钮', fullscreen]]) {
+          await locator.waitFor({ state: 'visible' })
+          const info = await locator.evaluate(element => {
+            const r = element.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+            return { x: r.x, right: r.right, visibility: getComputedStyle(element).visibility, hit: element.contains(hit) }
+          })
+          assert.ok(info.visibility === 'visible' && info.x >= 0 && info.right <= 430 && info.hit, `${label}: ${name} 可见可点 ${JSON.stringify(info)}`)
+        }
+      }
+      await entries('初始')
+      await phone.screenshot({ path: join(output, 'mobile-430-subagent.png'), clip: { x: 0, y: 0, width: 430, height: 120 } })
+      await fullscreen.tap()
+      await phone.waitForFunction(() => document.documentElement.classList.contains('dsh-tavern-play-fullscreen'))
+      await phone.screenshot({ path: join(output, 'mobile-430-immersive.png'), clip: { x: 0, y: 0, width: 430, height: 120 } })
+      await fullscreen.tap()
+      await phone.waitForFunction(() => !document.documentElement.classList.contains('dsh-tavern-play-fullscreen'))
+      await phone.waitForTimeout(300)
+      await entries('退出全屏后')
+      const background = await fullscreen.evaluate(element => getComputedStyle(element).backgroundColor)
+      assert.equal(background, 'rgba(0, 0, 0, 0)', '退出全屏后全屏按钮不留灰底')
+      await phone.screenshot({ path: join(output, 'mobile-430-after-fullscreen.png'), clip: { x: 0, y: 0, width: 430, height: 120 } })
+      await files.tap()
+      await phone.locator('[data-sidebar-right-toggle]').filter({ visible: true }).first().waitFor()
+    } finally { await context.close() }
+  })
 }
