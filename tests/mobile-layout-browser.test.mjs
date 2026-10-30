@@ -44,6 +44,27 @@ test('移动端实际样式：顶栏、键盘、候选、面板、编辑器与�
     await page.screenshot({ path: 'output/playwright/mobile/chat-390.png' })
   })
 
+  await t.test('dsh-web-mobile 的目录开关与文件（右侧栏）入口在窄屏始终可见、可点', async () => {
+    // 宿主在手机上把右侧栏入口藏进 headerCorner，由 dsh-web-mobile 放在 header.actions 里的
+    // data-mobile-nav 按钮代替；顶栏的窄屏规则不能把它们当作宿主的子智能体触发器一起藏掉。
+    for (const width of [320, 360, 390, 412, 429, 430]) {
+      await page.setViewportSize({ width, height: 844 })
+      await settle()
+      for (const kind of ['toggle', 'files']) {
+        const selector = `[data-mobile-nav="${kind}"]`
+        const rect = await box(selector)
+        assert.ok(rect && rect.width >= 24 && rect.height >= 24, `${width}: ${kind} 入口可见`)
+        assert.ok(rect.x >= 0 && rect.x + rect.width <= width, `${width}: ${kind} 不越界`)
+        const hit = await page.locator(selector).evaluate(element => {
+          const r = element.getBoundingClientRect()
+          return element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))
+        })
+        assert.equal(hit, true, `${width}: ${kind} 不被其它层盖住`)
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 }); await settle()
+  })
+
   await t.test('键盘仅缩小 visualViewport、平移、缩放和关闭，输入栏与候选均可用', async () => {
     for (const state of [{ height: 460, offsetTop: 0 }, { height: 390, offsetTop: 40 }, { height: 300, offsetTop: 0 }]) {
       await viewport(page, state)
