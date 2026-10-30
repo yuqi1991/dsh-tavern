@@ -64,4 +64,32 @@ export async function mobileSidebarChecks({ page, step, output, report }) {
     await page.screenshot({ path: join(output, 'mobile-started.png') })
     assert.equal(await picker.count(), 0, '开局后左侧栏应收起')
   })
+  // 真手机（触屏 + 窄屏）上 dsh-web-mobile 接管入口：左上目录开关打开抽屉并只出现它自带的遮罩，
+  // 右上文件入口（=宿主右侧栏）始终可见可点。顶栏的窄屏规则曾把这两个按钮一并藏掉。
+  await step('触屏窄屏下目录开关与右侧栏入口可见可点，抽屉遮罩随关闭撤掉', async () => {
+    const state = await page.context().storageState()
+    for (const [width, height] of [[360, 740], [390, 844], [412, 915], [430, 932]]) {
+      const context = await page.context().browser().newContext({ storageState: state, viewport: { width, height }, deviceScaleFactor: 3, hasTouch: true, isMobile: true })
+      try {
+        const phone = await context.newPage()
+        await phone.goto(page.url().split('?')[0], { waitUntil: 'domcontentloaded' })
+        const toggle = phone.locator('[data-mobile-nav="toggle"]'), files = phone.locator('[data-mobile-nav="files"]')
+        const collapse = phone.locator('[data-sidebar-right-toggle]').filter({ visible: true })
+        const backdrop = phone.locator('[data-mobile-nav="backdrop"]')
+        await toggle.waitFor({ state: 'visible' })
+        await files.waitFor({ state: 'visible' })
+        if (await collapse.count()) { await collapse.first().tap(); await phone.waitForTimeout(600) }
+        assert.equal(await backdrop.count(), 0, `${width}: 抽屉未开时不应有变暗层`)
+        await toggle.tap()
+        await backdrop.waitFor({ state: 'visible' })
+        await phone.screenshot({ path: join(output, `mobile-touch-${width}-drawer.png`) })
+        await phone.touchscreen.tap(width - 8, height / 2)
+        await backdrop.waitFor({ state: 'detached' })
+        await files.waitFor({ state: 'visible' })
+        await files.tap()
+        await collapse.first().waitFor({ state: 'visible' })
+        await phone.screenshot({ path: join(output, `mobile-touch-${width}-right.png`) })
+      } finally { await context.close() }
+    }
+  })
 }

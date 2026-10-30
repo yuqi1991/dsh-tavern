@@ -47,6 +47,8 @@ test('移动端实际样式：顶栏、键盘、候选、面板、编辑器与�
   await t.test('dsh-web-mobile 的目录开关与文件（右侧栏）入口在窄屏始终可见、可点', async () => {
     // 宿主在手机上把右侧栏入口藏进 headerCorner，由 dsh-web-mobile 放在 header.actions 里的
     // data-mobile-nav 按钮代替；顶栏的窄屏规则不能把它们当作宿主的子智能体触发器一起藏掉。
+    // 真实手机上 dsh-web-mobile 把 headerCorner 设为 display:none；夹具没有它的样式，手动对齐。
+    await page.evaluate(() => { document.querySelector('[data-conversation-header-corner]').style.setProperty('display', 'none', 'important') })
     for (const width of [320, 360, 390, 412, 429, 430]) {
       await page.setViewportSize({ width, height: 844 })
       await settle()
@@ -62,6 +64,7 @@ test('移动端实际样式：顶栏、键盘、候选、面板、编辑器与�
         assert.equal(hit, true, `${width}: ${kind} 不被其它层盖住`)
       }
     }
+    await page.evaluate(() => { document.querySelector('[data-conversation-header-corner]').style.removeProperty('display') })
     await page.setViewportSize({ width: 390, height: 844 }); await settle()
   })
 
