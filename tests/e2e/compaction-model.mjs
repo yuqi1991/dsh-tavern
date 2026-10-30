@@ -45,6 +45,10 @@ export async function* compactionStream(input) {
     const timer = setTimeout(resolve, control.delayMs)
     input.signal?.addEventListener('abort', () => { clearTimeout(timer); reject(input.signal.reason) }, { once: true })
   })
+  // Regeneration guidance "E2E_REROLL_<tag>" in this round's input yields a distinct body (a new variant).
+  const currentInput = input.messages.filter(message => message.role === 'user' && JSON.stringify(message.content || []).includes(`E2E_C_ROUND_${round} `)).at(-1)
+  const rerollTag = JSON.stringify(currentInput?.content || []).match(/E2E_REROLL_(\w+)/)?.[1]
+  const reroll = rerollTag ? `（重写 ${rerollTag}）` : ''
   const done = new Set(input.messages.flatMap(message => message.content || []).filter(block => block.type === 'tool-result').map(block => block.toolCallId))
   const blocks = []
   if (summary) blocks.push({ type: 'text', text: [...new Set(numbers)].map(n => `E2E_MEMORY_ROUND_${n}`).join(' ') + `。当前金币 ${gold}，人物站在柜台前。\n` + '剧情摘要保留人物关系和已完成事件。'.repeat(330) })
@@ -61,7 +65,7 @@ export async function* compactionStream(input) {
       if (tools.has('posture_submit') && !done.has(`compact-posture-${round}`)) blocks.push({ type: 'tool-call', id: `compact-posture-${round}`, name: 'posture_submit', arguments: JSON.stringify({ posture: '站在柜台前，收下奖励。' }) })
       if (!blocks.length) blocks.push({ type: 'text', text: `E2E_C_ROUND_${round} 结算完成。` + '后台核对资料。'.repeat(control.backgroundPadding || 0) })
     }
-  } else blocks.push({ type: 'text', text: (round === 1 ? '你获得了十枚金币。' : `压缩验收第 ${round} 轮，金币 ${gold}。`) + `\nE2E_RAW_ROUND_${round}\n` + '旅人在酒馆记录沿途的山川和见闻。'.repeat(control.foregroundPadding || 0) + '\n\n<StatusPlaceHolderImpl/>' })
+  } else blocks.push({ type: 'text', text: (round === 1 ? '你获得了十枚金币。' : `压缩验收第 ${round} 轮，金币 ${gold}。`) + reroll + `\nE2E_RAW_ROUND_${round}\n` + '旅人在酒馆记录沿途的山川和见闻。'.repeat(control.foregroundPadding || 0) + '\n\n<StatusPlaceHolderImpl/>' })
   for (const [index, block] of blocks.entries()) {
     yield { type: 'block-start', index, blockType: block.type }
     yield { type: 'block-end', index, block }

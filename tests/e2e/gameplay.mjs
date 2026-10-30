@@ -102,8 +102,12 @@ try {
   await step('准备独立运行环境', async () => {
     if (compactionScenario) {
       await mkdir(data, { recursive: true })
-      await writeFile(join(data, 'tavern-settings.json'), JSON.stringify({ contextCompaction: { mode: compactionScenario === 'rounds' ? 'rounds' : ['manual', 'overflow', 'legacy'].includes(compactionScenario) ? 'manual' : 'percent', rounds: 2, percent: 50 } }))
-      await writeFile(join(output, 'model-control.json'), JSON.stringify({ foregroundPadding: compactionScenario === 'overflow' ? 4000 : 650, backgroundPadding: 0, window: compactionScenario === 'overflow' ? 262144 : 32768 }))
+      await writeFile(join(data, 'tavern-settings.json'), JSON.stringify({ contextCompaction: { mode: compactionScenario === 'rounds' ? 'rounds' : ['manual', 'overflow', 'legacy', 'retain'].includes(compactionScenario) ? 'manual' : 'percent', rounds: 2, percent: 50,
+        // Existing scenarios keep their meaning: 0 = the host's own range (old behavior); rounds exercises
+        // in-turn retention of one round; retain is the retention/volume scenario.
+        retainRounds: compactionScenario === 'retain' ? 2 : compactionScenario === 'rounds' ? 1 : 0 } }))
+      await writeFile(join(output, 'model-control.json'), JSON.stringify({ foregroundPadding: compactionScenario === 'overflow' ? 4000 : 650, backgroundPadding: 0, // retain: DSH 0.2.1 reserves 65536 output tokens for a summary by default, which no 32K window fits.
+      window: ['overflow', 'retain'].includes(compactionScenario) ? 262144 : 32768 }))
     }
     if (displayScenario) {
       await mkdir(data,{recursive:true})

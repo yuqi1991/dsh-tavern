@@ -99,6 +99,109 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
       await control({})
       report.queuedDuringCompaction = result.value
     })
+  } else if (scenario === 'retain') {
+    // Keep the latest 2 rounds as real nodes (docs/design/compaction-retention.md):
+    // they stay operable after compaction, summaries are written as volumes.
+    const prompt = (await readFile(new URL('../../tavern-plugin/prompts/story-compaction.md', import.meta.url), 'utf8')).trimEnd()
+    const refusal = /已不在当前上下文|不在可回退的消息流|找不到与当前剧情轮次|checkout 锚点|归属不一致|已被压缩|操作失败/
+    const users = chat => chat.messages.filter(m => m.role === 'user').length
+    const lastBody = chat => { const m = chat.messages.findLast(m => m.role === 'assistant' && !m.greeting); return String(m.sourceText ?? m.text) }
+    const visibleBody = text => page.getByText(text, { exact: false }).filter({ visible: true }).first().waitFor()
+    async function settled(check, label) {
+      return until(savedChat, chat => { if (chat.regenInProgress || ['pending', 'running'].includes(chat.settleStatus)) return false; try { return check(chat) !== false } catch { return false } }, label)
+    }
+    async function menu(name) {
+      await page.getByRole('button', { name: '更多 ▾', exact: true }).click()
+      await page.getByRole('menuitem', { name }).click()
+    }
+    async function regenerate(tag) {
+      await page.getByRole('button', { name: '重新生成正文', exact: true }).click()
+      await page.getByPlaceholder('指导意见（可选）：例如“写得更长，侧重心理描写”').fill('E2E_REROLL_' + tag)
+      await page.getByRole('button', { name: '生成并替换正文', exact: true }).click()
+      return settled(chat => lastBody(chat).includes(`（重写 ${tag}）`), 'regenerate ' + tag)
+    }
+    const noRefusal = async () => assert.equal(await page.getByText(refusal).filter({ visible: true }).count(), 0, '界面不能出现拒绝提示')
+    const textsOf = message => (message.content || []).filter(block => block.type === 'text').map(block => block.text)
+    const checkpointTexts = row => textsOf(row.messages.find(message => textsOf(message).some(text => text.includes('<compacted-summary>'))) || {})
+    let volume1
+    await step('保留 2 轮：玩到第 4 轮，在第 4 轮重新生成留下压缩前的变体', async () => {
+      await play(); await play(); await play()
+      await regenerate('A')
+      await visibleBody('（重写 A）')
+      await noRefusal()
+    })
+    await step('第 1 次手动压缩：只总结第 1–2 轮，提示词和卷首行由程序给出', async () => {
+      const count = (await requests()).length
+      const before = await savedChat()
+      const operation = await compact()
+      assert.equal(operation.foreground.status, 'succeeded')
+      assert.match(operation.foreground.message, /保留最近 2 轮原文/)
+      assert.deepEqual(history(await savedChat()), history(before), '压缩不能改变历史正文和变量')
+      const summary = (await requests()).slice(count).find(row => row.purpose === 'compaction' && row.side === 'foreground')
+      assert.deepEqual(summary.rawRounds.sort(), [1, 2], '摘要请求只含被压缩的轮次，保留的第 3–4 轮不在其中')
+      const instruction = textsOf(summary.messages.at(-1)).join('')
+      assert.ok(instruction.startsWith(prompt + '\n\n【本次摘要的写法】'), '默认剧情提示词在前，程序的写法要求在后')
+      const header = instruction.match(/第一行单独写「(第 1 卷 · 第 \d+–\d+ 轮)」/)?.[1]
+      assert.ok(header, '指令给出第 1 卷的卷首行')
+      assert.doesNotMatch(instruction, /当前情况|tavern_recall_history/)
+      report.retainFirst = { header, message: operation.foreground.message, rawRounds: summary.rawRounds }
+    })
+    await step('压缩后切换到压缩前存下的变体、再切回；回退第 4 轮并撤销；再次重新生成', async () => {
+      await page.getByRole('group', { name: '正文变体' }).waitFor()
+      await page.getByRole('button', { name: '上一个变体', exact: true }).click()
+      await settled(chat => !lastBody(chat).includes('（重写'), 'switch to the older variant')
+      await page.getByRole('button', { name: '下一个变体', exact: true }).click()
+      await settled(chat => lastBody(chat).includes('（重写 A）'), 'switch back')
+      const start = await savedChat()
+      await menu(/回退第.*轮|回退本轮/)
+      await settled(chat => users(chat) === users(start) - 1, 'rollback round 4')
+      await menu(/撤销回退（恢复第/)
+      await settled(chat => users(chat) === users(start) && lastBody(chat).includes('（重写 A）'), 'undo rollback')
+      await regenerate('B')
+      await noRefusal()
+      report.retainOperations = { rounds: users(await savedChat()) }
+    })
+    await step('继续游玩：请求携带第 1 卷摘要和保留的原文，不复活已压缩的轮次', async () => {
+      const start = (await requests()).length
+      await play()
+      const next = (await requests()).slice(start).find(row => row.purpose === 'generation' && row.side === 'foreground')
+      assert.ok(next.summaryPresent)
+      assert.ok(!next.rawRounds.includes(1) && !next.rawRounds.includes(2), '已压缩的第 1–2 轮不能复活')
+      assert.ok(next.rawRounds.includes(3) && next.rawRounds.includes(4), '保留的第 3–4 轮仍是原文')
+      const blocks = checkpointTexts(next)
+      assert.ok(blocks[1].startsWith('【剧情摘要说明】'), '摘要说明在最前')
+      volume1 = blocks[2]
+      assert.ok(volume1.startsWith(report.retainFirst.header + '\n'), '第 1 卷首行由程序写入')
+      await play(); await play()
+    })
+    await step('第 2 次手动压缩：旧卷原样保留，新卷只写旧卷之后', async () => {
+      const count = (await requests()).length
+      const operation = await compact()
+      assert.equal(operation.foreground.status, 'succeeded')
+      const summary = (await requests()).slice(count).find(row => row.purpose === 'compaction' && row.side === 'foreground')
+      assert.deepEqual(summary.rawRounds.sort(), [3, 4, 5])
+      const instruction = textsOf(summary.messages.at(-1)).join('')
+      assert.match(instruction, /已有 1 卷旧摘要/)
+      const header = instruction.match(/第一行单独写「(第 2 卷 · 第 \d+–\d+ 轮)」/)?.[1]
+      assert.ok(header)
+      const through1 = Number(report.retainFirst.header.match(/–(\d+) 轮/)[1]), from2 = Number(header.match(/第 (\d+)–/)[1])
+      assert.equal(from2, through1 + 1, '第 2 卷从第 1 卷之后一轮开始')
+      const start = (await requests()).length
+      await play()
+      const next = (await requests()).slice(start).find(row => row.purpose === 'generation' && row.side === 'foreground')
+      const blocks = checkpointTexts(next)
+      assert.equal(blocks[2], volume1, '第 1 卷逐字节原样保留')
+      assert.ok(blocks[3].startsWith(header + '\n'))
+      assert.ok(!next.rawRounds.some(n => n <= 5), '已压缩的轮次不能复活')
+      report.retainSecond = { header, volumes: blocks.length - 3 }
+      // The retained rounds are still operable after the second compaction.
+      const before = await savedChat()
+      await menu(/回退第.*轮|回退本轮/)
+      await settled(chat => users(chat) === users(before) - 1, 'rollback after second compaction')
+      await menu(/撤销回退（恢复第/)
+      await settled(chat => users(chat) === users(before), 'undo after second compaction')
+      await noRefusal()
+    })
   } else if (scenario === 'legacy') {
     await step('关闭宿主，放入已编辑且压缩的 v0 旧档，再通过启动迁移打开', async () => {
       const before = await savedChat()
@@ -178,12 +281,16 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
     const start = (await requests()).length
     await play()
     const resumed = (await requests()).slice(start).filter(row => row.purpose === 'generation')
-    if (['manual', 'overflow', 'legacy'].includes(scenario)) {
+    if (['manual', 'overflow', 'legacy', 'retain'].includes(scenario)) {
       const foreground = resumed.find(row => row.side === 'foreground')
       assert.ok(foreground?.summaryPresent, '重启后下一轮请求仍须携带摘要')
       assert.ok(!foreground.rawRounds.includes(1), '重启后不能复活已总结的首轮正文')
     }
-    assert.equal((await savedChat()).timeline.participants.background.sessionId, before.timeline.participants.background.sessionId, '重启后继续使用原后台绑定')
+    const bound = before.timeline.participants.background.sessionId
+    // A rollback after a joint compaction retires the compacted background session
+    // (requiresNewSessionOnRewind); the next round then binds a fresh one.
+    if (scenario === 'retain' && !bound) assert.match((await savedChat()).timeline.participants.background.sessionId, /^background-/, '回退后的下一轮新建后台会话')
+    else assert.equal((await savedChat()).timeline.participants.background.sessionId, bound, '重启后继续使用原后台绑定')
     await page.screenshot({ path: join(output, 'compaction-after-reload.png'), fullPage: true })
     report.compaction = { scenario, window: 32768, rounds: round, foregroundSessionId: sessionId, backgroundSessionId: after.timeline.participants.background.sessionId }
   })
