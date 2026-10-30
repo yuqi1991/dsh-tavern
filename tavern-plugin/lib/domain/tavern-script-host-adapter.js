@@ -583,6 +583,10 @@ export function createTavernScriptHostAdapter(options = {}) {
 
   // Common variable/display writes keep their native row indices and exact revision.
   // Stale versions and body/swipe edits retain the full three-way merge below.
+  // Template patches that only record how floors were rendered.
+  function renderBookkeepingOnly(request){
+    return Array.isArray(request?.changes)&&request.changes.length>0&&request.changes.every(c=>Array.isArray(c.path)&&c.path[0]==='chat'&&['is_ejs_processed','template_display','template_rendered'].includes(c.path[2]))
+  }
   async function saveTemplatePatch(sessionId, request) {
     if(!options.resolveChatSlice || !options.patchChat || !Array.isArray(request?.changes))return undefined
     const allowed=['variables','variables_initialized','is_ejs_processed','template_display','template_rendered']
@@ -607,8 +611,7 @@ export function createTavernScriptHostAdapter(options = {}) {
     // Re-rendering the floors a rollback exposed only records render bookkeeping; like a
     // display capture it keeps a valid undo point (it never revives a stale one).
     // Variable or metadata writes still invalidate it.
-    const renderOnly=['is_ejs_processed','template_display','template_rendered']
-    if(changes.length && request.changes.every(c=>c.path[0]==='chat'&&renderOnly.includes(c.path[2]))
+    if(changes.length && renderBookkeepingOnly(request)
       && baseline.rollbackUndo?.ready && baseline.rollbackUndo.storageRevision===baseline._storageRevision)
       changes.push({op:'set',path:['rollbackUndo','storageRevision'],value:baseline._storageRevision+1})
     const saved=await options.patchChat(baseline.id,request.stateRevision,changes,{source:'prompt-template.state',assertCurrent:()=>{if(settlementTransactions.has(str(sessionId)))throw new Error('MVU 结算进行中，模板存档不能覆盖结算事务')}})
@@ -621,6 +624,7 @@ export function createTavernScriptHostAdapter(options = {}) {
     const fast=await saveTemplatePatch(sessionId,request)
     if(fast)return fast
     const patch = Array.isArray(request?.changes)
+    const renderOnly = renderBookkeepingOnly(request)
     if (!patch) validateFullPromptTemplateSave(request)
     const chat = await resolveChat(sessionId)
     assertTemplateChat(chat)
@@ -633,6 +637,10 @@ export function createTavernScriptHostAdapter(options = {}) {
       if (settlementTransactions.has(str(sessionId))) throw new Error('MVU 结算进行中，模板存档不能覆盖结算事务')
       if (str(latest.sessionId) !== str(sessionId)) throw new Error('模板聊天已切换')
       const next = applyFullPromptTemplateState(latest, baseline, request)
+      // A render-bookkeeping patch based on an older revision (it was read before the
+      // rollback recorded its undo point) keeps that undo point valid, as on the fast path.
+      const stored = Number(latest._storageRevision || 0)
+      if (renderOnly && latest.rollbackUndo?.ready && latest.rollbackUndo.storageRevision === stored) next.rollbackUndo = { ...latest.rollbackUndo, storageRevision: stored + 1 }
       return options.prepareTemplateHistory ? await options.prepareTemplateHistory(latest, next) : next
     }, { source: 'prompt-template.state' })
     if (!saved) throw new Error('模板聊天已不存在')

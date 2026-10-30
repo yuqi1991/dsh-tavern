@@ -382,4 +382,12 @@ test('render-bookkeeping patches keep a valid rollback undo point; variable patc
  await adapter.saveFullPromptTemplateState('session',{...header,changes:[{op:'set',path:['chat',0,'variables',0,'hp'],value:22}]})
  saved=await persistence.read('chat')
  assert.notEqual(saved.rollbackUndo.storageRevision,saved._storageRevision,'a variable write invalidates it')
+ // A render patch read before the undo point was recorded (stale revision, merge path) keeps it too.
+ ;({state}=await adapter.readFullPromptTemplateState('session'))
+ ;({chat,chat_metadata,...header}=state)
+ await arm()
+ assert.equal((await adapter.saveFullPromptTemplateState('session',{...header,changes:[{op:'set',path:['chat',0,'template_rendered'],value:['<p>再渲染</p>']}]})).updated,true)
+ saved=await persistence.read('chat')
+ assert.deepEqual(saved.messages[0].tavernPluginData.template_rendered,['<p>再渲染</p>'])
+ assert.equal(saved.rollbackUndo.storageRevision,saved._storageRevision,'stale render bookkeeping keeps the undo point')
 })
