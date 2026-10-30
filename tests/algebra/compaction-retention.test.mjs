@@ -97,3 +97,21 @@ test('a variant whose floor was folded into the summary cannot be switched to', 
   await assert.rejects(h.switchVariant(0), /已被压缩/)
   assert.deepEqual([...h.session.surface.nodes], surface, 'the compacted history is not brought back')
 }))
+
+test('a compaction over a span a rollback reselected still opens from disk (v4 relationship validator follows the selection)', async () => {
+  const { prepareExpandedPatch } = await import('../../lib/domain/host-session-patch.js')
+  const native = await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-format-v3-to-v4/lib/index.js')
+  const patch = await prepareExpandedPatch('/home/claw/dsh-stage-021/runtime/lib', { version: '0.2.1-rc.2' })
+  try {
+    const h = createPlayHarness()
+    await h.play('a'); await h.play('b')
+    await h.rollback()                         // select: b leaves the surface
+    await h.play('c'); await h.play('d')
+    await compact(h, 1)                        // the range spans a, then c: b was reselected away
+    const artifact = { header: h.session.header, events: structuredClone(h.events), inheritedEventCount: 0 }
+    patch.assertStoredRelationships(artifact)
+    // The stock validator does not know the selection and rejects the same log.
+    const known = new Set([...h.events.map(event => event.type)])
+    assert.throws(() => native.assertReleasedV4Relationships(artifact, known), /shadowedSeqs do not name an exact current surface span/)
+  } finally { patch.dispose() }
+})

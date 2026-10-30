@@ -109,7 +109,14 @@ export async function prepareExpandedPatch(runtime) {
     await compile('@deepseek-ai/dsh-session-format-v2-to-v3', text => once(text,
       'if (event.type === "assistant/message" && sources !== void 0) throw',
       `if (event.type === "assistant/message" && sources !== void 0 && !${own}) throw`))
-    const migration = await compile('@deepseek-ai/dsh-session-format-v3-to-v4')
+    // The v4 relationship validator that runs when a stored log is opened keeps its own
+    // surface fold. Without the selection it diverges after any rollback or variant
+    // switch, and a later compaction over the diverged span is rejected as corrupt
+    // ("shadowedSeqs do not name an exact current surface span"). The live fold has
+    // already validated the selection; here it only has to follow it.
+    const migration = await compile('@deepseek-ai/dsh-session-format-v3-to-v4', text => once(text,
+      'if (!this.knownEventTypes.has(event.type) || !RELATIONSHIP_TYPES.has(event.type)) return;',
+      `if (event.type === ${JSON.stringify(SURFACE_SELECT_TYPE)} && this.knownEventTypes.has(event.type)) {\n\t\t\tthis.surface = planSurfaceSelection(this.surface, event, () => void 0);\n\t\t\treturn;\n\t\t}\n\t\tif (!this.knownEventTypes.has(event.type) || !RELATIONSHIP_TYPES.has(event.type)) return;`) + surfaceSelectionSource())
     migration.RELEASED_V3_EVENT_TYPES.add(marker)
     const catalogs = await compile('@deepseek-ai/dsh-session-format-catalog')
     const { sessionFormatCatalog: catalog } = catalogs
@@ -155,6 +162,8 @@ export async function prepareExpandedPatch(runtime) {
     return {
       catalog, patchedSurface, clientSource, marker, selfTest,
       migration: { ...catalogs, historicalChildCatalogSource: migration.historicalChildCatalogSource },
+      /** The patched v4 relationship validator a stored log passes when it is opened. */
+      assertStoredRelationships: (artifact) => migration.assertReleasedV4Relationships(artifact, patchedSession.KNOWN_SESSION_EVENT_TYPES),
       patchQuery(instance) {
         assert.equal(instance._observations.cache.size, 0, 'Install before querying Session history')
         for (const [target, prototype] of [
