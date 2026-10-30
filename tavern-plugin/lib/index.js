@@ -20,7 +20,8 @@ import { readHostCompatibility } from './domain/host-compatibility.js'
 import { installHostSessionPatch } from './domain/host-session-patch.js'
 import { installHostSubprocessPatch } from './domain/host-subprocess-patch.js'
 import { migrateInstalledLegacySessions } from './domain/legacy-session-migration.js'
-import { measureForegroundPressure } from './domain/foreground-context-pressure.js'
+import { foregroundContextWindow, measureForegroundPressure } from './domain/foreground-context-pressure.js'
+import { createCompactionPlans, createForegroundRetention } from './domain/foreground-retention.js'
 import { installWorkspaceInstructionPresentation } from './domain/workspace-instruction-presentation.js'
 import { createPresetDiagnostics } from './domain/preset-diagnostics.js'
 import { createIncrementalReplyView } from './domain/incremental-reply-view.js'
@@ -54,7 +55,7 @@ import { registerCardEditingTools } from './tools/card-editing.js'
 import { resolveAgentCompaction } from './agent-compaction.js'
 import { compactForegroundIfNeeded } from './domain/foreground-compaction.js'
 import { compactBackgroundIfNeeded, measureBackgroundBudget } from './domain/background-compaction.js'
-import { createAutoCompaction, installCompactionPolicy } from './domain/auto-compaction.js'
+import { compactionPolicy, createAutoCompaction, installCompactionPolicy } from './domain/auto-compaction.js'
 import { observeHttpRequests } from './domain/http-performance-diagnostics.js'
 import { createPerformanceDiagnostics } from './domain/performance-diagnostics.js'
 import { ensureCardWorkspaceMessage } from './domain/card-workspace-message.js'
@@ -2539,9 +2540,25 @@ export async function apply(ctx) {
       if (side === 'background') return backgroundAgentRunner.compact({ sessionId: id, signal })
       return withCompactionSession(id, async agent => {
         await retireOldForegroundFrames(agent, agent.phase?.kind === 'running' ? agent.phase.turn : undefined)
-        return (await agentCompaction(agent)).compactNow(agent, signal)
+        // Configure first: an engine that has not run a turn yet (just resumed) keeps the latest rounds too.
+        return (await configureAgentCompaction(agent)).compactNow(agent, signal)
       })
     }
+  })
+  // Foreground story compaction keeps the latest rounds as real nodes (docs/design/compaction-retention.md).
+  const compactionPlans = createCompactionPlans()
+  const retainedRounds = async () => compactionPolicy((await readTavernSettings()).contextCompaction).retainRounds
+  async function isForegroundStory(sessionId) {
+    if (backgroundAgentRunner.owns(sessionId) || backgroundAgentRunner.requestContext(sessionId)) return false
+    return usesStoryCompaction(await sessionStateForSession(sessionId))
+  }
+  const foregroundRetention = createForegroundRetention({
+    retainRounds: retainedRounds,
+    isForeground: isForegroundStory,
+    meter: () => ctx.get('tokenMeter'),
+    contextWindow: (agent, signal) => foregroundContextWindow({ agent, signal, projections: ctx.get('sessionProjections'), defaultModel: agentDefaultModel, llm: ctx.llm }),
+    flush: session => sessionStore.flush(session),
+    plans: compactionPlans
   })
   async function configureAgentCompaction(agent) {
     const engine = await agentCompaction(agent)
@@ -2588,7 +2605,7 @@ export async function apply(ctx) {
         participant.compactionPlannedAt = Date.now()
         return current
       }, { source: 'compaction.background' })
-    } })
+    }, retention: foregroundRetention })
     compactionDisposers.add(dispose)
     collectedCompactionEngines.register(engine, dispose, dispose)
     return engine

@@ -31,7 +31,10 @@ test('every surface replacement intent is written through a conversation transac
   // the first guard limits who may reach it.
   // host-session-patch.js only builds a throwaway probe session for its startup self-test;
   // tavern-context-projections.js feeds its own self-test synthetic events to a pure fold.
-  const translators = new Set(['domain/session-events.js', 'domain/session-surface-mutations.js', 'domain/host-session-patch.js', 'domain/tavern-context-projections.js'])
+  // idle-compaction.js is the host's own compaction transaction (compaction/start, summary,
+  // checkpoint, end) over a range Tavern chose; it replaces history with a summary, which
+  // is not a Tavern surface edit (docs/design/compaction-retention.md §4.2).
+  const translators = new Set(['domain/session-events.js', 'domain/session-surface-mutations.js', 'domain/host-session-patch.js', 'domain/tavern-context-projections.js', 'domain/idle-compaction.js'])
   const writers = filesMatching(/op:\s*['"]replace['"]/).filter(file => !file.startsWith('domain/conversation-algebra/') && !translators.has(file))
   assert.ok(writers.length >= 5, 'expected the known intent writers, found ' + writers.join(','))
   for (const file of writers) {

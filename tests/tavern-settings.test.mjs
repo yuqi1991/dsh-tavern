@@ -161,7 +161,7 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
   const defaults = { story: '内置正文提示词' }
   assert.deepEqual(presentTavernSettings({}, defaults), {
     candidateDismissMode: 'after-send',
-    contextCompaction: { mode: 'manual', rounds: 20, percent: 80, revision: 0 },
+    contextCompaction: { mode: 'manual', rounds: 20, percent: 80, retainRounds: 10, revision: 0 },
     compatibilityMode: true,
     webSearchEnabled: false,
     systemAppendEnabled: true,
@@ -189,7 +189,7 @@ test('系统正文提示词默认使用内置内容，并可保存自定义覆�
   assert.equal(resolveSystemPrompt(saved, 'story', function () { return '默认' }), '用户正文提示词')
   assert.deepEqual(presentTavernSettings(saved, defaults), {
     candidateDismissMode: 'after-send',
-    contextCompaction: { mode: 'manual', rounds: 20, percent: 80, revision: 0 },
+    contextCompaction: { mode: 'manual', rounds: 20, percent: 80, retainRounds: 10, revision: 0 },
     compatibilityMode: true,
     webSearchEnabled: false,
     systemAppendEnabled: true,

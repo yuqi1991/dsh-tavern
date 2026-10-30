@@ -185,6 +185,45 @@ test('原生压缩（影子价格）之后，再回退到压缩前的节点，�
   check('再回退到更早')
 })
 
+test('保留最近几轮的压缩（区间只到保留轮次之前）之后、再回退最近一轮，两个投影仍与直接估算一致', native, async t => {
+  const ctx = await host(t)
+  const { compactIdleRegion } = await import('../tavern-plugin/lib/domain/idle-compaction.js')
+  const { BasicCompactionEngine } = await import(new URL('../../dsh-compaction-basic/lib/index.js', pathToFileURL(process.env.DSH_BOOT_MODULE)))
+  class FixtureCompaction extends BasicCompactionEngine {
+    async summarize() { return { summary: [{ type: 'text', text: '剧情摘要。' }], provider: 'fixture', model: 'summary', maxTokens: 128 } }
+  }
+  const engine = new FixtureCompaction(ctx, { auto: false })
+  const s = story(ctx, 'projection-compaction-retained')
+  const { session } = s
+  const check = label => {
+    const expected = s.price()
+    const got = readings(ctx, session)
+    assert.deepEqual([got.meter, got.pressureSurface, got.breakdownSurface], [expected, expected, expected], label)
+    return expected
+  }
+  s.put('system/message', { turn: 1, step: 1, message: { id: 'sys', role: 'system', content: text(200, 's'), source: { kind: 'system-prompt' } } })
+  const inputs = []
+  for (let n = 0; n < 4; n++) {
+    s.mark('turn/start', { turn: n + 2 }); s.mark('step/start', { turn: n + 2, step: 1 })
+    inputs.push(s.put('user/message', s.input('u-' + n, 2000)))
+    s.put('assistant/message', s.reply('a-' + n, 2000, n + 2))
+    s.mark('step/end', { turn: n + 2, step: 1 }); s.mark('turn/end', { turn: n + 2, reason: { kind: 'completed' } })
+  }
+  const full = check('压缩前')
+  const nodes = [...session.surface.nodes]
+  // Keep the last two rounds as real nodes.
+  const end = nodes[nodes.indexOf(inputs[2]) - 1]
+  await compactIdleRegion({ dependencies: engine.regionDependencies(), agent: { session }, start: nodes[1], end })
+  const compacted = check('压缩后')
+  assert.ok(compacted < full)
+  assert.deepEqual([...session.surface.nodes].slice(-4), nodes.slice(-4), '保留的两轮仍是原节点')
+  const kept = [...session.surface.nodes]
+  selectSurface(session, kept.slice(0, -2))
+  assert.ok(check('回退最近一轮') < compacted)
+  selectSurface(session, kept)
+  assert.equal(check('撤销回退'), compacted)
+})
+
 test('tokenUsage 是服务商用量累计，与表面无关：选择不改变它', native, async t => {
   const ctx = await host(t)
   const s = story(ctx, 'projection-usage')

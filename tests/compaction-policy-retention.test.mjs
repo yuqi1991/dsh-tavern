@@ -56,3 +56,30 @@ test('cancellation while saving the guard cannot start a summary afterwards', as
   await assert.rejects(engine.compactRegion(1, 2, {}, controller.signal), { name: 'AbortError' })
   assert.equal(compacted, false); dispose()
 })
+
+test('retention rewrites the end of in-turn regions per routed check and wraps compactNow; teardown restores both', async () => {
+  const calls = [], released = []
+  const engine = {
+    async compactIfNeeded(agent, trigger, signal) { await this.compactRegion(1, 9, agent, signal); return this.compactRegion(1, 9, agent, signal) },
+    async compactRegion(start, end) { calls.push(['region', start, end]); return 'summary' },
+    async compactNow() { calls.push(['now']); return 'native-now' },
+    regionDependencies() { return {} }
+  }
+  const { compactRegion, compactNow } = engine
+  const retention = {
+    async region({ start, end, trigger, attempt }) { calls.push(['plan', trigger, attempt]); return { end: attempt === 0 ? 5 : undefined, done: () => released.push(attempt) } },
+    async idle({ native, engine: bound }) { calls.push(['idle', bound === engine]); return native() }
+  }
+  const dispose = installCompactionPolicy(engine, (_agent, _trigger, _signal, native) => native(), { retention })
+  await engine.compactIfNeeded({ id: 'a' }, 'pressure')
+  assert.deepEqual(calls.splice(0), [['plan', 'pressure', 0], ['region', 1, 5], ['plan', 'pressure', 1], ['region', 1, 9]])
+  assert.deepEqual(released, [0, 1])
+  assert.equal(await engine.compactNow({ id: 'a' }, new AbortController().signal), 'native-now')
+  assert.deepEqual(calls.splice(0), [['idle', true], ['now']])
+  dispose()
+  assert.equal(engine.compactRegion, compactRegion); assert.equal(engine.compactNow, compactNow)
+})
+
+test('retention requires the host idle-compaction surface', () => {
+  assert.throws(() => installCompactionPolicy({ compactIfNeeded() {}, compactRegion() {} }, () => null, { retention: {} }), /空闲压缩接口/)
+})

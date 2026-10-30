@@ -1,4 +1,5 @@
 import { compactionFailureMessage } from './compaction-failure.js'
+import { DEFAULT_RETAINED_ROUNDS } from './compaction-retention.js'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -7,10 +8,13 @@ const CAPACITY_WARNING = '无法取得当前模型上下文容量，自动压缩
 export function compactionPolicy(value = {}) {
   const mode = value.mode ?? 'manual'
   const rounds = value.rounds ?? 20, percent = value.percent ?? 80
+  // Foreground compaction keeps the latest rounds verbatim (docs/design/compaction-retention.md); 0 keeps none.
+  const retainRounds = value.retainRounds ?? DEFAULT_RETAINED_ROUNDS
   if (!['manual', 'rounds', 'percent'].includes(mode)) throw new Error('请选择有效的上下文压缩模式')
   if (!Number.isInteger(rounds) || rounds < 1 || rounds > 1000) throw new Error('自动压缩轮数须为 1–1000 的整数')
   if (!Number.isInteger(percent) || percent < 10 || percent > 95) throw new Error('自动压缩比例须为 10–95 的整数')
-  return { mode, rounds, percent, revision: value.revision || 0 }
+  if (!Number.isInteger(retainRounds) || retainRounds < 0 || retainRounds > 100) throw new Error('压缩后保留的轮数须为 0–100 的整数')
+  return { mode, rounds, percent, retainRounds, revision: value.revision || 0 }
 }
 export function storyRoundKeys(chat) {
   return [...new Set((chat.messages || []).filter(m => m.role === 'assistant' && !m.greeting && Number.isSafeInteger(m.turn)).map(m => String(m.turn)))]
@@ -211,29 +215,56 @@ function policyDisposer(reference, token) {
     if (!policy) return
     if (engine.compactIfNeeded === policy.routed) engine.compactIfNeeded = policy.original
     if (policy.region && engine.compactRegion === policy.region) engine.compactRegion = policy.originalRegion
+    if (policy.now && engine.compactNow === policy.now) engine.compactNow = policy.originalNow
     policies.delete(token)
     if (!policies.size) installedPolicies.delete(engine)
   }
 }
 
-/** Scope native automatic policy to bound Tavern sessions; other agents keep their host policy. */
-export function installCompactionPolicy(engine, handler, { beforeRegion } = {}) {
+/**
+ * Scope native automatic policy to bound Tavern sessions; other agents keep their host policy.
+ * @param options.beforeRegion - awaited before every summary region (background rewind guard).
+ * @param options.retention - foreground retention (`createForegroundRetention`): moves the end
+ *   of in-turn regions before the retained rounds and runs idle compaction over its own range.
+ */
+export function installCompactionPolicy(engine, handler, { beforeRegion, retention } = {}) {
   if (!engine || typeof engine.compactIfNeeded !== 'function') throw new Error('当前 DSH 缺少自动压缩策略接口，请检查宿主版本')
-  const original = engine.compactIfNeeded, originalRegion = engine.compactRegion
-  if (beforeRegion && typeof originalRegion !== 'function') throw new Error('当前 DSH 缺少压缩区间保护接口')
-  const region = beforeRegion && async function (start, end, agent, signal) {
-    await beforeRegion(agent, signal)
+  const original = engine.compactIfNeeded, originalRegion = engine.compactRegion, originalNow = engine.compactNow
+  if ((beforeRegion || retention) && typeof originalRegion !== 'function') throw new Error('当前 DSH 缺少压缩区间保护接口')
+  if (retention && (typeof originalNow !== 'function' || typeof engine.regionDependencies !== 'function')) throw new Error('当前 DSH 缺少空闲压缩接口')
+  // Which routed check (trigger, attempt) a region belongs to, per agent.
+  const checks = new WeakMap()
+  const region = (beforeRegion || retention) && async function (start, end, agent, signal) {
+    if (beforeRegion) await beforeRegion(agent, signal)
     signal?.throwIfAborted()
-    return originalRegion.call(this, start, end, agent, signal)
+    if (!retention) return originalRegion.call(this, start, end, agent, signal)
+    const check = checks.get(agent)
+    const planned = await retention.region({ start, end, agent, signal, trigger: check?.trigger, attempt: check?.attempts ?? 0 })
+    if (check) check.attempts += 1
+    try {
+      signal?.throwIfAborted()
+      return await originalRegion.call(this, start, planned?.end ?? end, agent, signal)
+    } finally { planned?.done?.() }
   }
   if (region) engine.compactRegion = region
+  const now = retention && async function (agent, signal, sourceCommandId) {
+    return retention.idle({ agent, signal, sourceCommandId, engine: this, native: () => originalNow.call(this, agent, signal, sourceCommandId) })
+  }
+  if (now) engine.compactNow = now
   async function routed(agent, trigger, signal) {
-    return handler(agent, trigger, signal, () => original.call(this, agent, trigger, signal), () => original.call(this, agent, 'context-overflow', signal))
+    const tracked = retention && agent !== null && typeof agent === 'object'
+    const previous = tracked ? checks.get(agent) : undefined
+    if (tracked) checks.set(agent, { trigger, attempts: 0 })
+    try {
+      return await handler(agent, trigger, signal, () => original.call(this, agent, trigger, signal), () => original.call(this, agent, 'context-overflow', signal))
+    } finally {
+      if (tracked) { if (previous) checks.set(agent, previous); else checks.delete(agent) }
+    }
   }
   engine.compactIfNeeded = routed
   let policies = installedPolicies.get(engine)
   if (!policies) installedPolicies.set(engine, policies = new Map())
   const token = Symbol('compaction-policy')
-  policies.set(token, { original, routed, originalRegion, region })
+  policies.set(token, { original, routed, originalRegion, region, originalNow, now })
   return policyDisposer(new WeakRef(engine), token)
 }
