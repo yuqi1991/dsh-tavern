@@ -7,7 +7,7 @@ import test from 'node:test'
 import { createPlayHarness, withHostPatch } from './locate-harness.mjs'
 import { compactIdleRegion } from '../../lib/domain/idle-compaction.js'
 import { planRetention, surfaceCutBalance } from '../../lib/domain/compaction-retention.js'
-import { projectFloorTexts, storyFloorTurns, uncompactedSurface } from '../../lib/domain/floor-projection.js'
+import { projectFloorTexts, storyFloorTurns, unfoldedSurface } from '../../lib/domain/floor-projection.js'
 import { createHistoryRecall, renderHistoryRecall } from '../../lib/domain/history-recall.js'
 
 const floorsOf = h => projectFloorTexts({ events: h.events, nodes: [...h.session.surface.nodes], floorTurns: storyFloorTurns(h.chat) })
@@ -70,7 +70,7 @@ test('压缩之后被折进摘要的楼层仍可按楼层号和关键词查回�
   await compact(h, 1)
   assert.deepEqual(floorsOf(h).map(floor => floor.turn), [1, 2, 3, 4, 5, 6])
   assert.equal(recall(h, { query: '银钥匙' }).found, true)
-  assert.ok(uncompactedSurface(h.events, [...h.session.surface.nodes]).length > h.session.surface.nodes.length)
+  assert.ok(unfoldedSurface(h.events, [...h.session.surface.nodes]).length > h.session.surface.nodes.length)
 }))
 
 test('回退掉的楼层不再返回，撤销回退后回来', () => withHostPatch(async () => {

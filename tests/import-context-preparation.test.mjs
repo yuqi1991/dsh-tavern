@@ -6,8 +6,11 @@ import { buildImportedConversation, appendImportedEvents } from '../tavern-plugi
 import { parseChatHistory } from '../tavern-plugin/lib/domain/chat-history-import.js'
 import { createStoryTimeline } from '../tavern-plugin/lib/domain/story-timeline.js'
 import { createHistoryRecall } from '../tavern-plugin/lib/domain/history-recall.js'
+import { projectFloorTexts, storyFloorTurns } from '../tavern-plugin/lib/domain/floor-projection.js'
 import { locateRollbackSurface } from '../tavern-plugin/lib/domain/rollback-surface.js'
 import { sessionEvents, appendSessionEvent } from '../tavern-plugin/lib/domain/session-events.js'
+// Recall reads floors from the Session log (Floor Projection); the Chat says which floors are committed.
+const floorsOf=h=>projectFloorTexts({events:sessionEvents(h.session),nodes:[...h.session.surface.nodes],floorTurns:storyFloorTurns(h.chat)})
 const estimateMessage = message => message.content.reduce((n,b)=>n+(b.text?.length||0),0)+8
 async function fixture() {
   const session=Session.create('context-test')
@@ -44,9 +47,9 @@ test('native Surface shrinks durably but history_recall still searches and reads
   await service.prepare(h.request)
   assert.deepEqual(h.chat.messages,before)
   const recall=createHistoryRecall()
-  const search=recall.recall({chat:h.chat,query:'Secret-0'})
+  const search=recall.recall({chat:h.chat,floors:floorsOf(h),query:'Secret-0'})
   assert.equal(search.found,true)
-  assert.match(JSON.stringify(recall.recall({chat:h.chat,turn:2,radius:0})),/Secret-0/)
+  assert.match(JSON.stringify(recall.recall({chat:h.chat,floors:floorsOf(h),turn:2,radius:0})),/Secret-0/)
   assert.doesNotMatch(JSON.stringify(h.session.deriveMessages()),/Secret-0 /)
   const restored=Session.create(h.session.id,sessionEvents(h.session),h.session.header)
   assert.deepEqual(restored.deriveMessages(),h.session.deriveMessages())
@@ -74,9 +77,9 @@ test('capacity exclusion stays recallable, but a native story rollback removes t
     return createStoryTimeline().apply({chat,intent:{kind:'turn.rollback',turn:checkpoint.turn}}).chat
   })
   const recall=createHistoryRecall()
-  assert.equal(recall.recall({chat:h.chat,query:'Secret-0'}).found,true,'capacity-excluded history still happened')
-  assert.equal(recall.recall({chat:h.chat,query:'RevokedOnlyQuartz'}).found,false,'rolled-back history was revoked')
-  assert.equal(recall.recall({chat:h.chat,turn:13,radius:0}).found,false)
+  assert.equal(recall.recall({chat:h.chat,floors:floorsOf(h),query:'Secret-0'}).found,true,'capacity-excluded history still happened')
+  assert.equal(recall.recall({chat:h.chat,floors:floorsOf(h),query:'RevokedOnlyQuartz'}).found,false,'rolled-back history was revoked')
+  assert.equal(recall.recall({chat:h.chat,floors:floorsOf(h),turn:13,radius:0}).found,false)
 })
 test('unknown model capacity and an oversized mandatory tail fail before touching the Surface',async()=>{
   for(const capacity of [undefined,200]){

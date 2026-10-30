@@ -203,20 +203,25 @@ export function compactedFloorTest(events, nodes) {
   return turn => !live.has(Number(turn)) && (foldedInputs.has(Number(turn)) || (!inputs.has(Number(turn)) && foldedBodies.has(Number(turn))))
 }
 
+/** A row that stands for the rows it replaced: a compaction checkpoint or another non-player row that
+ * replaced a region (the context preparation marker of an imported game). Body and input edits also
+ * replace, but they are player/model rows and their replacement is the current version. */
+const foldsRows = event => Array.isArray(event?.sourceEventSeqs) && (isCompactionCheckpoint(event) ||
+  (event.type === 'user/message' && event.surfaceOp?.op === 'replace' && !playerInput(event)))
+
 /**
- * The surface with every compaction checkpoint replaced, recursively, by the rows it folded
- * (docs/design/compaction-retention.md §6.1: compaction only changes the surface; the folded
- * events stay in the log). Order is surface order.
+ * The surface with every row that folded others (compaction checkpoint, import trim marker) replaced,
+ * recursively, by the rows it folded (docs/design/compaction-retention.md §6.1: such operations only
+ * change the surface; the folded events stay in the log). Order is surface order.
  */
-export function uncompactedSurface(events, nodes) {
+export function unfoldedSurface(events, nodes) {
   const bySeq = new Map(events.map(event => [event.seq, event]))
   const out = [], seen = new Set()
   const walk = seq => {
     if (seen.has(seq)) return
     seen.add(seq)
     const event = bySeq.get(seq)
-    const folded = isCompactionCheckpoint(event) && Array.isArray(event.sourceEventSeqs) ? event.sourceEventSeqs.flat(Infinity) : null
-    if (folded) folded.forEach(walk)
+    if (foldsRows(event)) event.sourceEventSeqs.flat(Infinity).forEach(walk)
     else out.push(seq)
   }
   nodes.forEach(walk)
@@ -228,35 +233,40 @@ const textOf = blocks => (Array.isArray(blocks) ? blocks : []).filter(block => b
 /**
  * What each committed floor says right now, read from the Session log: the player's input row and
  * the current variant's body row of the live surface, including floors folded into a compaction
- * summary. Rolled-back floors and unselected variants are not on the surface, so they are absent.
- * A floor with no body (generating or failed) is not committed and is skipped.
+ * summary or trimmed by an import's context preparation. Rolled-back floors and unselected variants
+ * are not on the surface, so they are absent. A floor with no body (generating or failed) is not
+ * committed and is skipped.
+ *
+ * A floor is numbered like the Chat numbers it: by the turn of the reply its input opened (the first
+ * reply after the original input). The input's own native turn is not used: an imported log writes the
+ * input before its turn/start.
  * @param input.floorTurns - chat-visible floor numbers; only these floors are returned.
  * @returns `[{ turn, input, body }]` oldest first; `input` is null for the opening.
  */
 export function projectFloorTexts({ events = [], nodes = [], floorTurns = [] }) {
-  const wanted = [...new Set(floorTurns.map(Number).filter(turn => Number.isSafeInteger(turn) && turn > 0))].sort((left, right) => left - right)
-  if (!wanted.length) return []
-  const expanded = uncompactedSurface(events, nodes)
+  const wanted = new Set(floorTurns.map(Number).filter(turn => Number.isSafeInteger(turn) && turn > 0))
+  if (!wanted.size) return []
   const bySeq = new Map(events.map(event => [event.seq, event]))
-  const live = liveFloors(events, expanded)
-  // The opening reply is the first model body before any player input.
-  let opening = null
-  for (const seq of expanded) {
-    const event = bySeq.get(seq)
-    if (playerInput(event)) break
-    if (modelBody(event)) { opening = event; break }
+  const nextReply = new Map()
+  for (let next = 0, index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    nextReply.set(event.seq, next)
+    if (event.type === 'assistant/message' && storyEventTurn(event) > 0) next = storyEventTurn(event)
   }
-  const floors = []
-  for (const turn of wanted) {
-    const floor = live.get(turn)
-    if (floor) {
-      const body = floor.bodySeq === null ? '' : textOf(bySeq.get(floor.bodySeq)?.data?.message?.content)
-      if (body.trim() !== '') floors.push({ turn, input: textOf(bySeq.get(floor.inputSeq)?.data?.content), body })
-    } else if (turn === 1 && opening) {
-      floors.push({ turn, input: null, body: textOf(opening.data.message.content) })
+  const floors = new Map()
+  let floor = null
+  for (const seq of unfoldedSurface(events, nodes)) {
+    const event = bySeq.get(seq)
+    if (playerInput(event)) {
+      floor = { turn: nextReply.get(originInput(bySeq, seq).seq) || 0, input: textOf(event.data?.content), body: '' }
+    } else if (modelBody(event)) {
+      // Before the first input this is the opening reply, which is floor 1 (or the turn it was written in).
+      if (!floor) floor = { turn: storyEventTurn(event) > 0 ? storyEventTurn(event) : 1, input: null, body: '' }
+      floor.body = textOf(event.data.message.content)
+      if (floor.turn > 0) floors.set(floor.turn, floor)
     }
   }
-  return floors
+  return [...floors.values()].filter(item => wanted.has(item.turn) && item.body.trim() !== '').sort((left, right) => left.turn - right.turn)
 }
 
 /** The highest native turn any selected surface row belongs to (0 when none). */
