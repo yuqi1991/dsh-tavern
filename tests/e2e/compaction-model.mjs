@@ -50,6 +50,8 @@ export async function* compactionStream(input) {
   const rerollTag = JSON.stringify(currentInput?.content || []).match(/E2E_REROLL_(\w+)/)?.[1]
   const reroll = rerollTag ? `（重写 ${rerollTag}）` : ''
   const done = new Set(input.messages.flatMap(message => message.content || []).filter(block => block.type === 'tool-result').map(block => block.toolCallId))
+  const recallMode = JSON.stringify(currentInput?.content || []).match(/E2E_RECALL_(SEARCH|TURN)/)?.[1]
+  const recalled = input.messages.some(message => message.toolCallId === `e2e-recall-${round}` || (message.content || []).some(block => block.type === 'tool-result' && block.toolCallId === `e2e-recall-${round}`))
   const blocks = []
   if (summary) blocks.push({ type: 'text', text: [...new Set(numbers)].map(n => `E2E_MEMORY_ROUND_${n}`).join(' ') + `。当前金币 ${gold}，人物站在柜台前。\n` + '剧情摘要保留人物关系和已完成事件。'.repeat(330) })
   else if (background) {
@@ -65,6 +67,11 @@ export async function* compactionStream(input) {
       if (tools.has('posture_submit') && !done.has(`compact-posture-${round}`)) blocks.push({ type: 'tool-call', id: `compact-posture-${round}`, name: 'posture_submit', arguments: JSON.stringify({ posture: '站在柜台前，收下奖励。' }) })
       if (!blocks.length) blocks.push({ type: 'text', text: `E2E_C_ROUND_${round} 结算完成。` + '后台核对资料。'.repeat(control.backgroundPadding || 0) })
     }
+  } else if (recallMode && tools.has('tavern_recall_history') && !recalled) {
+    // "E2E_RECALL_SEARCH" / "E2E_RECALL_TURN" in the player's input: the foreground model first looks the story up
+    // with the real tavern_recall_history tool (round 1's reply is the only one that says 十枚金币), then answers as usual.
+    blocks.push({ type: 'tool-call', id: `e2e-recall-${round}`, name: 'tavern_recall_history',
+      arguments: JSON.stringify(recallMode === 'SEARCH' ? { query: '十枚金币' } : { turn: 2, radius: 0 }) })
   } else blocks.push({ type: 'text', text: (round === 1 ? '你获得了十枚金币。' : `压缩验收第 ${round} 轮，金币 ${gold}。`) + reroll + `\nE2E_RAW_ROUND_${round}\n` + '旅人在酒馆记录沿途的山川和见闻。'.repeat(control.foregroundPadding || 0) + '\n\n<StatusPlaceHolderImpl/>' })
   for (const [index, block] of blocks.entries()) {
     yield { type: 'block-start', index, blockType: block.type }

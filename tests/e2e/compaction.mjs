@@ -3,6 +3,13 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
+// DSH 0.2.1 reserves 65536 output tokens for a summary request by default, so no 32K window fits one
+// (docs/design/compaction-retention.md 7.1), so scenarios that run a real summary use a 256K window; the fixed
+// model's 4-characters-per-token pricing is unchanged and the fill-the-window padding scales with the window.
+// legacy never summarizes and keeps 32K.
+const overflowWindow = 131072
+export const scenarioWindow = scenario => scenario === 'legacy' ? 32768 : 262144
+
 export async function compactionChecks({ page, step, savedChat, output, report, restartServer, installLegacyFixture, scenario }) {
   // Browser template bookkeeping may finish asynchronously; compare durable
   // business facts, not renderer cache metadata.
@@ -15,11 +22,12 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
     while (Date.now() < end) { const value = await read(); if (check(value)) return value; await delay(100) }
     throw Error('Timed out: ' + label)
   }
-  const control = values => writeFile(join(output, 'model-control.json'), JSON.stringify({ foregroundPadding: 650, backgroundPadding: 0, ...values }))
-  async function play() {
+  // Every rewrite keeps the scenario's window (a missing window means 32K to the fixed model).
+  const control = values => writeFile(join(output, 'model-control.json'), JSON.stringify({ foregroundPadding: 650, backgroundPadding: 0, window: scenarioWindow(scenario), ...values }))
+  async function play(extra = '') {
     round++
     const composer = page.getByRole('textbox', { name: /发消息|Message/ })
-    await composer.fill(`E2E_C_ROUND_${round} 继续领取任务奖励。`)
+    await composer.fill(`E2E_C_ROUND_${round} 继续领取任务奖励。${extra}`)
     await composer.press('Enter')
     await page.getByText(`压缩验收第 ${round} 轮，金币 ${round * 10}。`, { exact: false }).filter({ visible: true }).first().waitFor()
     await page.frameLocator('.dsh-tavern-status-runtime iframe').locator('#e2e-gold').filter({ hasText: new RegExp(`^金币：${round * 10}$`) }).waitFor()
@@ -170,6 +178,7 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
       assert.ok(next.rawRounds.includes(3) && next.rawRounds.includes(4), '保留的第 3–4 轮仍是原文')
       const blocks = checkpointTexts(next)
       assert.ok(blocks[1].startsWith('【剧情摘要说明】'), '摘要说明在最前')
+      assert.match(blocks[1], /用 tavern_recall_history 按关键词或轮次查原文/, '前台确有查原文工具，说明指向它')
       volume1 = blocks[2]
       assert.ok(volume1.startsWith(report.retainFirst.header + '\n'), '第 1 卷首行由程序写入')
       await play(); await play()
@@ -217,9 +226,10 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
       report.legacyRecovery = { summaryPresent: next.summaryPresent, archivedTextInRequest: false }
     })
   } else if (scenario === 'overflow') {
-    await step('在较大窗口真实游玩三轮，再切换到 32K 窗口', async () => {
+    await step('在较大窗口真实游玩三轮，再切换到更小的 128K 窗口', async () => {
       await play(); await play()
-      await control({ window: 32768 })
+      // 128K = 65536 summary output reserve (DSH 0.2.1) + room for one segment; the three rounds hold ~100K tokens.
+      await control({ window: overflowWindow })
     })
     await step('从游玩菜单恢复超窗口历史，核对分段预算及原始剧情', async () => {
       const before = await savedChat(), start = (await requests()).length
@@ -229,7 +239,7 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
       assert.deepEqual(history(await savedChat()), history(before))
       const chunks = (await requests()).slice(start).filter(row => row.purpose === 'compaction' && row.side === 'foreground')
       assert.ok(chunks.length > 1, '必须分段调用，不能只更改成功提示')
-      assert.ok(chunks.every(row => row.inputTokens + row.outputReserve <= 32768))
+      assert.ok(chunks.every(row => row.inputTokens + row.outputReserve <= overflowWindow))
       const nextStart = (await requests()).length
       await play()
       const resumed = (await requests()).slice(nextStart).find(row => row.purpose === 'generation' && row.side === 'foreground')
@@ -239,7 +249,11 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
     })
   } else {
     await step(`${scenario} 自动压缩，确认前后台仍能完成当前轮`, async () => {
-      await control({ foregroundPadding: scenario === 'background' ? 0 : 1700, backgroundPadding: ['foreground', 'rounds'].includes(scenario) ? 0 : 4000 })
+      // The fill-the-window scenarios scale the padding with the window (the fixtures were written for 32K). The
+      // background request has a fixed ~10K-token base, so its padding is chosen so the third reasoning step is the
+      // one that crosses the 256K boundary, as the third step crossed 32K before (two steps must still fit).
+      const scale = scenarioWindow(scenario) / 32768
+      await control({ foregroundPadding: scenario === 'background' ? 0 : scenario === 'both' ? 24000 : 1700 * scale, backgroundPadding: ['foreground', 'rounds'].includes(scenario) ? 0 : 56000 })
       const start = (await requests()).length
       for (let n = 0; n < 6; n++) {
         await play()
@@ -292,8 +306,46 @@ export async function compactionChecks({ page, step, savedChat, output, report, 
     if (scenario === 'retain' && !bound) assert.match((await savedChat()).timeline.participants.background.sessionId, /^background-/, '回退后的下一轮新建后台会话')
     else assert.equal((await savedChat()).timeline.participants.background.sessionId, bound, '重启后继续使用原后台绑定')
     await page.screenshot({ path: join(output, 'compaction-after-reload.png'), fullPage: true })
-    report.compaction = { scenario, window: 32768, rounds: round, foregroundSessionId: sessionId, backgroundSessionId: after.timeline.participants.background.sessionId }
+    report.compaction = { scenario, window: scenarioWindow(scenario), rounds: round, foregroundSessionId: sessionId, backgroundSessionId: after.timeline.participants.background.sessionId }
   })
+  if (scenario === 'retain') {
+    // The foreground model calls the real tavern_recall_history tool (compaction-model.mjs, on E2E_RECALL_*).
+    // By now round 1 (floor 2) is folded into volume 1, so its words are only in the Session log.
+    const flat = messages => messages.flatMap(message => message.content || []).flatMap(block => block.type === 'text' ? [block.text] : block.type === 'tool-result' ? (block.content || []).map(item => item.text || '') : []).join('\n')
+    const isRecallResult = message => message.toolCallId === `e2e-recall-${round}` || (message.content || []).some(block => block.type === 'tool-result' && block.toolCallId === `e2e-recall-${round}`)
+    async function recalled(mode) {
+      const before = await savedChat(), start = (await requests()).length
+      await play(' E2E_RECALL_' + mode)
+      const rows = (await requests()).slice(start).filter(row => row.purpose === 'generation' && row.side === 'foreground')
+      assert.equal(rows.length, 2, '先调用查原文工具，拿到结果后再写正文：前台两次请求')
+      const resultMessages = rows[1].messages.filter(isRecallResult)
+      assert.equal(resultMessages.length, 1, '第二次请求带有工具结果')
+      const text = flat(resultMessages)
+      assert.ok(text.startsWith('【历史回忆资料】'), '结果以禁止重复演绎的提醒开头')
+      assert.ok(text.length < 14000, '返回量有上限：' + text.length)
+      // Earlier recall results stay on the surface as tool rows; only they may still hold round 1's words.
+      const rest = JSON.stringify(rows[1].messages.filter(message => message.role !== 'tool' && !(message.content || []).some(block => block.type === 'tool-call')))
+      assert.ok(!/E2E_RAW_ROUND_1\b/.test(rest), '第 1 轮已压缩，请求里除了工具结果没有它的原文')
+      assert.ok(rows[1].summaryPresent)
+      const after = await savedChat()
+      assert.deepEqual(history(after).slice(0, history(before).length), history(before), '查原文不改历史正文和变量')
+      return { text, after }
+    }
+    await step('查原文：按关键词查回已压缩楼层的原文（只读，不写冷却）', async () => {
+      const { text, after } = await recalled('SEARCH')
+      assert.match(text, /\[第 2 轮\]/); assert.match(text, /十枚金币/); assert.match(text, /E2E_RAW_ROUND_1/)
+      assert.match(text, /关键词分布：\n「十枚金币」出现在第 2 轮（共 1 轮）/)
+      assert.ok(!(after.historyRecallCooldowns || []).length, '搜索不登记冷却')
+      report.recallSearch = { chars: text.length }
+    })
+    await step('查原文：按楼层号读取已压缩楼层的玩家输入与正文', async () => {
+      const { text, after } = await recalled('TURN')
+      assert.match(text, /【第 2 轮】\n\[玩家\]\n/); assert.match(text, /\[正文\]\n你获得了十枚金币。/); assert.match(text, /E2E_RAW_ROUND_1/)
+      assert.deepEqual((after.historyRecallCooldowns || []).map(item => item.turn), [2], '完整读取登记 10 轮冷却')
+      assert.equal(await page.getByText(/没有找到相关历史正文|检索失败/).filter({ visible: true }).count(), 0)
+      report.recallTurn = { chars: text.length }
+    })
+  }
   const all = await requests()
   assert.ok(all.every(row => row.outcome !== 'overflow'), '正常验收不得发送超窗口请求')
   report.requestSummary = all.map(({ messages, ...row }) => row)

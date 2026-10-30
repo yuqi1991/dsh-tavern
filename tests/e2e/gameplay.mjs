@@ -11,7 +11,7 @@ import { cardUpdateChecks } from './card-update.mjs'
 import { sidebarUpgrade } from './sidebar-upgrade.mjs'
 import { compactedEditedLegacySession } from '../fixtures/compacted-legacy-session.mjs'
 import { encodeMigratedSessionLog, parseSessionLog } from '../../tavern-plugin/lib/domain/legacy-session-migration.js'
-import { compactionChecks } from './compaction.mjs'
+import { compactionChecks, scenarioWindow } from './compaction.mjs'
 import assert from 'node:assert/strict'
 import { presetSwitch } from './preset-switch.mjs'
 import { playControls } from './play-controls.mjs'
@@ -106,8 +106,8 @@ try {
         // Existing scenarios keep their meaning: 0 = the host's own range (old behavior); rounds exercises
         // in-turn retention of one round; retain is the retention/volume scenario.
         retainRounds: compactionScenario === 'retain' ? 2 : compactionScenario === 'rounds' ? 1 : 0 } }))
-      await writeFile(join(output, 'model-control.json'), JSON.stringify({ foregroundPadding: compactionScenario === 'overflow' ? 4000 : 650, backgroundPadding: 0, // retain: DSH 0.2.1 reserves 65536 output tokens for a summary by default, which no 32K window fits.
-      window: ['overflow', 'retain'].includes(compactionScenario) ? 262144 : 32768 }))
+      await writeFile(join(output, 'model-control.json'), JSON.stringify({ foregroundPadding: compactionScenario === 'overflow' ? 8000 : 650, backgroundPadding: 0, // retain: DSH 0.2.1 reserves 65536 output tokens for a summary by default, which no 32K window fits.
+      window: scenarioWindow(compactionScenario) }))
     }
     if (displayScenario) {
       await mkdir(data,{recursive:true})

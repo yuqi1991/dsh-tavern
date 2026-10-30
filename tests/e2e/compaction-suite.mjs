@@ -29,7 +29,7 @@ async function worker() {
   }
 }
 await Promise.all([worker(), worker()])
-const report = { status: results.every(result => result.code === 0) ? 'passed' : 'failed', ms: Date.now() - started, window: 32768, results }
+const report = { status: results.every(result => result.code === 0) ? 'passed' : 'failed', ms: Date.now() - started, window: 'per scenario (compaction.mjs scenarioWindow)', results }
 await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2))
 console.log(`Compaction suite ${report.status}: ${report.ms} ms\nArtifacts: ${output}`)
 if (report.status !== 'passed') process.exitCode = 1
