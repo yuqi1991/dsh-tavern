@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 import { createRegenerationRecovery } from './regeneration-recovery.js'
 import { isDeepStrictEqual } from 'node:util'
 import { rollbackAvailability, clearFailedTurnSurface, locateFloorBody, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
+import { regenerationFloorInput } from './story-floors.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
 import { restoreVariantState, saveVariantState, withoutVariantSettlement } from './variant-state.js'
 import { diagnosticIdentity, recordTargetDiagnostic, regenerationTargetDiagnostic } from './regeneration-diagnostics.js'
@@ -293,7 +294,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       const next = storyTimeline.apply({ chat: current, intent: rollbackIntent }).chat
       next.regenRecovery = { id: operationId, beforeRevision: Number(current._storageRevision || 0),
         ...(Number(current._storageRevision || 0) ? {} : { before: structuredClone(current) }),
-        sessionId: chat.sessionId, eventStart }
+        sessionId: chat.sessionId, eventStart,
+        // The rolled-back floor stays on screen (story view) with its input.
+        floor: { turn: Number(oldTurn), input: regenerationFloorInput(msgs0[oldAssistantIndex - 1], editedInput) } }
       // The pre-planned branch+checkout owns the native surface from here
       // on; a failed native commit keeps this durable intent for recovery.
       next.conversationHistoryIntent = { sessionId: session.id, transaction: checkoutIntent }

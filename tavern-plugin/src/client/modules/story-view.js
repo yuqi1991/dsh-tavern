@@ -278,6 +278,9 @@ function TavernStoryView(props) {
 		storyFloorStore.loadOlder(sessionId);
 	}
 	if (notStory) return h("section", { className: "dsh-tavern-story", ref: root, "data-session-id": sessionId }, h("p", { className: "dsh-tavern-story-hint" }, "这个会话不是游玩会话，请使用对话页。"));
+	// While a floor is regenerated the server keeps it as an open floor holding
+	// its (possibly revised) input; every other floor stays as it was.
+	const regenFloor = story.floors.find(function (floor) { return floor.open && floor.regenerating === true; }) || null;
 	const floors = story.floors.filter(function (floor) { return !floor.open; });
 	const latestFloor = floors[floors.length - 1];
 	const viewState = view || {};
@@ -297,7 +300,8 @@ function TavernStoryView(props) {
 		story.error ? h("p", { className: "dsh-tavern-story-hint", role: "alert" }, "剧情加载失败：" + story.error, " ", h("button", { type: "button", className: "dsh-tavern-btn", onClick: function () { storyFloorStore.refresh(sessionId); } }, "重试")) : null,
 		transitioning ? h("div", { className: "dsh-tavern-session-switching", role: "status" }, "正在完成游戏初始化…") : null,
 		floors.map(function (floor) {
-			const isLatest = floor === latestFloor;
+			const isLatest = floor === latestFloor && !regenFloor;
+			// Floors not yet refreshed (the first moments of a regeneration) still end with the old body.
 			const replaced = isLatest && regenerating;
 			return h(TavernStoryFloor, {
 				key: floor.turn, floor: floor, view: view, latest: isLatest, latestTurn: latestFloor.turn, sessionId: sessionId,
@@ -305,6 +309,11 @@ function TavernStoryView(props) {
 				liveBody: replaced && liveBody && liveBody.length ? liveBody : null, streaming: replaced && running
 			}, replaced ? generating : null);
 		}),
+		regenFloor ? h(TavernStoryFloor, {
+			key: regenFloor.turn, floor: regenFloor, view: view, latest: true, latestTurn: regenFloor.turn, sessionId: sessionId,
+			executeSlash: props.executeSlash, uiConversation: props.uiConversation, hostProps: props,
+			liveBody: liveBody && liveBody.length ? liveBody : null, streaming: running
+		}, generating) : null,
 		failed || pendingInput || (!regenerating && (liveBody && liveBody.length || generating)) ? h("article", { className: "dsh-tavern-story-floor", "data-story-turn": "live" },
 			pendingInput ? h(TavernStoryInput, { input: pendingInput, turn: 0, sessionId: sessionId, uiConversation: props.uiConversation }) : null,
 			!regenerating && liveBody && liveBody.length ? h("div", { className: "dsh-tavern-assistant", "data-streaming": running || undefined }, liveBody) : null,
