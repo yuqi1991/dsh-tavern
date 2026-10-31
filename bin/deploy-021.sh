@@ -40,7 +40,7 @@ stage() {
   echo "2/6 发布树：git archive $TAG（只含发布需要的路径）"
   git -C "$FORK" archive "$TAG" -- bin config presets tavern-plugin patches package.json pnpm-lock.yaml pnpm-workspace.yaml \
     cordis.patch.yml plugin.patch.yml install.sh install.ps1 LICENSE dsh-tavern-runtime.json | tar -x -C "$S/apps/dsh-tavern"
-  find "$S/apps/dsh-tavern" \( -name tests -o -name upstream \) -type d -prune -exec rm -rf {} + 2>/dev/null || true
+  find "$S/apps/dsh-tavern" -name tests -type d -prune -exec rm -rf {} + 2>/dev/null || true
   find "$S/apps/dsh-tavern" -name '*.map' -type f -delete
   printf '{"host":"cli","dshHome":"%s"}\n' "$PROD" > "$S/apps/dsh-tavern/.dsh-tavern-local.json"
   printf '{"commit":"%s","installedAt":"%s"}\n' "$(git -C "$FORK" rev-parse "$TAG^{commit}")" "$(date -u +%FT%TZ)" > "$S/apps/dsh-tavern/.dsh-tavern-release.json"
@@ -93,7 +93,7 @@ verify_tree() {
     cordis.patch.yml plugin.patch.yml install.sh install.ps1 LICENSE dsh-tavern-runtime.json | tar -x -C "$tmp"
   while IFS= read -r -d '' f; do
     f="${f#./}"
-    case "$f" in */tests/*|*/upstream/*|*.map) continue;; esac
+    case "$f" in */tests/*|*.map) continue;; esac
     if ! cmp -s "$tmp/$f" "$root/apps/dsh-tavern/$f"; then echo "不一致：$f" >&2; bad=1; fi
   done < <(cd "$tmp" && find . -type f -print0)
   rm -rf "$tmp"
