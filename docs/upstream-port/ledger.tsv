@@ -1,0 +1,180 @@
+# 上游提交处理清单。列：上游提交（短）｜状态 ported/partial/skipped/n-a/unknown｜我们对应提交｜备注
+# 范围：5ae0c1f5..upstream/main 的非合并提交；不在本表的提交即“尚未处理”（见 bin/upstream-ledger.mjs pending）。
+# 来源：我们提交里的 cherry-pick -x 记录与说明、docs/upstream-port/PLAN.md 的分句。PLAN.md 来源为关键词启发式（“已取/完成”→ported，“未取/不取/暂缓”→skipped，二者并存→partial，
+#   都没有→unknown），备注列保留原句以便抽查；批 0 的整体布局搬家、`-s ours` 合并本身没有逐提交记录，因此不在表内。
+# 用 `bin/upstream-ledger.mjs mark` 修正或追加。
+upstream	status	ours	note
+00e37c7d	ported		批3 MVU 第二段：tavern_search_card / replace_card_text / validate_card 按行为手工移植（PLAN.md）
+0100a6a8	ported		批5 续（PLAN.md「已取」；我们有同标题提交）
+021fcbbd	ported		批1 世界书小包（PLAN.md 记其完成）
+0502d381	partial	5df2dbca	PLAN.md 写未取；之后我们有“原生 #send_textarea 选项填入 DSH 输入框”（5df2dbca、2cf8ba25）。逐提交覆盖未核对
+0738100f	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+0879275c	skipped		新游戏按卡名命名，DSH 0.2 标题行为（PLAN.md 评估后未取）；0.2.1 下是否仍需要未核对
+08f3ec10	ported		批3 MVU 第二段：tavern_search_card / replace_card_text / validate_card 按行为手工移植（PLAN.md）
+0918b79e	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+09701afe	skipped		模板同步改写压缩检查点：我们的模板同步只按精确文字匹配，不适用（PLAN.md）
+0b5ebe4d	ported		批5 续（PLAN.md「已取」；我们有同标题提交）
+0b8206e8	partial		PLAN.md 当时排在保留 N 轮之后；后由自有设计实现分卷摘要（我们的 00c8ae1f），非逐提交移植
+0bbf7fe2	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+0c8fd3c6	ported		批1 手动台账（PLAN.md）
+0d3cc56f	skipped		批4 周边项，仅评估未动手（PLAN.md）
+0d7ff81c	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+0e437272	ported		PLAN.md：- Guide（2a5aea0d…228d7047、0e437272 的 MVU 注入）：按最终状态移植 guide-library / conversation-guides /
+0eb28243	partial		PLAN.md 当时排在保留 N 轮之后；后由自有设计实现分卷摘要（我们的 00c8ae1f），非逐提交移植
+1133ecbd	skipped		历史正文以工具参数回放：上游前提是契约声明 submit_story 工具，我们没有（PLAN.md 批4 评估）；我们另做了 tavern_recall_history
+142b49c4	partial	6db68864	PLAN.md 写暂缓；之后我们有“顶栏快捷入口与世界书快捷面板”（6db68864、cddaf6dc）。逐提交覆盖未核对
+17e9e8b8	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+1867958a	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+1a07bf9c	ported		批5 小修复（PLAN.md「已取」）
+1d413050	ported		批1 剧本进度（PLAN.md；测试按新界面重写）
+1d734482	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+1de6f3f7	ported		批5 小修复（PLAN.md「已取」）
+21a2087d	ported		批5 重新生成「按意见改写」（手工，PLAN.md）
+2205a431	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+228d7047	ported		PLAN.md：- Guide（2a5aea0d…228d7047、0e437272 的 MVU 注入）：按最终状态移植 guide-library / conversation-guides /
+2530d7ae	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+25689e27	ported	bd0c5d1c	提交说明提到：port(适配): 25689e27 inspect provider 表与旧默认值命名空间
+2a5aea0d	ported		PLAN.md：- Guide（2a5aea0d…228d7047、0e437272 的 MVU 注入）：按最终状态移植 guide-library / conversation-guides /
+2b337649	partial	6db68864	PLAN.md 写暂缓；之后我们有“顶栏快捷入口与世界书快捷面板”（6db68864、cddaf6dc）。逐提交覆盖未核对
+2bba891a	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+30c12746	ported		批4 request-lineage（手工，PLAN.md）
+30e49078	partial		ST 聊天记录批量导入已取，卡片列表入口/按卡名自动匹配未取（PLAN.md 批5）
+3108bd9e	ported		批3 MVU 第二段：tavern_search_card / replace_card_text / validate_card 按行为手工移植（PLAN.md）
+31c6c361	partial		只取 F2/F4（比对缓存序列化、主题读取节流）；F1（只内联最近 48 楼）未取（PLAN.md 批2）
+3256ffca	skipped		世界书：依赖 adapter 合并 / 按需读楼层（PLAN.md）
+32b95c28	partial		批5 已取，插件任务测试不适用（PLAN.md）
+3755e293	ported		PLAN.md：- **批 1 · 世界书小包 完成**：全局选择（93315f46）、搜索与新旧排序（e5799d01）、条目懒挂载（3755e293）、召回说明（f78a2dd1）、
+377f70cf	partial		PLAN.md 当时只评估；后由自有设计实现“保留最近 N 轮”（我们的 608c2c4f、190370ef、4d1003e8），非逐提交移植
+38689b55	ported		批5 小修复（PLAN.md「已取」）
+38e2bc3e	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+3ba39f0b	ported		批2 卡片 iframe 性能（手工移植，PLAN.md）
+431da10c	ported		PLAN.md：8d74ba4d（官方 MVU 固定产物整目录取上游终态，带入 431da10c 的无语义改动，产物字节数同步）
+439a00ac	ported		批1 剧本进度（PLAN.md；测试按新界面重写）
+46b62981	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+49b0f084	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+4a8d572e	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+4c2ad45f	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+5182bc5a	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+5509757f	skipped		结算项重构 / 状态面板仪表盘，按计划暂缓（PLAN.md）
+57104435	partial		PLAN.md 当时排在保留 N 轮之后；后由自有设计实现分卷摘要（我们的 00c8ae1f），非逐提交移植
+5a433958	ported		批1 剧本进度（PLAN.md；测试按新界面重写）
+5a8471f3	ported		PLAN.md：- 变量回灌前台（974f53a8、db4bc409、5a8471f3、f3e0dbce）手工移植：上游 `hooks/request.js` 在我们这里不存在，钩子并入 inde
+5d060841	partial	6db68864	PLAN.md 写暂缓；之后我们有“顶栏快捷入口与世界书快捷面板”（6db68864、cddaf6dc）。逐提交覆盖未核对
+5deb1ef3	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+5e339890	ported	4d5b3a05	提交说明提到：port(适配): 5e339890 0.2 宿主下按主视图认出当前对话，切换对话会打开酒馆状态
+5e578817	ported		批5 小修复（PLAN.md「已取」）
+6108567a	ported	453feae6	同标题：feat(转 MVU): 新增 tavern_mvu_overview 与 tavern_apply_mvu，模型做设计、程序做装配
+62bf7524	ported	05a58c07	提交说明提到：port(适配): 62bf7524 0.2.0 会话 API 兼容垫层
+63ae6e6c	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+6561686f	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+68dff3dd	partial		PLAN.md 当时只评估；后由自有设计实现“保留最近 N 轮”（我们的 608c2c4f、190370ef、4d1003e8），非逐提交移植
+6f6cb587	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+70c0c51e	skipped		人物设计档案链，被依赖阻塞（PLAN.md）
+72167b31	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+73a595a5	ported	86e29855	提交说明提到：port(适配): 73a595a5 打开旧存档前补拉会话列表基线
+74e035d0	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+7859c027	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+7888c182	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+79445692	ported		批4 压缩稳健性（PLAN.md）
+794e66e2	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+7a0c0278	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+7b5c2d28	partial	00c8ae1f	PLAN.md 写“与保留 N 轮一起做”；我们的 00c8ae1f 有“合并摘要请求钩子”，是否等价未逐行核对
+7bebc129	ported		批5 小修复（PLAN.md「已取」）
+7dcba259	ported	5454613f	提交说明提到：port(适配): 7dcba259 能力调用记录保存失败不再弹错误，改为控制台警告并带上原因
+83a4ff6b	skipped		人物设计档案链，被依赖阻塞（PLAN.md）
+851fc159	skipped		批4 周边项，仅评估未动手（PLAN.md）
+852a2191	ported		批5 小修复（PLAN.md「已取」）
+8561612c	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+86b7758c	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+879b77f2	partial		仅取聊天导入部分（手机选择器不按扩展名过滤，PLAN.md 批5）
+87b94a5b	partial		PLAN.md 当时只评估；后由自有设计实现“保留最近 N 轮”（我们的 608c2c4f、190370ef、4d1003e8），非逐提交移植
+87c4b25a	skipped		人物设计档案链，被依赖阻塞（PLAN.md）
+8bb7fc3a	skipped		世界书：依赖 adapter 合并 / 按需读楼层（PLAN.md）
+8bf81b12	partial	05212591	PLAN.md 写未取；之后我们有“预设合并为一个预设标签页”（05212591）。逐提交覆盖未核对
+8d74ba4d	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+8d84a002	skipped		依赖我们没有的模型代理/runtime-preset-front（PLAN.md）
+8d91cd1d	n-a		不在 upstream/main 上，与转换无关（PLAN.md 批3 第三段）
+8f63550e	ported	2340056c	提交说明提到：port(适配): 8f63550e 子智能体列表接口按 DSH 0.2 的行结构隐藏已退休的后台 Agent
+9089018e	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+93315f46	ported		PLAN.md：- **批 1 · 世界书小包 完成**：全局选择（93315f46）、搜索与新旧排序（e5799d01）、条目懒挂载（3755e293）、召回说明（f78a2dd1）、
+95949fc0	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+969f001e	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+970d90e7	ported	a57419c8	同标题：perf(frame): measure content height in one top-down pass
+974f53a8	ported		PLAN.md：- 变量回灌前台（974f53a8、db4bc409、5a8471f3、f3e0dbce）手工移植：上游 `hooks/request.js` 在我们这里不存在，钩子并入 inde
+9767cd00	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+97703419	ported	e739593c	提交说明提到：port(后台): 0.2 标题栏按父会话的 subagent/catalog 列出后台 Agent——新建时登记、打开游戏时补登 (97703419 d4e2
+9dedc0ec	ported		批0 采用上游客户端拆分布局（PLAN.md）
+9e11fe8a	ported	b0ef9596	提交说明提到：perf(后台): 取上游 9e11fe8a——共享后台会话各任务使用同一 system 与工具列表（0.2.1 下工具注销真的生效，列表会随任务抖动、破坏前缀
+9ef26981	ported		批5 重新生成「按意见改写」（手工，PLAN.md）
+a087be28	skipped		删除“卡片界面跟随 DSH 字号缩放”，功能删除，等用户决定（PLAN.md）
+a0cf6179	skipped		人物设计档案链，被依赖阻塞（PLAN.md）
+a15ec319	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+a3b5943a	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+a51ad3b0	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+a72857b5	ported		批1 候选面板（PLAN.md「a72857b5 等 4 个」，其余 3 个哈希 PLAN 未写出）
+a9c07228	ported		批5 小修复（PLAN.md「已取」）
+aa42da34	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+abe0816a	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+b34dd02d	skipped		结算项重构 / 状态面板仪表盘，按计划暂缓（PLAN.md）
+b3569d55	n-a		不需要：我们的回退把插件行一律当上下文（PLAN.md）
+b3752075	ported		PLAN.md：6108567a + b3752075（`tavern_mvu_overview`、`tavern_apply_mvu`、`mvu-card-apply.js`，取上游终态手工放进
+b5d04832	ported		批4 压缩稳健性（PLAN.md）
+b754116b	ported		批2 卡片 iframe 性能（手工移植，PLAN.md）
+b8ea82f6	unknown		PLAN.md 提到处语境不明（不取 08cdb7df 一句中），未判定
+be1917ee	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+be8a1a82	ported		批5 续（PLAN.md「已取」；我们有同标题提交）
+c11ff84d	ported		批5 小修复（PLAN.md「已取」）
+c1fa396b	ported		批5 小修复（PLAN.md「已取」）
+c5d85140	ported		内容等同（推断）：触及的 4 个文件现与 upstream/main 逐字节相同
+c69d74f0	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+c6a927d8	ported		PLAN.md：- 已取：ccceeaf0 + c6a927d8（`tavern_card_draft.begin` 的 `inPlace`、`mvu-self-source.js`，原地 MVU
+c7460255	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+c80666c9	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+c901170e	partial		ST 聊天记录批量导入已取，卡片列表入口/按卡名自动匹配未取（PLAN.md 批5）
+c9df8764	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+ccceeaf0	ported	6580f49a	cherry-pick -x：feat(MVU): 原地 MVU——tavern_card_draft.begin 新增 inPlace，直接在原卡上启用 MVU，不再生成副本
+cce1e238	skipped		旧档迁移，不取（PLAN.md）
+ce30412f	partial	22fc7518	PLAN.md 写未取；之后我们有“本局设置合为 4 个分区”（22fc7518）。逐提交覆盖未核对
+cf0d795e	ported		批4 request-lineage（手工，PLAN.md）
+d1806cde	partial	5df2dbca	PLAN.md 写未取；之后我们有“原生 #send_textarea 选项填入 DSH 输入框”（5df2dbca、2cf8ba25）。逐提交覆盖未核对
+d1985cf2	ported		批1 手动台账（PLAN.md）
+d1cce999	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+d219c680	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+d27b5605	ported	2f29c3ef	提交说明提到：port(样式): d27b5605 主按钮在 DSH 0.2.1 上黑底黑字，改用 label-primary-foreground
+d30bed84	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+d4e26cd3	ported	e739593c	提交说明提到：port(后台): 0.2 标题栏按父会话的 subagent/catalog 列出后台 Agent——新建时登记、打开游戏时补登 (97703419 d4e2
+d54395d9	partial		PLAN.md 当时排在保留 N 轮之后；后由自有设计实现分卷摘要（我们的 00c8ae1f），非逐提交移植
+d7ed9577	ported		批5 重新生成「按意见改写」（手工，PLAN.md）
+d8806e18	skipped		批4 周边项，仅评估未动手（PLAN.md）
+daec5fae	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+db1ed45a	ported		批4 压缩稳健性（PLAN.md）
+db4bc409	ported		PLAN.md：- 变量回灌前台（974f53a8、db4bc409、5a8471f3、f3e0dbce）手工移植：上游 `hooks/request.js` 在我们这里不存在，钩子并入 inde
+dbf59ef6	skipped		上游删了“查看后台 Agent”按钮，我们保留（PLAN.md）
+ddce9397	ported		批1 世界书小包（PLAN.md 记其完成）
+de1a6241	ported		批3 MVU 第一段（PLAN.md「已取」；8d74ba4d 取上游终态）
+e306572f	ported		内容等同（推断）：触及的 3 个文件现与 upstream/main 逐字节相同
+e52545bd	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+e5799d01	ported		PLAN.md：- **批 1 · 世界书小包 完成**：全局选择（93315f46）、搜索与新旧排序（e5799d01）、条目懒挂载（3755e293）、召回说明（f78a2dd1）、
+e6698da8	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+e6fcb341	ported		批1 手动台账（PLAN.md）
+e8145dd0	partial		PLAN.md 当时排在保留 N 轮之后；后由自有设计实现分卷摘要（我们的 00c8ae1f），非逐提交移植
+e9769553	ported	6c54e8e4	提交说明提到：port(适配): e9769553 新建会话就绪判据
+ec80d7fa	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+ed406b1b	partial	05212591	PLAN.md 写未取；之后我们有“预设合并为一个预设标签页”（05212591）。逐提交覆盖未核对
+ee728107	partial		批3：取了“新增”的一半，删草稿/转换/指纹体系那一半有意没做（PLAN.md）
+f1c42c7b	ported	e4646489	cherry-pick -x：port(适配): f1c42c7b agentPresets 注入移除、sessionSkillCatalog 说明
+f274e141	skipped		删除“卡片界面跟随 DSH 字号缩放”，功能删除，等用户决定（PLAN.md）
+f329bb87	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+f3945537	skipped		批4 周边项，仅评估未动手（PLAN.md）
+f3e0dbce	ported		PLAN.md：- 变量回灌前台（974f53a8、db4bc409、5a8471f3、f3e0dbce）手工移植：上游 `hooks/request.js` 在我们这里不存在，钩子并入 inde
+f4c198d9	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+f78a2dd1	ported		PLAN.md：- **批 1 · 世界书小包 完成**：全局选择（93315f46）、搜索与新旧排序（e5799d01）、条目懒挂载（3755e293）、召回说明（f78a2dd1）、
+f7d4de98	partial	6db68864	PLAN.md 写“未做”；之后我们合并了手机布局链（60a2fd83、42f39bfd、6db68864、dfb85467、b7f8ee08 等）。逐提交覆盖未核对
+f7ef2b4a	skipped		依赖我们没有的模型代理/runtime-preset-front（PLAN.md）
+f8222828	skipped		旧档迁移，不取（PLAN.md）
+fc2f341b	ported	b1a46e44	提交说明提到：port(后台): 后台会话退休后通知页面重拉会话列表，顶栏子代理计数立即去掉它 (fc2f341b 服务端部分)
+fc6d35b3	ported	d704289a	提交说明提到：port(适配): fc6d35b3 0.2.0 下恢复卡片脚本运行权
+fdffd351	ported	9948bd92	提交说明提到：port(适配): fdffd351-fix 子代理目录同步改用上游实现（解决冲突）
+ffa8ceec	ported		内容等同（推断）：触及的 2 个文件现与 upstream/main 逐字节相同
+ffad7c50	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
+ffebb5e2	ported		内容等同（推断）：触及的 1 个文件现与 upstream/main 逐字节相同
