@@ -51,6 +51,17 @@ bin/test-all.sh                                 # 必须全绿；新增失败当
 5. 验收实例（`bin/stage-021.sh`，3092/3093）上跑 e2e：`node tests/e2e/gameplay.mjs` 及相关 `--…` 场景；让使用者验收。
 6. 使用者同意后：`CONFIRM=yes bin/deploy.sh cutover`。部署后 `bin/deploy.sh verify` 逐字节核对。
 
+## 4.1 测试基线现状
+
+- `bin/test-all.sh`（algebra 无预加载一段 + 主套件一段，串行）**应为绿**：失败 0、取消 0。任何新失败都是真问题，
+  不要加“基线名单”绕过。当前约 algebra 209（1 skip）+ 主套件 3012（52 skip）。
+- skip 的位置与规则：过期但有替代的删除记在 `tests/OBSOLETE.md`；未实现功能、环境缺失、环境门控与偶发记在
+  `tests/KNOWN-FAILURES.md`。**新增 skip 或删除用例必须同时登记**（用例名、文件、原因、复现办法、解除条件）；
+  skip 选项里写明文字原因；解除 skip 时删除登记。
+- 子进程夹具若要被父进程 SIGKILL，必须自己保活（`setInterval`），否则 IPC 通道 unref 后子进程退出码 13，
+  引发后续用例 cancelledByParent 级联。
+- 浏览器用例依赖本机 Playwright 浏览器修订；缺失时会出现约 43 个 `browserType.launch` 失败，处理见 KNOWN-FAILURES「偶发与时序」。
+
 ## 5. 备份点与回退
 
 - 部署前备份（上次）：`/home/claw/backups/dsh-pre-deploy-20261031/`（生产家目录只读拷贝、runtime/apps/profiles 的 sha256、git bundle、README 里有恢复命令）。下次用 `DEPLOY_BACKUP=<新目录>` 并在部署前建好。

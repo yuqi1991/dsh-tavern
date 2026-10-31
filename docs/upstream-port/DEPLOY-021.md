@@ -61,7 +61,7 @@ E. **原地 MVU**：对一张真实旧卡试“加 MVU”，开新局看状态�
 
 - 偶发：开局后变量结算长时间停在“结算等待中”（约六分之一的 e2e 概率，0.1.5 时代就有，原因未查清；自动重试间隔 10 秒）。
 - 退休的后台 Agent 仍留在 0.2 的 Tasks 目录里（上游同样）。
-- 旧测试过期，基线 42 个单测失败；e2e `--render-depth`、`--sidebar`、`--display-regression`、surface-recovery、mvu-incremental、legacy 失败。
+- 单测基线已清理：`bin/test-all.sh` 应为全绿（过期用例已 skip 或删除，见 `tests/KNOWN-FAILURES.md`、`tests/OBSOLETE.md`）；e2e `--render-depth`、`--sidebar`、`--display-regression`、surface-recovery、mvu-incremental、legacy 失败。
 - 已压缩楼层不能回退、重新生成、切换变体（保留的最近 N 轮不受影响）。
 - 保留部分超过窗口 25% 时，退回只保留最后一条回复。
 - 定位失败改造里待产品决定的 P1–P6（见 `docs/design/conversation-algebra-locate-audit.md`）。
