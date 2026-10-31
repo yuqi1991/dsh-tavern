@@ -24,3 +24,18 @@ docs export-ignore
 **/__tests__ export-ignore
 
 tavern-plugin/packages/dsh-dream-skin/lib/*.js -text -whitespace linguist-vendored
+
+# Generated files: on a merge conflict keep our side, then rebuild with bin/regen.sh.
+# Needs the local driver `git config merge.ours.driver true` (bin/setup-sync.sh sets it).
+# Not rebuilt by regen.sh: pnpm-lock.yaml files and the dsh-image-gen / dsh-tavern-remote
+# build outputs (they need pnpm in their own package); see docs/upstream-port/SYNC-PLAYBOOK.md.
+/tavern-plugin/lib/client.js merge=ours linguist-generated
+/tavern-plugin/lib/domain/mvu-schema.generated.js merge=ours linguist-generated
+/plugin.patch.yml merge=ours linguist-generated
+/docs/index.html merge=ours linguist-generated
+/dsh-tavern-runtime.json merge=ours linguist-generated
+/pnpm-lock.yaml merge=ours linguist-generated
+/tavern-plugin/pnpm-lock.yaml merge=ours linguist-generated
+/tavern-plugin/packages/*/pnpm-lock.yaml merge=ours linguist-generated
+/tavern-plugin/packages/dsh-image-gen/lib/** merge=ours linguist-generated
+/tavern-plugin/packages/dsh-tavern-remote/lib/** merge=ours linguist-generated
