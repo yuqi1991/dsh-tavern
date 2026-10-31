@@ -8,7 +8,7 @@ import { sessionEvents } from '../tavern-plugin/lib/domain/session-events.js'
 
 test('cached rollback controls follow the stored Session surface without resuming an Agent', async () => {
   const source=await readFile(new URL('../tavern-plugin/lib/index.js',import.meta.url),'utf8')
-  const evidence=source.slice(source.indexOf('  function sessionDebugEvidence('),source.indexOf('  const readBackgroundSuppression'))
+  const evidence=source.slice(source.indexOf('  function sessionDebugEvidence('),source.indexOf('  // Rollback needs the live Session'))
   const session={id:'s',events:[
     {seq:0,type:'user/message',data:{role:'user',source:{kind:'user'}}},
     {seq:1,type:'assistant/message',data:{turn:2,message:{source:{kind:'model',provider:'test',model:'test'}}}}
