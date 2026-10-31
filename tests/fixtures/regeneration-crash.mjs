@@ -14,7 +14,7 @@ const committed = legacy.startsWith('committed-')
 async function saveSession(current) {
   await writeFile(join(root, 'session.json'), JSON.stringify({ id: current.id, header: current.header, events: sessionEvents(current) }))
 }
-async function crashPoint() { process.send({ ready: true }); await new Promise(() => {}) }
+async function crashPoint() { process.send({ ready: true }); await new Promise(() => { setInterval(() => {}, 1 << 30) }) }
 const persistence = createChatPersistence({ store: createChatJournalStore({ dataRoot: root }) })
 const session = Session.create('crash-session')
 appendSessionEvent(session, 'user/message', { id: 'original-user', role: 'user', content: [{ type: 'text', text: '继续' }], source: { kind: 'user' } }, { surfaceOp: 'append' })
@@ -35,7 +35,7 @@ const agent = { session, phase: { kind: 'idle', lastTurn: 2 }, followup(message)
   if (legacy === 'true') await persistence.update('chat', chat => { delete chat.regenRecovery; return chat }, { source: 'fixture.legacy' })
   await writeFile(join(root, 'session.json'), JSON.stringify({ id: session.id, header: session.header, events: sessionEvents(session) }))
   process.send({ ready: true })
-  await new Promise(() => {})
+  await new Promise(() => { setInterval(() => {}, 1 << 30) })
 } }
 const chats = { ...persistence, update: async (...args) => {
     const result = await persistence.update(...args)

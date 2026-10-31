@@ -82,7 +82,7 @@ for (const compressed of [false, true]) for (const phase of ['create', 'migrate'
     fs.rename = async (from, to) => {
       if (from.includes('.staging-')) {
         process.send({ staged: from });
-        await new Promise(() => {});
+        await new Promise(() => { setInterval(() => {}, 1 << 30) });
       }
       return rename(from, to);
     };
