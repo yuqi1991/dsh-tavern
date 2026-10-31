@@ -13,7 +13,7 @@ test('saved edit survives disk restore and replaces the old body in the next rea
   const editor = createBodyEditor({
     chats: { forSession: () => h.persistence.read(chat.id), update: h.persistence.update },
     sessions: { get: () => h.target.agent, flush: () => h.checkpoint() },
-    timeline: createStoryTimeline(), activity: () => ({ busy: false }), project: async text => projectReplyLayers(text), present: async chat => chat
+    assertAlgebraReady() {}, timeline: createStoryTimeline(), activity: () => ({ busy: false }), project: async text => projectReplyLayers(text), present: async chat => chat
   })
   const edit = await editor.read(h.input.sessionId)
   await editor.save(h.input.sessionId, { token: edit.token, texts: ['修改正文：留在邮局'] })

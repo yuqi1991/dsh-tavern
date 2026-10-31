@@ -10,7 +10,7 @@ export async function createPluginHost() {
   const services = new Map([
     ['settings', { describe: () => [] }], ['llm', {}],
     ['tokenMeter', { _foldEvent() {} }], ['skills', { registerProvider() {} }],
-    ['agentPresets', { resolvedRoots: [] }], ['agents', new Map()], ['sessions', new Map()],
+    ['agentPresets', { resolvedRoots: [] }], ['sessionQuery', { observeSession: async () => ({ source: 'none', events: [], header: {}, inheritedEventCount: 0 }) }], ['agents', new Map()], ['sessions', new Map()],
     ['webServer', { register(route) { routes.set(route.path, route.handler); return () => routes.delete(route.path) } }]
   ])
   const dispose = async () => { for (const callback of disposers.reverse()) await callback() }
