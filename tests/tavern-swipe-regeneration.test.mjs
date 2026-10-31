@@ -11,7 +11,8 @@ test('编辑重生成输入时同步消息与滑动文本，并清除旧展示�
   ] }
   const regeneratedChat = { messages: [{ role: 'user', text: '临时输入' }, { role: 'assistant', turn: 3, text: '新正文' }] }
   const { chat } = replaceLastRound({ originalChat, regeneratedChat, assistantIndex: 1, inputText: '新输入' })
-  assert.deepEqual([chat.messages[0].text, chat.messages[0].sourceText, chat.messages[0].templateInputSource, chat.messages[0].swipes[0]], Array(4).fill('新输入'))
+  assert.deepEqual([chat.messages[0].text, chat.messages[0].sourceText, chat.messages[0].templateInputSource], Array(3).fill('新输入'))
+  assert.deepEqual(chat.messages[0].swipes, ['旧输入'], 'P2-A: regeneration no longer writes the swipes mirror; stored arrays stay untouched')
   assert.equal(chat.messages[0].displayText, undefined)
   assert.equal(originalChat.messages[0].text, '旧输入')
 })
@@ -49,8 +50,10 @@ test('没有 MVU 的重新生成也只保留唯一正文', function () {
   const originalChat = { messages: [{ role: 'user', text: '继续' }, { role: 'assistant', turn: 1, text: '旧正文' }] }
   const regeneratedChat = { messages: [{ role: 'user', text: '合成输入' }, { role: 'assistant', turn: 2, text: '新正文' }] }
   const result = replaceLastRound({ originalChat, regeneratedChat, assistantIndex: 1 })
-  assert.deepEqual(result.assistant.swipes, ['新正文'])
-  assert.equal(result.assistant.swipeId, 0)
+  assert.equal(result.assistant.text, '新正文')
+  assert.equal(result.assistant.turn, 1)
+  assert.equal(result.assistant.swipes, undefined, 'P2-A: no swipes mirror is written when none existed')
+  assert.equal(result.assistant.swipeId, undefined)
   assert.equal(result.assistant.variables, undefined)
 })
 
