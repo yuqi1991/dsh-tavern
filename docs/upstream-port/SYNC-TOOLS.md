@@ -51,7 +51,7 @@ bin/setup-sync.sh            # 幂等；加 --fetch 先 git fetch upstream
 
 （`dsh-tavern-runtime.json` 是上游 CI 发布的清单，原来一个文件占 97 块，现取我们这边。）
 
-读法：真正的难度在 ~340 个非测试文件、~660 块；其中块数最多的是 `tavern-plugin/lib/index.js`（60 块）、`play-controls.js`（19）、`main.js`（14）、`sidebar.js`（13）、`round-history.js`（13）。**一次性整体合并不现实，应分批**（见 SYNC-PLAYBOOK.md）。上游已删除 `plugin.patch.yml`、`docs/index.html`，并退役原生场景生图后端：这些是需要先做的产品/打包决定。
+读法：真正的难度在 339 个非测试文件、622 块（另有测试文件 147 个 / 193 块）；其中块数最多的是 `tavern-plugin/lib/index.js`（60 块）、`play-controls.js`（19）、`main.js`（14）、`sidebar.js`（13）、`round-history.js`（13）。**一次性整体合并不现实，应分批**（见 SYNC-PLAYBOOK.md）。上游已删除 `plugin.patch.yml`、`docs/index.html`，并退役原生场景生图后端：这些是需要先做的产品/打包决定。
 
 对 3 个提交的 cherry-pick 预演示例：`bin/upstream-dry-run.sh f06726e6 0c18f25e ffbdb60b` → 8 个冲突文件 / 21 块，其中 client.js 8 块为生成文件。
 
