@@ -125,8 +125,13 @@ Helper 索引化只读投影（`projectTavernHelperContext(chat, {indexed: true}
   预算原为 1500ms，整套件并发时预热即超时，于是把 `timeoutMs` 放宽到 5000。
   若再次超时，单独运行 `bin/test-some.sh tests/server-template-runtime.test.mjs`；单跑通过则属负载问题，
   不要把预算再压低。
-- **chat-journal-store：崩溃恢复子进程用例**（`快照发布前进程中断可恢复…`）。
-  子进程在 staging 处挂起并依赖 IPC 保活。若出现 `Promise resolution is still pending but the event loop
-  has already resolved`，同文件后续用例会被级联取消（ERR_TEST_FAILURE 的 cancelledByParent）。
-  这是取消级联，不是独立失败：单独重跑该文件即可判断。本次连续三次运行全部 27 个用例通过。
+- **chat-journal-store / regeneration-crash：被 SIGKILL 的子进程夹具**（已修复，保留备查）。
+  夹具子进程里 `await new Promise(() => {})` 没有 `message` 监听器时 IPC 通道被 unref，事件循环清空，
+  Node 判定顶层 await 永不完成并以退出码 13 退出，父进程 Promise 悬空，同文件后续用例（以及主段后续 21 个）
+  被 cancelledByParent 级联取消。修复：子进程持有一个 ref 的 `setInterval`，只由父进程 SIGKILL 结束。
+  再出现 `Promise resolution is still pending but the event loop has already resolved` 说明有新夹具漏了保活。
 - 浏览器类用例依赖本机 Playwright 的 chromium；并发运行多套测试时可能超时，请按 `bin/test-all.sh` 串行运行。
+- **Playwright 浏览器版本**：已安装的 playwright 期望 `chromium_headless_shell-1208`，若缓存目录
+  `~/.cache/ms-playwright/` 里只有其它修订（如 1228），浏览器用例会以 `browserType.launch: Executable doesn't exist`
+  失败（约 43 个，非产品问题）。不要在 fork 内装依赖；可用 `PLAYWRIGHT_BROWSERS_PATH=<临时目录>`，
+  其中把 `chromium_headless_shell-1208`、`chromium-1208` 软链到本机现有修订后运行。
