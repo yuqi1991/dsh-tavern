@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createTavernSkillProvider } from '../tavern-plugin/lib/domain/tavern-skill-provider.js'
-import { appendWritingSkillState } from '../tavern-plugin/lib/domain/skill-visibility.js'
 import { createNativePlayOrchestrationStrategy } from '../tavern-plugin/lib/domain/foreground-orchestration-strategies.js'
 import { createForegroundFrameSessionAdapter } from '../tavern-plugin/lib/domain/foreground-frame-session-adapter.js'
 
@@ -17,12 +16,14 @@ test('writing skill switches append effective policy without changing cached mes
   const { LlmAdapter } = await import(new URL('../../dsh-llm/lib/index.js', bootUrl))
   const root = await mkdtemp(join(tmpdir(), 'tavern-skill-cache-'))
   t.after(() => rm(root, { recursive: true, force: true }))
-  const packages = ['dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-token-meter', 'dsh-commands', 'dsh-agent-loop', 'dsh-skill', 'dsh-tool-skill']
+  const packages = ['dsh-system-prompt', 'dsh-tools', 'dsh-agent', 'dsh-llm', 'dsh-session', 'dsh-session-projection', 'dsh-token-meter', 'dsh-commands', 'dsh-agent-loop', 'dsh-skill', 'dsh-working-directory', 'dsh-tool-skill']
   const config = join(root, 'host.yml')
   await writeFile(config, packages.map(name => '- id: ' + name + '\n  name: ' + new URL('../../' + name + '/lib/index.js', bootUrl).href + '\n').join(''))
   const ctx = await boot('tavern-skill-cache', config)
   t.after(() => ctx.fiber.dispose())
   ctx.baseUrl = bootUrl.href
+  // DSH 0.2.1 的 skill 工具依赖 workingDirectory 服务；技能存储本身是夹具，只需固定工作目录。
+  ctx.provide('workingDirectory', { ensure: async () => root })
   const skill = { name: 'scene-writing', source: '/fixture/scene-writing/SKILL.md', path: '/fixture/scene-writing/SKILL.md', rank: 1, description: 'Write a scene', content: 'WRITING_BODY: use short sentences.', agents: ['foreground'], modelInvocable: true, userInvocable: true }
   const disabled = new Set()
   let invalidate, pendingBlock, afterRequest
@@ -36,9 +37,9 @@ test('writing skill switches append effective policy without changing cached mes
   })
   const frameAdapter = createForegroundFrameSessionAdapter()
   const strategy = createNativePlayOrchestrationStrategy({
-    modeFor: async () => 'story', filterMessages: appendWritingSkillState,
+    modeFor: async () => 'story',
     resolvePreset: async () => null,
-    prepareTurn: async ({ userText }) => ({ frame: { kind: 'foreground', frameId: 'fixture', userInput: { projectedText: userText }, contributions: [] } }),
+    prepareTurn: async ({ userText }) => ({ frame: { kind: 'foreground', frameId: 'fixture', chatId: 'chat', branchId: 'branch', operationId: 'operation', turn: 1, userInput: { projectedText: userText }, contributions: [] } }),
     appendFrame: frameAdapter.append, recordFrame() {}
   })
   ctx.on('agent/pre-step', async (payload, next) => {
@@ -88,9 +89,9 @@ test('writing skill switches append effective policy without changing cached mes
   assert.deepEqual(handle.agent.session.deriveMessages().slice(0, before.length), before)
   const catalog = off.messages.filter(message => message.source?.kind === 'skill-catalog').at(-1)
   assert.deepEqual(catalog.source.entries, [])
-  const policy = off.messages.filter(message => message.source?.form === 'writing-skill-state').at(-1)
+  const policy = off.messages.filter(message => message.source?.form === 'writing-skill-reminder').at(-1)
   assert.deepEqual(policy?.source.disabledWritingSkills, ['scene-writing'])
-  assert.match(JSON.stringify(policy.content), /停止遵循.*已加载/)
+  assert.match(JSON.stringify(policy.content), /本局停用.*scene-writing.*不要装载或遵循/)
   assert.match(JSON.stringify(requests[3].messages.slice(off.messages.length)), /unknown or no longer available/)
   switchSkill(true)
   await send(load())
@@ -99,7 +100,9 @@ test('writing skill switches append effective policy without changing cached mes
   assert.match(JSON.stringify(requests[5].messages.slice(requests[4].messages.length)), /WRITING_BODY/)
   await send()
   assert.equal(requests[6].messages.filter(message => message.source?.kind === 'skill-catalog').length, 3, 'unchanged settings do not republish the catalog')
-  assert.equal(requests[6].messages.filter(message => message.source?.form === 'writing-skill-state').length, 3, 'unchanged settings do not repeat policy notices')
+  const lastReminder = requests[6].messages.filter(message => message.source?.form === 'writing-skill-reminder').at(-1)
+  assert.equal(lastReminder.source.disabledWritingSkills, undefined, 're-enabled skills are no longer listed as disabled')
+  assert.doesNotMatch(JSON.stringify(lastReminder.content), /本局停用/)
   // Switching while a request is in flight must gate its stale tool call and
   // publish the new catalog before the next model request in the same turn.
   afterRequest = () => switchSkill(false)
