@@ -108,6 +108,22 @@ export function apply(ctx) {
       }
       // Put the state-changing call first so cancellation is tested against an MVU write.
       if (heldAttempt !== undefined) blocks.sort((a, b) => Number(b.name === 'mvu_submit_update') - Number(a.name === 'mvu_submit_update'))
+      // Hold the main reply open so a test can observe the page mid-generation.
+      const holdFile = process.env.TAVERN_E2E_REGEN_HOLD && !tools.has('mvu_submit_update') && !tools.has('posture_submit') && !tools.has('candidate_submit_choices') && input.purpose !== 'session-title' && blocks.some(block => block.type === 'text')
+        ? process.env.TAVERN_E2E_REGEN_HOLD + '/regen-hold.json' : null
+      if (holdFile) {
+        const control = JSON.parse(await readFile(holdFile, 'utf8').catch(() => '{}'))
+        if (control.mode === 'hold') {
+          await appendFile(process.env.TAVERN_E2E_REGEN_HOLD + '/regen-hold-requests.jsonl', JSON.stringify({ held: true }) + '\n')
+          yield { type: 'block-start', index: 0, blockType: 'text' }
+          const deadline = Date.now() + 60000
+          while (Date.now() < deadline && !input.signal?.aborted && JSON.parse(await readFile(holdFile, 'utf8').catch(() => '{}')).mode === 'hold') await new Promise(resolve => setTimeout(resolve, 50))
+          if (input.signal?.aborted || JSON.parse(await readFile(holdFile, 'utf8').catch(() => '{}')).mode === 'fail') throw new Error('E2E 模型故障：重新生成被中断')
+          yield { type: 'block-end', index: 0, block: blocks.find(block => block.type === 'text') }
+          yield { type: 'finish', reason: { kind: 'stop' } }
+          return
+        }
+      }
       for (const [index, block] of blocks.entries()) {
         if (heldAttempt !== undefined && block.type === 'tool-call') await appendFile(process.env.TAVERN_E2E_BACKGROUND_DIR + '/background-late.jsonl', JSON.stringify({attempt:heldAttempt, tool:block.name})+'\n')
         yield { type: 'block-start', index, blockType: block.type }

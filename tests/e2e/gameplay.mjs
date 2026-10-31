@@ -16,6 +16,7 @@ import assert from 'node:assert/strict'
 import { presetSwitch } from './preset-switch.mjs'
 import { playControls } from './play-controls.mjs'
 import { locateOperations } from './locate-operations.mjs'
+import { regenViewChecks } from './regen-view.mjs'
 import { batch1UiChecks } from './batch1-ui.mjs'
 import { batch3ImageChecks } from './batch3-images.mjs'
 import { batch3SaveChecks } from './batch3-saves.mjs'
@@ -187,6 +188,7 @@ try {
         cwd: source, env: { ...env, DSH_HOME: root, DSH_CWD: root,
           TAVERN_E2E_COMPACTION_DIR: compactionScenario ? output : '',
           TAVERN_E2E_RECOVERY_DIR: recoveryScenario ? output : '',
+          TAVERN_E2E_REGEN_HOLD: process.argv.includes('--regen-view') ? output : '',
           TAVERN_E2E_BACKGROUND_DIR: process.argv.includes('--background-lifecycle') ? output : '',
           TAVERN_E2E_REQUEST_AUDIT: join(output, 'preset-requests.jsonl'),
           TAVERN_E2E_CARD_MVU: process.argv.includes('--card-mvu') ? join(output, 'card-mvu-requests.jsonl') : '',
@@ -297,6 +299,8 @@ try {
   })
   if (process.argv.includes('--batch1-ui')) {
     await batch1UiChecks({ page, step, output, errors })
+  } else if (process.argv.includes('--regen-view')) {
+    await regenViewChecks({ page, step, savedChat, output, report })
   } else if (process.argv.includes('--batch3-images')) {
     await batch3ImageChecks({ page, step, output, errors })
   } else if (process.argv.includes('--batch3-saves')) {
@@ -367,7 +371,7 @@ try {
       assert.deepEqual(await readFile(join(directory, 'session.jsonl.zstd.bak-tavern-premigrate')), await readFile(join(output, 'legacy-input.jsonl.zstd')))
     }
     await compactionChecks({ page, step, savedChat, output, report, restartServer, installLegacyFixture, scenario: compactionScenario })
-  } else if (!process.argv.includes('--batch1-ui') && !process.argv.includes('--batch3-images') && !process.argv.includes('--batch3-saves') && !process.argv.includes('--render-depth') && !process.argv.includes('--card-memory') && !process.argv.includes('--card-mvu') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
+  } else if (!process.argv.includes('--batch1-ui') && !process.argv.includes('--regen-view') && !process.argv.includes('--batch3-images') && !process.argv.includes('--batch3-saves') && !process.argv.includes('--render-depth') && !process.argv.includes('--card-memory') && !process.argv.includes('--card-mvu') && !process.argv.includes('--message-rendering-only') && !process.argv.includes('--sidebar-only') && !process.argv.includes('--card-update') && !process.argv.includes('--card-variables')) {
     await step('生成候选项并选择行动，再玩一轮', async () => {
       await page.getByRole('button', { name: '生成候选项', exact: true }).click()
       await page.getByText('5 个', { exact: true }).waitFor()

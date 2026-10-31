@@ -21,6 +21,12 @@ function inputOf(message) {
   }
 }
 
+/** The input a regenerated floor keeps showing while its body is rewritten: the
+ * player's original input, or the revised text when the player edited it. */
+export function regenerationFloorInput(message, editedText) {
+  return inputOf(editedText === null || editedText === undefined ? message : { ...message, text: editedText, sourceText: editedText })
+}
+
 function bodyOf(message, projection) {
   if (projection) {
     return {
@@ -57,7 +63,12 @@ export function storyFloorsOf(chat, { projections = [], receipts = [] } = {}) {
     })
     pendingInput = null
   }
-  if (pendingInput) {
+  // The floor being regenerated is rolled out of Chat until its new body is
+  // committed; its input stays visible as an open floor in its own position.
+  const regenerating = chat?.regenInProgress === true && chat.regenRecovery?.phase !== 'committed' ? chat.regenRecovery?.floor : null
+  if (regenerating && Number.isSafeInteger(regenerating.turn) && regenerating.turn > (floors.at(-1)?.turn || 0) && regenerating.input) {
+    floors.push({ turn: regenerating.turn, input: structuredClone(regenerating.input), body: null, receipt: null, open: true, regenerating: true })
+  } else if (pendingInput) {
     const turn = (floors.at(-1)?.turn || 0) + 1
     floors.push({ turn, input: pendingInput, body: null, receipt: null, open: true })
   }
