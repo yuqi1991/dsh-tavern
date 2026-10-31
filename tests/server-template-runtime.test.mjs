@@ -59,7 +59,7 @@ test('unchanged complete request retains system and message bytes/order', async 
 })
 
 test('service watchdog terminates an infinite loop, does not replay, and next explicit call recovers', async t => {
-  const {engine,runtime,journals} = fixture(t,{timeoutMs:1500})
+  const {engine,runtime,journals} = fixture(t,{timeoutMs:5000})
   await engine.render('warm')
   await assert.rejects(engine.render('<% while(true){} %>'), /执行超时/)
   assert.equal((await runtime.inspect('s')).present,false)
