@@ -94,6 +94,10 @@ if [ -s "$CONFLICT_LOG" ]; then
     # 被 merge=ours/.gitattributes 标记的生成文件在 merge 模式下不会出现；若仍出现，说明规则没生效
     printf '%-6s %-9s %-7s %s' "$n" "$kind" "$([ "$sh" = shared ] && echo 是 || echo 否)" "$f"
     [ "$MODE" = pick ] && printf '   [%s]' "$commits"
+    if [ "$MODE" = merge ] && [ "$kind" = 生成 ]; then
+      stages=$(git -C "$WT" ls-files -u -- "$f" | awk '{print $3}' | sort -u | tr -d '\n')
+      case "$stages" in *3*) ;; *) printf '   (上游已删除该文件：modify/delete，merge=ours 不适用，需决定保留或删除)' ;; esac
+    fi
     printf '\n'
     TOTAL_FILES=$((TOTAL_FILES+1)); TOTAL_BLOCKS=$((TOTAL_BLOCKS+n))
     if [ "$kind" = 生成 ]; then GEN_FILES=$((GEN_FILES+1)); GEN_BLOCKS=$((GEN_BLOCKS+n))
