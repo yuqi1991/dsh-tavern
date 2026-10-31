@@ -45,7 +45,7 @@ test('酒馆状态读取 MVU 回执时使用当前模块可用的复制能力', 
 })
 
 test('创建对话失败时服务端记录请求边界但不记录开场白正文', () => {
-  const dispatch = between(serverSource, 'async function dispatch', 'const webServer')
+  const dispatch = between(serverSource, "case 'startChat': {", "case 'getImageAgentUndo'")
 
   assert.match(dispatch, /console\.error\('dsh-tavern: 创建对话失败'/)
   assert.match(dispatch, /cardPath: str\(args && args\.path\)/)

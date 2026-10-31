@@ -502,3 +502,16 @@ test('新游戏复制全局 Skill 开关，本局调整和后续全局修改互�
   const card = await h.make().start({ ...h.input, sessionId: 'card-skills', mode: 'card', cardPath: '' })
   assert.deepEqual(card.disabledWritingSkills, [])
 })
+
+test('默认状态栏面板开启时开场白追加托管 <initvar>，关闭后保持原文', async () => {
+  const on = initializationFixture()
+  on.state.settings = { compatibilityMode: true }
+  const chat = await on.make().start(on.input)
+  assert.equal(chat.defaultStatusPanel, true)
+  assert.match(chat.openingText, /^玩家，你好。\n\n<initvar>/)
+
+  const off = initializationFixture()
+  const plain = await off.make().start(off.input)
+  assert.equal(plain.defaultStatusPanel, undefined)
+  assert.equal(plain.openingText, '玩家，你好。')
+})

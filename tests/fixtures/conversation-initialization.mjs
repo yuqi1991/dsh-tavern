@@ -8,7 +8,7 @@ import { createStoryTimeline } from '../../tavern-plugin/lib/domain/story-timeli
 export function initializationFixture(options = {}) {
   const saved = new Map(), sessions = new Map(), writes = [], trace = []
   const card = { path: 'cards/one.json', name: '测试角色', first_mes: '{{user}}，你好。', alternate_greetings: ['第二个开场白'], description: '固定描述', personality: '固定性格', scenario: '固定场景', mes_example: '固定示例', system_prompt: '逐轮系统', post_history_instructions: '逐轮后置', customUnknown: { keep: true } }
-  const state = { script: undefined, extensions: {}, settings: { compatibilityMode: true }, preset: { planId: 'preset', regexScripts: [], unknown: 'preserved' }, failures: {}, links: {}, index: { chats: [] }, reads: 0, presetReads: 0 }
+  const state = { script: undefined, extensions: {}, settings: { compatibilityMode: true, defaultStatusPanel: false }, preset: { planId: 'preset', regexScripts: [], unknown: 'preserved' }, failures: {}, links: {}, index: { chats: [] }, reads: 0, presetReads: 0 }
   let sequence = 0
   async function fail(name, ...args) { const hook = state.failures[name]; if (hook) return hook(...args) }
   async function write(chat, metadata) {
