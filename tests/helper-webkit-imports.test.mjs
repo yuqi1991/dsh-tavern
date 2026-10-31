@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {existsSync} from 'node:fs'
 import {readFile} from 'node:fs/promises'
 import {createServer} from 'node:http'
 import vm from 'node:vm'
@@ -8,7 +9,7 @@ import {readTavernRuntimeAsset} from '../tavern-plugin/lib/domain/tavern-runtime
 let descriptor
 vm.runInNewContext(await readFile(new URL('../tavern-plugin/lib/client.js',import.meta.url),'utf8'),{window:{__ModuleLoader__:{load:d=>descriptor=d}},console})
 const client=descriptor.factory(()=>({}))
-for(const [name,engine] of Object.entries({chromium,webkit})) test(`${name}: srcdoc 中消息帧与共享脚本沙箱加载实际 Zod/YAML`,async t=>{
+for(const [name,engine] of Object.entries({chromium,webkit})) test(`${name}: srcdoc 中消息帧与共享脚本沙箱加载实际 Zod/YAML`,{skip:!existsSync(engine.executablePath())&&`${name} 浏览器未安装（${engine.executablePath()}），环境缺失，非功能失败`},async t=>{
  const server=createServer(async(req,res)=>{const asset=await readTavernRuntimeAsset(new URL(req.url,'http://localhost').pathname);res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('content-type',asset?.mediaType||'text/html');res.end(asset?.body||'<!doctype html><body>测试宿主</body>')})
  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)))
  const browser=await engine.launch();t.after(()=>browser.close());const page=await browser.newPage();await page.goto('http://127.0.0.1:'+server.address().port)
