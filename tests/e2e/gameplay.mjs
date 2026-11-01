@@ -281,6 +281,22 @@ try {
   } else if (recoveryScenario) {
     await surfaceRecoveryChecks({ page, step, savedChat, output, report, root, restartServer })
   } else {
+  await step('第一条输入之前可以编辑开局正文', async () => {
+    await page.getByRole('button', { name: '更多 ▾', exact: true }).click()
+    await page.getByRole('menuitem', { name: '编辑正文', exact: true }).click()
+    const editor = page.getByRole('region', { name: '编辑正文' })
+    const box = editor.getByRole('textbox', { name: '正文文本 1' })
+    const original = await box.inputValue()
+    await box.fill(original.replace('欢迎领取奖励。', '欢迎领取奖励。（开局已手改）'))
+    await editor.getByRole('button', { name: '保存', exact: true }).click()
+    await editor.waitFor({ state: 'hidden' })
+    await page.getByText(/开局已手改/).filter({ visible: true }).first().waitFor()
+    await page.reload()
+    await page.getByText(/开局已手改/).filter({ visible: true }).first().waitFor()
+    const opening = (await savedChat()).messages[0]
+    assert.equal(opening.greeting, true)
+    assert.match(opening.text, /开局已手改/)
+  })
   await step('玩一轮，确认正文、金币与人物姿势', async () => {
     const composer = page.getByRole('textbox', { name: /发消息|Message/ })
     await composer.fill('领取任务奖励')
