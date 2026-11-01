@@ -96,9 +96,9 @@ setup() {
   # 侧栏要在自己的目录里按 0.2.1 的包解析，所以拷贝而不是链接。
   cp -a "$ROOT_NM/dsh-better-sidebar" "$PROFILE/node_modules/dsh-better-sidebar"
   local bundles='"@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-better-sidebar", "dsh-tavern-plugin", "dsh-tavern-remote"'
-  for name in dsh-web-mobile dsh-dream-skin; do
-    if [ -e "$ROOT_NM/$name" ]; then ln -s "$ROOT_NM/$name" "$PROFILE/node_modules/$name"; bundles="$bundles, \"$name\""; fi
-  done
+  # dream-skin 用 fork 里改过的那份（放开 peer 范围、适配 0.2.1 去掉的 webRuntime），不用 npm 原版。
+  ln -s "$FORK/tavern-plugin/packages/dsh-dream-skin" "$PROFILE/node_modules/dsh-dream-skin"; bundles="$bundles, \"dsh-dream-skin\""
+  if [ -e "$ROOT_NM/dsh-web-mobile" ]; then ln -s "$ROOT_NM/dsh-web-mobile" "$PROFILE/node_modules/dsh-web-mobile"; bundles="$bundles, \"dsh-web-mobile\""; fi
   for entry in "$ROOT_NM"/*; do
     name="$(basename "$entry")"
     case "$name" in .*|@deepseek-ai|dsh-tavern-plugin|dsh-tavern-remote|dsh-better-sidebar|dsh-web-mobile|dsh-dream-skin|dsh-pocket) continue;; esac

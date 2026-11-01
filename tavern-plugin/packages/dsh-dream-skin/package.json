@@ -80,12 +80,12 @@
 	},
 	"peerDependencies": {
 		"@deepseek-ai/cordis": "^4.0.1",
-		"@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
-		"@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+		"@deepseek-ai/dsh-client-locale": ">=0.1.0-rc.6 <0.3.0",
+		"@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.6 <0.3.0",
 		"@deepseek-ai/dsh-client-store": "*",
-		"@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
-		"@deepseek-ai/dsh-client-ui-settings-general": "^0.1.0-rc.6",
-		"@deepseek-ai/dsh-client-ui-theme": "^0.1.0-rc.6",
+		"@deepseek-ai/dsh-client-ui-settings": ">=0.1.0-rc.6 <0.3.0",
+		"@deepseek-ai/dsh-client-ui-settings-general": ">=0.1.0-rc.6 <0.3.0",
+		"@deepseek-ai/dsh-client-ui-theme": ">=0.1.0-rc.6 <0.3.0",
 		"react": "^18.2.0"
 	},
 	"peerDependenciesMeta": {

@@ -44,7 +44,7 @@ const API_PREFIX = "/dream-skin/api";
 /** Plugin identity for cordis.yml rows. */
 export const name = "dsh-dream-skin";
 /** Services required before mounting: the web server routes and the trust fence host list. */
-export const inject = ["webServer", "webRuntime"];
+export const inject = ["webServer"];
 
 // ── state file ─────────────────────────────────────────────────────────────
 
@@ -262,16 +262,41 @@ async function handleApi(req, res) {
 }
 
 /**
+ * Trusted authorities this deployment serves, read lazily from whichever
+ * web-runtime service the host exposes. DSH 0.2.0 published the fence list as
+ * `webRuntime.trustedHosts`; 0.2.1 removed that service and keeps the same
+ * value on `connection.trustedHosts` and `webStartup.trustedHosts`.
+ * (Same approach as upstream; Tavern fork.)
+ * @param ctx - host cordis context.
+ * @returns configured trusted hosts, or an empty list when none is exposed.
+ */
+function trustedHosts(ctx) {
+	for (const service of ["webRuntime", "connection", "webStartup"]) {
+		const hosts = ctx.get(service)?.trustedHosts;
+		if (Array.isArray(hosts)) return hosts;
+	}
+	return [];
+}
+
+/**
  * Host loader entry: mount the fenced persistence API.
- * @param ctx - host cordis context (webServer, webRuntime).
+ * @param ctx - host cordis context (webServer).
  */
 export function apply(ctx) {
 	ctx.effect(() => ctx.webServer.register({
 		kind: "prefix",
 		path: API_PREFIX,
 		handler: async (req, res) => {
-			if (!isTrustedApiRequest(req, ctx.webRuntime.trustedHosts)) {
+			if (!isTrustedApiRequest(req, trustedHosts(ctx))) {
 				writeJson(res, 403, { ok: false, error: { code: "forbidden", message: "forbidden" } });
+				return;
+			}
+			// The origin fence alone is not authentication: also require the host session.
+			const connection = ctx.get("connection");
+			const rejection = typeof connection?.requestRejection === "function" ? connection.requestRejection(req) : 503;
+			if (rejection) {
+				const code = rejection === 401 ? "unauthorized" : rejection === 403 ? "forbidden" : "unavailable";
+				writeJson(res, rejection, { ok: false, error: { code, message: code } });
 				return;
 			}
 			try {
