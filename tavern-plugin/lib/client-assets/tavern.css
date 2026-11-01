@@ -2192,6 +2192,16 @@ html.dsh-tavern-hide-process [data-chat-flow-kind="turn-process"]:has([data-turn
 .dsh-tavern-header-btn:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 .dsh-tavern-choice-trigger { border-color: var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); }
 .dsh-tavern-choice-trigger:hover:not(:disabled) { border-color: var(--dsh-tavern-accent-border); background: var(--dsh-tavern-accent-soft); color: var(--dsh-tavern-accent); }
+/* 皮肤插件的「输入框透明度」同时管：输入框、上方三个按钮、下方统计条（轮数/token）、顶部标题栏。
+   变量来自 Dream Skin；没装它时 --dsh-tavern-composer-surface 无效，各处回退到原来的底色。 */
+body.dsh-tavern-shell-active {
+  --dsh-tavern-composer-surface: color-mix(in srgb, var(--dsh-dream-skin-glass-tint, var(--dsh-dream-skin-composer-base, var(--dsw-alias-bg-base))) calc(var(--dsh-dream-skin-composer-fill) * var(--dsh-dream-skin-glass-fill-scale, 1)), transparent);
+  --dsh-tavern-composer-backdrop: blur(var(--dsh-dream-skin-glass-blur, 0px)) var(--dsh-dream-skin-glass-tone, );
+}
+body.dsh-tavern-shell-active .dsh-tavern-dock-actions .dsh-tavern-choice-trigger { background: var(--dsh-tavern-composer-surface, var(--dsw-alias-bg-base)); -webkit-backdrop-filter: var(--dsh-tavern-composer-backdrop, none); backdrop-filter: var(--dsh-tavern-composer-backdrop, none); }
+body.dsh-tavern-shell-active .dsh-tavern-dock-actions .dsh-tavern-choice-trigger:hover:not(:disabled) { background: var(--dsh-tavern-accent-soft); }
+body.dsh-tavern-shell-active [data-composer-dock] { background: var(--dsh-tavern-composer-surface, transparent); -webkit-backdrop-filter: var(--dsh-tavern-composer-backdrop, none); backdrop-filter: var(--dsh-tavern-composer-backdrop, none); border-radius: 0 0 var(--dsw-radius-lg) var(--dsw-radius-lg); }
+body.dsh-tavern-shell-active [data-phase] header[data-window-drag] { background: var(--dsh-tavern-composer-surface, transparent); -webkit-backdrop-filter: var(--dsh-tavern-composer-backdrop, none); backdrop-filter: var(--dsh-tavern-composer-backdrop, none); }
 .dsh-local-settings .dsh-local-warning { color: var(--dsw-alias-label-tertiary); }
 .dsh-local-settings .dsh-local-warning::before { content: "⚠ "; }
 
