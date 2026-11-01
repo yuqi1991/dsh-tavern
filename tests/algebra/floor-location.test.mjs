@@ -228,3 +228,27 @@ test('a torn two-write settlement is finished from its saved plan before the rol
   const tail = h.events.map(event => (event.data?.message ?? event.data)?.source?.conversationTransaction).filter(Boolean).filter(tag => tag.operationId.startsWith('regen-complete:'))
   assert.deepEqual(tail.map(tag => tag.phase), ['begin', 'commit'])
 }))
+
+test('开局正文在第一条用户输入之前和别的助手层一样可编辑', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  assert.deepEqual(h.surfaceBodies(), ['开场'])
+  const before = structuredClone(h.events)
+  await h.editBody('改过的开场')
+  assert.deepEqual(h.surfaceBodies(), ['改过的开场'])
+  assert.equal(h.chat.messages[0].text, '改过的开场')
+  assert.equal(h.chat.messages[0].greeting, true, '仍是开场消息')
+  assert.deepEqual(h.events.slice(0, before.length), before, '只追加编辑步骤，不改旧事件')
+  assert.equal(hasBookkeeping(h), false)
+  await h.editBody('再改一次')
+  assert.deepEqual(h.surfaceBodies(), ['再改一次'])
+  // 开始对话后，编辑入口改的是最后一轮，开场保持不动。
+  await h.play('开始')
+  await h.editBody('第一轮改过')
+  assert.deepEqual(h.surfaceBodies(), ['再改一次', '第一轮改过'])
+  assert.equal(h.chat.messages[0].text, '再改一次')
+  // 回退这一轮后又回到只剩开场：改过的开场保留，且还能再改。
+  await h.rollback()
+  assert.deepEqual(h.surfaceBodies(), ['再改一次'])
+  await h.editBody('回退后再改')
+  assert.deepEqual(h.surfaceBodies(), ['回退后再改'])
+}))

@@ -498,7 +498,7 @@ export function createStoryTimeline(options = {}) {
     }
     else if (intent.kind === 'body.edit') {
       const index = chat.messages.findLastIndex(message => message?.role === 'assistant')
-      if (index !== chat.messages.length - 1 || chat.messages[index]?.greeting || Number(chat.messages[index]?.turn) !== Number(intent.turn)) throw new Error('只能编辑最后一轮正文')
+      if (index !== chat.messages.length - 1 || (chat.messages[index]?.greeting && chat.messages.length !== 1) || Number(chat.messages[index]?.turn) !== Number(intent.turn)) throw new Error('只能编辑最后一轮正文')
       Object.assign(chat.messages[index], intent.patch)
       delete chat.messages[index].displayRuntime
       chat.timeline.revision++

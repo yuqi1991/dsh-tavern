@@ -352,6 +352,12 @@ export async function clearFailedTurnSurface(input) {
   return shadowed
 }
 
+/** The session still holds only the card's opening (no player input yet): it edits like any assistant floor. */
+export function isUntouchedOpening(messages) {
+  const list = Array.isArray(messages) ? messages : []
+  return list.length === 1 && object(list[0])?.role === 'assistant' && list[0].greeting === true
+}
+
 export function hasRollbackMessages(messages) {
   const list = Array.isArray(messages) ? messages : []
   for (let index = list.length - 1; index >= 0; index -= 1) {

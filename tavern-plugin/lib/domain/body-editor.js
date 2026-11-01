@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { editableReplyParts } from './reply-presentation.js'
-import { locateFloorBody, locateRegenerationSurface } from './rollback-surface.js'
+import { isUntouchedOpening, locateFloorBody, locateRegenerationSurface } from './rollback-surface.js'
 import { floorHostTurn, projectChatFloors } from './floor-projection.js'
 import { recordTargetDiagnostic } from './regeneration-diagnostics.js'
 import { sessionEvents } from './session-events.js'
@@ -9,7 +9,7 @@ import { createConversationAlgebraHostAdapter, detachedSession } from './convers
 
 function latest(chat) {
   const message = chat.messages?.at(-1)
-  if (!['story', 'script'].includes(chat.mode || 'story') || message?.role !== 'assistant' || message.greeting) throw new Error('只能编辑最后一轮正文')
+  if (!['story', 'script'].includes(chat.mode || 'story') || message?.role !== 'assistant' || (message.greeting && !isUntouchedOpening(chat.messages))) throw new Error('只能编辑最后一轮正文')
   return message
 }
 function source(message) { return message.projectionText ?? message.sourceText ?? message.text ?? '' }

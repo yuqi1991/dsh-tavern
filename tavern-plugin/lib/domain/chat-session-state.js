@@ -1,7 +1,7 @@
 import { createMvuReceiptIndex } from './mvu-receipt-index.js'
 import { copyJsonTree } from './copy-json-tree.js'
 import { copyLazyHistoryHeader } from './lazy-history-read.js'
-import { rollbackAvailability, hasRollbackMessages, failedTurnReplayAvailability } from './rollback-surface.js'
+import { rollbackAvailability, hasRollbackMessages, isUntouchedOpening, failedTurnReplayAvailability } from './rollback-surface.js'
 import { isRescuedHistoryMessage } from './chat-history-rescue.js'
 import { canUndoRollback } from './surface-restoration.js'
 import { COMPACTED_FLOOR_REASON, latestFloorCompacted } from './floor-projection.js'
@@ -102,7 +102,7 @@ export function createSessionStateView({ activity: activityOf, evidence: evidenc
     const result = {
       hiddenDshErrorTurns: chat.hiddenDshErrorTurns || [],
       canRegenerate: hasRound && !compacted && !isRescuedHistoryMessage(chat, chat.messages?.findLast(message => message.role === 'assistant')),
-      canEditBody: hasRound && !compacted,
+      canEditBody: (hasRound || (isUntouchedOpening(chat.messages) && ['story', 'script'].includes(chat.mode))) && !compacted,
       latestFloorCompacted: compacted,
       rollbackTargetTurn: settlementTurn(chat),
       canReplayFailedTurn: replayTarget !== null,
