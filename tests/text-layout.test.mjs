@@ -49,10 +49,15 @@ test('外观行：字号读写 DSH 的字号设置，并跟随通用设置的改
   const { dom, React, feature } = await setup()
   const { createRoot } = await import('react-dom/client')
   const { act } = await import('react')
-  let snapshot = { fontSize: 17 }
+  // DSH 0.2.1 的形状：字号在 fontSizes.text，setFontSize(role, px)，范围 10–22 的整数。
+  let snapshot = { fontSizes: { text: 17 } }
   const changes = new Set()
   const writes = []
-  const theme = { getTheme: () => snapshot, setFontSize: px => { writes.push(px); snapshot = { fontSize: px }; changes.forEach(fn => fn(snapshot)) } }
+  const theme = { getTheme: () => snapshot, setFontSize: (role, px) => {
+    assert.equal(role, 'text')
+    assert.ok(Number.isInteger(px) && px >= 10 && px <= 22, `字号 ${px} 超出宿主范围`)
+    writes.push(px); snapshot = { fontSizes: { text: px } }; changes.forEach(fn => fn(snapshot))
+  } }
   let registered, Row
   const ctx = {
     theme, on: (_event, fn) => { changes.add(fn); return () => changes.delete(fn) },
@@ -68,7 +73,25 @@ test('外观行：字号读写 DSH 的字号设置，并跟随通用设置的改
   const size = dom.window.document.querySelector('.dsh-tavern-text-layout input[type=range]')
   await act(async () => { setter.call(size, '20'); size.dispatchEvent(new dom.window.Event('input', { bubbles: true })) })
   assert.equal(writes.at(-1), 20)
-  await act(async () => { theme.setFontSize(12) })
+  await act(async () => { theme.setFontSize('text', 12) })
   assert.equal(values()[0], '12px', '通用设置里改字号，这里跟着变')
+  assert.equal(size.max, '22', '滑条上限与宿主一致')
   await act(async () => { root.unmount() })
+})
+
+test('首次使用：宿主字号还是出厂 14 时改成酒馆默认 18，只做一次', async () => {
+  const { dom, feature } = await setup()
+  const writes = []
+  let snapshot = { fontSizes: { text: 14 } }
+  const theme = { getTheme: () => snapshot, setFontSize: (role, px) => { writes.push([role, px]); snapshot = { fontSizes: { text: px } } } }
+  const ctx = { theme, on: () => () => {}, slots: { inject: (_n, run) => run(), register: () => () => {} } }
+  feature.register(ctx)
+  assert.deepEqual(writes, [['text', 18]])
+  snapshot = { fontSizes: { text: 14 } }
+  feature.register(ctx)
+  assert.equal(writes.length, 1, '已经处理过，用户之后改回 14 不会再被覆盖')
+  dom.window.localStorage.clear()
+  snapshot = { fontSizes: { text: 16 } }
+  feature.register(ctx)
+  assert.equal(writes.length, 1, '用户已改过的字号不动')
 })

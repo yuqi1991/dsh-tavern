@@ -11681,6 +11681,17 @@ function subscribeTavernHostTheme(win, listener) {
 		// 行距与字距是看屏幕的偏好，存在本机。思路来自 DrifterJD/ZITI。
 		const TAVERN_TEXT_LAYOUT_KEY = "dsh-tavern-text-layout";
 		const TAVERN_TEXT_LAYOUT_LIMITS = Object.freeze({ lineHeight: [1, 3], letterSpacing: [-0.1, 0.3] });
+		// 酒馆的默认字号。宿主默认是 14（范围 10–22，整数）；首次使用时若还在宿主默认值，就一次性改成这个。
+		const TAVERN_DEFAULT_FONT_SIZE = 18;
+		const TAVERN_FONT_SIZE_RANGE = Object.freeze([10, 22]);
+		const TAVERN_FONT_SIZE_SEEDED_KEY = "dsh-tavern-font-size-seeded";
+
+		// DSH 0.2.1 的快照把字号放在 fontSizes.text（旧版是 fontSize）；setFontSize 要先给角色。
+		function readHostFontSize(snapshot) {
+			const sizes = snapshot && snapshot.fontSizes;
+			const value = sizes && Number.isFinite(sizes.text) ? sizes.text : snapshot && snapshot.fontSize;
+			return Number.isFinite(value) ? value : 14;
+		}
 
 		function normalizeTavernTextLayout(value) {
 			const source = value && typeof value === "object" ? value : {};
@@ -11727,7 +11738,7 @@ function subscribeTavernHostTheme(win, listener) {
 				const h = React.createElement;
 				const theme = props.theme;
 				const [current, setCurrent] = React.useState(layout);
-				const [fontSize, setFontSize] = React.useState(function () { return theme.getTheme().fontSize || 14; });
+				const [fontSize, setFontSize] = React.useState(function () { return readHostFontSize(theme.getTheme()); });
 				const [error, setError] = React.useState("");
 				React.useEffect(function () {
 					listeners.add(setCurrent);
@@ -11735,11 +11746,11 @@ function subscribeTavernHostTheme(win, listener) {
 				}, []);
 				React.useEffect(function () {
 					// 通用设置里改了字号，这里跟着变。
-					return props.onThemeChange(function (snapshot) { setFontSize((snapshot && snapshot.fontSize) || 14); });
+					return props.onThemeChange(function (snapshot) { setFontSize(readHostFontSize(snapshot)); });
 				}, []);
 				function changeFontSize(px) {
 					setError("");
-					try { theme.setFontSize(px); }
+					try { theme.setFontSize("text", px); }
 					catch (err) { setError(String(err && err.message || err)); }
 				}
 				const lineHeight = current.lineHeight === null ? defaultTavernLineHeight(fontSize) : current.lineHeight;
@@ -11753,10 +11764,10 @@ function subscribeTavernHostTheme(win, listener) {
 				return h("section", { className: "dsh-tavern-text-layout" },
 					h("div", { className: "dsh-tavern-text-layout-head" },
 						h("strong", null, "正文排版"),
-						h("button", { type: "button", className: "dsh-tavern-btn", disabled: current.lineHeight === null && current.letterSpacing === null && fontSize === 14,
-							onClick: function () { update({ lineHeight: null, letterSpacing: null }); if (fontSize !== 14) changeFontSize(14); } }, "恢复默认")),
+						h("button", { type: "button", className: "dsh-tavern-btn", disabled: current.lineHeight === null && current.letterSpacing === null && fontSize === TAVERN_DEFAULT_FONT_SIZE,
+							onClick: function () { update({ lineHeight: null, letterSpacing: null }); if (fontSize !== TAVERN_DEFAULT_FONT_SIZE) changeFontSize(TAVERN_DEFAULT_FONT_SIZE); } }, "恢复默认")),
 					h("p", { className: "dsh-tavern-settings-desc" }, "作用于酒馆正文、你的对话气泡和舞台文本，卡片自带的界面不受影响。字号与「通用设置」里的字号大小是同一个设置。"),
-					field("字号", "px", fontSize, 12, 32, 1, "px", changeFontSize),
+					field("字号", "px", fontSize, TAVERN_FONT_SIZE_RANGE[0], TAVERN_FONT_SIZE_RANGE[1], 1, "px", changeFontSize),
 					field("行间距", "倍", lineHeight, 1, 3, 0.05, "×", function (value) { update({ lineHeight: value }); }),
 					field("字间距", "em", letterSpacing, -0.1, 0.3, 0.01, "em", function (value) { update({ letterSpacing: value }); }),
 					h("p", { className: "dsh-tavern-text-layout-preview", style: { fontSize: (fontSize + 2) + "px", lineHeight: lineHeight, letterSpacing: letterSpacing + "em" } },
@@ -11764,8 +11775,18 @@ function subscribeTavernHostTheme(win, listener) {
 					error ? h("p", { className: "dsh-tavern-settings-error", role: "alert" }, error) : null);
 			}
 
+			// 首次使用：宿主字号还是出厂的 14 就改成酒馆默认；改过的值不动，之后也不再覆盖。
+			function seedDefaultFontSize(theme) {
+				try {
+					if (window.localStorage.getItem(TAVERN_FONT_SIZE_SEEDED_KEY)) return;
+					window.localStorage.setItem(TAVERN_FONT_SIZE_SEEDED_KEY, "1");
+					if (readHostFontSize(theme.getTheme()) === 14) theme.setFontSize("text", TAVERN_DEFAULT_FONT_SIZE);
+				} catch (_) {}
+			}
+
 			function register(ctx) {
 				applyTavernTextLayout(layout);
+				seedDefaultFontSize(ctx.theme);
 				// 外观页由内置的 dsh-dream-skin 提供；没有它时这一行不出现，已保存的排版照样生效。
 				return ctx.slots.inject("settings.dreamSkin.item", function () {
 					return ctx.slots.register({
