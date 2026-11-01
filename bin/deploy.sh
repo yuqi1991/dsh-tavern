@@ -62,6 +62,8 @@ stage() {
   local P="$S/profiles/tavern" R="$S/apps/dsh-tavern/node_modules"
   ln -s ../../../apps/dsh-tavern/tavern-plugin "$P/node_modules/dsh-tavern-plugin"
   ln -s ../../../apps/dsh-tavern/tavern-plugin/packages/dsh-tavern-remote "$P/node_modules/dsh-tavern-remote"
+  # 皮肤插件用发布树里 fork 改过的那份（适配 0.2.1），必须同时出现在下面的 bundles 里。
+  ln -s ../../../apps/dsh-tavern/tavern-plugin/packages/dsh-dream-skin "$P/node_modules/dsh-dream-skin"
   ln -s ../../../runtime/lib/node_modules/@deepseek-ai "$P/node_modules/@deepseek-ai"
   cp -a "$R/dsh-better-sidebar" "$P/node_modules/dsh-better-sidebar"
   cp -a "$R/dsh-pocket" "$P/node_modules/dsh-pocket"
@@ -74,7 +76,7 @@ stage() {
   patch_pocket "$P/node_modules/dsh-pocket"
   [ -e "$P/node_modules/dsh-web-mobile" ] || die "profile 里缺 dsh-web-mobile"
   [ -e "$P/node_modules/qrcode" ] || die "profile 里缺 qrcode（Pocket 二维码依赖）"
-  printf '%s\n' '{ "name": "tavern-production", "private": true, "dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-better-sidebar", "dsh-tavern-plugin", "dsh-tavern-remote", "dsh-web-mobile", "dsh-pocket"] } } }' > "$P/package.json"
+  printf '%s\n' '{ "name": "tavern-production", "private": true, "dsh": { "profile": { "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-better-sidebar", "dsh-dream-skin", "dsh-tavern-plugin", "dsh-tavern-remote", "dsh-web-mobile", "dsh-pocket"] } } }' > "$P/package.json"
   cp "$STAGE021/home/profiles/tavern/cordis.yml" "$P/cordis.yml"
   printf '[]\n' > "$P/cordis.patch.yml"
   echo "5/6 自检：暂存区文件与标签提交逐字节一致"
