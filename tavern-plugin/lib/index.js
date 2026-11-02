@@ -159,7 +159,7 @@ import { createPresetLibrary } from './domain/preset-library.js'
 import { compileSillyTavernRequest, createCleanCompatibilityPreset } from './domain/sillytavern-compatibility.js'
 import { applySillyTavernStrictTools } from './domain/sillytavern-strict-tools.js'
 import { createForegroundOrchestrationStrategies } from './domain/foreground-orchestration-strategies.js'
-import { clearFailedTurnSurface } from './domain/rollback-surface.js'
+import { clearFailedTurnSurface, isUntouchedOpening } from './domain/rollback-surface.js'
 import { assistantResultForTurn } from './domain/session-turn-result.js'
 import { createTavernRetryLimiter } from './domain/tavern-retry-limiter.js'
 import { lastTavernHelperVariables, projectTavernHelperContext, hydrateTavernHelperMessages, HELPER_MESSAGE_COLD_WINDOW } from './domain/tavern-helper-context.js'
@@ -1711,7 +1711,7 @@ export async function apply(ctx) {
       debugTurns: debugTurns.slice(-12).reverse(),
       latestAssistantMessageId,
       latestAssistantTurn: latestStoryTurn,
-      variantSwitch: variantSwitchView(chat, latestStoryTurn),
+      variantSwitch: variantSwitchView(chat, latestStoryTurn > 0 ? latestStoryTurn : openingFloorTurn(chat)),
       latestInput: latestRuntimeInput(chat),
       regenerating: chat.regenInProgress === true,
       variantBodies,
@@ -1899,6 +1899,10 @@ export async function apply(ctx) {
     const selected = selectedNow >= 0 ? selectedNow : count - 1
     return { available: true, turn, count, selected, reason: '' }
   }
+  // Before the first player input the opening is the only floor (it regenerates and switches like any other).
+  function openingFloorTurn(chat) {
+    return isUntouchedOpening(chat?.messages) && (chat.mode || 'story') === 'story' ? Number(chat.messages[0].turn) || 1 : 0
+  }
   function latestStoryTurnOf(chat) {
     const messages = Array.isArray(chat?.messages) ? chat.messages : []
     for (let index = messages.length - 1; index >= 0; index--) {
@@ -1907,7 +1911,7 @@ export async function apply(ctx) {
       const turn = Number(message.turn) || 0
       if (turn > 0) return turn
     }
-    return 0
+    return openingFloorTurn(chat)
   }
   function volatileSessionViewFields(chat, activity) { return sessionStateView.volatile(chat, activity) }
 
@@ -3480,6 +3484,8 @@ export async function apply(ctx) {
     const chat = await chatForSession(str(sessionId))
     if (!chat) throw new Error('请先打开游玩会话')
     const messages = Array.isArray(chat.messages) ? chat.messages : []
+    // The opening has no player input to prefill: the panel hides the input box.
+    if (openingFloorTurn(chat) > 0) return { input: '', turn: openingFloorTurn(chat), opening: true }
     let assistantIndex = -1
     for (let index = messages.length - 1; index >= 0; index--) {
       const message = messages[index]

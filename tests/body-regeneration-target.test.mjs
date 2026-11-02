@@ -10,7 +10,7 @@ const cleanup = (seq, turn) => assistant(seq, turn, { kind: 'plugin', plugin: 'd
 const chat = { messages: [{ role: 'assistant', greeting: true, turn: 1 }, { role: 'user', text: '继续' }, { role: 'assistant', turn: 6, text: '已保存正文' }] }
 test('同一句配对错误记录不同结构原因，不修改消息或暴露文本', () => {
   const cases = [
-    [[{ role: 'assistant', greeting: true }], 'no-non-greeting-assistant'],
+    [[{ role: 'assistant', greeting: true }, { role: 'user' }], 'no-non-greeting-assistant'],
     [[{ role: 'assistant', turn: 2 }], 'assistant-at-start'],
     [[null, { role: 'assistant', turn: 2 }], 'previous-message-invalid'],
     [[{ role: 'user' }, { role: 'system' }, { role: 'assistant', turn: 2 }], 'previous-message-not-user']
@@ -25,6 +25,13 @@ test('同一句配对错误记录不同结构原因，不修改消息或暴露�
     assert.doesNotMatch(JSON.stringify(evidence), /private-user-story-and-key/)
     assert.deepEqual(messages, before)
   }
+})
+
+test('只剩开场时开场就是目标；原生消息流里找不到它时记录 native-target-missing，有了玩家输入就不再是开局', () => {
+  let evidence
+  assert.throws(() => selectRegenerationTarget({ messages: [{ role: 'assistant', greeting: true, turn: 1, text: '开场' }] }, { events: [], surface: { nodes: [] } }, value => { evidence = value }), /原生消息流中找不到/)
+  assert.equal(evidence.reason, 'native-target-missing')
+  assert.throws(() => selectRegenerationTarget({ mode: 'script', messages: [{ role: 'assistant', greeting: true, turn: 1 }] }, { events: [], surface: { nodes: [] } }), /没有可重新生成/, '剧本模式的开场不在此列')
 })
 
 test('原生轮次匹配失败和成功有独立记录，诊断观察者异常不改变结果', () => {

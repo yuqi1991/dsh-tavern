@@ -71,7 +71,7 @@ export async function playControls({ page, step, savedChat, inspectRound, output
     const path = join(output, 'conversation.txt')
     await download.saveAs(path)
     const text = await readFile(path, 'utf8')
-    for (const expected of ['欢迎领取奖励。', '领取任务奖励', '你获得了十枚金币。', '再次领取奖励', edited]) assert.ok(text.includes(expected), '导出遗漏：' + expected)
+    for (const expected of ['重新生成的开场：雨夜的柜台前。', '领取任务奖励', '你获得了十枚金币。', '再次领取奖励', edited]) assert.ok(text.includes(expected), '导出遗漏：' + expected)
     for (const obsolete of ['雨夜里，你重新领取了奖励。', '你再次领取了奖励，金币累计二十枚。', '<StatusPlaceHolderImpl/>', 'mvu_submit_update']) assert.ok(!text.includes(obsolete), '导出包含旧正文或内部内容：' + obsolete)
     assert.equal(text.split(edited).length - 1, 1, '编辑正文不得重复导出')
     assert.deepEqual(prose(await savedChat()), prose(before))

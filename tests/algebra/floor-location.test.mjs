@@ -252,3 +252,58 @@ test('开局正文在第一条用户输入之前和别的助手层一样可编�
   await h.editBody('回退后再改')
   assert.deepEqual(h.surfaceBodies(), ['回退后再改'])
 }))
+
+test('开局也能重新生成正文：和别的助手层一样，旧开场留作变体，不结算', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  const before = structuredClone(h.events)
+  await h.regenerate()
+  assert.deepEqual(h.surfaceBodies(), ['正文2'])
+  assert.deepEqual(h.surfaceInputs(), [], '合成的开局提示不留在表面上')
+  assert.equal(h.chat.messages.length, 1, 'Chat 里仍只有开场这一条')
+  const opening = h.chat.messages[0]
+  assert.equal(opening.role, 'assistant'); assert.equal(opening.greeting, true); assert.equal(opening.turn, 1)
+  assert.equal(opening.text, '正文2')
+  assert.deepEqual(h.events.slice(0, before.length), before, '旧事件不改，只追加')
+  assert.equal(hasBookkeeping(h), false)
+  assert.equal(h.calls.includes('settlement'), false, '没有玩家输入，不结算')
+}))
+
+test('开局重新生成后：可切回旧开场再切回来；发话、回退后还能再改', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  await h.regenerate()
+  assert.deepEqual(h.surfaceBodies(), ['正文2'])
+  await h.switchVariant(0)
+  assert.deepEqual(h.surfaceBodies(), ['开场'], '旧开场是可切回的变体')
+  assert.equal(h.chat.messages.length, 1)
+  assert.equal(h.chat.messages[0].text, '开场')
+  assert.equal(h.chat.messages[0].greeting, true)
+  await h.switchVariant(1)
+  assert.deepEqual(h.surfaceBodies(), ['正文2'])
+  assert.equal(h.chat.messages[0].text, '正文2')
+  // 开始对话，再回退到只剩开场：开场保留，可再次编辑与重新生成。
+  await h.play('开始')
+  assert.deepEqual(h.surfaceInputs(), ['开始'])
+  await h.rollback()
+  assert.deepEqual(h.surfaceBodies(), ['正文2'])
+  assert.equal(h.chat.messages.length, 1)
+  await h.editBody('回退后改过')
+  assert.deepEqual(h.surfaceBodies(), ['回退后改过'])
+  await h.regenerate()
+  assert.equal(h.surfaceBodies().length, 1)
+  assert.equal(h.chat.messages.length, 1)
+  assert.equal(h.chat.messages[0].greeting, true)
+  assert.equal(hasBookkeeping(h), false)
+}))
+
+test('开局重新生成失败：开场和表面原样恢复，不留下半成品', () => withHostPatch(async () => {
+  const h = createPlayHarness()
+  const chatBefore = structuredClone(h.chat.messages)
+  h.generation = 'throw'
+  await assert.rejects(h.regenerate(), /fixture generation failed/)
+  assert.deepEqual(h.surfaceBodies(), ['开场'])
+  assert.deepEqual(h.chat.messages.map(m => [m.role, m.text, m.greeting, m.turn]), chatBefore.map(m => [m.role, m.text, m.greeting, m.turn]))
+  assert.equal(h.chat.regenInProgress, undefined)
+  h.generation = 'success'
+  await h.regenerate()
+  assert.deepEqual(h.surfaceBodies(), ['正文2'])
+}))

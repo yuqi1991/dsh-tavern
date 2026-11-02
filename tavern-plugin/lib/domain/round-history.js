@@ -7,7 +7,7 @@ import { releaseOpeningTurn, sessionEvents, appendSessionEvent } from './session
 import { randomUUID } from 'node:crypto'
 import { createRegenerationRecovery } from './regeneration-recovery.js'
 import { isDeepStrictEqual } from 'node:util'
-import { rollbackAvailability, clearFailedTurnSurface, locateFloorBody, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
+import { rollbackAvailability, clearFailedTurnSurface, isUntouchedOpening, locateFloorBody, locateRegenerationSurface, failedTurnReplayAvailability } from './rollback-surface.js'
 import { regenerationFloorInput } from './story-floors.js'
 import { assertRegenerationSourceCurrent, replaceLastRound } from './last-round-replacement.js'
 import { restoreVariantState, saveVariantState, withoutVariantSettlement } from './variant-state.js'
@@ -31,6 +31,13 @@ export function regenerationInputText(userText, guidance, rewriteBody) {
   const input = str(userText).trim(), guide = str(guidance).trim(), draft = str(rewriteBody).trim()
   if (draft !== '' && guide !== '') return input + '\n\n【当前正文】\n' + draft + '\n\n【改写要求】\n在当前正文基础上改写本轮正文：' + guide
   return input + (guide !== '' ? '\n\n【本轮补充要求】\n' + guide : '')
+}
+
+/** The opening has no player input. Without guidance this is a fresh sample of the
+ * opening; guidance comes with the current opening as the draft to revise. */
+export const OPENING_REGENERATION_PROMPT = '（游戏刚开始，玩家尚未行动。请按人物卡与世界书写出游戏的开场正文。）'
+export function openingRegenerationText(guidance, rewriteBody) {
+  return regenerationInputText(OPENING_REGENERATION_PROMPT, guidance, rewriteBody)
 }
 
 // What the model saw of a stored reply (same precedence as the body editor).
@@ -68,8 +75,11 @@ export function selectRegenerationTarget(chat, session, observe) {
   const nodes = (session.surface !== undefined && Array.isArray(session.surface.nodes)) ? session.surface.nodes : []
   const eventStart = sessionEvents(session).length
   const msgs0 = chat.messages || []
+  // Before the first player input the opening is the only floor: it regenerates like any first assistant message.
+  const opening = isUntouchedOpening(msgs0) && (chat.mode || 'story') === 'story'
   let oldAssistantIndex = -1
-  for (let i = msgs0.length - 1; i >= 0; i--) {
+  if (opening) oldAssistantIndex = 0
+  else for (let i = msgs0.length - 1; i >= 0; i--) {
     const m = msgs0[i]
     if (m !== null && typeof m === 'object' && m.role === 'assistant' && m.greeting !== true) {
       oldAssistantIndex = i
@@ -80,7 +90,7 @@ export function selectRegenerationTarget(chat, session, observe) {
     if (typeof observe !== 'function') return
     try { observe(regenerationTargetDiagnostic(chat, session, { reason, assistantIndex: oldAssistantIndex, target })) } catch { /* Diagnostics never change selection. */ }
   }
-  if (oldAssistantIndex < 1 || msgs0[oldAssistantIndex - 1] === null || typeof msgs0[oldAssistantIndex - 1] !== 'object' || msgs0[oldAssistantIndex - 1].role !== 'user') {
+  if (!opening && (oldAssistantIndex < 1 || msgs0[oldAssistantIndex - 1] === null || typeof msgs0[oldAssistantIndex - 1] !== 'object' || msgs0[oldAssistantIndex - 1].role !== 'user')) {
     report(oldAssistantIndex < 0 ? 'no-non-greeting-assistant' : oldAssistantIndex === 0 ? 'assistant-at-start'
       : msgs0[oldAssistantIndex - 1] === null || typeof msgs0[oldAssistantIndex - 1] !== 'object' ? 'previous-message-invalid' : 'previous-message-not-user')
     throw new Error('没有可重新生成的玩家输入与正文组合')
@@ -110,7 +120,7 @@ export function selectRegenerationTarget(chat, session, observe) {
   const oldSeq = target.assistantSeq
   const oldTurn = msgs0[oldAssistantIndex].turn
   const oldSource = target.source
-  return { nodes, eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource, userSeq: target.userSeq }
+  return { nodes, eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, oldSource, userSeq: target.userSeq, opening }
 }
 
 /** Last story-body text from the CURRENT fold (post-checkout). `turns` is the
@@ -229,9 +239,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         catch { /* Recording failure must not affect regeneration or replace its error. */ }
       }
     }
-    const { eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn } = selection
-    const originalUserText = str(msgs0[oldAssistantIndex - 1].text).trim()
-    const editedInput = normalizeEditedInput(inputOverride, originalUserText)
+    const { eventStart, msgs0, oldAssistantIndex, oldSeq, oldTurn, opening } = selection
+    const originalUserText = opening ? '' : str(msgs0[oldAssistantIndex - 1].text).trim()
+    const editedInput = opening ? null : normalizeEditedInput(inputOverride, originalUserText)
     algebraHistory.assertReady()
     // The old body becomes a sibling variant BEFORE the generation — branch +
     // checkout(anchor = the original input node). The synthetic turn then
@@ -241,7 +251,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       const nodes = session.surface?.nodes || []
       const bySeq = new Map(sessionEvents(session).map(event => [event.seq, event]))
       let userSeq = null
-      for (let index = nodes.indexOf(oldSeq) - 1; index >= 0; index--) {
+      // The opening has no player input: the checkout anchor is whatever precedes it
+      // on the surface (the system head), or -1 for an empty surface.
+      if (opening) userSeq = nodes.indexOf(oldSeq) > 0 ? nodes[nodes.indexOf(oldSeq) - 1] : -1
+      else for (let index = nodes.indexOf(oldSeq) - 1; index >= 0; index--) {
         const event = bySeq.get(nodes[index])
         const source = event?.data?.source
         if (event?.type === 'user/message' && source?.kind === 'user') { userSeq = nodes[index]; break }
@@ -260,7 +273,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       await regenerationRecovery.abort({ chatId: chat.id, originalChat, session, eventStart, operationId })
     }
     let legacyBefore = null
-    if (storyTimeline.inspect({ chat }).checkpointCount === 0) {
+    if (!opening && storyTimeline.inspect({ chat }).checkpointCount === 0) {
       let rollbackCommit = null
       if (chat.nativeCommits !== null && typeof chat.nativeCommits === 'object') {
         const keys = Object.keys(chat.nativeCommits).map(Number).filter(Number.isFinite).sort(function (a, b) { return b - a })
@@ -285,18 +298,20 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         legacyBefore.scriptState = scriptContinuity.transition({ script, state: chat.scriptState, event: { kind: 'restore', revision, reference } }).state
       }
     }
-    const rollbackIntent = await prepareRollbackIntent(chat, { kind: 'turn.rollback', turn: oldTurn, legacyBefore })
+    // The opening has no earlier floor to roll back to: the Chat keeps it until the
+    // regenerated text replaces it, so there is no timeline rollback.
+    const rollbackIntent = opening ? null : await prepareRollbackIntent(chat, { kind: 'turn.rollback', turn: oldTurn, legacyBefore })
     const lifecycleRevision = Math.max(0, Number(originalChat.tavernHelperLifecycleRevision) || 0) + 1
     chat = await updateChat(chat.id, function (current) {
       if (agent.phase?.kind === 'running' || current.regenInProgress) throw new Error('前台正在生成，请完成或停止后再重新生成')
-      assertRegenerationSourceCurrent({ originalChat, currentChat: current, assistantIndex: oldAssistantIndex })
+      assertRegenerationSourceCurrent({ originalChat, currentChat: current, assistantIndex: oldAssistantIndex, opening })
       originalChat = structuredClone(current)
-      const next = storyTimeline.apply({ chat: current, intent: rollbackIntent }).chat
+      const next = opening ? current : storyTimeline.apply({ chat: current, intent: rollbackIntent }).chat
       next.regenRecovery = { id: operationId, beforeRevision: Number(current._storageRevision || 0),
         ...(Number(current._storageRevision || 0) ? {} : { before: structuredClone(current) }),
         sessionId: chat.sessionId, eventStart,
         // The rolled-back floor stays on screen (story view) with its input.
-        floor: { turn: Number(oldTurn), input: regenerationFloorInput(msgs0[oldAssistantIndex - 1], editedInput) } }
+        floor: { turn: Number(oldTurn), input: opening ? '' : regenerationFloorInput(msgs0[oldAssistantIndex - 1], editedInput) } }
       // The pre-planned branch+checkout owns the native surface from here
       // on; a failed native commit keeps this durable intent for recovery.
       next.conversationHistoryIntent = { sessionId: session.id, transaction: checkoutIntent }
@@ -311,7 +326,8 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     const rolledMessageCount = (chat.messages || []).length
     const guide = str(guidance).trim()
     // Edited input replaces the original text; guidance still appends as a supplement.
-    const syntheticText = regenerationInputText(editedInput !== null ? editedInput : originalUserText, guide, replyTextOf(msgs0[oldAssistantIndex]))
+    const syntheticText = opening ? openingRegenerationText(guide, replyTextOf(msgs0[oldAssistantIndex]))
+      : regenerationInputText(editedInput !== null ? editedInput : originalUserText, guide, replyTextOf(msgs0[oldAssistantIndex]))
     releaseOpeningTurn(agent.session, agent)
     const beforeLastTurn = agent.phase !== undefined && agent.phase !== null && Number.isFinite(Number(agent.phase.lastTurn)) ? Number(agent.phase.lastTurn) : 0
     let committedChat, body, syntheticTurn
@@ -323,7 +339,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
       agent.followup({
         id: randomUUID(),
         role: 'user',
-        content: projectPlayerContent(msgs0[oldAssistantIndex - 1].inputAttachments, syntheticText),
+        content: projectPlayerContent(opening ? undefined : msgs0[oldAssistantIndex - 1].inputAttachments, syntheticText),
         source: producerSource('dsh-tavern-regen', { regenerationId: operationId })
       })
       await agent.whenIdle()
@@ -375,7 +391,7 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         if (currentMessages.length < rolledMessageCount + 2 || currentUser === null || typeof currentUser !== 'object' || currentUser.role !== 'user' ||
             currentAssistant === null || typeof currentAssistant !== 'object' || currentAssistant.role !== 'assistant' || Number(currentAssistant.turn) !== syntheticTurn ||
             str(currentAssistant.text).trim() !== body) throw new Error('重新生成流程的正文已被另一项操作修改')
-        const merged = replaceLastRound({ originalChat, regeneratedChat: current, assistantIndex: oldAssistantIndex, inputText: editedInput })
+        const merged = replaceLastRound({ originalChat, regeneratedChat: current, assistantIndex: oldAssistantIndex, inputText: editedInput, opening })
         const next = merged.chat
         // The pre-checkout branch keeps the old body; file its Chat state there.
         const filed = saveVariantState(originalChat.messages[oldAssistantIndex], current.regenRecovery.preCheckoutBranchId)
@@ -410,8 +426,20 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         next.regenRecovery = { ...current.regenRecovery, phase: 'committed',
           ...(Number.isSafeInteger(syntheticInputSeq) ? { syntheticInputSeq } : {}),
           ...(userProjection !== null ? { userProjection } : {}) }
-        next.settleStatus = 'pending'
-        next.settleError = null
+        if (opening) {
+          // Nothing to settle: no player input moved any variable. Drop the body the
+          // foreground turn recorded, with the synthetic input it left behind.
+          next.settleStatus = originalChat.settleStatus
+          next.settleError = originalChat.settleError
+          if (next.runtimeInputs && typeof next.runtimeInputs === 'object' && !Array.isArray(next.runtimeInputs)) {
+            next.runtimeInputs = structuredClone(next.runtimeInputs)
+            delete next.runtimeInputs[String(syntheticTurn)]
+          }
+          Object.assign(next, storyTimeline.apply({ chat: next, intent: { kind: 'body.discard', turn: syntheticTurn } }).chat)
+        } else {
+          next.settleStatus = 'pending'
+          next.settleError = null
+        }
         next.tavernHelperLifecycleRevision = lifecycleRevision + 1
         return next
       }, { source: 'foreground.regen-commit' })
@@ -422,8 +450,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     committedChat = await regenerationRecovery.complete({ chatId: chat.id, session, operationId }) || committedChat
     let settledChat = committedChat
     try {
-      await queueSettlement(committedChat.id)
-      settledChat = await readChat(committedChat.id) || committedChat
+      if (!opening) {
+        await queueSettlement(committedChat.id)
+        settledChat = await readChat(committedChat.id) || committedChat
+      }
     } catch (error) {
       const message = str(error?.message || error) || '后台结算失败'
       settledChat = await updateChat(committedChat.id, function (current) {
@@ -826,7 +856,10 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
     algebraHistory.assertReady()
     const index = Number(targetIndex)
     if (!Number.isSafeInteger(index) || index < 0) throw new Error('变体序号无效: ' + targetIndex)
-    const lastAssistant = [...(chat.messages || [])].findLast(message => message && message.role === 'assistant' && message.greeting !== true)
+    // Before the first player input the opening is the only floor and switches like any other.
+    const openingFloor = isUntouchedOpening(chat.messages) && (chat.mode || 'story') === 'story'
+    const lastAssistant = openingFloor ? chat.messages[0]
+      : [...(chat.messages || [])].findLast(message => message && message.role === 'assistant' && message.greeting !== true)
     const turn = Number(lastAssistant?.turn) || 0
     if (turn <= 0) throw new Error('没有可切换的剧情楼层')
     const stored = branchRegistryOf(session)
@@ -885,8 +918,9 @@ export function createRoundHistory({ chats, sessions, scripts, timeline, queueSe
         const messages = Array.isArray(current?.messages) ? [...current.messages] : []
         // Which native row hosts the floor is the floor projection's answer;
         // only the Chat content mirror (ticket 16) still needs the body text.
-        const assistantIndex = messages.findLastIndex(message => message && typeof message === 'object' && message.role === 'assistant' && message.greeting !== true)
-        if (assistantIndex < 1 || messages[assistantIndex - 1]?.role !== 'user') return current
+        const assistantIndex = isUntouchedOpening(messages) ? 0
+          : messages.findLastIndex(message => message && typeof message === 'object' && message.role === 'assistant' && message.greeting !== true)
+        if (assistantIndex < 0 || (assistantIndex === 0 ? !isUntouchedOpening(messages) : messages[assistantIndex - 1]?.role !== 'user')) return current
         // File the variant being left, then bring back the target's own state;
         // a variant generated before filing existed falls back to the baseline.
         const left = saveVariantState(messages[assistantIndex], leftBranchId)

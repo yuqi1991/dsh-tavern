@@ -581,6 +581,20 @@ export function createStoryTimeline(options = {}) {
       chat.candidateAgent = null
       value = { status: 'restored', branchId, revision: chat.timeline.revision }
     }
+    else if (intent.kind === 'body.discard') {
+      // The opening has no player input to settle. After its regeneration ran as a
+      // foreground body, forget that body: no checkpoint to roll back to, nothing to settle.
+      const turn = Number(intent.turn)
+      const found = Object.entries(chat.timeline.operations).filter(([, operation]) =>
+        operation.kind === 'body' && operation.status === 'completed' && Number(operation.turn) === turn)
+        .sort((left, right) => (Number(right[1].completedAt) || 0) - (Number(left[1].completedAt) || 0))[0]
+      if (found === undefined) throw new Error('找不到要丢弃的正文记录: 第 ' + turn + ' 轮')
+      delete chat.timeline.operations[found[0]]
+      const checkpoint = chat.timeline.checkpoints.findLastIndex(item => Number(item.turn) === turn)
+      if (checkpoint >= 0) chat.timeline.checkpoints.splice(checkpoint, 1)
+      chat.timeline.revision++
+      value = { status: 'discarded', revision: chat.timeline.revision }
+    }
     else throw new Error('未知剧情时间线 intent: ' + str(intent.kind))
     chat.timeline.updatedAt = now()
     return { chat, value }

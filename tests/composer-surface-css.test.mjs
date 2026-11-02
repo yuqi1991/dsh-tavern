@@ -19,4 +19,8 @@ test('输入框透明度同时管上方按钮、下方统计条与顶部标题�
     assert.ok(line.includes(`background: var(--dsh-tavern-composer-surface, ${fallback})`), selector + ' 的回退底色')
   }
   assert.ok(rule('body.dsh-tavern-shell-active .dsh-tavern-dock-actions .dsh-tavern-choice-trigger:hover:not(:disabled) {'), '悬停仍用强调色底，不被透明度规则盖住')
+  // 没有皮肤变量时，模糊变量必须无效（回退 none）：blur(0px) 也会生成包含块，让 fixed 定位的菜单错位。
+  assert.match(css, /--dsh-tavern-composer-backdrop: blur\(var\(--dsh-dream-skin-glass-blur\)\)/, '模糊半径不能带回退值')
+  // 标题栏里有导出等 fixed 定位的菜单：只换底色，不能加 backdrop-filter。
+  assert.doesNotMatch(rule('body.dsh-tavern-shell-active [data-phase] header[data-window-drag] {'), /backdrop-filter/)
 })

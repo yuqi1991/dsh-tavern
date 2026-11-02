@@ -101,7 +101,7 @@ export function createSessionStateView({ activity: activityOf, evidence: evidenc
     const compacted = Array.isArray(nodes) && latestFloorCompacted(chat, events || [], nodes) && !rollbackState.canClearIncompleteReply
     const result = {
       hiddenDshErrorTurns: chat.hiddenDshErrorTurns || [],
-      canRegenerate: hasRound && !compacted && !isRescuedHistoryMessage(chat, chat.messages?.findLast(message => message.role === 'assistant')),
+      canRegenerate: (hasRound || (isUntouchedOpening(chat.messages) && (chat.mode || 'story') === 'story')) && !compacted && !isRescuedHistoryMessage(chat, chat.messages?.findLast(message => message.role === 'assistant')),
       canEditBody: (hasRound || (isUntouchedOpening(chat.messages) && ['story', 'script'].includes(chat.mode))) && !compacted,
       latestFloorCompacted: compacted,
       rollbackTargetTurn: settlementTurn(chat),

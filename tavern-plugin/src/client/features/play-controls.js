@@ -1232,14 +1232,19 @@
 			// null = 本轮输入尚未读到；预填只在面板每次打开时拉取一次，
 			// 后续 phase 更新不重置，避免覆盖用户正在编辑的文本。
 			const [input, setInput] = React.useState(null);
+			// 开局（第一条玩家输入之前）没有输入可改：隐藏输入框，标题也不同。
+			const [opening, setOpening] = React.useState(false);
 			const panelKey = panel ? String(panel.sessionId) + ":" + String(panel.openedAt || "") : "";
 			const h = React.createElement;
 			React.useEffect(function () {
 				if (panelKey === "") return;
 				let alive = true;
 				setInput(null);
+				setOpening(false);
 				rpc("getRegenInput", {}, props.sessionId).then(function (res) {
-					if (alive) setInput(String(res && res.input || ""));
+					if (!alive) return;
+					setInput(String(res && res.input || ""));
+					setOpening(Boolean(res && res.opening));
 				}).catch(function () {
 					if (alive) setInput("");
 				});
@@ -1262,7 +1267,7 @@
 				? h("div", { className: "dsh-tavern-question-sub" }, panel.rewrite ? "正在按意见改写正文…" : "正在重新生成正文…")
 				: h(React.Fragment, null,
 						panel.error ? h("div", { className: "dsh-tavern-choice-error" }, panel.error) : null,
-						h("textarea", {
+						opening ? null : h("textarea", {
 							className: "dsh-tavern-regen-input",
 							rows: 3,
 							value: input === null ? "" : input,
@@ -1282,7 +1287,7 @@
 						)
 					);
 			return h("div", { className: "dsh-tavern-question" },
-				h("div", { className: "dsh-tavern-question-head" }, h("span", null, "重新生成正文"), h("span", { className: "dsh-tavern-question-sub" }, "可先修改本轮输入再生成；不填意见是重新来一次，填了意见就在当前正文基础上改")),
+				h("div", { className: "dsh-tavern-question-head" }, h("span", null, "重新生成正文"), h("span", { className: "dsh-tavern-question-sub" }, (opening ? "不填意见是重新写一个开场，填了意见就在当前开场基础上改" : "可先修改本轮输入再生成；不填意见是重新来一次，填了意见就在当前正文基础上改"))),
 				body
 			);
 		}
