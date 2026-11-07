@@ -19,6 +19,7 @@
 - 生成文件：改了客户端源码后 `node bin/build-tavern-client.mjs`；`bin/regen.sh` 一键重建并校验（客户端、插件包、手册）。`--check` 必须通过。
 - e2e（真实 DSH + 浏览器 + 固定模型，隔离家目录与随机端口）：`TAVERN_E2E_RUNTIME=/home/claw/dsh-stage-021/runtime TAVERN_E2E_OUTPUT=<目录> node tests/e2e/gameplay.mjs [--flag]`。本机 Playwright 浏览器版本缺失的处理见 `tests/KNOWN-FAILURES.md`。
 - 验收实例：`bin/stage-021.sh setup|start|stop|status|logs`，`enable-pocket` 加 Pocket（带两个补丁，见 `docs/stage-021.md`）。令牌与 PIN 由使用者自己取，不要打印。
+- **测试收尾**：每次跑完 `bin/test-all.sh` 或 `tests/e2e` 之后执行 `bin/clean-test-leftovers.sh`。e2e 失败或超时会遗留 `--port 0` 的 DSH 进程（每个约 350MB）和 `/tmp/tavern-e2e-*` 目录，曾累积 13 个占 4.5GB。浏览器用例用 `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers` 时，这个目录也由脚本清理。
 - 不要在 fork 里运行 `pnpm add/install`（会改动依赖目录的软链指向）。依赖变更与 `pnpm-lock.yaml` 的处理见 `docs/upstream-port/SYNC-PLAYBOOK.md`。
 - 并行任务：每个任务用自己的 `git worktree`；**不要使用 `git stash`**（stash 栈在所有 worktree 间共享）；提交按明确路径添加。
 
