@@ -397,8 +397,12 @@ function unclearedFailedTail(chat, events, nodes) {
     if (!interval?.failed || committed.has(interval.turn)) break
     const plan = planFailedTurnSurface({ events, nodes, turn: interval.turn, ownership })
     if (!plan) break
-    result.push(interval.turn)
     const removed = new Set(plan.shadowedSeqs)
+    // Every pass must clear the node it looked at. A body whose story turn names a failed
+    // interval it does not originate from is not part of that interval's plan: without this
+    // the same node comes back forever (an endless loop that also grows `result`).
+    if (!removed.has(Number(event?.seq)) || result.includes(interval.turn)) break
+    result.push(interval.turn)
     remaining = remaining.filter(seq => !removed.has(seq))
   }
   return result
