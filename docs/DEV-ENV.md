@@ -6,7 +6,8 @@
 
 | 路径 | 用途 |
 | --- | --- |
-| `/home/claw/dsh-tavern-fork-021` | **唯一的开发仓库**（分支 `main`）。所有改动在这里提交。根目录的 `lib` 是指向 `tavern-plugin/lib` 的本地软链，不提交；`tavern-plugin/node_modules` 指向 `dsh-stage-021/plugin/node_modules`。 |
+| `/home/claw/dsh-tavern-fork-021` | **唯一的开发仓库**（分支 `main`，git 目录就在它自己里面；旧的 `dsh-tavern-fork` 目录已删除）。所有改动在这里提交。根目录的 `lib` 是指向 `tavern-plugin/lib` 的本地软链，不提交；`tavern-plugin/node_modules` 指向 `dsh-stage-021/plugin/node_modules`。 |
+| `/home/claw/dsh-fork-deps/node_modules` | 第三方依赖（playwright 等）。生产 `apps/dsh-tavern/node_modules` 和 `dsh-stage-021/root-nm` 里的符号链接都指向这里，**不要删、不要改名**（必须叫 node_modules，否则包之间互相找不到）。 |
 | `/home/claw/dsh-stage-021` | **验收与测试环境**：已验证的 0.2.1 运行时（`runtime/`）、依赖（`root-nm/`、`plugin/node_modules`）、验收实例家目录（`home/`，端口 3092，Pocket 3093）。`bin/test-all.sh`、`bin/deploy.sh stage`、e2e 都依赖它的运行时和依赖，不要删。 |
 | `/home/claw/workspace/dsh-tarvern` | **生产家目录**（端口 3081，Pocket 3082）。`runtime/`、`apps/dsh-tavern/`、`profiles/tavern/` 由部署脚本维护，不要手改；用户数据在 `profile-data/tavern/`；`settings.yaml` 只由使用者管理。 |
 | `/home/claw/backups` | 部署前备份：`dsh-pre-deploy-20261031/`（生产完整拷贝、sha256、README 含恢复命令）、`hotfix-*`、`dsh-pre-update-b-*`、git bundle。 |
