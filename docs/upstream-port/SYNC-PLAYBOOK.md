@@ -46,10 +46,8 @@ bin/test-all.sh                                 # 必须全绿；新增失败当
 
 1. `bin/regen.sh --check`、`bin/test-all.sh`（两次连跑稳定）。
 2. 打发布标签（形如 `deploy-<版本>-<日期>`，只在使用者同意后）。
-3. `DEPLOY_TAG=<标签> bin/deploy.sh stage` —— 暂存发布树，末尾与旧发布树对比文件清单；有缺失会非零退出，**逐项确认是有意删除**才能 `ALLOW_MISSING=1`。
-4. `bin/deploy.sh check` —— 暂存区起空实例核对启动与补丁自检（非生产端口）。
-5. 验收实例（`bin/stage-021.sh`，3092/3093）上跑 e2e：`node tests/e2e/gameplay.mjs` 及相关 `--…` 场景；让使用者验收。
-6. 使用者同意后：`CONFIRM=yes bin/deploy.sh cutover`。部署后 `bin/deploy.sh verify` 逐字节核对。
+3. 验收实例（`bin/stage-021.sh start`，3092/3093）上跑 e2e：`node tests/e2e/gameplay.mjs` 及相关 `--…` 场景；让使用者验收，看完 `stop`。
+4. 使用者同意后：`BASE_TAG=<上一个标签> bin/hotfix-release.sh <标签>`（由使用者运行）；换运行时等大升级见 `docs/DEV-ENV.md` 的“部署与回退”。部署后只读核对端口、日志和文件一致。
 
 ## 4.1 测试基线现状
 
@@ -66,5 +64,5 @@ bin/test-all.sh                                 # 必须全绿；新增失败当
 
 - 部署前备份（上次）：`/home/claw/backups/dsh-pre-deploy-20261031/`（生产家目录只读拷贝、runtime/apps/profiles 的 sha256、git bundle、README 里有恢复命令）。下次用 `DEPLOY_BACKUP=<新目录>` 并在部署前建好。
 - git 保护点：标签 `pre-dsh021-upgrade-20261028`（升级前）、`deploy-021-20261031`（上次发布）、分支 `backup/pre-dsh021-20261028`。每次大同步前也打一个 `pre-sync-<日期>` 标签。
-- 回退：`CONFIRM=yes bin/deploy.sh rollback`（旧目录是改名保留的，游戏数据归档而非删除）；权威恢复方式见备份目录 README。0.2.1 上产生的游戏旧内核打不开，要保留先导出 `.dshsave`。
+- 回退：见 `docs/DEV-ENV.md`；0.2.1 上产生的游戏旧内核打不开，要保留先导出 `.dshsave`。
 - 同步分支出问题：直接丢弃 `sync/…` 分支；`upstream-sync` 与主线不受影响。rerere 记录在 `.git/rr-cache`，丢分支不丢解法。

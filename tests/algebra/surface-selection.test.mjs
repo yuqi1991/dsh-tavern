@@ -89,7 +89,7 @@ test('selection guards reject without writing', withPatch(() => {
 }))
 
 test('selection survives persistence and reload', withPatch(async patch => {
-  const root = await mkdtemp('/home/claw/dsh-tavern-dev/surface-select-')
+  const root = await mkdtemp('/tmp/dsh-tavern-test-surface-select-')
   const persistence = await openPersistence(new Context(), { root, compression: 'zstd' })
   patch.patchPersistence(persistence)
   let handle
@@ -113,7 +113,7 @@ test('selection survives persistence and reload', withPatch(async patch => {
 }))
 
 test('a host without the patch refuses to load a selection log', async () => {
-  const root = await mkdtemp('/home/claw/dsh-tavern-dev/surface-select-')
+  const root = await mkdtemp('/tmp/dsh-tavern-test-surface-select-')
   try {
     const patch = await prepareExpandedPatch(RUNTIME, { version: '0.2.1-rc.2' })
     const s = Session.create('select-unpatched')

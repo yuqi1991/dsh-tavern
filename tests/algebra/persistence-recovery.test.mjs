@@ -11,7 +11,7 @@ import { appendStep, runTransaction, recoverTransaction } from '../../tavern-plu
 import { user } from './helpers.mjs'
 
 for (const cut of [1,2]) test(`host persistence reopens durable prefix after write ${cut}`, async () => {
-  const root=await mkdtemp('/home/claw/dsh-tavern-dev/algebra-persistence-')
+  const root=await mkdtemp('/tmp/dsh-tavern-test-algebra-persistence-')
   const ctx=new Context()
   const persistence=await openPersistence(ctx,{root,compression:'zstd'})
   let handle

@@ -13,7 +13,7 @@ for p in $(pgrep -f 'bin.js --profile tavern.*--port 0' 2>/dev/null); do
   case "$home" in /tmp/tavern-e2e-*) kill -9 "$p" 2>/dev/null;; esac
 done
 echo "已结束遗留的 e2e DSH 进程：$n 个"
-rm -rf /tmp/tavern-e2e-* /tmp/dsh-mobile-card-* /tmp/test-all.* /tmp/cjs-dsh-tavern-fork-021.tap /tmp/.org.chromium.Chromium.* /tmp/pw-browsers /tmp/e2e-* 2>/dev/null
+rm -rf /tmp/tavern-e2e-* /tmp/dsh-mobile-card-* /tmp/dsh-tavern-test-* /tmp/test-all.* /tmp/cjs-dsh-tavern-fork-021.tap /tmp/.org.chromium.Chromium.* /tmp/pw-browsers /tmp/e2e-* 2>/dev/null
 echo "已清理 /tmp 下的测试临时文件"
 left="$(ps -eo pid,rss,args | grep -E 'tavern-e2e|--port 0' | grep -v grep | wc -l)"
 echo "剩余可疑测试进程：$left 个"

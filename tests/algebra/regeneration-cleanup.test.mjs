@@ -93,7 +93,7 @@ test('actual Chat journal and host zstd persistence reopen a partially written a
  const JsonlModule=await import('/home/claw/dsh-stage-021/runtime/lib/node_modules/@deepseek-ai/dsh-session-persistence-jsonl/lib/index.js'),Jsonl=typeof JsonlModule.apply==='function'?JsonlModule:JsonlModule.default
  const {createChatPersistence}=await import('../../lib/domain/chat-persistence.js')
  const {createChatJournalStore}=await import('../../lib/domain/chat-journal-store.js')
- const root=await mkdtemp('/home/claw/dsh-tavern-dev/regen-abort-persistence-'),h=await fixture()
+ const root=await mkdtemp('/tmp/dsh-tavern-test-regen-abort-persistence-'),h=await fixture()
  const persistence=await (async()=>{const c=new Context();await c.plugin(Jsonl,{root:root+'/sessions',compression:'zstd'}).await();return c.sessionPersistence})()
  patch.patchPersistence(persistence)
  let handle=await persistence.create(h.session.header),durable=0,session=h.session
